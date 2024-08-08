@@ -131,7 +131,7 @@ impl SchedulerDataStoreDb {
             if include_projects {
                 // Need to remap job_graph_entries in to group_project like entries
                 let entries = JobGraphEntry::list_group(group_id, &self.get_connection())
-                                           .map_err(Error::SchedulerDbError)?;
+                    .map_err(Error::SchedulerDbError)?;
 
                 let mut projects = RepeatedField::new();
                 for entry in entries {
@@ -166,26 +166,26 @@ impl SchedulerDataStore for SchedulerDataStoreDb {
     fn take_next_job_for_target(&mut self,
                                 target: BuilderPackageTarget)
                                 -> Result<Option<JobGraphEntry>> {
-        JobGraphEntry::take_next_job_for_target(target,
-                                                &self.get_connection()).map_err(Error::SchedulerDbError)
+        JobGraphEntry::take_next_job_for_target(target, &self.get_connection())
+            .map_err(Error::SchedulerDbError)
     }
 
     fn mark_job_complete_and_update_dependencies(&mut self,
                                                  job: JobGraphId,
                                                  as_built: &BuilderPackageIdent)
                                                  -> Result<i32> {
-        JobGraphEntry::mark_job_complete(job.0, as_built, &self.get_connection()).map_err(|e| {
-            Error::SchedulerDbError(e)
-        })
+        JobGraphEntry::mark_job_complete(job.0, as_built, &self.get_connection())
+            .map_err(Error::SchedulerDbError)
     }
 
     fn mark_job_failed(&mut self, job: JobGraphId) -> Result<i32> {
-        JobGraphEntry::mark_job_failed(job.0, &self.get_connection()).map_err(                                                                         Error::SchedulerDbError)
+        JobGraphEntry::mark_job_failed(job.0, &self.get_connection())
+            .map_err(Error::SchedulerDbError)
     }
 
     fn count_all_states(&mut self, group: GroupId) -> Result<JobStateCounts> {
-        JobGraphEntry::count_all_states(group.0,  &self.get_connection()).map_err(
-            Error::SchedulerDbError)
+        JobGraphEntry::count_all_states(group.0, &self.get_connection())
+            .map_err(Error::SchedulerDbError)
     }
 
     fn set_job_group_state(&mut self,
@@ -198,26 +198,20 @@ impl SchedulerDataStore for SchedulerDataStoreDb {
     }
 
     fn count_ready_for_target(&mut self, target: BuilderPackageTarget) -> Result<usize> {
-        JobGraphEntry::count_ready_for_target(target,
-                 &self.get_connection())
-                 .map_err(|e| {
-                    Error::SchedulerDbError(e)
-                 })
-                 .map(|x| x as usize)
+        JobGraphEntry::count_ready_for_target(target, &self.get_connection())
+            .map_err(Error::SchedulerDbError)
+            .map(|x| x as usize)
     }
 
     fn group_dispatched_update_jobs(&mut self, group_id: GroupId) -> Result<usize> {
-        JobGraphEntry::group_dispatched_update_jobs(group_id.0,
-            &self.get_connection())
-            .map_err(|e| {
-               Error::SchedulerDbError(e)
-            })
+        JobGraphEntry::group_dispatched_update_jobs(group_id.0, &self.get_connection())
+            .map_err(Error::SchedulerDbError)
     }
 
     fn take_next_group_for_target(&mut self,
                                   target: BuilderPackageTarget)
                                   -> Result<Option<Group>> {
-        Group::take_next_group_for_target(target.0,
-            &self.get_connection()).map_err( Error::SchedulerDbError)
+        Group::take_next_group_for_target(target.0, &self.get_connection())
+            .map_err(Error::SchedulerDbError)
     }
 }

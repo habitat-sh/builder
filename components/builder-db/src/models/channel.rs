@@ -197,7 +197,10 @@ impl Channel {
             .filter(origin_packages_with_version_array::target.eq(&target))
             .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
             .distinct_on(origin_packages_with_version_array::name)
-            .select((origin_packages_with_version_array::name, origin_packages_with_version_array::ident))
+            .select((
+                origin_packages_with_version_array::name,
+                origin_packages_with_version_array::ident,
+            ))
             .order(origin_packages_with_version_array::name)
             .order(sql::<PackageWithVersionArray>(
                 "name,\
@@ -438,15 +441,18 @@ impl AuditPackage {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let mut query = audit_package::table.left_join(
-                origin_packages::table.on(origin_packages::ident.eq(audit_package::package_ident))
+        let mut query = audit_package::table
+            .left_join(
+                origin_packages::table.on(origin_packages::ident.eq(audit_package::package_ident)),
             )
             .select(audit_package::all_columns)
             .distinct_on((audit_package::package_ident, audit_package::created_at))
             .into_boxed();
 
         if !el.query.is_empty() {
-            query = query.filter(to_tsquery(format!("{}:*", el.query)).matches(origin_packages::ident_vector));
+            query = query.filter(
+                to_tsquery(format!("{}:*", el.query)).matches(origin_packages::ident_vector),
+            );
         }
 
         if let Some(session_id) = el.account_id {
@@ -464,9 +470,14 @@ impl AuditPackage {
         }
 
         // to_date is inclusive, add '1' to the to_date so we can easily compare using less than
-        query =
-            query.filter(audit_package::created_at.ge(el.from_date.into_sql::<Timestamptz>().nullable())
-                                                  .and(audit_package::created_at.lt((el.to_date.into_sql::<Timestamptz>() + 1.days()).nullable())));
+        query = query.filter(
+            audit_package::created_at
+                .ge(el.from_date.into_sql::<Timestamptz>().nullable())
+                .and(
+                    audit_package::created_at
+                        .lt((el.to_date.into_sql::<Timestamptz>() + 1.days()).nullable()),
+                ),
+        );
 
         if !el.channel.is_empty() {
             query = query.filter(audit_package::channel.eq(el.channel));

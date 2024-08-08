@@ -416,26 +416,23 @@ impl ScheduleMgr {
 
                 let package = match Package::get(
                     GetPackage {
-                        ident: BuilderPackageIdent(
-                            PackageIdent::from_str(project.get_ident())?,
-                        ),
+                        ident: BuilderPackageIdent(PackageIdent::from_str(project.get_ident())?),
                         visibility: vec![
                             PackageVisibility::Public,
                             PackageVisibility::Private,
                             PackageVisibility::Hidden,
                         ],
-                        target: BuilderPackageTarget(
-                            PackageTarget::from_str(group.get_target())?,
-                        ),
+                        target: BuilderPackageTarget(PackageTarget::from_str(group.get_target())?),
                     },
                     &conn,
                 ) {
                     Ok(pkg) => pkg,
                     Err(err) => {
-                        self.datastore
-                            .set_job_group_project_state(group.get_id(),
-                                                         project.get_name(),
-                                                         jobsrv::JobGroupProjectState::NotFound)?;
+                        self.datastore.set_job_group_project_state(
+                            group.get_id(),
+                            project.get_name(),
+                            jobsrv::JobGroupProjectState::NotFound,
+                        )?;
                         warn!(
                             "Failed to retrieve package (possibly deleted?): {} ({}). Err={:?}",
                             &project.get_ident(),
@@ -493,26 +490,23 @@ impl ScheduleMgr {
             // skipped list, we set the project status to Skipped and add it to the list
             let package = match Package::get(
                 GetPackage {
-                    ident: BuilderPackageIdent(
-                        PackageIdent::from_str(project.get_ident())?,
-                    ),
+                    ident: BuilderPackageIdent(PackageIdent::from_str(project.get_ident())?),
                     visibility: vec![
                         PackageVisibility::Public,
                         PackageVisibility::Private,
                         PackageVisibility::Hidden,
                     ],
-                    target: BuilderPackageTarget(
-                        PackageTarget::from_str(group.get_target())?,
-                    ),
+                    target: BuilderPackageTarget(PackageTarget::from_str(group.get_target())?),
                 },
                 &conn,
             ) {
                 Ok(package) => package,
                 Err(err) => {
-                    self.datastore
-                        .set_job_group_project_state(group.get_id(),
-                                                    project.get_name(),
-                                                    jobsrv::JobGroupProjectState::NotFound)?;
+                    self.datastore.set_job_group_project_state(
+                        group.get_id(),
+                        project.get_name(),
+                        jobsrv::JobGroupProjectState::NotFound,
+                    )?;
                     warn!(
                         "Unable to retrieve job graph package {} ({}), err: {:?}",
                         project.get_ident(),

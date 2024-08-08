@@ -658,9 +658,8 @@ impl WorkerMgr {
                                         secret_decrypted.set_id(secret.id as u64);
                                         secret_decrypted.set_origin(secret.origin);
                                         secret_decrypted.set_name(secret.name.to_string());
-                                        secret_decrypted.set_value(
-                                            String::from_utf8(decrypted_secret)?,
-                                        );
+                                        secret_decrypted
+                                            .set_value(String::from_utf8(decrypted_secret)?);
                                         secret_decrypted_wrapper
                                             .set_decrypted_secret(secret_decrypted);
                                         secrets.push(secret_decrypted_wrapper);

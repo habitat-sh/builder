@@ -206,7 +206,8 @@ impl DataStore {
     pub fn get_cancel_pending_jobs(&self) -> Result<Vec<jobsrv::Job>> {
         debug!("DataStore: get_cancel_pending_jobs");
         let conn = self.diesel_pool.get_conn()?;
-        let results = Job::get_jobs_by_state(jobsrv::JobState::CancelPending, &conn).map_err(Error::JobPending)?;
+        let results = Job::get_jobs_by_state(jobsrv::JobState::CancelPending, &conn)
+            .map_err(Error::JobPending)?;
         let jobs: Vec<jobsrv::Job> = results.into_iter().map(|j| j.into()).collect();
 
         Ok(jobs)
@@ -424,7 +425,8 @@ impl DataStore {
                                -> Result<()> {
         debug!("DataStore: set_job_group_state");
         let conn = self.diesel_pool.get_conn()?;
-        Group::set_group_state(group_id as i64, group_state, &conn).map_err(Error::JobGroupSetState)?;
+        Group::set_group_state(group_id as i64, group_state, &conn)
+            .map_err(Error::JobGroupSetState)?;
 
         Ok(())
     }
@@ -436,7 +438,8 @@ impl DataStore {
                                        -> Result<()> {
         debug!("DataStore: set_job_group_project_state");
         let conn = self.diesel_pool.get_conn()?;
-        GroupProject::set_group_project_state(group_id as i64, project_name, project_state, &conn).map_err(Error::JobGroupProjectSetState)?;
+        GroupProject::set_group_project_state(group_id as i64, project_name, project_state, &conn)
+            .map_err(Error::JobGroupProjectSetState)?;
 
         Ok(())
     }
@@ -494,8 +497,8 @@ impl DataStore {
             let job_group_id = job_group.id;
             let mut group: jobsrv::JobGroup = job_group.into();
 
-            let job_group_projects =
-                GroupProject::get_group_projects(job_group_id, &conn).map_err(Error::JobGroupPending)?;
+            let job_group_projects = GroupProject::get_group_projects(job_group_id, &conn)
+                .map_err(Error::JobGroupPending)?;
             let projects: Vec<jobsrv::JobGroupProject> =
                 job_group_projects.into_iter().map(|j| j.into()).collect();
 

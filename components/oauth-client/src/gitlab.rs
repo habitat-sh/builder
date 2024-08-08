@@ -43,7 +43,7 @@ impl GitLab {
                   client: &HttpClient,
                   token: &str)
                   -> Result<OAuth2User> {
-        let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),];
+        let header_values = vec![ACCEPT_APPLICATION_JSON.clone()];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         let resp = client.get(&config.userinfo_url)
@@ -87,7 +87,7 @@ impl OAuth2Provider for GitLab {
                           code,
                           config.redirect_url);
 
-        let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),];
+        let header_values = vec![ACCEPT_APPLICATION_JSON.clone()];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         let resp = client.post(&url)

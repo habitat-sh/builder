@@ -588,7 +588,7 @@ pub fn tsort_subgraph(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
 
     // We pre-fill this to allow us to efficiently test for membership below
     for node_ident in component {
-        unsatisfied.insert(*node_ident, usize::max_value());
+        unsatisfied.insert(*node_ident, usize::MAX);
     }
     // First, walk through all the nodes, and count how many things they depend on
     // If they have no runtime deps in the
@@ -612,7 +612,7 @@ pub fn tsort_subgraph(graph: &DiGraphMap<PackageIdentIntern, EdgeType>,
 
     // Add things with no unsatisfied deps to worklist
     for (node_ident, dep_count) in &unsatisfied {
-        assert!(*dep_count != usize::max_value());
+        assert!(*dep_count != usize::MAX);
         if *dep_count == 0 {
             worklist.push_back(*node_ident)
         }

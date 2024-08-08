@@ -191,11 +191,11 @@ impl ProjectCfg {
 
         // Create the match patterns for all the plan path candidates
         let candidates = self.plan_path_candidates();
-        let mut plan_patterns = candidates.iter().map(|p| {
-            Pattern::from_str(&p.join("*").to_string_lossy()).unwrap_or_else(|_| {
-                                                                 Self::default_path_pattern()
-                                                             })
-        });
+        let mut plan_patterns =
+            candidates.iter().map(|p| {
+                                 Pattern::from_str(&p.join("*").to_string_lossy())
+                .unwrap_or_else(|_| Self::default_path_pattern())
+                             });
 
         // Check to see if any of the passed in paths match either the plan
         // patterns or the path patterns

@@ -189,7 +189,7 @@ impl S3Handler {
         Counter::DownloadRequests.increment();
         let mut request = GetObjectRequest::default();
         let key = s3_key(ident, target)?;
-        request.bucket = self.bucket.to_owned();
+        self.bucket.clone_into(&mut request.bucket);
         request.key = key;
 
         let payload = self.client.get_object(request).await;
@@ -216,14 +216,18 @@ impl S3Handler {
         Counter::SizeRequests.increment();
         let mut request = HeadObjectRequest::default();
         let key = s3_key(ident, target)?;
-        request.bucket = self.bucket.to_owned();
+        self.bucket.clone_into(&mut request.bucket);
         request.key = key;
 
         let payload = self.client.head_object(request).await;
         match payload {
-            Ok(response) =>
-                response.content_length.ok_or_else(|| Error::HeadObject(RusotoError::ParseError(String::from("Content length parse error"))))
-            ,
+            Ok(response) => {
+                response.content_length.ok_or_else(|| {
+                                           Error::HeadObject(RusotoError::ParseError(String::from(
+                    "Content length parse error",
+                )))
+                                       })
+            }
             Err(e) => {
                 warn!("Failed to retrieve object metadata from S3, ident={}: {:?}",
                       ident, e);

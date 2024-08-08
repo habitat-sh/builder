@@ -64,7 +64,7 @@ impl GitHubClient {
     pub fn new(config: GitHubCfg) -> HubResult<Self> {
         let header_values = vec![USER_AGENT_BLDR.clone(),
                                  ACCEPT_GITHUB_JSON.clone(),
-                                 CONTENT_TYPE_APPLICATION_JSON.clone()];
+                                 CONTENT_TYPE_APPLICATION_JSON.clone(),];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         Ok(GitHubClient { inner:           HttpClient::new(&config.api_url, headers)?,

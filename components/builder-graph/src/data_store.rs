@@ -165,7 +165,7 @@ impl DataStoreTrait for SerializedDatabase {
             .iter()
             .find(|&x| &x.ident.0 == ident && x.target.0 == target)
             .ok_or(Error::DieselError(diesel::result::Error::NotFound))
-            .map(|x| x.clone())
+            .cloned()
     }
 
     fn get_origin_channel_latest(&self,

@@ -113,7 +113,7 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                 let (_, dep_node) = self.package_map[&dep_short_name];
                 dep_nodes.push(dep_node);
 
-                self.graph.extend_with_edges(&[(dep_node, pkg_node)]);
+                self.graph.extend_with_edges([(dep_node, pkg_node)]);
 
                 // Check for circular dependency
                 if is_cyclic_directed(&self.graph) {
@@ -132,7 +132,7 @@ impl PackageGraphTrait for AcyclicPackageGraph {
         }
 
         for saved_node in saved_nodes {
-            self.graph.extend_with_edges(&[(saved_node, pkg_node)]);
+            self.graph.extend_with_edges([(saved_node, pkg_node)]);
         }
 
         !circular_dep
@@ -190,7 +190,7 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                 let depname = format!("{}", dep);
 
                 let (_, dep_node) = self.generate_id(&depname);
-                self.graph.extend_with_edges(&[(dep_node, pkg_node)]);
+                self.graph.extend_with_edges([(dep_node, pkg_node)]);
 
                 // sanity check
                 if is_cyclic_directed(&self.graph) {
@@ -353,13 +353,17 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                                 )
                             });
                     if rebuild_graph.contains_node(neighbor_short_ident) {
-                        unresolved_rebuild_graph.add_edge(UnresolvedPackageIdent::InternalNode(package, 1),
-                                                          UnresolvedPackageIdent::InternalNode(neighbor_short_ident, 1),
-                                                          EdgeType::RuntimeDep);
+                        unresolved_rebuild_graph.add_edge(
+                            UnresolvedPackageIdent::InternalNode(package, 1),
+                            UnresolvedPackageIdent::InternalNode(neighbor_short_ident, 1),
+                            EdgeType::RuntimeDep,
+                        );
                     } else {
-                        unresolved_rebuild_graph.add_edge(UnresolvedPackageIdent::InternalNode(package, 1),
-                                                          UnresolvedPackageIdent::ExternalLatestVersion(neighbor_short_ident),
-                                                          EdgeType::RuntimeDep);
+                        unresolved_rebuild_graph.add_edge(
+                            UnresolvedPackageIdent::InternalNode(package, 1),
+                            UnresolvedPackageIdent::ExternalLatestVersion(neighbor_short_ident),
+                            EdgeType::RuntimeDep,
+                        );
                         all_external_dependencies.insert(neighbor_short_ident);
                     }
                 }
@@ -368,7 +372,8 @@ impl PackageGraphTrait for AcyclicPackageGraph {
                 // built, and so never uploaded. That should only happen when we're explicitly
                 // rebuilding the package, e.g. it's in the touched set.
                 if touched.contains(&package) {
-                    unresolved_rebuild_graph.add_node(UnresolvedPackageIdent::InternalNode(package,1));
+                    unresolved_rebuild_graph
+                        .add_node(UnresolvedPackageIdent::InternalNode(package, 1));
                 } else {
                     // Because of how we process things in the worklist algorithm above, we think
                     // this only can happen if the graph changed under us. That
@@ -449,8 +454,8 @@ impl AcyclicPackageGraph {
     fn search(&self, phrase: &str) -> Vec<String> {
         let v: Vec<String> = self.package_names
                                  .iter()
+                                 .filter(|&s| s.contains(phrase))
                                  .cloned()
-                                 .filter(|s| s.contains(phrase))
                                  .collect();
 
         v

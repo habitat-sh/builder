@@ -76,7 +76,12 @@ impl Project {
 
     pub fn delete(name: &str, target: &str, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::delete(origin_projects::table.filter(origin_projects::name.eq(name)).filter(origin_projects::target.eq(target))).execute(conn)
+        diesel::delete(
+            origin_projects::table
+                .filter(origin_projects::name.eq(name))
+                .filter(origin_projects::target.eq(target)),
+        )
+        .execute(conn)
     }
 
     pub fn create(project: &NewProject, conn: &PgConnection) -> QueryResult<Project> {

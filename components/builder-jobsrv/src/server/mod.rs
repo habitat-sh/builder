@@ -188,7 +188,7 @@ fn enable_features_from_config(cfg: &Config) {
                                                           ("LEGACYPROJECT", feat::LegacyProject),
                                                           ("USECYCLICGRAPH",
                                                            feat::UseCyclicGraph),
-                                                          ("NEWSCHEDULER", feat::NewScheduler)]);
+                                                          ("NEWSCHEDULER", feat::NewScheduler),]);
     let features_enabled = cfg.features_enabled
                               .split(',')
                               .map(|f| f.trim().to_uppercase());

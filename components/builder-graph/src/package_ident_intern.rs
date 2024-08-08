@@ -223,52 +223,7 @@ impl PartialOrd for PackageIdentIntern {
     /// * If the names are not equal, they cannot be compared.
     /// * If the versions are greater/lesser, return that as the ordering.
     /// * If the versions are equal, return the greater/lesser for the release.
-    fn partial_cmp(&self, other: &PackageIdentIntern) -> Option<Ordering> {
-        if self.name != other.name {
-            return None;
-        }
-        if self.version.is_none() && other.version.is_none() {
-            return None;
-        }
-        if self.version.is_none() && other.version.is_some() {
-            return Some(Ordering::Less);
-        }
-        if self.version.is_some() && other.version.is_none() {
-            return Some(Ordering::Greater);
-        }
-        if self.release.is_none() && other.release.is_none() {
-            return None;
-        }
-        if self.release.is_none() && other.release.is_some() {
-            return Some(Ordering::Less);
-        }
-        if self.release.is_some() && other.release.is_none() {
-            return Some(Ordering::Greater);
-        }
-        match version_sort(self.version.as_ref().unwrap(),
-                           other.version.as_ref().unwrap())
-        {
-            ord @ Ok(Ordering::Greater) | ord @ Ok(Ordering::Less) => ord.ok(),
-            Ok(Ordering::Equal) => Some(self.release.cmp(&other.release)),
-            Err(_) => {
-                // TODO: Can we do better than this? As long as we allow
-                // non-numeric versions to co-exist with numeric ones, we
-                // always have potential for incorrect ordering no matter
-                // what we choose - eg, "master" vs. "0.x.x" (real examples)
-                debug!("Comparing non-numeric versions: {} {}",
-                       self.version.as_ref().unwrap(),
-                       other.version.as_ref().unwrap());
-                match self.version
-                          .as_ref()
-                          .unwrap()
-                          .cmp(other.version.as_ref().unwrap())
-                {
-                    ord @ Ordering::Greater | ord @ Ordering::Less => Some(ord),
-                    Ordering::Equal => Some(self.release.cmp(&other.release)),
-                }
-            }
-        }
-    }
+    fn partial_cmp(&self, other: &PackageIdentIntern) -> Option<Ordering> { Some(self.cmp(other)) }
 }
 
 impl Ord for PackageIdentIntern {
@@ -279,15 +234,49 @@ impl Ord for PackageIdentIntern {
     /// * If the versions are greater/lesser, return that as the ordering.
     /// * If the versions are equal, return the greater/lesser for the release.
     fn cmp(&self, other: &PackageIdentIntern) -> Ordering {
+        // If names are not equal, compare names
         if self.name != other.name {
             return self.name.cmp(&other.name);
         }
+
+        // Compare versions
+        if self.version.is_none() && other.version.is_none() {
+            return Ordering::Equal;
+        }
+        if self.version.is_none() {
+            return Ordering::Less;
+        }
+        if other.version.is_none() {
+            return Ordering::Greater;
+        }
+
         match version_sort(self.version.as_ref().unwrap(),
                            other.version.as_ref().unwrap())
         {
-            Ok(Ordering::Equal) => self.release.cmp(&other.release),
+            Ok(Ordering::Equal) => {
+                if self.release.is_none() && other.release.is_none() {
+                    Ordering::Equal
+                } else if self.release.is_none() {
+                    Ordering::Less
+                } else if other.release.is_none() {
+                    Ordering::Greater
+                } else {
+                    self.release.cmp(&other.release)
+                }
+            }
             Ok(ordering) => ordering,
-            Err(_) => Ordering::Less,
+            Err(_) => {
+                // Handle non-numeric version comparison
+                let v_cmp = self.version
+                                .as_ref()
+                                .unwrap()
+                                .cmp(other.version.as_ref().unwrap());
+                if v_cmp == Ordering::Equal {
+                    self.release.cmp(&other.release)
+                } else {
+                    v_cmp
+                }
+            }
         }
     }
 }
