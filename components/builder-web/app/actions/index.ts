@@ -172,11 +172,9 @@ export {
 } from './packages';
 
 export {
-  addProject,
   CLEAR_PROJECTS,
   CLEAR_CURRENT_PROJECT,
   CLEAR_CURRENT_PROJECT_INTEGRATION,
-  deleteProject,
   deleteProjectIntegration,
   fetchProject,
   fetchProjects,
@@ -188,7 +186,6 @@ export {
   setCurrentProjects,
   setProjectIntegrationSettings,
   setProjectVisibility,
-  updateProject
 } from './projects';
 
 export {
