@@ -12,25 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::{body::BoxBody,
-                http::{self,
+use actix_web::{http::{self,
                        StatusCode},
                 web::{self,
                       Data,
-                      Json,
                       Path,
                       Query,
                       ServiceConfig},
                 HttpRequest,
                 HttpResponse};
-use bytes::Bytes;
-use std::{env,
-          str::FromStr};
 
 use crate::protocol::jobsrv;
-
-use crate::hab_core::package::{PackageTarget,
-                               Plan};
 
 use crate::db::models::{jobs::*,
                         origin::*,
