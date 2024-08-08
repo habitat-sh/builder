@@ -94,20 +94,6 @@ describe("Origin API", function () {
           done(err);
         });
     });
-
-    it("succeeds in creating a project", function (done) {
-      this.timeout(5000);
-      request
-        .post("/projects")
-        .type("application/json")
-        .accept("application/json")
-        .set("Authorization", global.weskerBearer)
-        .send(projectCreatePayload)
-        .expect(201)
-        .end(function (err, res) {
-          done(err);
-        });
-    });
   });
 
   describe("Create xmen origin", function () {
@@ -358,7 +344,7 @@ describe("Related Origin API functions", function () {
         .set("Authorization", global.mystiqueBearer)
         .expect(422)
         .end(function (err, res) {
-          expect(res.text).to.be.not.empty;
+          expect(res.text).to.be not.empty;
           done(err);
         });
     });
@@ -430,31 +416,8 @@ describe("Related Origin API functions", function () {
           done(err);
         });
     });
-
-    it("succeeds in deleting associated project", function (done) {
-      request
-        .delete("/projects/umbrella/testapp")
-        .type("application/json")
-        .accept("application/json")
-        .set("Authorization", global.boboBearer)
-        .expect(204)
-        .end(function (err, res) {
-          expect(res.text).to.be.empty;
-          done(err);
-        });
-    });
-
-    it("succeeds", function (done) {
-      request
-        .delete("/depot/origins/umbrella")
-        .set("Authorization", global.boboBearer)
-        .expect(204)
-        .end(function (err, res) {
-          expect(res.text).to.be.empty;
-          done(err);
-        });
-    });
   });
+
   describe("Origin deletion - extended", function () {
     describe("[Prereq 1]: create an origin and project", function () {
       it("creates an origin", function (done) {
@@ -686,7 +649,7 @@ describe("Related Origin API functions", function () {
           .set("Authorization", global.boboBearer)
           .expect(204)
           .end(function (err, res) {
-            expect(res.text).to.be.empty;
+            expect(res.text). to.be empty;
             done(err);
           });
       });

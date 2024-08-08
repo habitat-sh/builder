@@ -28,7 +28,7 @@ import { BuilderApiClient } from '../../client/builder-api';
 import { AppStore } from '../../app.store';
 import {
    clearGitHubInstallations, clearGitHubRepositories, setProjectIntegrationSettings,
-  fetchGitHubInstallations, fetchGitHubRepositories, fetchProject, setCurrentPackageVisibility,
+  fetchGitHubInstallations, fetchGitHubRepositories, setCurrentPackageVisibility,
   deleteProjectIntegration, createEmptyPackage
 } from '../../actions/index';
 import config from '../../config';
