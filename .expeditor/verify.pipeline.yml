@@ -194,6 +194,7 @@ steps:
 
   - label: "[build] :linux: builder-api-proxy"
     command:
+      - hab origin key generate habitat
       - hab pkg build components/builder-api-proxy/habitat/
     retry:
       automatic:
