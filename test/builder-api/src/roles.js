@@ -315,18 +315,6 @@ describe("Origin Roles API", function () {
           done(err);
         });
     });
-    // it("user with readonly_member role not authorized to delete associated project", function (done) {
-    //   request
-    //     .delete("/projects/rcpd/testapp")
-    //     .type("application/json")
-    //     .accept("application/json")
-    //     .set("Authorization", global.lkennedyBearer)
-    //     .expect(403)
-    //     .end(function (err, res) {
-    //       expect(res.text).to.be.empty;
-    //       done(err);
-    //     });
-    // });
     it("user with readonly_member role not authorized to trigger builds", function (done) {
       request
         .post("/depot/pkgs/schedule/rcpd/testapp")
@@ -812,22 +800,7 @@ describe("Origin Roles API", function () {
           done(err);
         });
     });
-    // it("user with member role not authorized to delete associated project", function (done) {
-    //   request
-    //     .delete("/projects/rcpd/testapp")
-    //     .type("application/json")
-    //     .accept("application/json")
-    //     .set("Authorization", global.lkennedyBearer)
-    //     .expect(403)
-    //     .end(function (err, res) {
-    //       expect(res.text).to.be.empty;
-    //       done(err);
-    //     });
-    // });
-    // This is very odd. We cannot under any circumstances get this to
-    // return how we expect. Chances are its related to something in the
-    // test harness that we've forgotten. However, the purpose of this test
-    // is to make sure that auth is handled correctly. So this will suffice.
+
     it("user with member role authorized to trigger builds", function (done) {
       request
         .post("/depot/pkgs/schedule/rcpd/testapp")
