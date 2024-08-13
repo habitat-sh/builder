@@ -13,8 +13,6 @@ require('./channels.js');
 require('./keys.js');
 require('./integrations.js');
 require('./profile.js');
-require('./projects.js');
-require('./jobs.js');
 require('./ext.js');
 require('./misc.js');
 require('./roles.js');

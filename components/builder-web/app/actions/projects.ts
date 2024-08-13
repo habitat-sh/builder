@@ -32,25 +32,6 @@ function clearProjects() {
   };
 }
 
-export function addProject(project: any, token: string, onComplete: Function = () => { }) {
-  return dispatch => {
-    new BuilderApiClient(token).createProject(project).then(response => {
-      dispatch(addNotification({
-        title: 'Plan connection saved',
-        type: SUCCESS,
-      }));
-      onComplete({ success: true, response });
-    }).catch(error => {
-      dispatch(addNotification({
-        title: 'Failed to save plan connection',
-        body: (error.message === 'Conflict' ? `The plan you selected is already connected in this origin.` : error.message),
-        type: DANGER,
-      }));
-      onComplete({ success: false, error });
-    });
-  };
-}
-
 export function setProjectIntegrationSettings(origin: string, name: string, integration: string, settings: any, token: string) {
   return dispatch => {
     new BuilderApiClient(token).setProjectIntegrationSettings(origin, name, integration, settings)
@@ -144,25 +125,6 @@ export function fetchCurrentProjects(origin: string, name: string, token: string
   };
 }
 
-export function deleteProject(origin: string, name: string, target: string, token: string) {
-  return dispatch => {
-    new BuilderApiClient(token).deleteProject(origin, name, target).then(response => {
-      dispatch(clearCurrentProject());
-      dispatch(fetchProject(origin, name, target, token, false));
-      dispatch(addNotification({
-        title: 'Plan connection deleted',
-        type: SUCCESS
-      }));
-    }).catch(error => {
-      dispatch(addNotification({
-        title: 'Failed to delete plan connection',
-        body: error.message,
-        type: DANGER,
-      }));
-    });
-  };
-}
-
 export function deleteProjectIntegration(origin: string, name: string, integration: string, token: string) {
   return dispatch => {
     new BuilderApiClient(token).deleteProjectIntegration(origin, name, integration).then(response => {
@@ -176,26 +138,6 @@ export function deleteProjectIntegration(origin: string, name: string, integrati
         body: error.message,
         type: DANGER
       }));
-    });
-  };
-}
-
-
-export function updateProject(projectId: string, project: Object, token: string, onComplete: Function = () => { }) {
-  return dispatch => {
-    new BuilderApiClient(token).updateProject(projectId, project).then(response => {
-      dispatch(addNotification({
-        title: 'Plan connection saved',
-        type: SUCCESS
-      }));
-      onComplete({ success: true, response });
-    }).catch(error => {
-      dispatch(addNotification({
-        title: 'Failed to save plan connection',
-        body: error.message,
-        type: DANGER,
-      }));
-      onComplete({ success: false, error });
     });
   };
 }
