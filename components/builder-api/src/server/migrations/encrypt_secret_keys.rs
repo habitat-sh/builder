@@ -15,9 +15,13 @@ pub fn run(conn: &PgConnection, key_cache: &KeyCache) -> Result<()> {
     let builder_encryption_key = key_cache.latest_builder_key()?;
 
     let updated_rows = conn.transaction::<_, Error, _>(|| {
-                           Ok(db_keys::OriginPrivateEncryptionKey::encrypt_unencrypted_keys(conn,
-                                                                      &builder_encryption_key)?)
-                       })?;
+                               Ok(
+            db_keys::OriginPrivateEncryptionKey::encrypt_unencrypted_keys(
+                conn,
+                &builder_encryption_key,
+            )?,
+        )
+                           })?;
 
     warn!("secret key encryption completed in {} sec; updated {} rows",
           start_time.elapsed().as_secs_f64(),

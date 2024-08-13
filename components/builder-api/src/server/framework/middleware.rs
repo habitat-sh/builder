@@ -94,9 +94,7 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
             // Pull the session out of the current token provided so we can validate
             // it against the db's tokens
             let mut session = AccessToken::validate_access_token(token, &state.config.api.key_path)
-                .map_err(|_| {
-                    error::Error::Authorization
-                })?;
+                .map_err(|_| error::Error::Authorization)?;
 
             if session.get_id() == BUILDER_ACCOUNT_ID {
                 trace!("Builder token identified");

@@ -131,12 +131,11 @@ impl FromStr for OriginMemberRole {
             "owner" => Ok(OriginMemberRole::Owner),
             "readonly_member" => Ok(OriginMemberRole::ReadonlyMember),
             _ => {
-                Err(BuilderError::OriginMemberRoleError(format!("Invalid OriginMemberRole \
-                                                                 \"{}\", must be one of: \
-                                                                 [\"administrator\", \
-                                                                 \"maintainer\",\"member\",\"\
-                                                                 owner\",\"readonly_member\"].",
-                                                                value)))
+                Err(BuilderError::OriginMemberRoleError(format!(
+                    "Invalid OriginMemberRole \"{}\", must be one of: [\"administrator\", \
+                     \"maintainer\",\"member\",\"owner\",\"readonly_member\"].",
+                    value
+                )))
             }
         }
     }
@@ -262,24 +261,35 @@ impl Origin {
                 .execute(conn)?;
             diesel::delete(origin_members::table.filter(origin_members::origin.eq(origin)))
                 .execute(conn)?;
-            diesel::delete(origin_package_settings::table.filter(origin_package_settings::origin.eq(origin)))
-                .execute(conn)?;
+            diesel::delete(
+                origin_package_settings::table.filter(origin_package_settings::origin.eq(origin)),
+            )
+            .execute(conn)?;
             diesel::delete(
                 origin_integrations::table.filter(origin_integrations::origin.eq(origin)),
             )
             .execute(conn)?;
             diesel::delete(origin_invitations::table.filter(origin_invitations::origin.eq(origin)))
                 .execute(conn)?;
-            diesel::delete(origin_project_integrations::table.filter(origin_project_integrations::origin.eq(origin)))
-                .execute(conn)?;
+            diesel::delete(
+                origin_project_integrations::table
+                    .filter(origin_project_integrations::origin.eq(origin)),
+            )
+            .execute(conn)?;
             diesel::delete(origin_projects::table.filter(origin_projects::origin.eq(origin)))
                 .execute(conn)?;
             diesel::delete(origin_secrets::table.filter(origin_secrets::origin.eq(origin)))
                 .execute(conn)?;
-            diesel::delete(origin_private_encryption_keys::table.filter(origin_private_encryption_keys::origin.eq(origin)))
-                .execute(conn)?;
-            diesel::delete(origin_public_encryption_keys::table.filter(origin_public_encryption_keys::origin.eq(origin)))
-                .execute(conn)?;
+            diesel::delete(
+                origin_private_encryption_keys::table
+                    .filter(origin_private_encryption_keys::origin.eq(origin)),
+            )
+            .execute(conn)?;
+            diesel::delete(
+                origin_public_encryption_keys::table
+                    .filter(origin_public_encryption_keys::origin.eq(origin)),
+            )
+            .execute(conn)?;
             diesel::delete(origin_packages::table.filter(origin_packages::origin.eq(origin)))
                 .execute(conn)?;
             diesel::delete(origins::table.filter(origins::name.eq(origin))).execute(conn)?;
@@ -294,14 +304,14 @@ impl Origin {
                 let maintainer = OriginMemberRole::Maintainer;
 
                 diesel::update(origin_members::table.filter(origin_members::origin.eq(&origin)))
-                                 .filter(origin_members::member_role.eq(owner))
-                                 .set(origin_members::member_role.eq(maintainer))
-                                 .execute(conn)?;
+                .filter(origin_members::member_role.eq(owner))
+                .set(origin_members::member_role.eq(maintainer))
+                .execute(conn)?;
 
                 diesel::update(origin_members::table.filter(origin_members::origin.eq(&origin)))
-                                 .filter(origin_members::account_id.eq(account_id))
-                                 .set(origin_members::member_role.eq(owner))
-                                 .execute(conn)?;
+                .filter(origin_members::account_id.eq(account_id))
+                .set(origin_members::member_role.eq(owner))
+                .execute(conn)?;
 
                 diesel::update(origins::table.find(origin)).set(origins::owner_id.eq(account_id))
                                                            .execute(conn)
@@ -310,10 +320,12 @@ impl Origin {
 
     pub fn depart(origin: &str, account_id: i64, conn: &PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        diesel::delete(origin_members::table
+        diesel::delete(
+            origin_members::table
                 .filter(origin_members::account_id.eq(account_id))
-                .filter(origin_members::origin.eq(origin)))
-                .execute(conn)
+                .filter(origin_members::origin.eq(origin)),
+        )
+        .execute(conn)
     }
 
     pub fn check_membership(origin: &str,
@@ -396,9 +408,9 @@ impl OriginMember {
                               -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origin_members::table.filter(origin_members::origin.eq(&origin)))
-                             .filter(origin_members::account_id.eq(account_id))
-                             .set(origin_members::member_role.eq(member_role))
-                             .execute(conn)
+            .filter(origin_members::account_id.eq(account_id))
+            .set(origin_members::member_role.eq(member_role))
+            .execute(conn)
     }
 }
 

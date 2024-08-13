@@ -1394,7 +1394,7 @@ async fn fetch_origin_integrations(req: HttpRequest,
             let integrations_response: HashMap<String, Vec<String>> =
                 oir.iter().fold(HashMap::new(), |mut acc, i| {
                               acc.entry(i.integration.to_owned())
-                                 .or_insert_with(Vec::new)
+                                 .or_default()
                                  .push(i.name.to_owned());
                               acc
                           });
@@ -1526,7 +1526,9 @@ async fn get_origin_integration(req: HttpRequest,
 
     match OriginIntegration::get(&origin, &integration, &name, &conn).map_err(Error::DieselError) {
         Ok(integration) => {
-            match crypto::decrypt(&state.config.api.key_path, &integration.body).map_err(Error::BuilderCore) {
+            match crypto::decrypt(&state.config.api.key_path, &integration.body)
+                .map_err(Error::BuilderCore)
+            {
                 Ok(decrypted) => {
                     let val = serde_json::from_slice(&decrypted).unwrap();
                     let mut map: serde_json::Map<String, serde_json::Value> =
@@ -1541,8 +1543,9 @@ async fn get_origin_integration(req: HttpRequest,
                         "body": serde_json::to_value(map).unwrap()
                     });
 
-                    HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-                                      .json(sanitized)
+                    HttpResponse::Ok()
+                        .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
+                        .json(sanitized)
                 }
                 Err(err) => {
                     debug!("{}", err);

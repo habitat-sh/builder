@@ -437,7 +437,7 @@ async fn promote_package(req: HttpRequest,
             origin: origin.clone(),
             channel: channel.clone(),
         },
-        &conn
+        &conn,
     )
     .map_err(Error::DieselError)
     {
@@ -445,14 +445,11 @@ async fn promote_package(req: HttpRequest,
             // Note: promoted_count is 0 when attempting to promote a package to a channel where it already exists
             if promoted_count != 0 {
                 if let Err(e) = PackageChannelAudit::audit(&auditevent, &conn) {
-                     debug!("Failed to save rank change to audit log: {}", e);
+                    debug!("Failed to save rank change to audit log: {}", e);
                 };
             }
 
-            state
-                .memcache
-                .borrow_mut()
-                .clear_cache_for_package(&ident);
+            state.memcache.borrow_mut().clear_cache_for_package(&ident);
             HttpResponse::new(StatusCode::OK)
         }
         Err(err) => {

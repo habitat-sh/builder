@@ -64,6 +64,7 @@ pub enum Error {
     TLSError(openssl::error::ErrorStack),
     Unprocessable,
     Utf8(string::FromUtf8Error),
+    BlockingError(actix_web::error::BlockingError),
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -101,6 +102,7 @@ impl fmt::Display for Error {
             Error::TLSError(ref e) => format!("{}", e),
             Error::Unprocessable => "Unprocessable entity".to_string(),
             Error::Utf8(ref e) => format!("{}", e),
+            Error::BlockingError(ref e) => format!("{}", e),
         };
         write!(f, "{}", msg)
     }
@@ -235,5 +237,5 @@ impl From<string::FromUtf8Error> for Error {
 }
 
 impl From<actix_web::error::BlockingError> for Error {
-    fn from(err: actix_web::error::BlockingError) -> Error { err.into() }
+    fn from(err: actix_web::error::BlockingError) -> Error { Error::BlockingError(err) }
 }

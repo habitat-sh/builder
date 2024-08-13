@@ -1077,7 +1077,7 @@ fn split_command(values: Vec<&str>) -> Vec<Vec<String>> {
     let mut command = Vec::<String>::new();
     for word in values {
         if word.contains(',') {
-            let split: Vec<String> = word.to_string().split(',').map(|s| s.to_string()).collect();
+            let split: Vec<String> = word.split(',').map(|s| s.to_string()).collect();
             if !split[0].is_empty() {
                 command.push(split[0].to_string().clone());
             }
