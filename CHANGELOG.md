@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- updated rust version to 1.79.0 [#1828](https://github.com/habitat-sh/builder/pull/1828) ([sougata-progress](https://github.com/sougata-progress))
 - Removed connected_plans from backend [#1833](https://github.com/habitat-sh/builder/pull/1833) ([sougata-progress](https://github.com/sougata-progress))
 - css changes done [#1835](https://github.com/habitat-sh/builder/pull/1835) ([AadeshNichite](https://github.com/AadeshNichite))
 - fetch Current Lts excpetion handle [#1834](https://github.com/habitat-sh/builder/pull/1834) ([AadeshNichite](https://github.com/AadeshNichite))
