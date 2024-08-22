@@ -133,4 +133,63 @@ describe('Profile API', function () {
         done(err);
       });
   });
+
+  describe('Profile API - Cross-User Token Deletion', function () {
+    let userATokenId = null;
+    let userBTokenId = null;
+  
+    before(function (done) {
+      request.post('/profile/access-tokens')
+        .set('Authorization', global.boboBearer)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          if (err) return done(err);
+          expect(res.body.token).to.not.be.empty;
+          userATokenId = res.body.id;
+          done();
+        });
+    });
+  
+    before(function (done) {
+      request.post('/profile/access-tokens')
+        .set('Authorization', global.mystiqueBearer)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          if (err) return done(err);
+          expect(res.body.token).to.not.be.empty;
+          userBTokenId = res.body.id;
+          done();
+        });
+    });
+  
+    it('should prevent USER B from deleting USER A\'s token', function (done) {
+      request.delete('/profile/access-tokens/' + userATokenId)
+        .set('Authorization', global.mystiqueBearer)
+        .type('application/json')
+        .accept('application/json')
+        .expect(401)
+        .end(function (err, res) {
+          if (err) return done(err);
+          expect(res.text).to.equal('Unauthorized access.');
+          done();
+        });
+    });
+  
+    after(function (done) {
+      request.delete('/profile/access-tokens/' + userATokenId)
+        .set('Authorization', global.boboBearer)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          if (err) return done(err);
+          expect(res.body).to.be.empty;
+          done();
+        });
+    });
+  });
 });

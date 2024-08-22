@@ -183,6 +183,14 @@ async fn revoke_access_token(req: HttpRequest,
         }
     };
 
+    let valid_token = access_tokens.iter()
+                                   .find(|token| token.id == token_id as i64);
+
+    if valid_token.is_none() {
+        let body = Bytes::from_static(b"Unauthorized access.");
+        return HttpResponse::with_body(StatusCode::UNAUTHORIZED, BoxBody::new(body));
+    }
+
     match AccountToken::delete(token_id, &conn).map_err(Error::DieselError) {
         Ok(_) => {
             let mut memcache = state.memcache.borrow_mut();
