@@ -191,3 +191,23 @@ steps:
           privileged: true
           environment:
             - HAB_ORIGIN=ci
+
+  - label: "[build] :linux: builder-api-proxy"
+    command:
+      - hab origin key generate habitat
+      - hab pkg build components/builder-api-proxy/habitat/
+    retry:
+      automatic:
+        limit: 1
+    expeditor:
+      executor:
+        docker:
+          privileged: true
+          environment:
+            - HAB_ORIGIN=habitat
+            # The following variables are only set inside `studio` and how we enter
+            # `studio` should not matter.
+            # test test
+            - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
+            - HAB_STUDIO_SECRET_HAB_BLDR_CHANNEL=LTS-2024
+            - HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL=LTS-2024
