@@ -7,8 +7,7 @@ use crate::{bldr_core,
                      framework::headers,
                      helpers::req_state,
                      AppState}};
-use actix_web::{body::{to_bytes,
-                       BoxBody},
+use actix_web::{body::BoxBody,
                 http::{self,
                        StatusCode},
                 web::{self,
@@ -21,7 +20,6 @@ use actix_web::{body::{to_bytes,
                 HttpResponse};
 use bldr_core::access_token::AccessToken as CoreAccessToken;
 use bytes::Bytes;
-use serde_json::Value;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserUpdateReq {
@@ -172,61 +170,6 @@ async fn revoke_access_token(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let get_tokens_req = req.clone();
-
-    let tokens_response = get_access_tokens(get_tokens_req).await;
-    let response_body = tokens_response.into_body();
-
-    let response_bytes = match to_bytes(response_body).await {
-        Ok(bytes) => bytes,
-        Err(_) => {
-            let body = Bytes::from_static(b"Error reading access tokens response.");
-            return HttpResponse::with_body(StatusCode::INTERNAL_SERVER_ERROR, BoxBody::new(body));
-        }
-    };
-
-    let access_tokens_json: Value = match serde_json::from_slice(&response_bytes) {
-        Ok(json) => json,
-        Err(_) => {
-            let body = Bytes::from_static(b"Error parsing access tokens.");
-            return HttpResponse::with_body(StatusCode::NOT_ACCEPTABLE, BoxBody::new(body));
-        }
-    };
-
-    let access_tokens: Vec<Value> =
-        match access_tokens_json.get("tokens").and_then(|t| t.as_array()) {
-            Some(tokens) => tokens.clone(),
-            None => {
-                let body = Bytes::from_static(b"Tokens not present.");
-                return HttpResponse::with_body(StatusCode::NO_CONTENT, BoxBody::new(body));
-            }
-        };
-
-    let valid_token_id = match access_tokens.first() {
-        Some(val) => {
-            match val.get("id")
-                     .and_then(|id| id.as_str())
-                     .and_then(|id_str| id_str.parse::<u64>().ok())
-            {
-                Some(id) => id,
-                None => {
-                    let body = Bytes::from_static(b"Error parsing access token.");
-                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                                   BoxBody::new(body));
-                }
-            }
-        }
-        None => {
-            let body = Bytes::from_static(b"Tokens not present.");
-            return HttpResponse::with_body(StatusCode::NO_CONTENT, BoxBody::new(body));
-        }
-    };
-
-    if valid_token_id != token_id {
-        let body = Bytes::from_static(b"Unauthorized access.");
-        return HttpResponse::with_body(StatusCode::UNAUTHORIZED, BoxBody::new(body));
-    }
-
     let conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
@@ -239,6 +182,14 @@ async fn revoke_access_token(req: HttpRequest,
             return err.into();
         }
     };
+
+    let valid_token = access_tokens.iter()
+                                   .find(|token| token.id == token_id as i64);
+
+    if valid_token.is_none() {
+        let body = Bytes::from_static(b"Unauthorized access.");
+        return HttpResponse::with_body(StatusCode::UNAUTHORIZED, BoxBody::new(body));
+    }
 
     match AccountToken::delete(token_id, &conn).map_err(Error::DieselError) {
         Ok(_) => {
