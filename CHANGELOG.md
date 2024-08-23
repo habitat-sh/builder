@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Fixed unauthorized access token deletion bug [#1836](https://github.com/habitat-sh/builder/pull/1836) ([sougata-progress](https://github.com/sougata-progress))
 - `builder-api-proxy` dependencies updated for LTS-2024 channel [#1827](https://github.com/habitat-sh/builder/pull/1827) ([agadgil-progress](https://github.com/agadgil-progress))
 - updated rust version to 1.79.0 [#1828](https://github.com/habitat-sh/builder/pull/1828) ([sougata-progress](https://github.com/sougata-progress))
 - Removed connected_plans from backend [#1833](https://github.com/habitat-sh/builder/pull/1833) ([sougata-progress](https://github.com/sougata-progress))
