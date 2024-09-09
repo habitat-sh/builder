@@ -230,19 +230,6 @@ describe('Working with packages', function () {
         });
     });
 
-    it('upload does not allow native packages until feature is set', function (done) {
-      request.post(`/depot/pkgs/neurosis/native-testapp/0.1.0/${release13}`)
-        .set('Authorization', global.boboBearer)
-        .set('Content-Length', file13.length)
-        .query({ checksum: '31d158dad181b3370f00efe39ed9fca5dcbef53d5666657f87c814812cd59f09' })
-        .send(file13)
-        .expect(422)
-        .end(function (err, res) {
-          expect(res.text).to.equal(`Uploading \'native\' package is not supported`);
-          done(err);
-        });
-    });
-
     // Test weird versions
 
     it('uploads a unusual versioned package five', function (done) {

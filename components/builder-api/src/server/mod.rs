@@ -68,8 +68,7 @@ features! {
         const Jobsrv = 0b0000_0010,
         const LegacyProject = 0b0000_0011,
         const Artifactory = 0b0000_0100,
-        const BuildDeps = 0b0000_1000,
-        const NativePackages = 0b0001_0000
+        const BuildDeps = 0b0000_1000
     }
 }
 
@@ -106,9 +105,8 @@ fn enable_features(config: &Config) {
                                                           ("JOBSRV", feat::Jobsrv),
                                                           ("LEGACYPROJECT", feat::LegacyProject),
                                                           ("ARTIFACTORY", feat::Artifactory),
-                                                          ("BUILDDEPS", feat::BuildDeps),
-                                                          ("NATIVEPACKAGES",
-                                                           feat::NativePackages),]);
+                                                          ("BUILDDEPS", feat::BuildDeps),]);
+
     for key in &config.api.features_enabled {
         if features.contains_key(key.as_str()) {
             info!("Enabling feature: {}", key);
