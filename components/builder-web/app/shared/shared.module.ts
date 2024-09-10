@@ -45,6 +45,7 @@ import { VisibilitySelectorComponent } from './visibility-selector/visibility-se
 import { KeysPipe } from './pipes/keys.pipe';
 import { SimpleConfirmDialog } from './dialog/simple-confirm/simple-confirm.dialog';
 import { PromoteConfirmDialog } from './dialog/promote-confirm/promote-confirm.dialog';
+import { EulaConfirmDialog } from './dialog/eula-confirm/eula-confirm.dialog';
 import { BuilderEnabledGuard } from './guards/builder-enabled.guard';
 import { VisibilityEnabledGuard } from './guards/visibility-enabled.guard';
 import { OriginMemberGuard } from './guards/origin-member.guard';
@@ -91,6 +92,7 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     VisibilitySelectorComponent,
     SimpleConfirmDialog,
     PromoteConfirmDialog,
+    EulaConfirmDialog,
     JobNoticeComponent,
     KeysPipe
   ],
@@ -99,7 +101,8 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     DockerExportSettingsDialog,
     JobCancelDialog,
     SimpleConfirmDialog,
-    PromoteConfirmDialog
+    PromoteConfirmDialog,
+    EulaConfirmDialog
   ],
   exports: [
     MatMenuModule,

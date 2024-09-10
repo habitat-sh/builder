@@ -1,11 +1,11 @@
-<div class="sign-in-page-component">
+<div class="sign-in-page-component" id="sign-in-page-component">
   <a class="logo" href="{{ wwwUrl }}">
     <img src="assets/images/builder-habitat-logo.svg" alt="Habitat">
   </a>
   <div class="body">
     <div class="content">
       <section class="upper">
-        <a mat-raised-button color="primary" class="button" href="{{ loginUrl }}">
+        <a mat-raised-button color="primary" class="button" (click)="showEulaPopup(loginUrl,'login')">
           <hab-icon [symbol]="providerType"></hab-icon>
           <span>Sign In with {{ providerName }}</span>
         </a>
@@ -13,7 +13,7 @@
       <section class="lower">
         <p *ngIf="signupUrl">
           Don't have a {{ providerName }} account?
-          <a href="{{ signupUrl }}" target="_blank">Sign up here</a>.
+          <a (click)="showEulaPopup(signupUrl,'signUp')" target="_blank">Sign up here</a>.
         </p>
         <p>
           New to Habitat? Signing in will also create a new account.
