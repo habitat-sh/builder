@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- CHEF-13952, CHEF-14969: Added EULA link and updated copyright. [#1841](https://github.com/habitat-sh/builder/pull/1841) ([agmathur](https://github.com/agmathur))
 - Fixed OAuth error in github login for builder [#1839](https://github.com/habitat-sh/builder/pull/1839) ([sougata-progress](https://github.com/sougata-progress))
 - Fixed unauthorized access token deletion bug [#1836](https://github.com/habitat-sh/builder/pull/1836) ([sougata-progress](https://github.com/sougata-progress))
 - `builder-api-proxy` dependencies updated for LTS-2024 channel [#1827](https://github.com/habitat-sh/builder/pull/1827) ([agadgil-progress](https://github.com/agadgil-progress))
