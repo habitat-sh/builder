@@ -1,7 +1,11 @@
 <div class="dialog">
   <section class="eula-heading">
     <h1>{{ heading }}</h1>
-    <a class="close-button" (click)="cancel()"><h1>X</h1></a>
+    <a class="close-button" (click)="cancel()">
+      <h1>
+        <hab-icon symbol="close"></hab-icon>
+      </h1>
+    </a>
   </section>
   <section class="body">
     <span class="inner-body">
