@@ -230,6 +230,19 @@ describe('Working with packages', function () {
         });
     });
 
+    it('allows native packages to be uploaded', function (done) {
+        request.post(`/depot/pkgs/neurosis/native-testapp/0.1.0/${release13}`)
+          .set('Authorization', global.boboBearer)
+          .set('Content-Length', file13.length)
+          .query({ checksum: '31d158dad181b3370f00efe39ed9fca5dcbef53d5666657f87c814812cd59f09' })
+          .send(file13)
+          .expect(201)
+          .end(function (err, res) {
+            if (err) return done(err);
+            expect(res.text).to.include(`/pkgs/neurosis/native-testapp/0.1.0/${release13}/download`);
+            done();
+          });
+      });
     // Test weird versions
 
     it('uploads a unusual versioned package five', function (done) {
@@ -379,27 +392,31 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(8);
-          expect(res.body.total_count).to.equal(9);
-          expect(res.body.data.length).to.equal(9);
+          expect(res.body.range_end).to.equal(9);
+          expect(res.body.total_count).to.equal(10);
+          expect(res.body.data.length).to.equal(10);
           expect(res.body.data[0].origin).to.equal('neurosis');
-          expect(res.body.data[0].name).to.equal('testapp');
-          expect(res.body.data[0].version).to.equal('0.1.13');
-          expect(res.body.data[0].release).to.equal(release10);
-          expect(res.body.data[1].version).to.equal('0.1.3');
-          expect(res.body.data[1].release).to.equal(release1);
-          expect(res.body.data[2].origin).to.equal('neurosis');
-          expect(res.body.data[2].name).to.equal('testapp');
+          expect(res.body.data[0].name).to.equal('native-testapp');
+          expect(res.body.data[0].version).to.equal('0.1.0');
+          expect(res.body.data[0].release).to.equal(release13);
+          expect(res.body.data[1].origin).to.equal('neurosis');
+          expect(res.body.data[1].name).to.equal('testapp');
+          expect(res.body.data[1].version).to.equal('0.1.13');
+          expect(res.body.data[1].release).to.equal(release10);
           expect(res.body.data[2].version).to.equal('0.1.3');
-          expect(res.body.data[2].release).to.equal(release2);
+          expect(res.body.data[2].release).to.equal(release1);
           expect(res.body.data[3].origin).to.equal('neurosis');
           expect(res.body.data[3].name).to.equal('testapp');
           expect(res.body.data[3].version).to.equal('0.1.3');
-          expect(res.body.data[3].release).to.equal(release8);
-          expect(res.body.data[8].origin).to.equal('xmen');
-          expect(res.body.data[8].name).to.equal('testapp');
-          expect(res.body.data[8].version).to.equal('0.1.4');
-          expect(res.body.data[8].release).to.equal(release4);
+          expect(res.body.data[3].release).to.equal(release2);
+          expect(res.body.data[4].origin).to.equal('neurosis');
+          expect(res.body.data[4].name).to.equal('testapp');
+          expect(res.body.data[4].version).to.equal('0.1.3');
+          expect(res.body.data[4].release).to.equal(release8);
+          expect(res.body.data[9].origin).to.equal('xmen');
+          expect(res.body.data[9].name).to.equal('testapp');
+          expect(res.body.data[9].version).to.equal('0.1.4');
+          expect(res.body.data[9].release).to.equal(release4);
           done(err);
         });
     });
@@ -411,27 +428,31 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(7);
-          expect(res.body.total_count).to.equal(8);
-          expect(res.body.data.length).to.equal(8);
+          expect(res.body.range_end).to.equal(8);
+          expect(res.body.total_count).to.equal(9);
+          expect(res.body.data.length).to.equal(9);
           expect(res.body.data[0].origin).to.equal('neurosis');
-          expect(res.body.data[0].name).to.equal('testapp');
-          expect(res.body.data[0].version).to.equal('0.1.13');
-          expect(res.body.data[0].release).to.equal(release10);
-          expect(res.body.data[1].version).to.equal('0.1.3');
-          expect(res.body.data[1].release).to.equal(release1);
-          expect(res.body.data[2].origin).to.equal('neurosis');
-          expect(res.body.data[2].name).to.equal('testapp');
+          expect(res.body.data[0].name).to.equal('native-testapp');
+          expect(res.body.data[0].version).to.equal('0.1.0');
+          expect(res.body.data[0].release).to.equal(release13);
+          expect(res.body.data[1].origin).to.equal('neurosis');
+          expect(res.body.data[1].name).to.equal('testapp');
+          expect(res.body.data[1].version).to.equal('0.1.13');
+          expect(res.body.data[1].release).to.equal(release10);
           expect(res.body.data[2].version).to.equal('0.1.3');
-          expect(res.body.data[2].release).to.equal(release2);
-          expect(res.body.data[6].origin).to.equal('neurosis');
-          expect(res.body.data[6].name).to.equal('testapp2');
-          expect(res.body.data[6].version).to.equal('v1.2.3-aaster');
-          expect(res.body.data[6].release).to.equal(release6);
+          expect(res.body.data[2].release).to.equal(release1);
+          expect(res.body.data[3].origin).to.equal('neurosis');
+          expect(res.body.data[3].name).to.equal('testapp');
+          expect(res.body.data[3].version).to.equal('0.1.3');
+          expect(res.body.data[3].release).to.equal(release2);
           expect(res.body.data[7].origin).to.equal('neurosis');
           expect(res.body.data[7].name).to.equal('testapp2');
-          expect(res.body.data[7].version).to.equal('v1.2.3-master');
-          expect(res.body.data[7].release).to.equal(release5);
+          expect(res.body.data[7].version).to.equal('v1.2.3-aaster');
+          expect(res.body.data[7].release).to.equal(release6);
+          expect(res.body.data[8].origin).to.equal('neurosis');
+          expect(res.body.data[8].name).to.equal('testapp2');
+          expect(res.body.data[8].version).to.equal('v1.2.3-master');
+          expect(res.body.data[8].release).to.equal(release5);
           done(err);
         });
     });
@@ -459,15 +480,17 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(2);
-          expect(res.body.total_count).to.equal(3);
-          expect(res.body.data.length).to.equal(3);
+          expect(res.body.range_end).to.equal(3);
+          expect(res.body.total_count).to.equal(4);
+          expect(res.body.data.length).to.equal(4);
           expect(res.body.data[0].origin).to.equal('neurosis');
-          expect(res.body.data[0].name).to.equal('testapp');
-          expect(res.body.data[1].origin).to.equal('xmen');
+          expect(res.body.data[0].name).to.equal('native-testapp');
+          expect(res.body.data[1].origin).to.equal('neurosis');
           expect(res.body.data[1].name).to.equal('testapp');
-          expect(res.body.data[2].origin).to.equal('neurosis');
-          expect(res.body.data[2].name).to.equal('testapp2');
+          expect(res.body.data[2].origin).to.equal('xmen');
+          expect(res.body.data[2].name).to.equal('testapp');
+          expect(res.body.data[3].origin).to.equal('neurosis');
+          expect(res.body.data[3].name).to.equal('testapp2');
           done(err);
         });
     });
@@ -479,13 +502,15 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(1);
-          expect(res.body.total_count).to.equal(2);
-          expect(res.body.data.length).to.equal(2);
+          expect(res.body.range_end).to.equal(2);
+          expect(res.body.total_count).to.equal(3);
+          expect(res.body.data.length).to.equal(3);
           expect(res.body.data[0].origin).to.equal('neurosis');
-          expect(res.body.data[0].name).to.equal('testapp');
+          expect(res.body.data[0].name).to.equal('native-testapp');
           expect(res.body.data[1].origin).to.equal('neurosis');
-          expect(res.body.data[1].name).to.equal('testapp2');
+          expect(res.body.data[1].name).to.equal('testapp');
+          expect(res.body.data[2].origin).to.equal('neurosis');
+          expect(res.body.data[2].name).to.equal('testapp2');
           done(err);
         });
     });
@@ -497,9 +522,9 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(9);
-          expect(res.body.total_count).to.equal(10);
-          expect(res.body.data.length).to.equal(10);
+          expect(res.body.range_end).to.equal(10);
+          expect(res.body.total_count).to.equal(11);
+          expect(res.body.data.length).to.equal(11);
           expect(res.body.data[2].origin).to.equal('neurosis');
           expect(res.body.data[2].name).to.equal('testapp');
           expect(res.body.data[2].version).to.equal('0.1.4');
@@ -523,17 +548,19 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(3);
-          expect(res.body.total_count).to.equal(4);
-          expect(res.body.data.length).to.equal(4);
+          expect(res.body.range_end).to.equal(4);
+          expect(res.body.total_count).to.equal(5);
+          expect(res.body.data.length).to.equal(5);
           expect(res.body.data[0].origin).to.equal('neurosis');
           expect(res.body.data[0].name).to.equal('abracadabra');
           expect(res.body.data[1].origin).to.equal('neurosis');
-          expect(res.body.data[1].name).to.equal('neurosis');
+          expect(res.body.data[1].name).to.equal('native-testapp');
           expect(res.body.data[2].origin).to.equal('neurosis');
-          expect(res.body.data[2].name).to.equal('testapp');
+          expect(res.body.data[2].name).to.equal('neurosis');
           expect(res.body.data[3].origin).to.equal('neurosis');
-          expect(res.body.data[3].name).to.equal('testapp2');
+          expect(res.body.data[3].name).to.equal('testapp');
+          expect(res.body.data[4].origin).to.equal('neurosis');
+          expect(res.body.data[4].name).to.equal('testapp2');
           done(err);
         });
     });
@@ -560,17 +587,19 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(3);
-          expect(res.body.total_count).to.equal(4);
-          expect(res.body.data.length).to.equal(4);
+          expect(res.body.range_end).to.equal(4);
+          expect(res.body.total_count).to.equal(5);
+          expect(res.body.data.length).to.equal(5);
           expect(res.body.data[0].origin).to.equal('neurosis');
           expect(res.body.data[0].name).to.equal('abracadabra');
           expect(res.body.data[1].origin).to.equal('neurosis');
-          expect(res.body.data[1].name).to.equal('neurosis');
+          expect(res.body.data[1].name).to.equal('native-testapp');
           expect(res.body.data[2].origin).to.equal('neurosis');
-          expect(res.body.data[2].name).to.equal('testapp');
+          expect(res.body.data[2].name).to.equal('neurosis');
           expect(res.body.data[3].origin).to.equal('neurosis');
-          expect(res.body.data[3].name).to.equal('testapp2');
+          expect(res.body.data[3].name).to.equal('testapp');
+          expect(res.body.data[4].origin).to.equal('neurosis');
+          expect(res.body.data[4].name).to.equal('testapp2');
           done(err);
         });
     });
