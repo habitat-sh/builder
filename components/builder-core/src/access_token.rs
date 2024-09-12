@@ -96,11 +96,11 @@ impl AccessToken {
     /// See the type-level documentation for additional details.
     pub fn validate_access_token(token: &str, key_cache: &KeyCache) -> Result<originsrv::Session> {
         // Parse the input as an AccessToken.
-        let token: Self = token.parse()?;
+        let access_token: Self = token.parse()?;
 
         // Decrypt the contents to get the `originsrv::AccessToken`
         // protobuf inside.
-        let payload = token.decrypt(key_cache)?;
+        let payload = access_token.decrypt(key_cache)?;
 
         // Ensure that the token has not expired yet.
         //
@@ -112,7 +112,10 @@ impl AccessToken {
                     return Err(Error::TokenExpired);
                 }
             }
-            _ => return Err(Error::TokenInvalid),
+            _ => {
+                trace!("unable to parse timestamp from expires {} for token {}", payload.get_expires(), token);
+                return Err(Error::TokenInvalid)
+            }
         }
 
         // If all is OK, finally convert into an `originsrv::Session`.
@@ -219,12 +222,14 @@ impl FromStr for AccessToken {
             //
             // See documentation comments on builder_core::crypto::encrypt as
             // well.
-            if encrypted.parse::<SignedBox>().is_err() {
+            if let Err(err) = encrypted.parse::<SignedBox>() {
+                trace!("unable to parse SignedBox from token {}, err: {}", s, err);
                 Err(Error::TokenInvalid)
             } else {
                 Ok(Self(encrypted))
             }
         } else {
+            trace!("token {} is not prefixed with an underscore and is invalid", s);
             Err(Error::TokenInvalid)
         }
     }
