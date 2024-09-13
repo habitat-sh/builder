@@ -96,11 +96,11 @@ impl AccessToken {
     /// See the type-level documentation for additional details.
     pub fn validate_access_token(token: &str, key_cache: &KeyCache) -> Result<originsrv::Session> {
         // Parse the input as an AccessToken.
-        let token: Self = token.parse()?;
+        let access_token: Self = token.parse()?;
 
         // Decrypt the contents to get the `originsrv::AccessToken`
         // protobuf inside.
-        let payload = token.decrypt(key_cache)?;
+        let payload = access_token.decrypt(key_cache)?;
 
         // Ensure that the token has not expired yet.
         //
@@ -112,7 +112,24 @@ impl AccessToken {
                     return Err(Error::TokenExpired);
                 }
             }
-            _ => return Err(Error::TokenInvalid),
+            _ => {
+                // mwrock - 2024-09-13
+                // Prior to the chronos update 4 months ago this is the max timestamp used for user
+                // tokens We have succesfully parsed this value via the call to
+                // Utc.timestamp_opt above for years Yesterday (2024-09-12), this
+                // value became out of bounds and yields a 401 trying to auth
+                // Right now we have no idea why and some day perhaps we will all laugh around the
+                // fire as we remember this bug and how trivial it truly was. Today
+                // no one is laughing. I hope there will be a better fix than this
+                // in the near future but this will allow the many keys currently
+                // out in the wild with this value to authenticate.
+                if payload.get_expires() != 8_210_298_326_400 {
+                    trace!("unable to parse timestamp from expires {} for token {}",
+                           payload.get_expires(),
+                           token);
+                    return Err(Error::TokenInvalid);
+                }
+            }
         }
 
         // If all is OK, finally convert into an `originsrv::Session`.
@@ -219,12 +236,15 @@ impl FromStr for AccessToken {
             //
             // See documentation comments on builder_core::crypto::encrypt as
             // well.
-            if encrypted.parse::<SignedBox>().is_err() {
+            if let Err(err) = encrypted.parse::<SignedBox>() {
+                trace!("unable to parse SignedBox from token {}, err: {}", s, err);
                 Err(Error::TokenInvalid)
             } else {
                 Ok(Self(encrypted))
             }
         } else {
+            trace!("token {} is not prefixed with an underscore and is invalid",
+                   s);
             Err(Error::TokenInvalid)
         }
     }

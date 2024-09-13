@@ -94,7 +94,12 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
             // Pull the session out of the current token provided so we can validate
             // it against the db's tokens
             let mut session = AccessToken::validate_access_token(token, &state.config.api.key_path)
-                .map_err(|_| error::Error::Authorization)?;
+                .map_err(|e| {
+                    trace!("Unable to validate access token {}, err={:?}", token, e);
+                    error::Error::Authorization
+                })?;
+
+            trace!("Found valid session for {}", token);
 
             if session.get_id() == BUILDER_ACCOUNT_ID {
                 trace!("Builder token identified");
@@ -120,6 +125,7 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
 
                             let account = Account::get_by_id(session.get_id() as i64, &conn)
                                 .map_err(error::Error::DieselError)?;
+                            trace!("Found account for token {} in database", token);
                             session.set_name(account.name);
                             session.set_email(account.email);
 
@@ -128,12 +134,14 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
                         }
                         None => {
                             // We have no tokens in the database for this user
+                            trace!("Failed to find token {} in database", token);
                             Err(error::Error::Authorization)
                         }
                     }
                 }
                 Err(_) => {
                     // Failed to fetch tokens from the database for this user
+                    trace!("Failed to find tokens for {} in database", token);
                     Err(error::Error::Authorization)
                 }
             }
