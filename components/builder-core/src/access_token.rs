@@ -114,16 +114,20 @@ impl AccessToken {
             }
             _ => {
                 // mwrock - 2024-09-13
-                // Prior to the chronos update 4 months ago this is the max timestamp used for user tokens
-                // We have succesfully parsed this value via the call to Utc.timestamp_opt above for years
-                // Yesterday (2024-09-12), this value became out of bounds and yields a 401 trying to auth
-                // Right now we have no idea why and some day perhaps we will all laugh around the fire as 
-                // we remember this bug and how trivial it truly was. Today no one is laughing. I hope there
-                // will be a better fix than this in the near future but this will allow the many keys currently
+                // Prior to the chronos update 4 months ago this is the max timestamp used for user
+                // tokens We have succesfully parsed this value via the call to
+                // Utc.timestamp_opt above for years Yesterday (2024-09-12), this
+                // value became out of bounds and yields a 401 trying to auth
+                // Right now we have no idea why and some day perhaps we will all laugh around the
+                // fire as we remember this bug and how trivial it truly was. Today
+                // no one is laughing. I hope there will be a better fix than this
+                // in the near future but this will allow the many keys currently
                 // out in the wild with this value to authenticate.
                 if payload.get_expires() != 8_210_298_326_400 {
-                    trace!("unable to parse timestamp from expires {} for token {}", payload.get_expires(), token);
-                    return Err(Error::TokenInvalid)
+                    trace!("unable to parse timestamp from expires {} for token {}",
+                           payload.get_expires(),
+                           token);
+                    return Err(Error::TokenInvalid);
                 }
             }
         }
@@ -239,7 +243,8 @@ impl FromStr for AccessToken {
                 Ok(Self(encrypted))
             }
         } else {
-            trace!("token {} is not prefixed with an underscore and is invalid", s);
+            trace!("token {} is not prefixed with an underscore and is invalid",
+                   s);
             Err(Error::TokenInvalid)
         }
     }
