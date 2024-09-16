@@ -9,7 +9,7 @@ env:
   BLDR_URL: 'https://bldr.habitat.sh/'
   HAB_ORIGIN: 'habitat'
   HAB_AUTH_TOKEN: ${{ secrets.HAB_AUTH_TOKEN }}
-  HABITAT_VERSION_SET: 'lts-2024'
+  HABITAT_VERSION_SET: 'LTS-2024'
 
 permissions:
   contents: write
@@ -64,4 +64,3 @@ jobs:
         with:
           hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
           bldr-component: components/${{matrix.components}}
-          promotion-channel: on-prem-lts-2024  
