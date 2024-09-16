@@ -9,13 +9,12 @@ env:
   BLDR_URL: 'https://bldr.habitat.sh/'
   HAB_ORIGIN: 'habitat'
   HAB_AUTH_TOKEN: ${{ secrets.HAB_AUTH_TOKEN }}
-  HABITAT_VERSION_SET: 'latest'
+  HABITAT_VERSION_SET: 'lts-2024'
 
 permissions:
   contents: write
 
 jobs:
-
   changes:
     name: detect changed components
     runs-on: ubuntu-latest
@@ -52,13 +51,16 @@ jobs:
     steps:
       - name: Checkout for ${{matrix.components}}
         uses: actions/checkout@v4
+
       - name: Install Habitat for ${{matrix.components}}
         uses: ./.github/actions/hab-install-linux
         with:
           hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
           hab-origin: ${{ env.HAB_ORIGIN }}
+
       - name: Build and Upload Habitat Package for ${{matrix.components}}
         uses: ./.github/actions/hab-pkg-build-and-upload-linux
         with:
           hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
           bldr-component: components/${{matrix.components}}
+          promotion-channel: on-prem-lts-2024  
