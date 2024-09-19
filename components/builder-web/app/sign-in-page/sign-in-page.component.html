@@ -5,7 +5,7 @@
   <div class="body">
     <div class="content">
       <section class="upper">
-        <a mat-raised-button color="primary" class="button" (click)="showEulaPopup(loginUrl,'login')">
+        <a mat-raised-button color="primary" class="button" (click)="showEulaPopup(loginUrl)">
           <hab-icon [symbol]="providerType"></hab-icon>
           <span>Sign In with {{ providerName }}</span>
         </a>
@@ -13,7 +13,7 @@
       <section class="lower">
         <p *ngIf="signupUrl">
           Don't have a {{ providerName }} account?
-          <a (click)="showEulaPopup(signupUrl,'signUp')" target="_blank">Sign up here</a>.
+          <a href="{{ signupUrl }}" target="_blank">Sign up here</a>.
         </p>
         <p>
           New to Habitat? Signing in will also create a new account.

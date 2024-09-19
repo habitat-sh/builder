@@ -61,53 +61,27 @@ export class SignInPageComponent implements OnDestroy {
     this.store.dispatch(setLayout('default'));
   }
 
-  showEulaPopup(URL, popupFor) {
-    if (popupFor === 'signUp') {
-      if (!localStorage.getItem('singUpShowEulaPopup') && !localStorage.getItem('singUpEulaAccept')) {
-        this.confirmDialog
-          .open(EulaConfirmDialog, {
-            width: '530px',
-            disableClose: true,
-            data: {
-              heading: 'End Users License Agreement',
-              body: `I acknowledge and agree that use of Chef Habitat Builder is governed by and subject to the terms and conditions of the End User License Agreement for Chef`,
-              action: 'Continue',
-              signupUrl: URL
-            }
-          }).afterClosed()
-          .subscribe((data) => {
-            if (data) {
-              localStorage.setItem('singUpEulaAccept', 'true');
-              localStorage.setItem('singUpShowEulaPopup', 'false');
-              window.open(URL);
-            }
-          });
-      } else {
-        window.open(URL);
-      }
+  showEulaPopup(URL) {
+    if (!localStorage.getItem('loginShowEulaPopup') && !localStorage.getItem('loginEulaAccept')) {
+      this.confirmDialog
+        .open(EulaConfirmDialog, {
+          width: '530px',
+          disableClose: true,
+          data: {
+            heading: 'End Users License Agreement',
+            action: 'Continue',
+            signupUrl: URL
+          }
+        }).afterClosed()
+        .subscribe((data) => {
+          if (data) {
+            localStorage.setItem('loginEulaAccept', 'true');
+            localStorage.setItem('loginShowEulaPopup', 'false');
+            window.open(this.loginUrl, '_self');
+          }
+        });
     } else {
-      if (!localStorage.getItem('loginShowEulaPopup') && !localStorage.getItem('loginEulaAccept')) {
-        this.confirmDialog
-          .open(EulaConfirmDialog, {
-            width: '530px',
-            disableClose: true,
-            data: {
-              heading: 'End Users License Agreement',
-              body: `I acknowledge and agree that use of Progress Chef Habitat Builder is governed by and subject to the terms and conditions of the End User License Agreement for Progress Chef`,
-              action: 'Continue',
-              signupUrl: URL
-            }
-          }).afterClosed()
-          .subscribe((data) => {
-            if (data) {
-              localStorage.setItem('loginEulaAccept', 'true');
-              localStorage.setItem('loginShowEulaPopup', 'false');
-              window.open(this.loginUrl, '_self');
-            }
-          });
-      } else {
-        window.open(URL, '_self');
-      }
+      window.open(URL, '_self');
     }
   }
 }

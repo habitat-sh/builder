@@ -31,10 +31,6 @@ export class EulaConfirmDialog {
     return this.data.heading || 'Confirm';
   }
 
-  get body() {
-    return this.data.body || 'Are you sure?';
-  }
-
   get action() {
     return this.data.action || 'do it';
   }
