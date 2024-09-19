@@ -686,19 +686,19 @@ describe('Channels API', function () {
             .end(function (err, res) {
               expect(res.body.channel).to.equal('unstable');
               expect(res.body.target).to.equal('x86_64-linux');
-              expect(res.body.data.length).to.equal(12);
+              expect(res.body.data.length).to.equal(13);
               expect(res.body.data[0].origin).to.equal('neurosis');
               expect(res.body.data[0].name).to.equal('abracadabra');
               expect(res.body.data[0].version).to.equal('3.0');
               expect(res.body.data[0].release).to.equal('20190618175235');
-              expect(res.body.data[10].origin).to.equal('neurosis');
-              expect(res.body.data[10].name).to.equal('testapp');
-              expect(res.body.data[10].version).to.equal('0.1.13');
-              expect(res.body.data[10].release).to.equal('20190511004436');
               expect(res.body.data[11].origin).to.equal('neurosis');
-              expect(res.body.data[11].name).to.equal('testapp2');
-              expect(res.body.data[11].version).to.equal('v1.2.3-master');
-              expect(res.body.data[11].release).to.equal('20181018162212');
+              expect(res.body.data[11].name).to.equal('testapp');
+              expect(res.body.data[11].version).to.equal('0.1.13');
+              expect(res.body.data[11].release).to.equal('20190511004436');
+              expect(res.body.data[12].origin).to.equal('neurosis');
+              expect(res.body.data[12].name).to.equal('testapp2');
+              expect(res.body.data[12].version).to.equal('v1.2.3-master');
+              expect(res.body.data[12].release).to.equal('20181018162212');
               done(err);
             });
         });
@@ -904,9 +904,9 @@ describe('Channels API', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(30);
-          expect(res.body.total_count).to.equal(31);
-          expect(res.body.data.length).to.equal(31);
+          expect(res.body.range_end).to.equal(31);
+          expect(res.body.total_count).to.equal(32);
+          expect(res.body.data.length).to.equal(32);
           done(err);
         });
     });

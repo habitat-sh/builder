@@ -14,7 +14,6 @@
 
 use crate::{bldr_core::{error::Error::RpcError,
                         metrics::CounterMetric},
-            config::Config,
             db::models::{channel::{Channel,
                                    ChannelWithPromotion},
                          origin::*,
@@ -126,18 +125,6 @@ pub struct GetSchedule {
 pub struct OriginScheduleStatus {
     #[serde(default)]
     limit: String,
-}
-
-fn enabled_native_upload() -> bool { feat::is_enabled(feat::NativePackages) }
-
-fn is_origin_allowed(origin: &str, config: &Config) -> bool {
-    if config.api
-             .allowed_native_package_origins
-             .contains(&origin.to_string())
-    {
-        return true;
-    }
-    false
 }
 
 pub struct Packages {}
@@ -1124,27 +1111,6 @@ async fn do_upload_package_finish(req: &HttpRequest,
             let body = BoxBody::new(body);
             return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
         }
-    };
-
-    if package_type == PackageType::Native && !enabled_native_upload() {
-        debug!("Unsupported package type {}.", package_type);
-        let body = Bytes::from(
-            format!("Uploading '{}' package is not supported", package_type).into_bytes(),
-        );
-        let body = BoxBody::new(body);
-        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
-    };
-
-    if package_type == PackageType::Native
-       && !is_origin_allowed(&ident.origin, &req_state(req).config)
-    {
-        debug!("Native packages not allowed for the origin {:?}",
-               ident.origin.clone());
-        let body = Bytes::from(format!("Native Package upload for the origin '{}' is not \
-                                        supported",
-                                       ident.origin.clone()).into_bytes());
-        let body = BoxBody::new(body);
-        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
     };
 
     let target_from_artifact = match archive.target() {
