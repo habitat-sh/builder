@@ -5,7 +5,7 @@ pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=('Apache-2.0')
 pkg_bin_dirs=(bin)
 pkg_deps=(core/glibc core/openssl core/coreutils core/gcc-libs core/zeromq
-core/libarchive core/curl core/postgresql)
+core/libarchive core/curl core/postgresql15)
 pkg_build_deps=(core/protobuf-cpp core/protobuf-rust core/coreutils core/cacerts
 core/rust/"$(tail -n 1 "../../../rust-toolchain"  | cut -d'"' -f 2)" core/gcc core/git core/pkg-config core/cmake)
 pkg_exports=(
