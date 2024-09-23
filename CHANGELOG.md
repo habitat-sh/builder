@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Eula popup added [#1842](https://github.com/habitat-sh/builder/pull/1842) ([AadeshNichite](https://github.com/AadeshNichite))
 - Enables native packages by default [#1840](https://github.com/habitat-sh/builder/pull/1840) ([sougata-progress](https://github.com/sougata-progress))
 -  allow older user tokens to succesfully authenticate [#1844](https://github.com/habitat-sh/builder/pull/1844) ([mwrock](https://github.com/mwrock))
 - CHEF-13952, CHEF-14969: Added EULA link and updated copyright. [#1841](https://github.com/habitat-sh/builder/pull/1841) ([agmathur](https://github.com/agmathur))
