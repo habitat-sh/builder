@@ -17,13 +17,15 @@ import { Title } from '@angular/platform-browser';
 import { AppStore } from '../app.store';
 import { setLayout, signOut } from '../actions/index';
 import config from '../config';
+import { EulaConfirmDialog } from '../shared/dialog/eula-confirm/eula-confirm.dialog';
+import { MatDialog } from '@angular/material';
 
 @Component({
   template: require('./sign-in-page.component.html')
 })
 export class SignInPageComponent implements OnDestroy {
 
-  constructor(private store: AppStore, private title: Title) {
+  constructor(private store: AppStore, private title: Title, private confirmDialog: MatDialog) {
     store.dispatch(signOut(false));
     this.title.setTitle(`Sign In | ${store.getState().app.name}`);
     this.store.dispatch(setLayout('sign-in'));
@@ -57,5 +59,29 @@ export class SignInPageComponent implements OnDestroy {
 
   ngOnDestroy() {
     this.store.dispatch(setLayout('default'));
+  }
+
+  showEulaPopup(URL) {
+    if (!localStorage.getItem('loginShowEulaPopup') && !localStorage.getItem('loginEulaAccept')) {
+      this.confirmDialog
+        .open(EulaConfirmDialog, {
+          width: '530px',
+          disableClose: true,
+          data: {
+            heading: 'End Users License Agreement',
+            action: 'Continue',
+            signupUrl: URL
+          }
+        }).afterClosed()
+        .subscribe((data) => {
+          if (data) {
+            localStorage.setItem('loginEulaAccept', 'true');
+            localStorage.setItem('loginShowEulaPopup', 'false');
+            window.open(this.loginUrl, '_self');
+          }
+        });
+    } else {
+      window.open(URL, '_self');
+    }
   }
 }
