@@ -27,4 +27,5 @@ habitatConfig({
     www_url: "{{cfg.www_url}}",
     enable_builder_events: {{cfg.enable_builder_events}},
     enable_builder_events_saas: {{cfg.enable_builder_events_saas}},
+    enable_lts: {{cfg.enable_lts}},
 });
