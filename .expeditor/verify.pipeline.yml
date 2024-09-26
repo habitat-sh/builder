@@ -2,6 +2,9 @@ expeditor:
   defaults:
     buildkite:
       timeout_in_minutes: 30
+      env:
+          HAB_STUDIO_SECRET_HAB_BLDR_CHANNEL: LTS-2024
+          HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL: LTS-2024
 
 steps:
 #######################################################################
@@ -209,5 +212,4 @@ steps:
             # `studio` should not matter.
             # test test
             - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
-            - HAB_STUDIO_SECRET_HAB_BLDR_CHANNEL=LTS-2024
-            - HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL=LTS-2024
+
