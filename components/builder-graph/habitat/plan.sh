@@ -10,7 +10,7 @@ pkg_deps=(
   core/openssl
   core/gcc-libs
   core/libarchive
-  core/postgresql
+  core/postgresql15
   core/zeromq #TODO: This can probably be removed if we removed the crate dep on builder-protocol
   core/zlib
   core/xz
