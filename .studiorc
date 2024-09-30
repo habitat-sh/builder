@@ -70,7 +70,7 @@ install-packages() {
   core/shadow \
   core/curl \
   core/aws-cli \
-  -b -c stable
+  -b -c LTS-2024
 
   # workaround for https://github.com/habitat-sh/habitat/issues/6418
   hab pkg binlink core/cacerts
