@@ -24,7 +24,7 @@ runs:
         HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
       run: |
         source results/last_build.env
-        sudo hab pkg install --auth $HAB_AUTH_TOKEN results/$pkg_artifact
+        sudo hab pkg install --auth $HAB_AUTH_TOKEN results/$pkg_artifact --channel LTS-2024
 
     - name: hab pkg upload
       shell: bash
