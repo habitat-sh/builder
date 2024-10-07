@@ -27,7 +27,8 @@ export default function builds(state = initialState['features'], action) {
         .set('builder', !!config['enable_builder'])
         .set('visibility', !!config['enable_visibility'])
         .set('events', !!config['enable_builder_events'])
-        .set('saasEvents', !!config['enable_builder_events_saas']);
+        .set('saasEvents', !!config['enable_builder_events_saas'])
+        .set('enableLTS', !!config['enable_lts']);
     default:
       return state;
   }

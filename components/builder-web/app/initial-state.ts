@@ -99,6 +99,7 @@ export default Record({
     events: false,
     saasEvents: false,
     visibility: false,
+    enableLTS: false,
   })(),
   notifications: Record({
     all: List(),

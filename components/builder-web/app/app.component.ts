@@ -131,6 +131,10 @@ export class AppComponent implements OnInit, OnDestroy {
     return this.state.features.saasEvents;
   }
 
+  get enabledLTS() {
+    return this.state.features.enableLTS;
+  }
+
   ngOnDestroy() {
     this.sub.unsubscribe();
   }

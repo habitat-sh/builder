@@ -76,5 +76,8 @@ habitatConfig({
 
      // Enable/Disable builder events from SaaS
      // The 'enable_builder_events' property also needs to be set to enable SaaS events.
-     enable_builder_events_saas: false
+     enable_builder_events_saas: false,
+
+     // Enable/Disable LTS channel from SaaS
+     enable_lts: false
 });

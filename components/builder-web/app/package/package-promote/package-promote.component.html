@@ -1,7 +1,7 @@
 <span class="package-promote-component" (click)="prompt($event)">
   <span *ngIf="!promoting">
-    <hab-icon symbol="star-circle"></hab-icon>
-    Promote
+    <hab-icon symbol="star-circle"></hab-icon>    
+    <span>{{ promoteText }}</span>
   </span>
   <span class="promoting" *ngIf="promoting">
     <hab-icon symbol="loading" class="spinning"></hab-icon>
