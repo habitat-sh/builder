@@ -4,7 +4,8 @@ expeditor:
       timeout_in_minutes: 30
       env:
           HAB_STUDIO_SECRET_HAB_BLDR_CHANNEL: LTS-2024
-          HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL: LTS-2024
+          HAB_STUDIO_SECRET_HAB_REFRESH_CHANNEL: LTS-2024
+          HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL: "LTS-2024"
 
 steps:
 #######################################################################
@@ -178,6 +179,7 @@ steps:
           privileged: true
           environment:
             - HAB_ORIGIN=habitat
+            - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
   - label: "[build] :linux: builder-api-proxy"
     command:
