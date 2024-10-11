@@ -70,6 +70,7 @@ install-packages() {
   core/shadow \
   core/curl \
   core/aws-cli \
+  core/sccache \
   -b -c LTS-2024
 
   # workaround for https://github.com/habitat-sh/habitat/issues/6418

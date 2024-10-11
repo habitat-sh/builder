@@ -7,7 +7,6 @@ pkg_origin=habitat-dev
 do_dev_prepare() {
   # Order matters here
   export CARGO_HOME="/tmp/cargo_cache"
-  export builder_build_type="--debug"
   export RUSTC_WRAPPER
   RUSTC_WRAPPER="$(pkg_path_for core/sccache)/bin/sccache"
   export SCCACHE_DIR="/tmp/cargo_cache"
