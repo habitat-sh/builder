@@ -15,6 +15,8 @@ runs:
       shell: bash
       env:
         BLDR_COMPONENT: ${{ inputs.bldr-component }}
+        HAB_BLDR_CHANNEL: LTS-2024
+        HAB_FALLBACK_CHANNEL: LTS-2024
       run: |
         hab pkg build $BLDR_COMPONENT
 
@@ -24,7 +26,7 @@ runs:
         HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
       run: |
         source results/last_build.env
-        sudo hab pkg install --auth $HAB_AUTH_TOKEN results/$pkg_artifact --channel LTS-2024
+        sudo hab pkg install --auth $HAB_AUTH_TOKEN results/$pkg_artifact
 
     - name: hab pkg upload
       shell: bash
