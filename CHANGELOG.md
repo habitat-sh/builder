@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- adding adhoc workflow for building and publishing components [#1848](https://github.com/habitat-sh/builder/pull/1848) ([mwrock](https://github.com/mwrock))
 - CHEF-14845: Vulnerability Penetration Scan Failures [#1847](https://github.com/habitat-sh/builder/pull/1847) ([jasonheath](https://github.com/jasonheath))
 - Added feature flag for builder UI [#1846](https://github.com/habitat-sh/builder/pull/1846) ([sougata-progress](https://github.com/sougata-progress))
 - Eula popup added [#1842](https://github.com/habitat-sh/builder/pull/1842) ([AadeshNichite](https://github.com/AadeshNichite))
