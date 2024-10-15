@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Checkout for ${{ inputs.bldr-component }}
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Install Habitat for ${{ inputs.bldr-component }}
         uses: ./.github/actions/hab-install-linux
         with:
@@ -33,4 +35,4 @@ jobs:
         uses: ./.github/actions/hab-pkg-build-and-upload-linux
         with:
           hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
-          bldr-component: ${{ inputs.bldr-component }}
+          bldr-component: components/${{ inputs.bldr-component }}
