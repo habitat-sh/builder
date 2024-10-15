@@ -14,6 +14,7 @@ pkg_version() {
   echo "$(($(git rev-list HEAD --count) + 5000))"
 }
 do_before() {
+  git config --global --add safe.directory /src
   update_pkg_version
 }
 do_unpack() {

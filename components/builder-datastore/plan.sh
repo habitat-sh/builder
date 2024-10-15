@@ -46,6 +46,7 @@ ext_semver_filename=pg-semver-${ext_semver_version}.tar.gz
 ext_semver_shasum=031046695b143eb545a2856c5d139ebf61ae4e2f68cccb1f21b700ce65d0cd60
 
 do_before() {
+  git config --global --add safe.directory /src
   update_pkg_version
   ext_semver_dirname="pg-semver-${ext_semver_version}"
   ext_semver_cache_path="$HAB_CACHE_SRC_PATH/${ext_semver_dirname}"

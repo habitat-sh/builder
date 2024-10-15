@@ -25,6 +25,7 @@ do_strip() {
 }
 
 do_builder_before() {
+  git config --global --add safe.directory /src
   update_pkg_version
 }
 
