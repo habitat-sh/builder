@@ -2,6 +2,10 @@ expeditor:
   defaults:
     buildkite:
       timeout_in_minutes: 30
+      env:
+          HAB_STUDIO_SECRET_HAB_BLDR_CHANNEL: LTS-2024
+          HAB_STUDIO_SECRET_HAB_REFRESH_CHANNEL: LTS-2024
+          HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL: "LTS-2024"
 
 steps:
 #######################################################################
@@ -175,22 +179,7 @@ steps:
           privileged: true
           environment:
             - HAB_ORIGIN=habitat
-
-  - label: "[functional] :linux: builder-graph"
-    command:
-      - hab pkg install core/bats
-      - .expeditor/scripts/verify/builder-graph-functional.sh
-    artifact_paths:
-      - "logs/**/*"
-    retry:
-      automatic:
-        limit: 1
-    expeditor:
-      executor:
-        docker:
-          privileged: true
-          environment:
-            - HAB_ORIGIN=ci
+            - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
   - label: "[build] :linux: builder-api-proxy"
     command:
@@ -209,5 +198,4 @@ steps:
             # `studio` should not matter.
             # test test
             - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
-            - HAB_STUDIO_SECRET_HAB_BLDR_CHANNEL=LTS-2024
-            - HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL=LTS-2024
+

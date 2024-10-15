@@ -1,7 +1,7 @@
 UNAME_S := $(shell uname -s)
 BIN = builder-graph
 LIB = builder-db builder-core github-api-client
-SRV = builder-api builder-jobsrv builder-worker
+SRV = builder-api
 ALL = $(BIN) $(LIB) $(SRV)
 
 .DEFAULT_GOAL := build-bin
