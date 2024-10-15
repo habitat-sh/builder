@@ -1,0 +1,36 @@
+name: Adhoc build and upload of builder component
+
+on:
+  workflow_dispatch:
+    inputs:
+      bldr-component:
+        description: The Builder Component to build and package
+        required: true
+
+env:
+  BLDR_URL: 'https://bldr.habitat.sh/'
+  HAB_ORIGIN: 'habitat'
+  HAB_AUTH_TOKEN: ${{ secrets.HAB_AUTH_TOKEN }}
+  HABITAT_VERSION_SET: 'latest'
+
+permissions:
+  contents: write
+
+jobs:
+
+  habitat-packaging:
+    name: hab pkg of changed components
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout for ${{ inputs.bldr-component }}
+        uses: actions/checkout@v4
+      - name: Install Habitat for ${{ inputs.bldr-component }}
+        uses: ./.github/actions/hab-install-linux
+        with:
+          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+          hab-origin: ${{ env.HAB_ORIGIN }}
+      - name: Build and Upload Habitat Package for ${{ inputs.bldr-component }}
+        uses: ./.github/actions/hab-pkg-build-and-upload-linux
+        with:
+          hab-auth-token: ${{ env.HAB_AUTH_TOKEN }}
+          bldr-component: ${{ inputs.bldr-component }}
