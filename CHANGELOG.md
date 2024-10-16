@@ -3,6 +3,9 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- set safe git directory in all plans [#1850](https://github.com/habitat-sh/builder/pull/1850) ([mwrock](https://github.com/mwrock))
+- fix workflow git rev-list [#1849](https://github.com/habitat-sh/builder/pull/1849) ([mwrock](https://github.com/mwrock))
+- Release SAAS builder built against LTS-2024 dependencies [#1845](https://github.com/habitat-sh/builder/pull/1845) ([sougata-progress](https://github.com/sougata-progress))
 - adding adhoc workflow for building and publishing components [#1848](https://github.com/habitat-sh/builder/pull/1848) ([mwrock](https://github.com/mwrock))
 - CHEF-14845: Vulnerability Penetration Scan Failures [#1847](https://github.com/habitat-sh/builder/pull/1847) ([jasonheath](https://github.com/jasonheath))
 - Added feature flag for builder UI [#1846](https://github.com/habitat-sh/builder/pull/1846) ([sougata-progress](https://github.com/sougata-progress))
