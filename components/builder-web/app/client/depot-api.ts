@@ -134,7 +134,8 @@ export function getLatest(origin: string, pkg: string, target: string) {
 }
 
 export function getLatestInChannel(origin: string, name: string, channel: string, target: string) {
-  const url = `${urlPrefix}/depot/channels/${origin}/${channel}/pkgs/${name}/latest?target=${target}`;
+  const tgt = target ? `?target=${target}` : ``;
+  const url = `${urlPrefix}/depot/channels/${origin}/${channel}/pkgs/${name}/latest${tgt}`;
 
   return new Promise((resolve, reject) => {
     fetch(url, opts())

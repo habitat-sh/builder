@@ -138,11 +138,22 @@ export class PackageComponent implements OnInit, OnDestroy {
         // Just ensure we are on the latest page
         if (!this.ident.version && !this.ident.release) {
           this.fetchLatest();
-          this.fetchLatestStable();
+          if (target === undefined) {
+            this.fetchLatestStable('');
+          }
+          else {
+            this.fetchLatestStable(this.target);
+          }
+
 
           // This check whether channel is exist in current origin
           if (this.isChannelExistInOrigin(latestLTS)) {
-            this.fetchCurrentLts();
+            if (target === undefined) {
+                this.fetchCurrentLts('');
+              }
+              else {
+                this.fetchCurrentLts(this.target);
+              }
           }
         }
       });
@@ -319,17 +330,13 @@ export class PackageComponent implements OnInit, OnDestroy {
     this.store.dispatch(setCurrentPackageTarget(currentTarget));
   }
 
-  private fetchLatestStable() {
-    // if (this.getLatestPlatform(this.target) !== undefined) {
-      this.store.dispatch(fetchLatestInChannel(this.origin, this.name, 'stable', this.getLatestPlatform(this.target)));
-    // }
+  private fetchLatestStable(target: string) {
+    this.store.dispatch(fetchLatestInChannel(this.origin, this.name, 'stable', target));
   }
 
-  private fetchCurrentLts() {
-    if (this.getLatestPlatform(this.target) !== undefined) {
-      this.store.dispatch(fetchLatestInChannel(this.origin, this.name, latestLTS, this.getLatestPlatform(this.target)));
-    }
-  }
+  private fetchCurrentLts(target: string) {
+    this.store.dispatch(fetchLatestInChannel(this.origin, this.name, latestLTS, target));
+}
 
   private fetchPackageSettings() {
     this.store.dispatch(fetchPackageSettings(this.origin, this.name, this.token));
