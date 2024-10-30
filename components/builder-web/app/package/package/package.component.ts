@@ -99,7 +99,12 @@ export class PackageComponent implements OnInit, OnDestroy {
       .subscribe(([channel]) => {
         channel.forEach((channel) => {
           if (channel.name === latestLTS) {
-            this.fetchCurrentLts();
+            if (this.target === undefined) {
+              this.fetchCurrentLts('');
+            }
+            else {
+              this.fetchCurrentLts(this.target);
+            }
             return;
           }
         });
