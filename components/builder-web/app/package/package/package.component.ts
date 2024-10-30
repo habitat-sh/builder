@@ -91,20 +91,6 @@ export class PackageComponent implements OnInit, OnDestroy {
         this.store.dispatch(fetchOriginChannels(origin.name));
       });
 
-    combineLatest(originsCurrentChannels$)
-      .pipe(
-        takeUntil(this.isDestroyed$),
-        filter((channels) => channels.length > 0 )
-      )
-      .subscribe(([channel]) => {
-        channel.forEach((channel) => {
-          if (channel.name === latestLTS) {
-            this.fetchCurrentLts('');
-            return;
-          }
-        });
-      });
-
     combineLatest(origin$, name$, isOriginMember$)
       .pipe(takeUntil(this.isDestroyed$))
       .subscribe(([origin, name, isOriginMember]) => {
@@ -147,13 +133,11 @@ export class PackageComponent implements OnInit, OnDestroy {
 
 
           // This check whether channel is exist in current origin
-          if (this.isChannelExistInOrigin(latestLTS)) {
-            if (target === undefined) {
-                this.fetchCurrentLts('');
-              }
-              else {
-                this.fetchCurrentLts(this.target);
-              }
+          if (target === undefined) {
+            this.fetchCurrentLts('');
+          }
+          else {
+            this.fetchCurrentLts(this.target);
           }
         }
       });
