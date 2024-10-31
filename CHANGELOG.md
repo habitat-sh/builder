@@ -3,6 +3,10 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Fixed LTS version bug [#1856](https://github.com/habitat-sh/builder/pull/1856) ([sougata-progress](https://github.com/sougata-progress))
+- bump node to 18.20.4 [#1853](https://github.com/habitat-sh/builder/pull/1853) ([mwrock](https://github.com/mwrock))
+- fix typescript build error passing no args to fetchCurrentLts [#1854](https://github.com/habitat-sh/builder/pull/1854) ([mwrock](https://github.com/mwrock))
+- fixing error with LTS getting aarch platform [#1855](https://github.com/habitat-sh/builder/pull/1855) ([mwrock](https://github.com/mwrock))
 - Fix UI version bug [#1852](https://github.com/habitat-sh/builder/pull/1852) ([sougata-progress](https://github.com/sougata-progress))
 - fix stdlib linking with gcc-base [#1851](https://github.com/habitat-sh/builder/pull/1851) ([mwrock](https://github.com/mwrock))
 - set safe git directory in all plans [#1850](https://github.com/habitat-sh/builder/pull/1850) ([mwrock](https://github.com/mwrock))
