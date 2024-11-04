@@ -1,8 +1,9 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release unreleased -->
-## Unreleased
+<!-- latest_release 20241106 -->
+## [20241106](https://github.com/habitat-sh/builder/tree/20241106) (2024-11-04)
 
 #### Merged Pull Requests
+- bump version [#1857](https://github.com/habitat-sh/builder/pull/1857) ([mwrock](https://github.com/mwrock))
 - Fixed LTS version bug [#1856](https://github.com/habitat-sh/builder/pull/1856) ([sougata-progress](https://github.com/sougata-progress))
 - bump node to 18.20.4 [#1853](https://github.com/habitat-sh/builder/pull/1853) ([mwrock](https://github.com/mwrock))
 - fix typescript build error passing no args to fetchCurrentLts [#1854](https://github.com/habitat-sh/builder/pull/1854) ([mwrock](https://github.com/mwrock))
