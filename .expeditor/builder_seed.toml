@@ -8,36 +8,13 @@ packages = [
   "core/hab-launcher",
   "core/hab",
   "core/hab-sup",
+]
 
+[[x86_64-linux]]
+channel = "LTS-2024"
+packages = [
   # Builder services
   "habitat/builder-api",
   "habitat/builder-api-proxy",
-  "habitat/builder-jobsrv",
-  "habitat/builder-worker",
   "habitat/builder-memcached",
-
-  # Utilities
-  "core/nmap"
-]
-
-[[x86_64-linux-kernel2]]
-channel = "stable"
-packages = [
-  # Supervisor and prerequisites
-  "core/hab-launcher",
-  "core/hab",
-  "core/hab-sup",
-
-  "habitat/builder-worker"
-]
-
-[[x86_64-windows]]
-channel = "stable"
-packages = [
-  # Supervisor and prerequisites
-  "core/windows-service",
-  "core/hab",
-  "core/hab-sup",
-
-  "habitat/builder-worker"
 ]
