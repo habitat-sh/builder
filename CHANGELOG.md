@@ -1,5 +1,11 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release 20241106 -->
+<!-- latest_release unreleased -->
+## Unreleased
+
+#### Merged Pull Requests
+- remove worker related post habitat build steps and cleanup bootstrap seed list [#1858](https://github.com/habitat-sh/builder/pull/1858) ([mwrock](https://github.com/mwrock))
+<!-- latest_release -->
+
 ## [20241106](https://github.com/habitat-sh/builder/tree/20241106) (2024-11-04)
 
 #### Merged Pull Requests
@@ -52,7 +58,6 @@
 - Bump h2 from 0.3.17 to 0.3.26 [#1808](https://github.com/habitat-sh/builder/pull/1808) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - bump git2 [#1809](https://github.com/habitat-sh/builder/pull/1809) ([mwrock](https://github.com/mwrock))
 - use toml rust-toolchain [#1803](https://github.com/habitat-sh/builder/pull/1803) ([mwrock](https://github.com/mwrock))
-<!-- latest_release -->
 
 ## [20240110](https://github.com/habitat-sh/builder/tree/20240110) (2024-01-19)
 
