@@ -157,4 +157,9 @@ export class PackageSidebarComponent {
 
     return channelExist?.name === this.latestLTS ? true : false;
   }
+
+  shouldRenderDeprecation(): boolean {
+    let state = this.store.getState();
+    return state.features.enableLTS;
+  }
 }
