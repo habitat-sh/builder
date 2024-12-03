@@ -40,7 +40,7 @@
     </section>
     <section class="latest-stable">
       <h3 style="margin-bottom: 0px;">Stable
-        <hab-icon symbol="alert" title="Stable Channel is going to be deprecated for core, chef and chef-platform origins. We will communicate the details on EOL dates soon" style="float: none;"></hab-icon>
+        <hab-icon [hidden]="!shouldRenderDeprecation()" symbol="alert" title="Stable Channel is going to be deprecated for core, chef and chef-platform origins. We will communicate the details on EOL dates soon" style="float: none;"></hab-icon>
       </h3>
       <div *ngIf="latestStable">
         <a [routerLink]="['./', latestStable.ident.version, latestStable.ident.release]">
