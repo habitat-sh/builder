@@ -1,0 +1,101 @@
+#!/bin/bash
+
+exec 2>&1
+set -euo pipefail
+
+# shellcheck disable=SC1091
+source "{{pkg.svc_config_install_path}}/minio-migration.sh"
+
+timestamp=$EPOCHSECONDS # provides a shared element in naming items below
+config_environment_for_migration $timestamp
+preflight_checks 
+  
+echo "Checking if MinIO migration is needed"
+if is_migration_from_removed_fs_backend_needed
+then
+
+  echo "BEGIN MinIO migration"
+
+  if pgrep minio &> /dev/null
+  then
+
+    if ! minio_health_live_check
+    then
+      echo "There seems to be a MinIO process but it fails the health check"
+      exit 9
+    fi
+
+  else
+
+    minio_pkg_old="core/minio/2018-10-05T01-03-03Z/20181006010122"
+    # This pkg_id is the minio dependency used in the on-prem-stable version of
+    # https://bldr.habitat.sh/#/pkgs/habitat/builder-minio/7764/20181006010221 
+    # which was on-prem-stable for 6+ years so this should be a safe choice 
+
+    if ! hab pkg list $minio_pkg_old > /dev/null; then 
+      hab pkg install $minio_pkg_old; 
+    fi
+    
+    old_minio_stdout=$( mktemp -t "minio-old-stdout-$timestamp-XXXXXXXXXX" ) 
+    # shellcheck disable=SC2024
+    sudo --background hab pkg exec $minio_pkg_old minio -- server /hab/svc/builder-minio/data > "$old_minio_stdout"
+
+    if ! minio_health_live_check
+    then
+      echo "MinIO is not running so MinIO migration cannot begin"
+      exit 10
+    fi
+
+  fi
+  
+  minio_old_summary=$( summarize_old_minio_bucket_objects "$timestamp" )
+
+  download_bucket_objects
+  
+  minio_stop
+  
+  export MIGRATION_BACKUP_DIRECTORY="/hab/svc/builder-minio/data-backup-$EPOCHSECONDS"
+  sudo mv /hab/svc/builder-minio/data/ "$MIGRATION_BACKUP_DIRECTORY"
+  sudo mkdir /hab/svc/builder-minio/data/
+
+  sudo hab pkg install core/minio --channel stable
+  export MINIO_ROOT_USER="{{cfg.env.MINIO_ACCESS_KEY}}"
+  export MINIO_ROOT_PASSWORD="{{cfg.env.MINIO_SECRET_KEY}}"
+  new_minio_stdout=$( mktemp -t "minio-new-stdout-$timestamp-XXXXXXXXXX" ) 
+  # shellcheck disable=SC2024
+  sudo --background hab pkg exec core/minio minio -- server /hab/svc/builder-minio/data > "$new_minio_stdout"
+ 
+  if ! minio_health_live_check
+  then
+    echo "MinIO did not come back up so we cannot upload the habitat artifacts into the new MinIO"
+    echo "EXITING"
+    exit 1
+  fi
+  
+  upload_bucket_objects
+
+  minio_new_summary=$( summarize_new_minio_bucket_objects "$timestamp" )
+  
+  if diff <(tail -n 2 "$minio_old_summary") <(tail -n 2 "$minio_new_summary") 
+  then 
+    echo "Migration was successful"
+    echo "A copy of the original minio backend has been left in $MIGRATION_BACKUP_DIRECTORY and should be removed manually"
+    rm -rf "$WAYPOINT" 
+    echo "Old Minio bucket summary: $minio_old_summary"
+    echo "New Minio bucket summary: $minio_new_summary"
+  else
+    echo "Migration FAILED"
+    echo "Comparison of old and new MinIO bucket summaries failed"
+    echo "Leaving the old data in place for further investigation"
+    echo "Old Minio bucket summary: $minio_old_summary"
+    echo "New Minio bucket summary: $minio_new_summary"
+    echo "The migration waypoint is $WAYPOINT"
+    echo "A copy of the original minio backend data is also in $MIGRATION_BACKUP_DIRECTORY"
+  fi
+  
+  minio_stop
+
+  sudo chown --recursive hab:hab /hab/svc/builder-minio/data/
+
+  echo "END MinIO migration"
+fi
