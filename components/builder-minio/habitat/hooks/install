@@ -8,7 +8,6 @@ source "{{pkg.svc_config_install_path}}/minio-migration.sh"
 
 timestamp=$EPOCHSECONDS # provides a shared element in naming items below
 config_environment_for_migration "$timestamp"
-preflight_checks
 
 echo "Checking if MinIO migration is needed"
 if is_migration_from_removed_fs_backend_needed; then
@@ -30,12 +29,14 @@ if is_migration_from_removed_fs_backend_needed; then
     # which was on-prem-stable for 6+ years so this should be a safe choice
 
     if ! hab pkg list $minio_pkg_old >/dev/null; then
-      hab pkg install $minio_pkg_old
+      echo "ERROR: $minio_pkg_old is not installed and we require it for the migration."
+      exit 11
     fi
 
     old_minio_stdout=$(mktemp -t "minio-old-stdout-$timestamp-XXXXXXXXXX")
-    # shellcheck disable=SC2024
-    sudo --background hab pkg exec $minio_pkg_old minio -- server /hab/svc/builder-minio/data >"$old_minio_stdout"
+    hab pkg exec $minio_pkg_old minio -- server \
+      --config-dir "{{pkg.svc_config_path}}" \
+      /hab/svc/builder-minio/data &>"$old_minio_stdout" &
 
     if ! minio_health_live_check; then
       echo "MinIO is not running so MinIO migration cannot begin"
@@ -50,16 +51,22 @@ if is_migration_from_removed_fs_backend_needed; then
 
   minio_stop
 
-  export MIGRATION_BACKUP_DIRECTORY="/hab/svc/builder-minio/data-backup-$EPOCHSECONDS"
-  sudo mv /hab/svc/builder-minio/data/ "$MIGRATION_BACKUP_DIRECTORY"
-  sudo mkdir /hab/svc/builder-minio/data/
+  MIGRATION_BACKUP_DIRECTORY=$(mktemp -d -t minio-data-backup-"$timestamp"-XXXXXXXXXX)
+  echo "NOTE: Copying the old minio data to $MIGRATION_BACKUP_DIRECTORY"
+  echo "NOTE: Depending on the size of your on-prem bldr, this could take quite some time"
+  cp -r /hab/svc/builder-minio/data "$MIGRATION_BACKUP_DIRECTORY"
+  GLOBIGNORE=".:.."
+  for x in /hab/svc/builder-minio/data/*; do
+    rm -rf "$x"
+  done
 
-  sudo hab pkg install core/minio --channel stable
   export MINIO_ROOT_USER="{{cfg.env.MINIO_ACCESS_KEY}}"
   export MINIO_ROOT_PASSWORD="{{cfg.env.MINIO_SECRET_KEY}}"
   new_minio_stdout=$(mktemp -t "minio-new-stdout-$timestamp-XXXXXXXXXX")
   # shellcheck disable=SC2024
-  sudo --background hab pkg exec core/minio minio -- server /hab/svc/builder-minio/data >"$new_minio_stdout"
+  hab pkg exec core/minio minio -- server \
+    /hab/svc/builder-minio/data \
+    --config-dir "{{pkg.svc_config_path}}" &>"$new_minio_stdout" &
 
   if ! minio_health_live_check; then
     echo "MinIO did not come back up so we cannot upload the habitat artifacts into the new MinIO"
@@ -88,8 +95,6 @@ if is_migration_from_removed_fs_backend_needed; then
   fi
 
   minio_stop
-
-  sudo chown --recursive hab:hab /hab/svc/builder-minio/data/
 
   echo "END MinIO migration"
 fi

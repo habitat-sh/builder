@@ -35,8 +35,6 @@ bind_port = 9000
 # Setup additional environment variables to pass to minio
 # Doc: https://docs.min.io/docs/minio-server-configuration-guide.html
 [env]
-MINIO_ENDPOINT="http://localhost:9000"
-MINIO_BUCKET="habitat-builder-artifact-store.local"
 # Set minio admin user and password
 # MINIO_ACCESS_KEY and MINIO_SECRET_KEY are deprecated.
 # Use MINIO_ROOT_USER and MINIO_ROOT_PASSWORD
