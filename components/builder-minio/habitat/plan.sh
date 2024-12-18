@@ -1,10 +1,10 @@
-# shellcheck shell=bash
+# shellcheck shell=bash disable=SC2034
 
 pkg_name=builder-minio
 pkg_origin=habitat
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=('Apache-2.0')
-pkg_deps=(core/minio core/cacerts core/openssl core/aws-cli core/bash)
+pkg_deps=(core/aws-cli core/bash core/cacerts core/curl core/jq-static core/minio core/openssl)
 pkg_build_deps=(core/git)
 
 pkg_exports=(
@@ -17,7 +17,8 @@ pkg_exports=(
 pkg_version() {
   # TED: After migrating the builder repo we needed to add to
   # the rev-count to keep version sorting working
-  echo "$(($(git rev-list HEAD --count) + 5000))"
+#   echo "$(($(git rev-list HEAD --count) + 5000))"
+  echo "$(($(git rev-list HEAD --count) + 5001))"
 }
 
 do_before() {

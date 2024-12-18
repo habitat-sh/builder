@@ -36,7 +36,11 @@ bind_port = 9000
 # Doc: https://docs.min.io/docs/minio-server-configuration-guide.html
 [env]
 # Set minio admin user and password
+# MINIO_ACCESS_KEY and MINIO_SECRET_KEY are deprecated.
+# Use MINIO_ROOT_USER and MINIO_ROOT_PASSWORD
+MINIO_ROOT_USER = "depot"
 MINIO_ACCESS_KEY = "depot"
+MINIO_ROOT_PASSWORD = "password"
 MINIO_SECRET_KEY = "password"
 
 # Specify private key password for TLS mode
