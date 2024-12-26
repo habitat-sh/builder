@@ -10,7 +10,7 @@ inputs:
   curl-bash-url:
     description: URL for the habitat curl bash script
     required: true
-    default: 'https://raw.githubusercontent.com/habitat-sh/habitat/master/components/hab/install.sh'
+    default: "https://raw.githubusercontent.com/habitat-sh/habitat/master/components/hab/install.sh"
   habitat-version:
     description: Which version of habitat to use
     required: true
@@ -22,6 +22,13 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: create hab user
+      shell: bash
+      run: |
+        sudo useradd --system --user-group --no-create-home hab
+        # Mirrors what's done our provision.sh script from on-prem-builder with 
+        # the addition of the --user-group flag to make it more intentional. It 
+        # should be functionally equivalent to what's done in provision.sh.
 
     - name: install hab binary
       shell: bash
