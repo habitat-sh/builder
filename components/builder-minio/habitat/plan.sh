@@ -8,16 +8,16 @@ pkg_deps=(core/aws-cli core/bash core/cacerts core/curl core/jq-static core/mini
 pkg_build_deps=(core/git)
 
 pkg_exports=(
-    [port]=bind_port
-    [bucket-name]=bucket_name
-    [minio-access-key]=env.MINIO_ACCESS_KEY
-    [minio-secret-key]=env.MINIO_SECRET_KEY
+  [port]=bind_port
+  [bucket-name]=bucket_name
+  [minio-access-key]=env.MINIO_ACCESS_KEY
+  [minio-secret-key]=env.MINIO_SECRET_KEY
 )
 
 pkg_version() {
   # TED: After migrating the builder repo we needed to add to
   # the rev-count to keep version sorting working
-#   echo "$(($(git rev-list HEAD --count) + 5000))"
+  #   echo "$(($(git rev-list HEAD --count) + 5000))"
   echo "$(($(git rev-list HEAD --count) + 5001))"
 }
 
@@ -27,17 +27,17 @@ do_before() {
 }
 
 do_unpack() {
-    return 0
+  return 0
 }
 
-do_build(){
-    return 0
+do_build() {
+  return 0
 }
 
 do_install() {
-    return 0
+  return 0
 }
 
 do_strip() {
-    return 0
+  return 0
 }

@@ -1,10 +1,10 @@
-# -*- mode: shell-script -*-
-# shellcheck shell=bash
+#!/bin/bash
 
 set -e
 
 exec 2>&1
 
+# shellcheck disable=SC1091
 . "{{ pkg.svc_config_path }}/hook-helper.sh"
 
 # post-run is much faster than minio

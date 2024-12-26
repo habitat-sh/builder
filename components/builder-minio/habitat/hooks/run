@@ -1,5 +1,4 @@
-# -*- mode: shell-script -*-
-# shellcheck shell=bash
+#!/bin/bash
 
 # When run hook changes restart is happen.
 # Any change to the environment variables requires restart:
@@ -13,6 +12,7 @@
 
 exec 2>&1
 
+# shellcheck disable=SC1091
 . "{{ pkg.svc_config_path }}/hook-helper.sh"
 
 # shellcheck disable=SC2086,SC2154
