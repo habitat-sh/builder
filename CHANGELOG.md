@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Adds hab user creation for the github actions [#1861](https://github.com/habitat-sh/builder/pull/1861) ([jasonheath](https://github.com/jasonheath))
 - minio migration via hooks [#1860](https://github.com/habitat-sh/builder/pull/1860) ([jasonheath](https://github.com/jasonheath))
 - Added conditional render for deprecated stable message [#1859](https://github.com/habitat-sh/builder/pull/1859) ([sougata-progress](https://github.com/sougata-progress))
 - remove worker related post habitat build steps and cleanup bootstrap seed list [#1858](https://github.com/habitat-sh/builder/pull/1858) ([mwrock](https://github.com/mwrock))
