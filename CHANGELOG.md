@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- marked package version updated with latest [#1863](https://github.com/habitat-sh/builder/pull/1863) ([AadeshNichite](https://github.com/AadeshNichite))
 - Clean up via shellcheck, shfmt, and markdownlint [#1862](https://github.com/habitat-sh/builder/pull/1862) ([jasonheath](https://github.com/jasonheath))
 - Adds hab user creation for the github actions [#1861](https://github.com/habitat-sh/builder/pull/1861) ([jasonheath](https://github.com/jasonheath))
 - minio migration via hooks [#1860](https://github.com/habitat-sh/builder/pull/1860) ([jasonheath](https://github.com/jasonheath))
