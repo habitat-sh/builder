@@ -50,7 +50,6 @@ log() {
 # total 36284
 # lrwxrwxrwx 1 root root       16 Mar 12 18:55 hab -> hab-x86_64-linux
 # -rwxr-xr-x 1 root root 18540176 Mar  3 16:39 hab-x86_64-linux
-# -rwxr-xr-x 1 root root 18611160 Mar  3 16:39 hab-x86_64-linux-kernel2
 # root@ip-10-0-0-76:/home/ubuntu#
 #
 # Note that `dir` should exist before calling this function.
@@ -155,12 +154,9 @@ hab_hart () {
 
 bin_dir="${sandbox_dir}/bin"
 mkdir -p "${bin_dir}"
-for target in x86_64-linux x86_64-linux-kernel2
-do
-  hart_path=$(hab_hart "${target}")
-  log "Extracting hab binary from ${hart_path}"
-  extract_hab_binaries_from_hart "${hart_path}" "${bin_dir}" "${target}"
-done
+hart_path=$(hab_hart x86_64-linux)
+log "Extracting hab binary from ${hart_path}"
+extract_hab_binaries_from_hart "${hart_path}" "${bin_dir}" x86_64-linux"
 
 ########################################################################
 
