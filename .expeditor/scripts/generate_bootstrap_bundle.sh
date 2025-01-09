@@ -156,7 +156,7 @@ bin_dir="${sandbox_dir}/bin"
 mkdir -p "${bin_dir}"
 hart_path=$(hab_hart x86_64-linux)
 log "Extracting hab binary from ${hart_path}"
-extract_hab_binaries_from_hart "${hart_path}" "${bin_dir}" x86_64-linux"
+extract_hab_binaries_from_hart "${hart_path}" "${bin_dir}" x86_64-linux
 
 ########################################################################
 
