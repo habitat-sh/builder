@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import * as marked from 'marked';
+import { marked } from 'marked';
 import * as actionTypes from '../actions/index';
 import initialState from '../initial-state';
 import { Package } from '../records/Package';
