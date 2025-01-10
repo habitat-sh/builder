@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- do not include kernel2 binaries in bootstrap bundle [#1864](https://github.com/habitat-sh/builder/pull/1864) ([mwrock](https://github.com/mwrock))
 - marked package version updated with latest [#1863](https://github.com/habitat-sh/builder/pull/1863) ([AadeshNichite](https://github.com/AadeshNichite))
 - Clean up via shellcheck, shfmt, and markdownlint [#1862](https://github.com/habitat-sh/builder/pull/1862) ([jasonheath](https://github.com/jasonheath))
 - Adds hab user creation for the github actions [#1861](https://github.com/habitat-sh/builder/pull/1861) ([jasonheath](https://github.com/jasonheath))
