@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# echo Running new builder-datastore install hook
+
+# exec 2>&1
+# set -euo pipefail
+# set -x
+
+# config_dir=/hab/svc/builder-datastore/config
+
+# # JAH: Need to properly leverage Hab for settings these
+# PGHOST=127.0.0.1
+# PGPORT=$(sudo grep port $config_dir/postgresql.conf | grep -oe '[[:digit:]]\\+')
+# PGUSER=hab
+# PGPASSWORD=$(sudo cat $1/pwfile)
+# PGDATABASE=builder
+
+# export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
+
+# moment=$EPOCHSECONDS
+# function tempfile() {
+#   mktemp -t "$moment-$1-XXX" --suffix=".$2"
+# }
+
+# https://www.postgresql.org/docs/17/upgrading.html
+
+# pg_config >tempfile pg_config txt
+
+# # 1) Making a backup, making sure that your database is not being updated
+# pg_dumpall >tempfile pg_dumpall sql
+# pg_dump >tempfile pg_dump sql
+
+# 2) Shut down the old server
+
+# pg_ctl stop
+# /etc/rc.d/init.d/postgresql stop
+# or something similar
+
+# 3) Rename the old installation directory
+
+# 4) Install the new version of PostgreSQL (as outlined in Chapter 17)
+
+# 5) If needed, create a new database cluster. Remember you must be logged in as the special database user account
+
+# 6) Restore your previous pg_hba.conf and any postgresql.conf modifications
+
+# 7) Start the database server (again using the special database user account)
+
+# 8)
