@@ -16,7 +16,7 @@ pkg_deps=(
   core/glibc
   core/libarchive
   core/openssl
-  core/postgresql17-client
+  core/postgresql17
   core/zeromq
 )
 

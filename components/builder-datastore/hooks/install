@@ -1,0 +1,215 @@
+#!/bin/bash
+# shellcheck disable=SC1083
+
+set -euo pipefail
+exec 2>&1
+
+function create_postgres_cluster() {
+
+  echo PostgreSQL Cluster does not exist, creating with 'initdb'
+
+  export RANDFILE="{{pkg.svc_var_path}}/.rnd"
+  DB_PASSWORD="{{cfg.init.superuser_password}}"
+
+  mkdir -p {{pkg.svc_config_path}}/conf.d
+  mkdir -p {{pkg.svc_var_path}}/pg_stat_tmp
+
+  chown -R hab:hab {{pkg.svc_var_path}}
+  touch $RANDFILE
+
+  if [ -z "${DB_PASSWORD}" ]; then
+    openssl rand -base64 32 >{{pkg.svc_config_path}}/pwfile
+  else
+    echo "${DB_PASSWORD}" >{{pkg.svc_config_path}}/pwfile
+  fi
+
+  initdb \
+    --username {{cfg.datastore.user}} \
+    --encoding {{cfg.init.encoding}} \
+    --pgdata {{pkg.svc_data_path}} \
+    --pwfile {{pkg.svc_config_path}}/pwfile \
+    --no-locale
+
+  chmod 400 {{pkg.svc_config_path}}/pwfile
+}
+
+function create_builder_database() {
+  # This call to postgres' createdb command depends on the various PG* envvars
+  # but they have been "inlined" into "main". Also the createdb call used to
+  # happen in the init of builder-api but ensure that the baseline DB is ready
+  # for the rest of the system really feels like it lives here.
+  createdb
+}
+
+installed_ident
+installed_version
+packaged_ident
+packaged_version=
+function get_postgres_dependency() {
+
+  # intermediate variable to cut down ${{{parenthetical_madness[@]}}}
+  local -a pkg_deps={{pkg.deps}}
+
+  for x in "${pkg_deps[@]}"; do
+    if [[ $x =~ postgres ]]; then
+      finds+=("$x")
+    fi
+  done
+
+  if ((${#pkg_deps[@]} == 1)); then
+    postgres_dep="${pkg_deps[0]}"
+    return 0
+  fi
+
+  if ((${#pkg_deps[@]} == 0)); then
+    echo "Failed to find a PostgreSQL dependency"
+    exit 3
+  fi
+
+  if ((${#pkg_deps[@]} > 1)); then
+    echo "Somehow found multiple PostgreSQL dependencies: ${pkg_deps[*]}"
+    exit 4
+  fi
+
+  # I don't really see how we get here but fail loudly just in case
+  echo "PostgreSQL dependency resolution failed"
+  exit 5
+}
+
+function upgrade_needed() {
+  local OIFS="$IFS"
+
+  # There is an argument to be made that this version check logic should
+  # account for a 3 part version number instead of just a 2 part but starting
+  # with PostgreSQL 10 the versioning scheme PostgreSQL versions are 2 parts.
+  # We do have some 3 part 9.x.x PostgreSQL packages that we're possibly
+  # migrating from but given that 9.6.24 has been EOL since Nov 11th 2021
+  # hopefully no one has a reason to leverage those packages. Even if someone
+  # did use the 9.x.x versions I think this will likely work acceptably and it
+  #
+  # https://www.postgresql.org/support/versioning/
+  # https://endoflife.date/postgresql
+
+  get_postgres_dependency
+
+  local -a version_installed
+  local -a version_packaged
+  local moment
+  moment="$(date +'%s')" # seconds since epoch
+
+
+  IFS='.'
+
+  read -ra version_installed <<<"$(sudo cat /hab/svc/builder-datastore/data/PG_VERSION)"
+  read -ra version_packaged <<<"$(sudo hab pkg exec "$postgres_dep" pg_config -- --version | awk '{print $2}')"
+
+  retval=1
+  if ((version_installed[0] < version_packaged[0])); then
+    echo "PostgreSQL upgrade needed: ${version_installed[*]} < ${version_packaged[*]}"
+    retval=0
+  else
+    if ((version_installed[0] == version_packaged[0])); then
+      if ((version_installed[1] < version_packaged[1])); then
+        echo "PostgreSQL upgrade needed: ${version_installed[*]} < ${version_packaged[*]}"
+        retval=0
+      fi
+    fi
+  fi
+
+  IFS="$OIFS"
+  return $retval
+}
+
+function upgrade_postgres() {
+
+  echo Upgrading PostgreSQL
+
+  # pg_ctl start [-D datadir] [-l filename] [-W] [-t seconds] [-s] [-o options] [-p path] [-c]
+  pg_ctl start -D {{pkg.svc_data_path}}
+  # [-l filename]
+  # [-p path]
+
+  if [[ ! -f '/hab/tmp' ]]; then
+    # might add -p but if /hab doesn't exist there are, shall we say, issues
+    mkdir /hab/tmp
+  fi
+
+  # https://dba.stackexchange.com/questions/264427/how-to-estimate-the-size-of-a-postgresql-db-to-be-dumped-through-pg-dump
+  # Estimate available space
+
+  # https://www.postgresql.org/docs/17/upgrading.html
+
+  # STEP 1) Making a backup, making sure that your database is not being updated
+
+  local pg_dump_file
+  pg_dump_file="/hab/tmp/pg_dump_$(date --iso-8601=seconds).sql"
+  pg_dump >"$pg_dump_file"
+
+  # STEP 2) Shut down the old server
+
+  # reenable the ability for users to connect to this database before shutting
+  # it down and moving it. The thought being that it would be might be easy to
+  # restore an old database and just as easy to forget that you had to reenable
+  # the ability to connect.
+  psql -c "ALTER DATABASE {{cfg.datastore.database}} WITH ALLOW_CONNECTIONS = true;"
+
+  pg_ctl stop
+
+  # STEP 3) Rename the old installation directory
+
+  local installed_version
+  installed_version="$(cat {{pkg.svc_data_path}}/PG_VERSION)"
+  mv "{{pkg.svc_data_path}}" "{{pkg.svc_data_path}}.old.v$installed_version"
+  # JAH: Maybe move to the /hab/tmp  instead of inside the svc directory?
+
+
+  # STEP 4) Install the new version of PostgreSQL (as outlined in Chapter 17)
+  # This is a noop for us as our habitat package represents the same output
+
+
+  # STEP 5) If needed, create a new database cluster. Remember you must be logged in as the special database user account
+  create_postgres_cluster
+  create_builder_database
+
+
+  # STEP 6) Restore your previous pg_hba.conf and any postgresql.conf modifications
+  # This is a noop for us as our hab svc
+
+
+  # STEP 7) Start the database server (again using the special database user account)
+
+
+  # STEP 8) Finally, restore your data from backup
+
+  # JAH: password upgrade would go here
+}
+
+#-------------------------------------------------------------------------------
+# BEGIN "main"
+#-------------------------------------------------------------------------------
+
+if [[ -f "{{pkg.svc_data_path}}/PG_VERSION" ]]; then
+  echo The PostgreSQL DB Cluster exists
+else
+  create_postgres_cluster
+fi
+
+# These env vars are needed by everything that follows
+PGHOST="{{cfg.datastore.host}}"
+PGPORT="{{cfg.datastore.port}}"
+PGUSER="{{cfg.datastore.user}}"
+PGPASSWORD="$(cat {{pkg.svc_config_path}}/pwfile)"
+PGDATABASE="{{cfg.datastore.database}}"
+export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
+
+if [[ $(psql --no-password -c ";") ]]; then
+  echo The builder database exists inside the PostgreSQL cluster
+else
+  create_builder_database
+fi
+
+if upgrade_needed; then
+  upgrade_postgres
+else
+  echo PostgreSQL upgrade is not needed
+fi
