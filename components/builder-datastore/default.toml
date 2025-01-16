@@ -1,5 +1,5 @@
 # For postgresql.conf settings, see
-# http://www.postgresql.org/docs/9.5/static/config-setting.html
+# https://www.postgresql.org/docs/17/config-setting.html
 #
 listen_addresses = "*"
 port = 5432
@@ -17,8 +17,7 @@ ssl_prefer_server_ciphers = "on"
 ssl_ecdh_curve = "prime256v1"
 ssl_ca_file = ""
 ssl_crl_file = ""
-password_encryption = "on"
-db_user_namespace = "off"
+password_encryption = "md5"
 row_security = "on"
 krb_server_keyfile = ""
 krb_caseins_users = "off"
@@ -67,12 +66,10 @@ archive_mode = "on"
 archive_command = "cd ."
 archive_timeout = 0
 max_wal_senders = 20
-wal_keep_segments = 0
 wal_sender_timeout = "60s"
 max_replication_slots = 20
 track_commit_timestamp = "off"
 synchronous_standby_names = ""
-vacuum_defer_cleanup_age = 0
 hot_standby = "on"
 max_standby_archive_delay = "30s"
 max_standby_streaming_delay = "30s"
@@ -215,3 +212,9 @@ restart_after_crash = "on"
 encoding = "UTF8"
 # If this isn't set, the package will create a random password at startup
 superuser_password = ""
+
+[datastore]
+host = "127.0.0.1"
+port = 5432
+user = "hab"
+database = "builder"

@@ -24,7 +24,7 @@ rustup component add --toolchain "$toolchain" clippy
 
 # TODO: these should be in a shared script?
 sudo hab license accept
-install_hab_pkg core/rust/"$toolchain" core/libarchive core/openssl core/pkg-config core/zeromq core/postgresql core/patchelf core/cmake
+install_hab_pkg core/rust/"$toolchain" core/libarchive core/openssl core/pkg-config core/zeromq core/postgresql17 core/patchelf core/cmake
 sudo hab pkg install core/protobuf
 
 # Yes, this is terrible but we need the clippy binary to run under our glibc.
@@ -38,12 +38,12 @@ sudo hab pkg exec core/patchelf patchelf -- --set-interpreter "$(hab pkg path co
 
 export OPENSSL_NO_VENDOR=1
 export LD_RUN_PATH
-LD_RUN_PATH="$(hab pkg path core/glibc)/lib:$(hab pkg path core/gcc-libs)/lib:$(hab pkg path core/openssl)/lib:$(hab pkg path core/postgresql)/lib:$(hab pkg path core/zeromq)/lib:$(hab pkg path core/libarchive)/lib"
+LD_RUN_PATH="$(hab pkg path core/glibc)/lib:$(hab pkg path core/gcc-libs)/lib:$(hab pkg path core/openssl)/lib:$(hab pkg path core/postgresql17)/lib:$(hab pkg path core/zeromq)/lib:$(hab pkg path core/libarchive)/lib"
 export LD_LIBRARY_PATH
 LD_LIBRARY_PATH="$(hab pkg path core/gcc)/lib:$(hab pkg path core/zeromq)/lib"
 export PKG_CONFIG_PATH
-PKG_CONFIG_PATH="$(hab pkg path core/zeromq)/lib/pkgconfig:$(hab pkg path core/libarchive)/lib/pkgconfig:$(hab pkg path core/postgresql)/lib/pkgconfig:$(hab pkg path core/openssl)/lib/pkgconfig"
-eval "$(hab pkg env core/rust/"$toolchain"):$(hab pkg path core/protobuf)/bin:$(hab pkg path core/pkg-config)/bin:$(hab pkg path core/postgresql)/bin:$(hab pkg path core/cmake)/bin:$PATH"
+PKG_CONFIG_PATH="$(hab pkg path core/zeromq)/lib/pkgconfig:$(hab pkg path core/libarchive)/lib/pkgconfig:$(hab pkg path core/postgresql17)/lib/pkgconfig:$(hab pkg path core/openssl)/lib/pkgconfig"
+eval "$(hab pkg env core/rust/"$toolchain"):$(hab pkg path core/protobuf)/bin:$(hab pkg path core/pkg-config)/bin:$(hab pkg path core/postgresql17)/bin:$(hab pkg path core/cmake)/bin:$PATH"
 
 # Lints we need to work through and decide as a team whether to allow or fix
 mapfile -t unexamined_lints < "$2"

@@ -47,7 +47,7 @@ DELETE FROM origin_secret_keys WHERE origin_id=(SELECT id FROM origins WHERE nam
 DELETE FROM origins WHERE name='$origin';
 EOF
 )
-  echo "$sql" | hab pkg exec core/postgresql psql -U hab builder
+  echo "$sql" | hab pkg exec core/postgresql17 psql -U hab builder
 done
 
 # cleanup users
@@ -57,7 +57,7 @@ do
 DELETE FROM accounts WHERE name='$user';
 EOF
 )
-  echo "$sql" | hab pkg exec core/postgresql psql -U hab builder
+  echo "$sql" | hab pkg exec core/postgresql17 psql -U hab builder
 done
 
 # cleanup files
