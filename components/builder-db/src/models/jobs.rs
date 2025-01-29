@@ -32,7 +32,6 @@ use crate::{models::{package::{BuilderPackageIdent,
                                BuilderPackageTarget},
                      pagination::Paginate},
             schema::jobs::{audit_jobs,
-                           busy_workers,
                            group_projects,
                            groups,
                            job_graph,
@@ -559,45 +558,6 @@ pub struct NewBusyWorker<'a> {
     pub ident:       &'a str,
     pub job_id:      i64,
     pub quarantined: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
-#[table_name = "busy_workers"]
-pub struct BusyWorker {
-    pub target:      String,
-    pub ident:       String,
-    pub job_id:      i64,
-    pub quarantined: bool,
-    pub created_at:  Option<DateTime<Utc>>,
-    pub updated_at:  Option<DateTime<Utc>>,
-}
-
-impl BusyWorker {
-    pub fn list(conn: &PgConnection) -> QueryResult<Vec<BusyWorker>> {
-        Counter::DBCall.increment();
-        busy_workers::table.get_results(conn)
-    }
-
-    pub fn create(req: &NewBusyWorker, conn: &PgConnection) -> QueryResult<usize> {
-        Counter::DBCall.increment();
-        diesel::insert_into(busy_workers::table)
-            .values((
-                busy_workers::target.eq(req.target),
-                busy_workers::ident.eq(req.ident),
-                busy_workers::job_id.eq(req.job_id),
-                busy_workers::quarantined.eq(req.quarantined),
-            ))
-            .on_conflict((busy_workers::ident, busy_workers::job_id))
-            .do_update()
-            .set(busy_workers::quarantined.eq(req.quarantined))
-            .execute(conn)
-    }
-
-    pub fn delete(ident: &str, job_id: i64, conn: &PgConnection) -> QueryResult<usize> {
-        Counter::DBCall.increment();
-        diesel::delete(busy_workers::table.filter(busy_workers::ident.eq(ident))
-                                          .filter(busy_workers::job_id.eq(job_id))).execute(conn)
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
