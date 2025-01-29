@@ -81,18 +81,3 @@ proxy_read_timeout = 180
 [http]
 keepalive_timeout = "180s"
 EOT
-
-mkdir -p /hab/user/builder-jobsrv/config/
-cat <<EOT > /hab/user/builder-jobsrv/config/user.toml
-log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error,postgres=error"
-
-[http]
-handler_count = 15
-
-[datastore]
-password = "$PGPASSWORD"
-port = 5433
-
-[archive]
-backend = "local"
-EOT
