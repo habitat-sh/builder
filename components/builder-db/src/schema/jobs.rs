@@ -57,19 +57,6 @@ table! {
 }
 
 table! {
-    use diesel::sql_types::{BigInt, Bool, Text, Nullable, Timestamptz};
-
-    busy_workers (ident, job_id) {
-        target -> Text,
-        ident -> Text,
-        job_id -> BigInt,
-        quarantined -> Bool,
-        created_at -> Nullable<Timestamptz>,
-        updated_at -> Nullable<Timestamptz>,
-    }
-}
-
-table! {
     use diesel::sql_types::{BigInt, SmallInt, Text, Nullable, Timestamptz};
     audit_jobs (group_id) { // TODO THIS IS WRONG!!!! there isn't a primary key on this table.
         group_id -> BigInt,
