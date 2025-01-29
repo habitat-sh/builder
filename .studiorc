@@ -15,7 +15,6 @@ export GITHUB_API_URL
 export GITHUB_APP_ID
 export GITHUB_APP_URL
 export SSL_CERT_FILE
-export DEV_MODE
 export HAB_STATS_ADDR
 
 # Wrap a function with this one to ensure that it stops executing if any of its
@@ -93,7 +92,7 @@ _build-builder-component() {
 
   start-builder "$component"
   case "${component}" in
-    api | worker)
+    api)
       generate_bldr_keys && upload_github_keys;;
     *)
       ;;
@@ -126,7 +125,7 @@ build-builder() { stop-on-failure _build-builder "$@"; }
 
 upload_github_keys() {
   if [[ -f "/src/.secrets/builder-github-app.pem" ]]; then
-    for svc in worker api; do
+    for svc in api; do
       hab file upload "builder-${svc}.default" "$(date +%s)" "/src/.secrets/builder-github-app.pem"
     done
   else
@@ -391,9 +390,6 @@ DOCS
 }
 
 install-packages
-
-# Forces the worker to use a bound docker socket
-DEV_MODE=true
 
 load_env_config
 
