@@ -64,7 +64,6 @@ done
 for origin in "${origins[@]}"
 do
   sql=$(cat <<EOF
-DELETE FROM busy_workers WHERE job_id IN (SELECT id FROM jobs WHERE project_name LIKE '$origin%');
 DELETE FROM group_projects WHERE project_name LIKE '$origin%';
 DELETE FROM groups WHERE project_name LIKE '$origin%';
 DELETE FROM jobs WHERE project_name LIKE '$origin%';
