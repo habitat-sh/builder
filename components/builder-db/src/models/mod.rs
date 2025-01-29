@@ -9,7 +9,6 @@ pub mod account;
 pub mod channel;
 pub mod integration;
 pub mod invitations;
-pub mod jobs;
 pub mod keys;
 pub mod origin;
 pub mod package;

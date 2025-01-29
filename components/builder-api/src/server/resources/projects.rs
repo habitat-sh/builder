@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::{http::{self,
-                       StatusCode},
+use actix_web::{http::StatusCode,
                 web::{self,
                       Data,
                       Path,
@@ -22,18 +21,13 @@ use actix_web::{http::{self,
                 HttpRequest,
                 HttpResponse};
 
-use crate::protocol::jobsrv;
-
-use crate::db::models::{jobs::*,
-                        origin::*,
+use crate::db::models::{origin::*,
                         project_integration::*,
                         projects::*};
 
 use crate::server::{authorize::authorize_session,
                     error::Error,
-                    framework::headers,
                     helpers::{self,
-                              Pagination,
                               Target},
                     resources::settings::do_toggle_privacy,
                     AppState};
@@ -80,7 +74,6 @@ impl Projects {
     pub fn register(cfg: &mut ServiceConfig) {
         cfg.route("/projects/{origin}", web::get().to(get_projects))
            .route("/projects/{origin}/{name}", web::get().to(get_project))
-           .route("/projects/{origin}/{name}/jobs", web::get().to(get_jobs))
            .route("/projects/{origin}/{name}/integrations/{integration}/default",
                   web::get().to(get_integration))
            .route("/projects/{origin}/{name}/integrations/{integration}/default",
@@ -145,64 +138,6 @@ async fn get_projects(req: HttpRequest, path: Path<String>, state: Data<AppState
         Err(err) => {
             debug!("{}", err);
             Error::DieselError(err).into()
-        }
-    }
-}
-
-#[allow(clippy::needless_pass_by_value)]
-async fn get_jobs(req: HttpRequest,
-                  path: Path<(String, String)>,
-                  pagination: Query<Pagination>,
-                  state: Data<AppState>)
-                  -> HttpResponse {
-    let (origin, name) = path.into_inner();
-
-    if let Err(err) = authorize_session(&req, Some(&origin), None) {
-        return err.into();
-    }
-
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
-        Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    let (page, per_page) = helpers::extract_pagination_in_pages(&pagination);
-    assert!(page >= 1);
-
-    let lpr = ListProjectJobs { name:  format!("{}/{}", origin, name),
-                                page:  page as i64,
-                                limit: per_page as i64, };
-
-    match Job::list(lpr, &conn).map_err(Error::DieselError) {
-        Ok((jobs, total_count)) => {
-            let start = (page - 1) * per_page;
-            let stop = match jobs.len() {
-                0 => per_page - 1,
-                len => start + (len as isize) - 1,
-            };
-
-            let list: Vec<serde_json::Value> = jobs.into_iter()
-                                                   .map(|job| {
-                                                       let protojob: jobsrv::Job = job.into();
-                                                       serde_json::to_value(protojob).unwrap()
-                                                   })
-                                                   .collect();
-
-            let body = helpers::package_results_json(&list, total_count as isize, start, stop);
-
-            let mut response = if total_count as isize > (stop + 1) {
-                HttpResponse::PartialContent()
-            } else {
-                HttpResponse::Ok()
-            };
-
-            response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
-                    .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-                    .body(body)
-        }
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
         }
     }
 }
