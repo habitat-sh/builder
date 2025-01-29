@@ -21,8 +21,6 @@ pipelines:
       public: true
   - release_builder:
       description: Builder release process
-  - post_habitat_release:
-      description: "Tasks to be performed after a successful Habitat release"
 
 staging_areas:
   - release_staging:
