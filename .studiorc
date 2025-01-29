@@ -49,6 +49,7 @@ load_env_config() {
   env_config="/src/.secrets/habitat-env"
 
   if [[ -f "${env_config}" ]]; then
+    # shellcheck disable=SC1090
     source "${env_config}"
   else
     echo -e "${RED}.secrets/habitat-env is required. Please see DEVELOPING.md for getting started instructions.${NO_COLOR}"
@@ -125,9 +126,7 @@ build-builder() { stop-on-failure _build-builder "$@"; }
 
 upload_github_keys() {
   if [[ -f "/src/.secrets/builder-github-app.pem" ]]; then
-    for svc in api; do
-      hab file upload "builder-${svc}.default" "$(date +%s)" "/src/.secrets/builder-github-app.pem"
-    done
+    hab file upload "builder-api.default" "$(date +%s)" "/src/.secrets/builder-github-app.pem"
   else
     echo "Missing GitHub key file. Please follow instructions here: https://github.com/habitat-sh/builder/blob/master/DEVELOPING.md"
     sleep 10
@@ -148,7 +147,7 @@ _start-builder() {
     start-builder api-proxy
     start-builder minio
     # Provide enough time for minio's reconfigure hook to create the bucket.
-    # Otherwise, the configure operation will error and abend this function.
+    # Otherwise, the configure operation will error and exit this function.
     sleep 8
     configure-minio
 
@@ -160,6 +159,7 @@ _start-builder() {
     echo "Username: depot"
     echo "Password: password"
     echo "AWS-CLI ENVVARS have been set with these values"
+    # shellcheck disable=SC2320
     return $?
   fi
 
@@ -227,11 +227,11 @@ _stop-builder() {
   fi
 
   for component in "$@"; do
-    if [ $component == cache ]; then
+    if [ "$component" == cache ]; then
       hab svc unload core/sccache
     else
       echo "Unloading builder-$component"
-      hab svc unload habitat/builder-$component
+      hab svc unload "habitat/builder-$component"
     fi
   done
 }
@@ -248,10 +248,8 @@ generate_bldr_keys() {
     echo "Generated new builder key: $KEY_NAME"
   fi
 
-  for svc in api; do
-    hab file upload "builder-${svc}.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.pub"
-    hab file upload "builder-${svc}.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.box.key"
-  done
+  hab file upload "builder-api.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.pub"
+  hab file upload "builder-api.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.box.key"
 }
 
 load_package() {
