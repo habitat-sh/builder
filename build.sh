@@ -8,11 +8,6 @@ toolchain=$(get_toolchain)
 
 component=${1?component argument required}
 
-if [[ "$component" == "builder-jobsrv" || "$component" == "builder-worker" ]]; then
-  echo "Skipping build for $component as it is no longer supported."
-  exit 0
-fi
-
 # Accept hab license
 sudo hab pkg install core/rust/"$toolchain" --channel LTS-2024
 sudo hab pkg install core/libarchive --channel LTS-2024

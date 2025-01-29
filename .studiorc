@@ -114,7 +114,7 @@ _build-builder() {
   fi
 
   if [[ "$#" -eq 0 ]]; then
-    build-builder api jobsrv worker
+    build-builder api
     return $?
   fi
 
@@ -147,8 +147,6 @@ _start-builder() {
     start-builder memcached
     start-builder api
     start-builder api-proxy
-    start-builder jobsrv
-    start-builder worker
     start-builder minio
     # Provide enough time for minio's reconfigure hook to create the bucket.
     # Otherwise, the configure operation will error and abend this function.
@@ -217,17 +215,15 @@ start-cache() {
 }
 
 declare -A svc_params=(
-  [api]="        -s at-once --bind memcached:builder-memcached.default --bind jobsrv:builder-jobsrv.default"
+  [api]="        -s at-once --bind memcached:builder-memcached.default"
   [api-proxy]="             --bind http:builder-api.default"
-  [jobsrv]="     -s at-once"
-  [worker]="     -s at-once --bind jobsrv:builder-jobsrv.default --bind depot:builder-api-proxy.default"
   [minio]="      -s at-once"
   [memcached]="  -s at-once"
 )
 
 _stop-builder() {
   if [[ "$#" -eq 0 ]]; then
-    stop-builder cache api api-proxy datastore jobsrv worker minio memcached
+    stop-builder cache api api-proxy datastore minio memcached
     return $?
   fi
 
@@ -253,7 +249,7 @@ generate_bldr_keys() {
     echo "Generated new builder key: $KEY_NAME"
   fi
 
-  for svc in api jobsrv worker; do
+  for svc in api; do
     hab file upload "builder-${svc}.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.pub"
     hab file upload "builder-${svc}.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.box.key"
   done
@@ -345,7 +341,7 @@ export -f psql
 
 # Cleanup any development touch files we laid down when checking to see if we could run NO_INSTALL_DEPS
 local_cleanup() {
-  for svc in api api-proxy datastore jobsrv worker minio; do
+  for svc in api api-proxy datastore minio; do
     if [ -f "/src/components/builder-${svc}/cleanup" ]; then
       rm "/src/components/builder-${svc}/cleanup"
     fi
@@ -373,16 +369,14 @@ dev_docs() {
 The following commands are available:
   build-builder (alias: bb) - Build all services
   build-builder [SERVICE]   - Build specific service
-                              Valid: api jobsrv worker
+                              Valid: api
                               Experimental: api-proxy
   start-builder             - Start all services
   start-builder [SERVICE]   - Start specific service
-                              Valid: api api-proxy cache datastore
-                                     jobsrv worker minio
+                              Valid: api api-proxy cache datastore minio
   stop-builder              - Stop all services
   stop-builder [SERVICE]    - Stop specific service
-                              Valid: api api-proxy cache datastore
-                                     jobsrv worker minio
+                              Valid: api api-proxy cache datastore minio
   psql                      - Open psql shell to builder DB
   origin                    - Create core origin
   origin [ORIGIN]           - Create specified origin

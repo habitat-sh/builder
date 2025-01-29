@@ -1,8 +1,6 @@
 [builder-api-proxy]
 plan_path = "components/builder-api-proxy/habitat"
-paths = [
-  "components/builder-web/*",
-]
+paths = ["components/builder-web/*"]
 
 [builder-api]
 plan_path = "components/builder-api/habitat"
@@ -20,38 +18,10 @@ paths = [
 [builder-datastore]
 plan_path = "components/builder-datastore"
 
-[builder-jobsrv]
-plan_path = "components/builder-jobsrv/habitat"
-paths = [
-  "components/builder-jobsrv/*",
-  "components/builder-core/*",
-  "components/builder-protocol/*",
-  "components/builder-db/*",
-  "support/ci/builder-base-plan.sh",
-]
-
-[builder-worker]
-plan_path = "components/builder-worker/habitat"
-paths = [
-  "components/builder-worker/*",
-  "components/builder-core/*",
-  "components/builder-protocol/*",
-  "support/ci/builder-base-plan.sh",
-]
-build_targets = [
-  "x86_64-windows",
-  "x86_64-linux",
-  "x86_64-linux-kernel2"
-]
-
 [builder-minio]
 plan_path = "components/builder-minio/habitat"
-paths = [
-  "components/builder-minio/*"
-]
+paths = ["components/builder-minio/*"]
 
 [builder-memcached]
 plan_path = "components/builder-memcached"
-paths = [
-  "components/builder-memcached/*"
-]
+paths = ["components/builder-memcached/*"]
