@@ -12,7 +12,6 @@ use self::{framework::middleware::authentication_middleware,
                        channels::Channels,
                        events::Events,
                        ext::Ext,
-                       jobs::Jobs,
                        notify::Notify,
                        origins::Origins,
                        pkgs::Packages,
@@ -185,7 +184,6 @@ pub async fn run(config: Config) -> error::Result<()> {
                     .configure(Authenticate::register)
                     .configure(Channels::register)
                     .configure(Ext::register)
-                    .configure(Jobs::register)
                     .configure(Notify::register)
                     .configure(Origins::register)
                     .configure(Packages::register)

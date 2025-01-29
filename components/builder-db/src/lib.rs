@@ -25,8 +25,6 @@ extern crate postgres;
 extern crate postgres_types;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
-extern crate paste;
 
 use builder_core as bldr_core;
 use habitat_builder_protocol as protocol;
@@ -35,7 +33,6 @@ use habitat_core as hab_core;
 pub mod config;
 pub mod diesel_pool;
 pub mod error;
-pub mod functions;
 pub mod metrics;
 pub mod migration;
 // https://github.com/rust-lang/rust-clippy/issues/9014
