@@ -1,3 +1,6 @@
+#!/bin/bash
+#shellcheck disable=SC2034
+
 pkg_origin=habitat
 pkg_name=builder-datastore
 pkg_internal_version=11.2
@@ -73,21 +76,21 @@ do_unpack() {
 }
 
 do_build() {
-    # shellcheck disable=2154
-    # ld manpage: "If -rpath is not used when linking an ELF
-    # executable, the contents of the environment variable LD_RUN_PATH
-    # will be used if it is defined"
-    ./configure --disable-rpath \
-              --with-openssl \
-              --prefix="$pkg_prefix" \
-              --with-uuid=ossp \
-              --with-includes="$LD_INCLUDE_PATH" \
-              --with-libraries="$LD_LIBRARY_PATH" \
-              --sysconfdir="$pkg_svc_config_path" \
-              --localstatedir="$pkg_svc_var_path"
-    make world
+  # shellcheck disable=2154
+  # ld manpage: "If -rpath is not used when linking an ELF
+  # executable, the contents of the environment variable LD_RUN_PATH
+  # will be used if it is defined"
+  ./configure --disable-rpath \
+    --with-openssl \
+    --prefix="$pkg_prefix" \
+    --with-uuid=ossp \
+    --with-includes="$LD_INCLUDE_PATH" \
+    --with-libraries="$LD_LIBRARY_PATH" \
+    --sysconfdir="$pkg_svc_config_path" \
+    --localstatedir="$pkg_svc_var_path"
+  make world
 
-    # semver can't be built until after postgresql is installed to $pkg_prefix
+  # semver can't be built until after postgresql is installed to $pkg_prefix
 }
 
 do_install() {
@@ -97,10 +100,10 @@ do_install() {
   export PATH="${PATH}:${pkg_prefix}/bin"
   build_line "Added postgresql binaries to PATH: ${pkg_prefix}/bin"
 
-  pushd "$ext_semver_cache_path" > /dev/null || exit
+  pushd "$ext_semver_cache_path" >/dev/null || exit
   build_line "Building ${ext_semver_dirname}"
   make
   build_line "Installing ${ext_semver_dirname}"
   make install
-  popd > /dev/null || exit
+  popd >/dev/null || exit
 }
