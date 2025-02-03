@@ -1,7 +1,16 @@
-#!/bin/sh
-set -e
-export PGPASSWORD="{{cfg.datastore.password}}"
-PSQL_ARGS="-w -h {{cfg.datastore.host}} -p {{cfg.datastore.port}} -U {{cfg.datastore.user}} {{cfg.datastore.database}}"
-# shellcheck disable=SC2086
-# Check that the DB exists or create it
-psql -c ";" $PSQL_ARGS || createdb $PSQL_ARGS
+#!/bin/bash
+
+set -euo pipefail
+
+PGHOST="{{cfg.datastore.host}}"
+PGPORT="{{cfg.datastore.port}}"
+PGUSER="{{cfg.datastore.user}}"
+PGPASSWORD="{{cfg.datastore.password}}"
+PGDATABASE="{{cfg.datastore.database}}"
+export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
+
+# Check that the DB is exists and is reachable or create it
+# NOTE: Builder's .studiorc has a psql function necessitating the use of command
+if ! command psql --no-password --command=";"; then
+  createdb
+fi
