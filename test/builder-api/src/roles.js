@@ -801,6 +801,7 @@ describe("Origin Roles API", function () {
         });
     });
 
+    // JAH: this was broken before rdep refactoring. Make sure you review it
     it("user with member role authorized to trigger builds", function (done) {
       request
         .post("/depot/pkgs/schedule/rcpd/testapp")
