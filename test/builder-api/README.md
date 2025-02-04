@@ -55,6 +55,7 @@ If we do not build, we'd be testing against the stable package versions of the b
 Keep in mind that since you are developing that you may need to customize the execution environment.  Environment variables of interest include, but are necessarily limited to, the following ones that control the channels used.
 
 ```shell
+[6][default:/src:0]# test/builder-api/test.sh
 ```
 
 Then, repeat as necessary. The following condenses the above information in the easiest happy path for ease of reference.
@@ -64,10 +65,11 @@ Then, repeat as necessary. The following condenses the above information in the 
 # enter a studio with no supervisor with 
 $ hab studio rm # Do a studio rm "as feels right".  Use hab studio rm as you would "make clean".
 $ HAB_STUDIO_SUP=false hab studio enter
+
 # ...studio starts...
+# IMPORTANT: Load any environment variables you need now
 
 [1][default:/src:0]# HAB_FUNC_TEST=1 sup-run
-# Load any environment variables you need now
 [3][default:/src:0]# start-builder
 [4][default:/src:0]# hab svc status
 
