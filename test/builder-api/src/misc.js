@@ -39,6 +39,7 @@ describe('Miscellanenous API', function () {
   });
 
   describe('Retrieving reverse dependencies', function () {
+    // JAH: ensure this works after rdep refactoring
     it('returns all reverse dependencies for an origin and package name', function (done) {
       request.get('/rdeps/neurosis/testapp?target=x86_64-linux')
         .type('application/json')
@@ -78,6 +79,7 @@ describe('Miscellanenous API', function () {
         });
     });
 
+    // JAH: ensure this works after rdep refactoring
     it('hides reverse dependencies for private origin and package name', function (done) {
       request.get('/rdeps/neurosis/testapp?target=x86_64-linux')
         .type('application/json')
