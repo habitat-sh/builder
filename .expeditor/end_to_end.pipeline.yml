@@ -1,0 +1,22 @@
+expeditor:
+  defaults:
+    buildkite:
+      timeout_in_minutes: 30
+      env:
+        HAB_ORIGIN: "habitat"
+        HAB_BLDR_CHANNEL: "unstable"
+
+steps:
+#######################################################################
+# End to end test
+#######################################################################
+  - label: ":linux: Builder End to End"
+    command:
+      - .expeditor/scripts/end_to_end/builder_worker_test.sh
+    expeditor:
+      account:
+        - github
+      executor:
+        docker:
+          environment:
+            - GITHUB_USER
