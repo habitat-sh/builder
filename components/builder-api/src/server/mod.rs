@@ -16,7 +16,6 @@ use self::{framework::middleware::authentication_middleware,
                        origins::Origins,
                        pkgs::Packages,
                        profile::Profile,
-                       projects::Projects,
                        settings::Settings,
                        user::User},
            services::{memcache::MemcacheClient,
@@ -188,7 +187,6 @@ pub async fn run(config: Config) -> error::Result<()> {
                     .configure(Origins::register)
                     .configure(Packages::register)
                     .configure(Profile::register)
-                    .configure(Projects::register)
                     .configure(Settings::register)
                     .configure(User::register)
                     .configure(Events::register)
