@@ -37,17 +37,6 @@ use crate::server::{authorize::authorize_session,
                               req_state,
                               Target}};
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct GroupPromoteReq {
-    #[serde(default)]
-    pub idents: Vec<String>,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct GroupDemoteReq {
-    #[serde(default)]
-    pub idents: Vec<String>,
-}
 pub struct Jobs;
 
 impl Jobs {

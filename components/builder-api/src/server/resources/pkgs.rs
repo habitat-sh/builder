@@ -31,8 +31,7 @@ use crate::{bldr_core::{error::Error::RpcError,
                          settings::{GetOriginPackageSettings,
                                     NewOriginPackageSettings,
                                     OriginPackageSettings}},
-            hab_core::{package::{metadata::PackageType,
-                                 FromArchive,
+            hab_core::{package::{FromArchive,
                                  Identifiable,
                                  PackageArchive,
                                  PackageIdent,
@@ -101,32 +100,6 @@ pub struct Upload {
     forced:   bool,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct Schedule {
-    #[serde(default = "default_target")]
-    target:       String,
-    #[serde(default)]
-    deps_only:    Option<String>,
-    #[serde(default)]
-    origin_only:  Option<String>,
-    #[serde(default)]
-    package_only: Option<String>,
-}
-
-fn default_target() -> String { "x86_64-linux".to_string() }
-
-#[derive(Debug, Deserialize)]
-pub struct GetSchedule {
-    #[serde(default)]
-    include_projects: bool,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct OriginScheduleStatus {
-    #[serde(default)]
-    limit: String,
-}
-
 pub struct Packages {}
 
 impl Packages {
@@ -136,14 +109,8 @@ impl Packages {
         cfg.route("/depot/pkgs/{origin}",
                   web::get().to(get_packages_for_origin))
            .route("/depot/pkgs/search/{query}", web::get().to(search_packages))
-           .route("/depot/pkgs/schedule/{groupid}",
-                  web::get().to(get_schedule))
            .route("/depot/pkgs/{origin}/{pkg}",
                   web::get().to(get_packages_for_origin_package))
-           .route("/depot/pkgs/schedule/{origin}/status",
-                  web::get().to(get_origin_schedule_status))
-           .route("/depot/pkgs/schedule/{origin}/{pkg}",
-                  web::post().to(schedule_job_group))
            .route("/depot/pkgs/{origin}/{pkg}/latest",
                   web::get().to(get_latest_package_for_origin_package))
            .route("/depot/pkgs/{origin}/{pkg}/versions",
@@ -542,159 +509,6 @@ async fn upload_package(req: HttpRequest,
         Err(err) => {
             warn!("Failed to upload package {}, err={:?}", &ident, err);
             Ok(err.into())
-        }
-    }
-}
-
-// TODO REVIEW: should this path be under jobs instead?
-#[allow(clippy::needless_pass_by_value)]
-async fn schedule_job_group(req: HttpRequest,
-                            path: Path<(String, String)>,
-                            qschedule: Query<Schedule>,
-                            state: Data<AppState>)
-                            -> HttpResponse {
-    let (origin_name, package) = path.into_inner();
-
-    let session = match authorize_session(&req, Some(&origin_name), Some(OriginMemberRole::Member))
-    {
-        Ok(session) => session,
-        Err(err) => return err.into(),
-    };
-
-    let target = match PackageTarget::from_str(&qschedule.target) {
-        Ok(t) => t,
-        Err(_) => {
-            debug!("Invalid target received: {}", qschedule.target);
-            return HttpResponse::new(StatusCode::BAD_REQUEST);
-        }
-    };
-
-    if !state.config.api.build_targets.contains(&target) {
-        debug!("Rejecting build with target: {}", qschedule.target);
-        return HttpResponse::new(StatusCode::BAD_REQUEST);
-    }
-
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
-        Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    let ident = PackageIdent::new(origin_name.clone(), package.clone(), None, None);
-    let latest_pkg = match Package::get_latest(
-        GetLatestPackage {
-            ident: BuilderPackageIdent(ident.clone()),
-            target: BuilderPackageTarget(target),
-            visibility: helpers::visibility_for_optional_session(
-                &req,
-                Some(session.get_id()),
-                &origin_name,
-            ),
-        },
-        &conn,
-    ) {
-        Ok(pkg) => Some(pkg),
-        Err(NotFound) => None,
-        Err(err) => {
-            debug!("{:?}", err);
-            return Error::DieselError(err).into();
-        }
-    };
-
-    if let Some(pkg) = latest_pkg {
-        if *pkg.package_type == PackageType::Native {
-            debug!("Unsupported package type for building {}.",
-                   *pkg.package_type);
-            let body = Bytes::from(format!("Building '{}' package is not supported",
-                                           *pkg.package_type).into_bytes());
-            let body = BoxBody::new(body);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
-        }
-    }
-
-    let mut request = jobsrv::JobGroupSpec::new();
-    request.set_origin(origin_name);
-    request.set_package(package);
-    request.set_target(qschedule.target.clone());
-    request.set_deps_only(qschedule.deps_only
-                                   .clone()
-                                   .unwrap_or_else(|| "false".to_string())
-                                   .parse()
-                                   .unwrap_or(false));
-    request.set_origin_only(qschedule.origin_only
-                                     .clone()
-                                     .unwrap_or_else(|| "false".to_string())
-                                     .parse()
-                                     .unwrap_or(false));
-    request.set_package_only(qschedule.package_only
-                                      .clone()
-                                      .unwrap_or_else(|| "false".to_string())
-                                      .parse()
-                                      .unwrap_or(false));
-    request.set_trigger(helpers::trigger_from_request(&req));
-    request.set_requester_id(session.get_id());
-    request.set_requester_name(session.get_name().to_string());
-
-    match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(&req, &request).await {
-        Ok(group) => {
-            HttpResponse::Created().append_header((http::header::CACHE_CONTROL,
-                                                   headers::Cache::NoCache.to_string()))
-                                   .json(group)
-        }
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
-        }
-    }
-}
-
-#[allow(clippy::needless_pass_by_value)]
-async fn get_schedule(req: HttpRequest,
-                      path: Path<String>,
-                      qgetschedule: Query<GetSchedule>)
-                      -> HttpResponse {
-    let group_id_str = path.into_inner();
-    let group_id = match group_id_str.parse::<u64>() {
-        Ok(id) => id,
-        Err(_) => return HttpResponse::new(StatusCode::BAD_REQUEST),
-    };
-
-    let mut request = jobsrv::JobGroupGet::new();
-    request.set_group_id(group_id);
-    request.set_include_projects(qgetschedule.include_projects);
-
-    match route_message::<jobsrv::JobGroupGet, jobsrv::JobGroup>(&req, &request).await {
-        Ok(group) => {
-            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-                              .json(group)
-        }
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
-        }
-    }
-}
-
-#[allow(clippy::needless_pass_by_value)]
-async fn get_origin_schedule_status(req: HttpRequest,
-                                    path: Path<String>,
-                                    qoss: Query<OriginScheduleStatus>)
-                                    -> HttpResponse {
-    let origin = path.into_inner();
-    let limit = qoss.limit.parse::<u32>().unwrap_or(10);
-
-    let mut request = jobsrv::JobGroupOriginGet::new();
-    request.set_origin(origin);
-    request.set_limit(limit);
-
-    match route_message::<jobsrv::JobGroupOriginGet, jobsrv::JobGroupOriginResponse>(&req, &request)
-        .await
-    {
-        Ok(jgor) => HttpResponse::Ok()
-            .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-            .json(jgor.get_job_groups()),
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
         }
     }
 }
@@ -1689,27 +1503,5 @@ async fn has_circular_deps(req: &HttpRequest,
             Ok(false)
         }
         Err(err) => Err(err),
-    }
-}
-
-pub fn platforms_for_package_ident(req: &HttpRequest,
-                                   package: &BuilderPackageIdent)
-                                   -> Result<Option<Vec<String>>> {
-    let opt_session_id = match authorize_session(req, None, None) {
-        Ok(session) => Some(session.get_id()),
-        Err(_) => None,
-    };
-
-    let conn = req_state(req).db.get_conn()?;
-
-    match Package::list_package_platforms(package,
-                                          helpers::visibility_for_optional_session(req,
-                                                                                   opt_session_id,
-                                                                                   &package.origin),
-                                          &conn)
-    {
-        Ok(list) => Ok(Some(list.iter().map(|p| p.to_string()).collect())),
-        Err(NotFound) => Ok(None),
-        Err(err) => Err(Error::DieselError(err)),
     }
 }

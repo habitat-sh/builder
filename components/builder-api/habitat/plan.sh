@@ -42,8 +42,4 @@ pkg_binds=(
   [memcached]="port"
 )
 
-pkg_binds_optional=(
-  [jobsrv]="rpc_port"
-)
-
 bin="bldr-api"
