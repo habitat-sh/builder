@@ -22,169 +22,169 @@ import { MatDialog } from '@angular/material';
 import { PromoteConfirmDialog } from '../../shared/dialog/promote-confirm/promote-confirm.dialog';
 
 @Component({
-  selector: 'hab-package-detail',
-  template: require('./package-detail.component.html')
+    selector: 'hab-package-detail',
+    template: require('./package-detail.component.html')
 })
 export class PackageDetailComponent {
-  @Input() package: any;
+    @Input() package: any;
 
-  updating = true;
-  private _channels: any;
+    updating = true;
+    private _channels: any;
 
-  constructor(
-    private store: AppStore,
-    private confirmDialog: MatDialog,
-  ) {
-   }
-
-  @Input() set channels(channels: any) {
-    const channelsMap = (channels || []).reduce((acc, cur) => {
-      acc[cur.name] = cur;
-      return acc;
-    }, {});
-
-    this._channels = channelsMap;
-    this.updating = false;
-  }
-
-  get fullName() {
-    const ident = this.package['ident'];
-    let props = [];
-
-    ['origin', 'name', 'version', 'release'].forEach(prop => {
-      if (ident[prop]) {
-        props.push(ident[prop]);
-      }
-    });
-
-    return props.join('/');
-  }
-
-  titleFrom(platform) {
-    const target = targetFrom('id', platform);
-    return target ? target.title : '';
-  }
-
-  get memberOfOrigin() {
-    return !!this.store.getState().origins.mine.find(
-      origin => origin['name'] === this.package.ident.origin
-    );
-  }
-
-  handleDemote(channel) {
-    this.confirmDialog
-    .open(SimpleConfirmDialog, {
-      width: '480px',
-      data: {
-        heading: 'Confirm demote',
-        body: `Are you sure you want to remove this package from the ${channel} channel?`,
-        action: 'demote it'
-      }
-    })
-    .afterClosed()
-    .subscribe((confirmed) => {
-      if (confirmed) {
-        this.updating = true;
-        let p = this.package.ident;
-        let token = this.store.getState().session.token;
-        this.store.dispatch(demotePackage(p.origin, p.name, p.version, p.release, this.package.target, channel, token));
-      }
-    });
-  }
-
-  handlePromote(channel) {
-    let state = this.store.getState();
-    const filteredAllChannel = this.getAllChannel(channel);
-    if (state.features.enableLTS) {
-    this.confirmDialog
-    .open(PromoteConfirmDialog, {
-      width: '480px',
-      data: {
-        heading: 'Confirm promote',
-        body: `Select channel to promote. Promoted artifact will be added to the selected channel.`,
-        channelList: filteredAllChannel,
-        action: 'Promote'
-      }
-    })
-    .afterClosed()
-    .subscribe((data) => {
-      if (data) {
-        const {confirmed, selectedChannel} = data;
-        if (confirmed && selectedChannel) {
-          this.updating = true;
-          let token = this.store.getState().session.token;
-          this.store.dispatch(
-            promotePackage(this.package.ident.origin, this.package.ident.name, this.package.ident.version, this.package.ident.release, this.package.target, selectedChannel, token)
-          );
-        }
-      }
-    });
-    } else {
-        this.confirmDialog
-    .open(SimpleConfirmDialog, {
-      width: '480px',
-      data: {
-        heading: 'Confirm promote',
-        body: `Are you sure you want to promote this artifact? Doing so will add the artifact to the stable channel.`,
-        action: 'Promote it'
-      }
-    })
-    .afterClosed()
-    .subscribe((confirmed) => {
-        if (confirmed) {
-          this.updating = true;
-          let token = this.store.getState().session.token;
-          this.store.dispatch(
-            promotePackage(this.package.ident.origin, this.package.ident.name, this.package.ident.version, this.package.ident.release, this.package.target, 'stable', token)
-          );
-      }
-    });
+    constructor(
+        private store: AppStore,
+        private confirmDialog: MatDialog,
+    ) {
     }
-  }
 
-  getAllChannel(currentChannel) {
-    return this.store.getState().origins.current.channels.filter((channel) => {
-      return channel.name !== 'unstable' && channel.name !== currentChannel && !this._channels[channel.name];
-    });
-  }
+    @Input() set channels(channels: any) {
+        const channelsMap = (channels || []).reduce((acc, cur) => {
+            acc[cur.name] = cur;
+            return acc;
+        }, {});
 
-  hasChannels() {
-    return (this.package.channels || []).length > 0;
-  }
+        this._channels = channelsMap;
+        this.updating = false;
+    }
 
-  canShowDemote(channel) {
-    return this.memberOfOrigin && channel !== 'unstable';
-  }
+    get fullName() {
+        const ident = this.package['ident'];
+        let props = [];
 
-  canShowPromote(channel, pkg) {
-    return this.promotable(pkg) && channel === 'unstable';
-  }
+        ['origin', 'name', 'version', 'release'].forEach(prop => {
+            if (ident[prop]) {
+                props.push(ident[prop]);
+            }
+        });
 
-  promotable(pkg) {
-    const originChannels = this.store.getState().origins.current.channels;
-    const hasMissingChannel = originChannels.some(originChannel =>
-      pkg.channels.indexOf(originChannel.name) === -1
-    );
-    return this.memberOfOrigin && hasMissingChannel;
-  }
+        return props.join('/');
+    }
 
-  releaseToDate(release) {
-    return parseDate(release);
-  }
+    titleFrom(platform) {
+        const target = targetFrom('id', platform);
+        return target ? target.title : '';
+    }
 
-  promotedDate(channel) {
-    const chan = this._channels[channel] || {};
-    return chan.promoted_at || chan.created_at;
-  }
+    get memberOfOrigin() {
+        return !!this.store.getState().origins.mine.find(
+            origin => origin['name'] === this.package.ident.origin
+        );
+    }
 
-  toDisplaySize(size: number) {
-    return this.formatSize(size);
-  }
+    handleDemote(channel) {
+        this.confirmDialog
+            .open(SimpleConfirmDialog, {
+                width: '480px',
+                data: {
+                    heading: 'Confirm demote',
+                    body: `Are you sure you want to remove this package from the ${channel} channel?`,
+                    action: 'demote it'
+                }
+            })
+            .afterClosed()
+            .subscribe((confirmed) => {
+                if (confirmed) {
+                    this.updating = true;
+                    let p = this.package.ident;
+                    let token = this.store.getState().session.token;
+                    this.store.dispatch(demotePackage(p.origin, p.name, p.version, p.release, this.package.target, channel, token));
+                }
+            });
+    }
 
-  private formatSize(bytes: number) {
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    const sizes = ['bytes', 'KB', 'MB', 'GB'];
+    handlePromote(channel) {
+        let state = this.store.getState();
+        const filteredAllChannel = this.getAllChannel(channel);
+        if (state.features.enableBase) {
+            this.confirmDialog
+                .open(PromoteConfirmDialog, {
+                    width: '480px',
+                    data: {
+                        heading: 'Confirm promote',
+                        body: `Select channel to promote. Promoted artifact will be added to the selected channel.`,
+                        channelList: filteredAllChannel,
+                        action: 'Promote'
+                    }
+                })
+                .afterClosed()
+                .subscribe((data) => {
+                    if (data) {
+                        const {confirmed, selectedChannel} = data;
+                        if (confirmed && selectedChannel) {
+                            this.updating = true;
+                            let token = this.store.getState().session.token;
+                            this.store.dispatch(
+                                promotePackage(this.package.ident.origin, this.package.ident.name, this.package.ident.version, this.package.ident.release, this.package.target, selectedChannel, token)
+                            );
+                        }
+                    }
+                });
+        } else {
+            this.confirmDialog
+                .open(SimpleConfirmDialog, {
+                    width: '480px',
+                    data: {
+                        heading: 'Confirm promote',
+                        body: `Are you sure you want to promote this artifact? Doing so will add the artifact to the stable channel.`,
+                        action: 'Promote it'
+                    }
+                })
+                .afterClosed()
+                .subscribe((confirmed) => {
+                    if (confirmed) {
+                        this.updating = true;
+                        let token = this.store.getState().session.token;
+                        this.store.dispatch(
+                            promotePackage(this.package.ident.origin, this.package.ident.name, this.package.ident.version, this.package.ident.release, this.package.target, 'stable', token)
+                        );
+                    }
+                });
+        }
+    }
 
-    return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
-  }
+    getAllChannel(currentChannel) {
+        return this.store.getState().origins.current.channels.filter((channel) => {
+            return channel.name !== 'unstable' && channel.name !== currentChannel && !this._channels[channel.name];
+        });
+    }
+
+    hasChannels() {
+        return (this.package.channels || []).length > 0;
+    }
+
+    canShowDemote(channel) {
+        return this.memberOfOrigin && channel !== 'unstable';
+    }
+
+    canShowPromote(channel, pkg) {
+        return this.promotable(pkg) && channel === 'unstable';
+    }
+
+    promotable(pkg) {
+        const originChannels = this.store.getState().origins.current.channels;
+        const hasMissingChannel = originChannels.some(originChannel =>
+            pkg.channels.indexOf(originChannel.name) === -1
+        );
+        return this.memberOfOrigin && hasMissingChannel;
+    }
+
+    releaseToDate(release) {
+        return parseDate(release);
+    }
+
+    promotedDate(channel) {
+        const chan = this._channels[channel] || {};
+        return chan.promoted_at || chan.created_at;
+    }
+
+    toDisplaySize(size: number) {
+        return this.formatSize(size);
+    }
+
+    private formatSize(bytes: number) {
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        const sizes = ['bytes', 'KB', 'MB', 'GB'];
+
+        return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
+    }
 }

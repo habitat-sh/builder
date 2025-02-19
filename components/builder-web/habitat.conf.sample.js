@@ -79,5 +79,5 @@ habitatConfig({
      enable_builder_events_saas: false,
 
      // Enable/Disable LTS channel from SaaS
-     enable_lts: false
+     enable_base: false
 });

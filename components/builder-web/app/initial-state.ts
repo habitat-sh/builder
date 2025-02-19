@@ -18,7 +18,7 @@ import { BehaviorSubject } from 'rxjs';
 import { Origin } from './records/Origin';
 import { Package } from './records/Package';
 import { Project } from './records/Project';
-import { latestLTS } from './util';
+import { latestBase } from './util';
 
 export default Record({
   app: Record({
@@ -99,7 +99,7 @@ export default Record({
     events: false,
     saasEvents: false,
     visibility: false,
-    enableLTS: false,
+    enableBase: false,
   })(),
   notifications: Record({
     all: List(),
@@ -168,7 +168,7 @@ export default Record({
     latestInChannel: Record({
       stable: undefined,
       unstable: undefined,
-      [latestLTS]: undefined
+      [latestBase]: undefined
     })(),
     visible: List(),
     versions: undefined,
@@ -201,7 +201,7 @@ export default Record({
           exists: false,
           loading: true,
         })(),
-        [latestLTS]: Record({
+        [latestBase]: Record({
           errorMessage: undefined,
           exists: false,
           loading: false,

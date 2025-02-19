@@ -23,17 +23,18 @@
       </li>
     </ul>
   </section>
+
   <h3>Latest</h3>
   <div class="sidebar-section" style="margin-left: 12px;">
-    <section class="latest-stable" *ngIf="isLTSChannelExist">
-      <h3 style="margin-bottom: 0px;"> {{ latestLTS  }}</h3>
-      <div *ngIf="currentLts">
-        <a [routerLink]="['./', currentLts.ident.version, currentLts.ident.release]">
-          {{ currentLts.ident.version }}/{{ currentLts.ident.release }}
+    <section class="latest-base" *ngIf="isBaseChannelExist">
+      <h3 style="margin-bottom: 0px;"> {{ latestBase }}</h3>
+      <div *ngIf="currentBase">
+        <a [routerLink]="['./', currentBase.ident.version, currentBase.ident.release]">
+          {{ currentBase.ident.version }}/{{ currentBase.ident.release }}
         </a>
-        <span class="wbs" >{{ nameFrom(currentLts.target) }}</span>
+        <span class="wbs" >{{ nameFrom(currentBase.target) }}</span>
       </div>
-      <div *ngIf="!currentLts && !loadingCurrentLts">
+      <div *ngIf="!currentBase && !loadingCurrentBase">
         None.
         <a [routerLink]="['./']">View available versions</a>.
       </div>

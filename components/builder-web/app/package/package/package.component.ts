@@ -26,7 +26,7 @@ import {
   fetchJobs, fetchIntegrations, fetchLatestPackage, fetchLatestInChannel, fetchOrigin, fetchProject,
   fetchPackageSettings, fetchPackageVersions, setCurrentPackageTarget, clearPackageVersions, fetchPackage, fetchPackageChannels
 } from '../../actions/index';
-import { targetFrom, targets as allPlatforms, latestLTS } from '../../util';
+import { targetFrom, targets as allPlatforms, latestBase } from '../../util';
 import { fetchOriginChannels } from '../../actions/origins';
 
 @Component({
@@ -319,7 +319,7 @@ export class PackageComponent implements OnInit, OnDestroy {
   }
 
   private fetchCurrentLts(target: string) {
-    this.store.dispatch(fetchLatestInChannel(this.origin, this.name, latestLTS, target));
+    this.store.dispatch(fetchLatestInChannel(this.origin, this.name, latestBase, target));
 }
 
   private fetchPackageSettings() {

@@ -36,6 +36,10 @@ export function friendlyTime(t) {
   return moment(t).fromNow();
 }
 
+export function getLatestBase() {
+  return latestBase;
+}
+
 // Take some params and return a project
 export function projectFromParams(p = {}) {
   let id = undefined;
@@ -226,4 +230,4 @@ export function labelForJobState(state) {
   }[state.toLowerCase()];
 }
 
-export const latestLTS = 'LTS-2024';
+export const latestBase = 'base';
