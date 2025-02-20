@@ -26,7 +26,7 @@
 
   <h3>Latest</h3>
   <div class="sidebar-section" style="margin-left: 12px;">
-    <section class="latest-base" *ngIf="isBaseChannelExist">
+    <section class="latest-stable" *ngIf="isBaseChannelExist">
       <h3 style="margin-bottom: 0px;"> {{ latestBase }}</h3>
       <div *ngIf="currentBase">
         <a [routerLink]="['./', currentBase.ident.version, currentBase.ident.release]">
