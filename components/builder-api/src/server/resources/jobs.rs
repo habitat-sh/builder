@@ -17,7 +17,10 @@ use std::{collections::HashMap,
 
 use protobuf::RepeatedField;
 
-use actix_web::{web::{self, Path, Query, ServiceConfig},
+use actix_web::{web::{self,
+                      Path,
+                      Query,
+                      ServiceConfig},
                 HttpRequest,
                 HttpResponse};
 

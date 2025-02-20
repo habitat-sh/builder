@@ -14,7 +14,6 @@
 
 use std::collections::HashMap;
 
-
 use reqwest::{header::HeaderMap,
               Response,
               StatusCode};
@@ -24,7 +23,9 @@ use crate::{error::{Error,
             hab_core::{package::{self,
                                  Identifiable,
                                  PackageTarget},
-                       ChannelIdent}, http_client::{ACCEPT_APPLICATION_JSON, USER_AGENT_BLDR}};
+                       ChannelIdent},
+            http_client::{ACCEPT_APPLICATION_JSON,
+                          USER_AGENT_BLDR}};
 
 use crate::http_client::HttpClient;
 
