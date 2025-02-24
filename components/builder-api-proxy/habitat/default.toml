@@ -20,6 +20,7 @@ enable_builder_events     = false
 # The 'enable_builder_events' property also needs to be set to enable SaaS events.
 enable_builder_events_saas = false
 enable_base = false
+latest_base_default_channel: "base"
 # How we connect to the proxied backend API service.
 #   When true, connect to all backend API services via their IPs provided
 #   via the bind
