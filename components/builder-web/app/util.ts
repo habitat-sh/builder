@@ -36,8 +36,8 @@ export function friendlyTime(t) {
   return moment(t).fromNow();
 }
 
-export function getLatestBase() {
-  return latestBase;
+export function getLatestBase(): string {
+  return window['Habitat']?.config?.latest_base_default_channel || 'base';
 }
 
 // Take some params and return a project
@@ -230,4 +230,4 @@ export function labelForJobState(state) {
   }[state.toLowerCase()];
 }
 
-export const latestBase = 'base';
+export const latestBase = getLatestBase();

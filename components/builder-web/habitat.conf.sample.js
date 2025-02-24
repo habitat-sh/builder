@@ -79,5 +79,8 @@ habitatConfig({
      enable_builder_events_saas: false,
 
      // Enable/Disable LTS channel from SaaS
-     enable_base: false
+     enable_base: false,
+
+     // Set configurable base channel name
+     latest_base_default_channel: "base"
 });
