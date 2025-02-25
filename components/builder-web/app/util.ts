@@ -37,7 +37,7 @@ export function friendlyTime(t) {
 }
 
 export function getLatestBase(): string {
-  return window['Habitat']?.config?.latest_base_default_channel || 'base';
+  return window['Habitat']?.config?.latest_base_default_channel;
 }
 
 // Take some params and return a project

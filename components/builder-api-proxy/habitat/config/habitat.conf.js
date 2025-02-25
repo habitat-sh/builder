@@ -28,4 +28,5 @@ habitatConfig({
     enable_builder_events: {{ cfg.enable_builder_events }},
     enable_builder_events_saas: {{ cfg.enable_builder_events_saas }},
     enable_base: {{ cfg.enable_base }},
+    latest_base_default_channel: {{ cfg.latest_base_default_channel }},
 });
