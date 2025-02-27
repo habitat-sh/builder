@@ -1,5 +1,5 @@
-# vi: ft=sh
-cd /src
+#!/usr/bin/env bash
+cd /src || exit
 
 echo "--- Installing prerequisites" 
 hab pkg install core/openssl
@@ -8,7 +8,7 @@ hab pkg install core/coreutils
 hab pkg binlink core/coreutils env -d /usr/bin
 ( 
   # At the point studiorc is evaluated, our cwd is /
-  cd /src/test/builder-api
+  cd /src/test/builder-api || exit
   npm install mocha 
 )
 
@@ -19,7 +19,7 @@ hab pkg exec core/openssl openssl genrsa \
 echo "--- Creating log directory"
 mkdir -p logs
 echo "--- Starting the supervisor"
-env HAB_FUNC_TEST=1 hab sup run > logs/sup.log & 2>&1
+env HAB_FUNC_TEST=1 hab sup run > logs/sup.log 2>&1 &
 
 until hab sup status >/dev/null 2>&1; 
   do echo "waiting for hab sup to start"
