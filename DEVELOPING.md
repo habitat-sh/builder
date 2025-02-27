@@ -281,7 +281,7 @@ Next, you will need to enter the studio inside the builder directory, install th
 ```
 hab studio enter
 hab pkg install results/core-hab*.hart
-for component in builder-api builder-api-proxy builder-datastore builder-graph builder-jobsrv builder-minio builder-worker; do
+for component in builder-api builder-api-proxy builder-datastore builder-minio; do
   build components/$component
 done
 
@@ -292,7 +292,7 @@ test-builder preserve
 
 ### Receiving metrics
 
-Some services like builder-api and builder-jobsrv send statsd metrics. These are easy to monitor if needed for dev purposes.
+Some services like builder-api send statsd metrics. These are easy to monitor if needed for dev purposes.
 
 The below assumes node and npm is already installed and available.
 

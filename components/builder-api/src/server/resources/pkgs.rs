@@ -329,28 +329,26 @@ async fn delete_package(req: HttpRequest,
     }
 
     // Check whether package project has any rdeps
-    if feat::is_enabled(feat::Jobsrv) {
-        let mut rdeps_get = jobsrv::JobGraphPackageReverseDependenciesGet::new();
-        rdeps_get.set_origin(ident.origin().to_string());
-        rdeps_get.set_name(ident.name().to_string());
-        rdeps_get.set_target(target.to_string());
+    let mut rdeps_get = jobsrv::JobGraphPackageReverseDependenciesGet::new();
+    rdeps_get.set_origin(ident.origin().to_string());
+    rdeps_get.set_name(ident.name().to_string());
+    rdeps_get.set_target(target.to_string());
 
-        match route_message::<jobsrv::JobGraphPackageReverseDependenciesGet,
-                            jobsrv::JobGraphPackageReverseDependencies>(&req, &rdeps_get).await
-        {
-            Ok(rdeps) => {
-                if !rdeps.get_rdeps().is_empty() {
-                    debug!("Deleting package with rdeps not allowed: {}", ident);
-                    let body = Bytes::from(format!("Deleting package with rdeps not allowed '{}'",
-                                                   ident).into_bytes());
-                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                                   BoxBody::new(body));
-                }
+    match route_message::<jobsrv::JobGraphPackageReverseDependenciesGet,
+                        jobsrv::JobGraphPackageReverseDependencies>(&req, &rdeps_get).await
+    {
+        Ok(rdeps) => {
+            if !rdeps.get_rdeps().is_empty() {
+                debug!("Deleting package with rdeps not allowed: {}", ident);
+                let body = Bytes::from(format!("Deleting package with rdeps not allowed '{}'",
+                                               ident).into_bytes());
+                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                               BoxBody::new(body));
             }
-            Err(err) => {
-                debug!("{}", err);
-                return err.into();
-            }
+        }
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
         }
     }
 
@@ -1036,12 +1034,10 @@ async fn do_upload_package_finish(req: &HttpRequest,
     }
 
     // Check with scheduler to ensure we don't have circular deps, if configured
-    if feat::is_enabled(feat::Jobsrv) {
-        match has_circular_deps(req, ident, target_from_artifact, &mut archive).await {
-            Ok(val) if val => return HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
-            Err(err) => return err.into(),
-            _ => (),
-        }
+    match has_circular_deps(req, ident, target_from_artifact, &mut archive).await {
+        Ok(val) if val => return HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
+        Err(err) => return err.into(),
+        _ => (),
     }
 
     let file_path = &req_state(req).config.api.data_path;
@@ -1137,76 +1133,13 @@ async fn do_upload_package_finish(req: &HttpRequest,
 
     // Re-create origin package as needed (eg, checksum update)
     match Package::create(&package, &conn) {
-        Ok(pkg) => {
-            if feat::is_enabled(feat::Jobsrv) {
-                let mut job_graph_package = jobsrv::JobGraphPackageCreate::new();
-                job_graph_package.set_package(pkg.into());
-
-                let msg_size = job_graph_package.compute_size();
-                match route_message::<jobsrv::JobGraphPackageCreate, originsrv::OriginPackage>(
-                    req,
-                    &job_graph_package,
-                )
-                .await
-                {
-                    Ok(_) => (),
-                    Err(Error::BuilderCore(RpcError(code, _)))
-                        if StatusCode::from_u16(code).unwrap() == StatusCode::NOT_FOUND =>
-                    {
-                        debug!(
-                            "Graph not found for package target: {}",
-                            target_from_artifact
-                        );
-                    }
-                    Err(err) => {
-                        warn!(
-                            "Failed to create job graph package, (msg_size {}) err={:?}",
-                            msg_size, err
-                        );
-                        debug!("Message: {:?}", job_graph_package);
-                        return err.into();
-                    }
-                }
-            }
-        }
+        Ok(_) => {}
         Err(NotFound) => {
             debug!("Package::create returned NotFound (DB conflict handled)");
         }
         Err(err) => {
             debug!("Failed to create package in DB, err: {:?}", err);
             return Error::DieselError(err).into();
-        }
-    }
-
-    // Schedule re-build of dependent packages (if requested)
-    // Don't schedule builds if the upload is being done by the builder
-    if qupload.builder.is_none()
-       && feat::is_enabled(feat::Jobsrv)
-       && req_state(req).config.api.build_on_upload
-    {
-        let mut request = jobsrv::JobGroupSpec::new();
-        request.set_origin(ident.origin.to_string());
-        request.set_package(ident.name.to_string());
-        request.set_target(target_from_artifact.to_string());
-        request.set_deps_only(true);
-        request.set_origin_only(false);
-        request.set_package_only(false);
-        request.set_trigger(jobsrv::JobGroupTrigger::Upload);
-        request.set_requester_id(session.get_id());
-        request.set_requester_name(session.get_name().to_string());
-
-        match route_message::<jobsrv::JobGroupSpec, jobsrv::JobGroup>(req, &request).await {
-            Ok(group) => {
-                debug!("Scheduled reverse dependecy build for {}, group id: {}",
-                       ident,
-                       group.get_id())
-            }
-            Err(Error::BuilderCore(RpcError(code, _)))
-                if StatusCode::from_u16(code).unwrap() == StatusCode::NOT_FOUND =>
-            {
-                debug!("Unable to schedule build for {} (not found)", ident)
-            }
-            Err(err) => warn!("Unable to schedule build for {}, err: {:?}", ident, err),
         }
     }
 
