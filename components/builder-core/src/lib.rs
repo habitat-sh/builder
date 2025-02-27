@@ -34,7 +34,6 @@ pub mod config;
 pub mod crypto;
 pub mod error;
 pub mod http_client;
-pub mod job;
 pub mod logger;
 pub mod metrics;
 pub mod privilege;
