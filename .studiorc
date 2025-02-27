@@ -125,9 +125,7 @@ build-builder() { stop-on-failure _build-builder "$@"; }
 
 upload_github_keys() {
   if [[ -f "/src/.secrets/builder-github-app.pem" ]]; then
-    for svc in api; do
-      hab file upload "builder-${svc}.default" "$(date +%s)" "/src/.secrets/builder-github-app.pem"
-    done
+      hab file upload "builder-api.default" "$(date +%s)" "/src/.secrets/builder-github-app.pem"
   else
     echo "Missing GitHub key file. Please follow instructions here: https://github.com/habitat-sh/builder/blob/master/DEVELOPING.md"
     sleep 10
@@ -155,13 +153,14 @@ _start-builder() {
 
     upload_github_keys
     generate_bldr_keys
+    local rv=$?
 
     echo "Builder Started: Navigate to http://localhost/#/pkgs/core to access the web UI."
     echo "Minio login available at http://localhost:9000"
     echo "Username: depot"
     echo "Password: password"
     echo "AWS-CLI ENVVARS have been set with these values"
-    return $?
+    return $rv
   fi
 
   for component in "$@"; do
@@ -229,11 +228,11 @@ _stop-builder() {
   fi
 
   for component in "$@"; do
-    if [ $component == cache ]; then
+    if [ "$component" == cache ]; then
       hab svc unload core/sccache
     else
       echo "Unloading builder-$component"
-      hab svc unload habitat/builder-$component
+      hab svc unload habitat/builder-"$component"
     fi
   done
 }
