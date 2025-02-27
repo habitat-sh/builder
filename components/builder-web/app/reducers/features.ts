@@ -17,19 +17,19 @@ import config from '../config';
 import initialState from '../initial-state';
 
 export default function builds(state = initialState['features'], action) {
-  switch (action.type) {
+    switch (action.type) {
 
-    case actionTypes.LOAD_FEATURES:
-      return state
-        .setIn(['publishers', 'amazon'], !!config['enable_publisher_amazon'])
-        .setIn(['publishers', 'azure'], !!config['enable_publisher_azure'])
-        .setIn(['publishers', 'docker'], !!config['enable_publisher_docker'])
-        .set('builder', !!config['enable_builder'])
-        .set('visibility', !!config['enable_visibility'])
-        .set('events', !!config['enable_builder_events'])
-        .set('saasEvents', !!config['enable_builder_events_saas'])
-        .set('enableLTS', !!config['enable_lts']);
-    default:
-      return state;
-  }
+        case actionTypes.LOAD_FEATURES:
+            return state
+                .setIn(['publishers', 'amazon'], !!config['enable_publisher_amazon'])
+                .setIn(['publishers', 'azure'], !!config['enable_publisher_azure'])
+                .setIn(['publishers', 'docker'], !!config['enable_publisher_docker'])
+                .set('builder', !!config['enable_builder'])
+                .set('visibility', !!config['enable_visibility'])
+                .set('events', !!config['enable_builder_events'])
+                .set('saasEvents', !!config['enable_builder_events_saas'])
+                .set('enableBase', !!config['enable_base']);
+        default:
+            return state;
+    }
 }
