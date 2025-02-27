@@ -9,8 +9,7 @@ use diesel::{self,
              QueryDsl,
              RunQueryDsl};
 
-use crate::{protocol::originsrv,
-            schema::project::origin_projects};
+use crate::schema::project::origin_projects;
 
 use crate::{bldr_core::metrics::CounterMetric,
             metrics::Counter};
@@ -112,26 +111,5 @@ impl Project {
     pub fn get_by_id(project_id: i64, conn: &PgConnection) -> QueryResult<Project> {
         Counter::DBCall.increment();
         origin_projects::table.find(project_id).get_result(conn)
-    }
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<originsrv::OriginProject> for Project {
-    fn into(self) -> originsrv::OriginProject {
-        let mut proj = originsrv::OriginProject::new();
-        proj.set_id(self.id as u64);
-        proj.set_owner_id(self.owner_id as u64);
-        proj.set_origin_name(self.origin);
-        proj.set_package_name(self.package_name);
-        proj.set_name(self.name);
-        proj.set_plan_path(self.plan_path);
-        proj.set_target(self.target);
-        proj.set_vcs_type(self.vcs_type);
-        proj.set_vcs_data(self.vcs_data);
-        if let Some(install_id) = self.vcs_installation_id {
-            proj.set_vcs_installation_id(install_id as u32);
-        }
-        proj.set_auto_build(self.auto_build);
-        proj
     }
 }
