@@ -11,10 +11,9 @@ use diesel::{self,
              QueryDsl,
              RunQueryDsl};
 
-use crate::{models::{channel::{Channel,
+use crate::models::{channel::{Channel,
                                CreateChannel},
-                     package::PackageVisibility},
-            protocol::originsrv};
+                     package::PackageVisibility};
 
 use crate::schema::{audit::audit_origin,
                     channel::origin_channels,
@@ -411,28 +410,6 @@ impl OriginMember {
             .filter(origin_members::account_id.eq(account_id))
             .set(origin_members::member_role.eq(member_role))
             .execute(conn)
-    }
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<originsrv::Origin> for Origin {
-    fn into(self) -> originsrv::Origin {
-        let mut orig = originsrv::Origin::new();
-        orig.set_owner_id(self.owner_id as u64);
-        orig.set_name(self.name);
-        orig.set_default_package_visibility(self.default_package_visibility.into());
-        orig
-    }
-}
-
-impl From<originsrv::Origin> for Origin {
-    fn from(origin: originsrv::Origin) -> Origin {
-        Origin { owner_id: origin.get_owner_id() as i64,
-                 name: origin.get_name().to_string(),
-                 default_package_visibility:
-                     PackageVisibility::from(origin.get_default_package_visibility()),
-                 created_at: None,
-                 updated_at: None, }
     }
 }
 

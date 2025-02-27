@@ -1227,32 +1227,6 @@ impl From<Package> for OriginPackage {
     }
 }
 
-impl From<PackageWithVersionArray> for OriginPackage {
-    fn from(value: PackageWithVersionArray) -> OriginPackage {
-        let exposes = value.exposes
-                           .into_iter()
-                           .map(|e| e as u32)
-                           .collect::<Vec<u32>>();
-
-        let mut op = OriginPackage::new();
-        let ident = &*value.ident;
-        op.set_id(value.id as u64);
-        op.set_ident(OriginPackageIdent::from(ident.clone()));
-        op.set_manifest(value.manifest);
-        op.set_target(value.target.to_string());
-        op.set_deps(into_idents(value.deps));
-        op.set_tdeps(into_idents(value.tdeps));
-        op.set_build_deps(into_idents(value.build_deps));
-        op.set_build_tdeps(into_idents(value.build_tdeps));
-        op.set_exposes(exposes);
-        op.set_config(value.config);
-        op.set_checksum(value.checksum);
-        op.set_owner_id(value.owner_id as u64);
-        op.set_visibility(value.visibility.into());
-        op
-    }
-}
-
 impl From<PackageWithVersionArray> for Package {
     fn from(value: PackageWithVersionArray) -> Package {
         Package { id:           value.id,

@@ -1,22 +1,14 @@
 use crate::{bldr_core::{build_config::{BuildCfg,
                                        BLDR_CFG},
                         metrics::CounterMetric},
-            config::Config,
-            db::models::{account::Account,
-                         projects::Project},
             hab_core::{crypto,
                        package::{target::{self,
                                           PackageTarget},
                                  Plan}},
-            protocol::jobsrv::{JobGroup,
-                               JobGroupSpec,
-                               JobGroupTrigger},
             server::{authorize::authorize_session,
                      error::{Error,
                              Result},
-                     feat,
-                     framework::{headers,
-                                 middleware::route_message},
+                     framework::headers,
                      helpers::req_state,
                      services::metrics::Counter,
                      AppState}};
@@ -162,11 +154,6 @@ async fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
            hook.git_ref,
            hook.installation.id);
 
-    let conn = match req_state(req).db.get_conn() {
-        Ok(conn_ref) => conn_ref,
-        Err(e) => return Error::DbError(e).into(),
-    };
-
     if hook.commits.is_empty() {
         debug!("GitHub web hook does not have any commits!");
         return HttpResponse::new(StatusCode::OK);
@@ -182,11 +169,6 @@ async fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
         }
     };
 
-    let account_id = match Account::get(&hook.pusher.name.clone(), &conn) {
-        Ok(account) => Some(account.id as u64),
-        Err(_) => None,
-    };
-
     let config = match read_bldr_config(github, &token, &hook).await {
         Ok(config) => config,
         Err(err) => return err.into(),
@@ -199,63 +181,6 @@ async fn handle_push(req: &HttpRequest, body: &str) -> HttpResponse {
     };
     debug!("Triggered Plans: {:#?}", plans);
 
-    build_plans(req,
-                &hook.repository.clone_url,
-                &hook.pusher.name,
-                account_id,
-                &plans).await
-}
-
-async fn build_plans(req: &HttpRequest,
-                     repo_url: &str,
-                     pusher: &str,
-                     account_id: Option<u64>,
-                     plans: &[PlanWithTarget])
-                     -> HttpResponse {
-    let mut request = JobGroupSpec::new();
-
-    let conn = match req_state(req).db.get_conn() {
-        Ok(conn_ref) => conn_ref,
-        Err(e) => return Error::DbError(e).into(),
-    };
-
-    for plan in plans.iter() {
-        let project_name = format!("{}/{}", &plan.0.origin, &plan.0.name);
-        let project = match Project::get(&project_name, &plan.1, &conn) {
-            Ok(proj) => proj,
-            Err(err) => {
-                debug!("Failed to fetch project (plan may not be connected): {}, {:?}",
-                       project_name, err);
-                continue;
-            }
-        };
-
-        if should_reject_build(plan, &project, &req_state(req).config, repo_url) {
-            continue;
-        }
-
-        if feat::is_enabled(feat::Jobsrv) {
-            debug!("Scheduling, {:?} ({})", plan.0, plan.1);
-            request.set_origin(plan.0.origin.clone());
-            request.set_package(plan.0.name.clone());
-            request.set_target(plan.1.to_string());
-            request.set_trigger(JobGroupTrigger::Webhook);
-            request.set_requester_name(pusher.to_string());
-
-            if let Some(a) = account_id {
-                request.set_requester_id(a);
-            }
-
-            match route_message::<JobGroupSpec, JobGroup>(req, &request).await {
-                Ok(group) => debug!("JobGroup created, {:?}", group),
-                Err(err) => debug!("Failed to create group, {:?}", err),
-            }
-        } else {
-            debug!("Skipping scheduling build for {:?} (jobsrv disabled)", plan);
-        }
-    }
-
-    debug!("Returning success response with {} plans", plans.len());
     HttpResponse::Ok().json(plans)
 }
 
@@ -401,163 +326,4 @@ async fn read_plan_targets(github: &GitHubClient,
     }
 
     Ok(targets)
-}
-
-fn should_reject_build(plan: &PlanWithTarget,
-                       project: &Project,
-                       config: &Config,
-                       repo_url: &str)
-                       -> bool {
-    if repo_url != project.vcs_data {
-        warn!("Repo URL ({}) doesn't match project vcs data ({}). Aborting.",
-              repo_url, project.vcs_data);
-        return true;
-    }
-
-    if !config.api.build_targets.contains(&plan.1) {
-        debug!("Rejecting build with target: {:?}", plan.1);
-        return true;
-    }
-
-    if config.api
-             .suppress_autobuild_origins
-             .contains(&plan.0.origin.to_string())
-    {
-        debug!("Skipping autobuild for origin {:?}", &plan.0.origin);
-        return true;
-    }
-    false
-}
-
-#[cfg(test)]
-mod test {
-
-    use crate::{config::Config,
-                db::models::projects::Project,
-                hab_core::package::{target::PackageTarget,
-                                    Plan},
-                server::services::github::{should_reject_build,
-                                           PlanWithTarget}};
-    use std::str::FromStr;
-
-    fn create_plan(name: &str, origin: &str, target: &str) -> PlanWithTarget {
-        let plan = Plan { name:    name.to_string(),
-                          origin:  origin.to_string(),
-                          version: None, };
-
-        let plan_target = PackageTarget::from_str(target).unwrap();
-
-        PlanWithTarget(plan, plan_target)
-    }
-
-    fn create_project(origin: &str, package: &str, target: &str, repo_url: &str) -> Project {
-        Project { id:                  1,
-                  owner_id:            1,
-                  origin:              origin.to_string(),
-                  package_name:        package.to_string(),
-                  name:                format!("{}/{}", origin, package),
-                  plan_path:           "plan.sh".to_string(),
-                  target:              target.to_string(),
-                  vcs_type:            "git".to_string(),
-                  vcs_data:            repo_url.to_string(),
-                  vcs_installation_id: None,
-                  auto_build:          true,
-                  created_at:          None,
-                  updated_at:          None, }
-    }
-
-    #[test]
-    fn valid_plan_is_not_rejected() {
-        let mut config = Config::default();
-        config.api.suppress_autobuild_origins = vec!["hest".to_string(), "sest".to_string()];
-
-        let origin = "test";
-        let package = "pkg";
-        let target = "x86_64-linux";
-        let repo_url = "https://github.com/habitat-sh/testapp.git";
-
-        let project = create_project(origin, package, target, repo_url);
-        let plan = create_plan(package, origin, target);
-
-        assert!(!should_reject_build(&plan,
-                                     &project,
-                                     &config,
-                                     "https://github.com/habitat-sh/testapp.git"));
-    }
-
-    #[test]
-    fn plan_with_suppressed_origin_is_rejected() {
-        let mut config = Config::default();
-        config.api.suppress_autobuild_origins = vec!["hest".to_string(), "sest".to_string()];
-
-        let origin = "hest";
-        let package = "pkg";
-        let target = "x86_64-linux";
-        let repo_url = "https://github.com/habitat-sh/testapp.git";
-
-        let project = create_project(origin, package, target, repo_url);
-        let plan = create_plan(package, origin, target);
-
-        assert!(should_reject_build(&plan,
-                                    &project,
-                                    &config,
-                                    "https://github.com/habitat-sh/testapp.git"));
-    }
-
-    #[test]
-    fn plan_with_invalid_suppressed_origin_is_accepted() {
-        let mut config = Config::default();
-        config.api.suppress_autobuild_origins = vec!["hest".to_string(), "sest".to_string()];
-
-        let origin = "HEST";
-        let package = "pkg";
-        let target = "x86_64-linux";
-        let repo_url = "https://github.com/habitat-sh/testapp.git";
-
-        let project = create_project(origin, package, target, repo_url);
-        let plan = create_plan(package, origin, target);
-
-        assert!(!should_reject_build(&plan,
-                                     &project,
-                                     &config,
-                                     "https://github.com/habitat-sh/testapp.git"));
-    }
-
-    #[test]
-    fn project_without_matching_target_is_rejected() {
-        let mut config = Config::default();
-        config.api.suppress_autobuild_origins = vec!["hest".to_string(), "sest".to_string()];
-
-        let origin = "test";
-        let package = "pkg";
-        let target = "x86_64-darwin";
-        let repo_url = "https://github.com/habitat-sh/testapp.git";
-
-        let project = create_project(origin, package, target, repo_url);
-        let plan = create_plan(package, origin, target);
-
-        assert!(should_reject_build(&plan,
-                                    &project,
-                                    &config,
-                                    "https://github.com/habitat-sh/testapp.git"));
-    }
-
-    #[test]
-    fn project_with_invalid_vcs_data_is_rejected() {
-        let mut config = Config::default();
-        config.api.suppress_autobuild_origins = vec!["hest".to_string(), "sest".to_string()];
-
-        let origin = "test";
-        let package = "pkg";
-        let target = "x86_64-darwin";
-        let repo_url = "https://github.com/habitat-sh/testapp.git";
-
-        let project = create_project(origin, package, target, repo_url);
-        let plan = create_plan(package, origin, target);
-
-        assert!(should_reject_build(&plan,
-                                    &project,
-                                    &config,
-                                    "https://github.com/habitat-sh/testapp.gut"));
-    }
 }

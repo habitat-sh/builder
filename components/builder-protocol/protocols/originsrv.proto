@@ -1,31 +1,11 @@
 syntax = "proto2";
 package originsrv;
 
-enum PackageChannelTrigger {
-  Unknown = 0;
-  BuilderUI = 1;
-  HabClient = 2;
-}
-
-enum PackageChannelOperation {
-  Promote = 0;
-  Demote = 1;
-}
-
 enum OriginPackageVisibility {
   Public = 1;
   Private = 2;
   Hidden = 3;
-}
-
-message Origin {
-  optional uint64 id = 1;
-  optional string name = 2;
-  optional uint64 owner_id = 3;
-  optional string private_key_name = 4;
-  optional OriginPackageVisibility default_package_visibility = 5;
-}
-
+} 
 message OriginKeyIdent {
   optional string origin = 1;
   optional string revision = 2;
@@ -54,54 +34,6 @@ message OriginPackageIdent {
   optional string name = 2;
   optional string version = 3;
   optional string release = 4;
-}
-
-message OriginPackageUpdate {
-  optional OriginPackage pkg = 1;
-}
-
-// Origin Project
-message OriginProject {
-  optional uint64 id = 1;
-  optional uint64 origin_id = 2;
-  optional string origin_name = 3;
-  optional string package_name = 4;
-  optional string name = 5;
-  optional string plan_path = 6;
-  optional uint64 owner_id = 7;
-  optional string vcs_type = 8;
-  optional string vcs_data = 9;
-  optional uint32 vcs_installation_id = 12;
-  optional OriginPackageVisibility visibility = 13;
-  optional bool auto_build = 14;
-  optional string target = 15;
-}
-
-// Origin Secret
-message OriginSecret {
-  optional uint64 id = 1;
-  optional string origin = 2;
-  optional string name = 3;
-  optional string value = 4;
-}
-
-message OriginSecretDecrypted {
-  optional OriginSecret decrypted_secret = 1;
-}
-
-message OriginIntegration {
-  optional string origin = 1;
-  optional string integration = 2;
-  optional string name = 3;
-  optional string body = 4;
-}
-
-message OriginProjectIntegration {
-  optional string origin = 1;
-  optional string name = 2;
-  optional string integration = 3;
-  optional string integration_name = 4;
-  optional string body = 5;
 }
 
 // Sessions
