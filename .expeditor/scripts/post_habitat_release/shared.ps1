@@ -15,8 +15,3 @@ function Install-LatestHabitat() {
     Set-ExecutionPolicy Bypass -Scope Process -Force
     Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/habitat-sh/habitat/master/components/hab/install.ps1')) | Out-Null
 }
-
-function Set-WorkerIdent($PackageIdent) {
-    Write-Host "--- Registering $PackageIdent (x86_64-windows)"
-    Invoke-Expression "buildkite-agent meta-data set x86_64-windows-builder-worker $PackageIdent"
-}

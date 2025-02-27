@@ -8,7 +8,8 @@ toolchain=$(get_toolchain)
 
 component=${1?component argument required}
 
-if [[ "$component" == "builder-jobsrv" || "$component" == "builder-worker" ]]; then
+# NOTE: builder-jobsrv is deprecated but is to be removed at some future date
+if [[ "$component" == "builder-jobsrv" ]]; then
   echo "Skipping build for $component as it is no longer supported."
   exit 0
 fi
