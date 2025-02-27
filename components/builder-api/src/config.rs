@@ -133,7 +133,7 @@ impl Default for ApiCfg {
                                                   target::X86_64_LINUX_KERNEL2,
                                                   target::X86_64_WINDOWS,],
                  build_targets:              vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
-                 features_enabled:           vec!["jobsrv".to_string()],
+                 features_enabled:           vec![],
                  build_on_upload:            true,
                  private_max_age:            300,
                  saas_bldr_url:              "https://bldr.habitat.sh".to_string(),
