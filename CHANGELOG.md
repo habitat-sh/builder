@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Remove builder worker component [#1869](https://github.com/habitat-sh/builder/pull/1869) ([jasonheath](https://github.com/jasonheath))
 - Updated LTS to  base channel support for builder [#1867](https://github.com/habitat-sh/builder/pull/1867) ([sougata-progress](https://github.com/sougata-progress))
 - moment library update [#1865](https://github.com/habitat-sh/builder/pull/1865) ([AadeshNichite](https://github.com/AadeshNichite))
 - do not include kernel2 binaries in bootstrap bundle [#1864](https://github.com/habitat-sh/builder/pull/1864) ([mwrock](https://github.com/mwrock))
