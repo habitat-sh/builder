@@ -120,17 +120,6 @@ steps:
         docker:
           privileged: true
 
-  - label: "[unit] :linux: builder-worker"
-    command:
-      - ./test/run_cargo_test.sh builder-worker
-    retry:
-      automatic:
-        limit: 1
-    expeditor:
-      executor:
-        docker:
-          privileged: true
-
   - label: "[unit] :linux: github-api-client"
     command:
       - ./test/run_cargo_test.sh github-api-client

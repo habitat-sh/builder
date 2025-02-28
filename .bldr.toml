@@ -30,20 +30,6 @@ paths = [
   "support/ci/builder-base-plan.sh",
 ]
 
-[builder-worker]
-plan_path = "components/builder-worker/habitat"
-paths = [
-  "components/builder-worker/*",
-  "components/builder-core/*",
-  "components/builder-protocol/*",
-  "support/ci/builder-base-plan.sh",
-]
-build_targets = [
-  "x86_64-windows",
-  "x86_64-linux",
-  "x86_64-linux-kernel2"
-]
-
 [builder-minio]
 plan_path = "components/builder-minio/habitat"
 paths = [

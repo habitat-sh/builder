@@ -93,19 +93,3 @@ port = 5433
 [archive]
 backend = "local"
 EOT
-
-mkdir -p /hab/user/builder-worker/config
-cat <<EOT > /hab/user/builder-worker/config/user.toml
-log_level = "info"
-
-key_dir = "/hab/svc/builder-worker/files"
-auto_publish = true
-airlock_enabled = false
-data_path = "/hab/svc/builder-worker/data"
-bldr_url = "http://localhost:9636"
-work_poll_interval_secs = 5
-
-[github]
-api_url = "$GITHUB_API_URL"
-app_id = $GITHUB_APP_ID
-EOT

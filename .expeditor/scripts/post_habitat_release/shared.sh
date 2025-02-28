@@ -19,19 +19,6 @@ curlbash_hab() {
     curl https://raw.githubusercontent.com/habitat-sh/habitat/master/components/hab/install.sh | sudo bash -s -- -t "$pkg_target"
 }
 
-set_worker_ident_for_target() {
-    package_ident="${1}"
-    target="${2}"
-
-    echo "--- Registering ${package_ident} (${target})"
-    buildkite-agent meta-data set "${target}-builder-worker" "${package_ident}"
-}
-
-worker_ident_for_target() {
-    target="${1}"
-    buildkite-agent meta-data get "${target}-builder-worker"
-}
-
 install_rustup() {
   if command -v rustup && command -v cargo &>/dev/null; then
     echo "--- :rust: rustup is currently installed."

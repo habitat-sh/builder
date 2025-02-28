@@ -31,8 +31,6 @@ steps:
             - GITHUB_USER
     soft_fail: true
 
-  # We do this after building and promoting new workers to ensure the
-  # bundle contains those workers.
   - label: ":s3: Create new Bootstrap Bundle"
     command: ".expeditor/scripts/generate_bootstrap_bundle.sh"
     expeditor:
