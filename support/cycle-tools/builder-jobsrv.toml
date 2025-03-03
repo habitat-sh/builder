@@ -1,3 +1,0 @@
-log_level="habitat_builder_jobsrv=debug,habitat_builder_graph=debug,info"
-features_enabled="NEWSCHEDULER,USECYCLICGRAPH,BUILDDEPS"
-
