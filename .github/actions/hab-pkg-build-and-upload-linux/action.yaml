@@ -16,6 +16,7 @@ runs:
       env:
         BLDR_COMPONENT: ${{ inputs.bldr-component }}
         HAB_BLDR_CHANNEL: LTS-2024
+        HAB_REFRESH_CHANNEL: LTS-2024
         HAB_FALLBACK_CHANNEL: LTS-2024
       run: |
         hab pkg build $BLDR_COMPONENT
