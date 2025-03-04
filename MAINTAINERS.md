@@ -6,6 +6,6 @@ Please review the Project Members section in the link above for details on how t
 
 ---
 
-# Maintainers
+## Maintainers
 
 Please refer to the [Habitat Project](https://github.com/chef/chef-oss-practices/blob/master/projects/habitat.md) for the up-to-date list of owners, approvers and reviewers.

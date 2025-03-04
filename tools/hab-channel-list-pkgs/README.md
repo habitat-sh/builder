@@ -1,8 +1,8 @@
-## List All Packages in a Channel
+# List All Packages in a Channel
 
 This is a a tool which will fetch all packages that are in an origin's channel across multiple paged API responses.
 
-### Usage
+## Usage
 
 The following command line tools are required and will be checked before running:
 

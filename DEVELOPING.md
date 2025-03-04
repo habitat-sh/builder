@@ -15,9 +15,9 @@ In order to run Builder on MacOS, it required that the builder services run in a
 To configure multipass to work for our standalone Builder, we need to ensure we can forward content from our MacOS workstation to the builder instance running in the multipass VM.  
 In order to do that, use these steps to enable NAT forwarding:
 
-1)  Add the following line to the file /etc/pf.conf  
+1) Add the following line to the file /etc/pf.conf  
     `nat on utun1 from bridge100:network to any -> (utun1)`  
-2)  Save the file and run the following command  
+2) Save the file and run the following command  
     `sudo pfctl -f /etc/pf.conf`  
 
 In addition, if running Builder UI, we will need to ensure port 9636 is forwarded to your VM.  Add these entries to /etc/pf.anchors/com.apple to enable port forwarding for builder:
@@ -26,7 +26,7 @@ In addition, if running Builder UI, we will need to ensure port 9636 is forwarde
 
 `rdr pass on en0 inet proto tcp from any to self port 9636 -> <YOUR VM IP ADDRESS> 9636`
 
-If using wireless connection, the network value in the second line is likely en0.  Check by running ifconfig at the terminal and update this value if necessary. 
+If using wireless connection, the network value in the second line is likely en0.  Check by running ifconfig at the terminal and update this value if necessary.
 
 Multipass assigns a static IP address for you when you create a virtual machine.  It can be found by running `multipass list`
 from a MacOS terminal under the IPv4 column, noting that the instance must be running (`multipass start <VM instance>`).  For convenience, adding a line to /etc/hosts will enable referring to this VM by its name rather than its IP address:
@@ -36,9 +36,10 @@ from a MacOS terminal under the IPv4 column, noting that the instance must be ru
 NOTE:  If you are doing active Web UI development, then you will likely want to run the UI on your Host (Mac OS). If so, there are some extra steps and configuration changes that will be needed, and those are called out below. See the [Web UI README](https://github.com/habitat-sh/builder/blob/master/components/builder-web/README.md) for more info.  As port forwarding is required to run in this setup, you will need to ensure that the Builder API port (9636) is forwarded from your VM to your host.
 
 ## Builder Status Check
+
 You can test the API port access from your Host OS after starting Builder services (steps below) by issuing the following from the command line:
 
-```
+```shell
 curl -v http://localhost:9636/v1/status
 ```
 
@@ -60,9 +61,10 @@ Before you can successfully build, you need to provision the OS with some basic 
 The sections below will walk through the steps for getting the source and configuration ready.
 
 ### Builder repo clone
+
 Select a location to clone the Builder repo on your Linux VM, eg, `~/Workspace` (this directory will be referred to as ${BUILDER_SRC_ROOT} in the sections below)
 
-```
+```shell
 cd ${BUILDER_SRC_ROOT}
 git clone https://github.com/habitat-sh/builder.git
 ```
@@ -88,7 +90,7 @@ However, if you are going to be doing Web UI development, and running the Web UI
 
 ### Builder configuration
 
-1. Copy the GitHub application private key (from section above) to the following location (_Important: name it exactly as shown_) `${BUILDER_SRC_ROOT}/.secrets/builder-github-app.pem`
+1. Copy the GitHub application private key (from section above) to the following location (*Important: name it exactly as shown*) `${BUILDER_SRC_ROOT}/.secrets/builder-github-app.pem`
 1. Make a copy of the sample env file: `cp ${BUILDER_SRC_ROOT}/.secrets/habitat-env.sample ${BUILDER_SRC_ROOT}/.secrets/habitat-env`
 1. Edit the env file with your favorite editor `${BUILDER_SRC_ROOT}/.secrets/habitat-env` and populate the variables appropriately
 1. Save and close the env file
@@ -96,6 +98,7 @@ However, if you are going to be doing Web UI development, and running the Web UI
 ## Builder Services Setup
 
 ### Starting Builder services
+
 Once the Builder Repo is configured, Builder services can be started inside the Habitat Studio.
 
 * `cd ${BUILDER_SRC_ROOT}`
@@ -128,7 +131,6 @@ If there are recent UI changes not yet promoted to stable that you wish to try o
 
 In the event that you *ARE* developing the UI then you will need to follow the instructions in the [Web UI README](https://github.com/habitat-sh/builder/blob/master/components/builder-web/README.md) to get the Web UI running on your Host OS.
 
-
 ### Personal Access Token generation
 
 Once the Builder services are up, you should generate a Personal Access Token. Currently, this can only be done via the Web UI.
@@ -158,20 +160,20 @@ In order to do package builds locally, at a minimum you will need to seed the yo
 
 From within your Studio, do the following (for example, using the 0.64.1 version of hab-backline):
 
-```
+```shell
 load_package /hab/cache/artifacts/core-hab-backline-0.64.1-20180928012546-x86_64-linux.hart
 ```
 
-Alternatively, you can use the `on-prem-archive.sh` script from the on-prem repo to do the initial hydration (and sync) of base packages - see the [Synchronizing Packages](#Synchronizing_Packages) section below.
+Alternatively, you can use the `on-prem-archive.sh` script from the on-prem repo to do the initial hydration (and sync) of base packages - see the [Synchronizing Packages](#synchronizing-packages) section below.
 
 ### Plan file connection
 
 Currently, connecting a plan file is only available from within the Web UI.
 
 1. Go the Builder Web UI
-2. Click on _My Origins_, and then select your origin
-3. Click on the _Connect a plan file_ button
-4. Click on the _Install Github App_ button to install the Builder Dev app on your github account
+2. Click on *My Origins*, and then select your origin
+3. Click on the *Connect a plan file* button
+4. Click on the *Install Github App* button to install the Builder Dev app on your github account
 5. Go back to the Packages page (from Step 3), and follow the instructions to link the plan you want to build
 
 Note: your GitHub app must have access to the repo containing the plan file you are testing. Forking `habitat-sh/core-plans` is an easy way to test, or feel free to create your own repo with a test plan.
@@ -181,6 +183,7 @@ Note: your GitHub app must have access to the repo containing the plan file you 
 You can test that the plan file you just connected actually builds by issuing a build command. You can do that either via the Builder Web UI, or via the `hab` cli.
 
 ### Option A: From the Web UI
+
 * Navigate to http://${APP_HOSTNAME}/#/pkgs
 * If you are not already logged in, log in.
 * Click on "My origins"
@@ -195,7 +198,7 @@ You can test that the plan file you just connected actually builds by issuing a 
 
 Issue the following command (replace `origin/package` with your origin and package names):
 
-```
+```shell
 hab bldr job start origin/package
 ```
 
@@ -213,7 +216,7 @@ Before building Builder you must ensure that your Personal Access Token is set t
 
 If the `HAB_AUTH_TOKEN` is not set correctly, you will likely see an error similar to the following when trying to build.
 
-```
+```shell
 Unloading builder-api
 Unloading habitat/builder-api
    : Loading /src/components/builder-api/habitat-dev/plan.sh
@@ -265,20 +268,23 @@ In some scenarios, it's valuable to test against `core` packages that haven't be
 
 #### Build Habitat components
 
-First, you will need to clone https://github.com/habitat-sh/habitat and build a subset of the components. It is important they are built in the correct order so that dependencies are correct at install time. You can use the below snippet to build them, replacing the channel as necessary.
-```
+First, you will need to clone <https://github.com/habitat-sh/habitat> and build a subset of the components. It is important they are built in the correct order so that dependencies are correct at install time. You can use the below snippet to build them, replacing the channel as necessary.
+
+```shell
 git clone https://github.com/habitat-sh/habitat
 cd habitat
 env HAB_BLDR_CHANNEL=stable HAB_ORIGIN=core hab studio run "for component in hab plan-build backline studio pkg-export-docker; do build components/\$component; done"
 ```
 
 Next, copy the hart files produced to the `results` directory in your copy of the Builder repository. Assuming your `habitat` and `builder` checkout share the same parent directory:
-```
+
+```shell
 cp habitat/results/core-hab*.hart builder/results/
 ```
 
 Next, you will need to enter the studio inside the builder directory, install the Habitat harts, and rebuild Builder against them. Once this is complete, you can follow the testing instructions detailed in [the testing readme](test/builder-api/README.md). It is safe to skip the `build-builder` step in that document.  You can also use the `test-builder` helper function, shown below.
-```
+
+```shell
 hab studio enter
 hab pkg install results/core-hab*.hart
 for component in builder-api builder-api-proxy builder-datastore builder-graph builder-jobsrv builder-minio builder-worker; do
@@ -296,7 +302,7 @@ Some services like builder-api and builder-jobsrv send statsd metrics. These are
 
 The below assumes node and npm is already installed and available.
 
-```
+```shell
 npm install -g statsd-logger
 statsd-logger
 ```

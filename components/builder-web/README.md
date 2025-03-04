@@ -22,7 +22,7 @@ You will need the Github app id and client id for configuration below.  Your Git
 
 Select a location to clone the Builder repo on your Host OS, eg, `~/Workspace` (this directory will be referred to as ${BUILDER_SRC_ROOT} in the sections below)
 
-```
+```shell
 cd ${BUILDER_SRC_ROOT}
 git clone https://github.com/habitat-sh/builder.git
 ```
@@ -35,13 +35,13 @@ We suggest using [NVM](https://github.com/creationix/nvm) (Node Version Manager)
 
 Once NVM is installed (you can verify with `nvm --version`), `cd` into `${BUILDER_SRC_ROOT}/components/builder-web` and run:
 
-```
+```shell
 nvm install
 ```
 
 When that completes, verify the installation:
 
-```
+```shell
 node --version
 ```
 
@@ -57,16 +57,16 @@ Update the *github_app_id* and *oauth_client_id* fields with the values from you
 
 To start the node web server on your local machine:
 
-```
+```shell
 npm install
 npm start
 ```
 
 You should now be able to browse to the UI at `http://localhost:3000/#/pkgs`.
 
-Note that browsing to `http://localhost:3000/` (i.e., at the root level) will activate the application's default route, which is configured to redirect signed-out users to the Habitat home page (http://habitat.sh), and various navigation links will operate similarly. If you plan on developing for both the Builder UI and the [Web site](../../www), consider changing some of your configuration entries to allow for easier navigation between the two:
+Note that browsing to `http://localhost:3000/` (i.e., at the root level) will activate the application's default route, which is configured to redirect signed-out users to the Habitat home page <http://habitat.sh>, and various navigation links will operate similarly. If you plan on developing for both the Builder UI and the [Web site](../../www), consider changing some of your configuration entries to allow for easier navigation between the two:
 
-```
+```shell
 ...
 docs_url: "http://localhost:4567/docs",
 tutorials_url: "http://localhost:4567/learn",
