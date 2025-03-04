@@ -4,7 +4,7 @@ All builder migrations are run with [Diesel](http://diesel.rs). This document de
 
 ## Install the Diesel client
 
-```
+```shell
 cargo install diesel_cli --no-default-features --features postgres
 ```
 
@@ -25,7 +25,7 @@ The migration name should describe what you are doing. Ex:
 
 This will generate something like
 
-```
+```shell
 Creating migrations/20160815133237_create_posts/up.sql
 Creating migrations/20160815133237_create_posts/down.sql
 ```
