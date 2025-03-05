@@ -22,7 +22,7 @@ steps:
 
   - label: "[lint] :linux: :bash: rustfmt"
     command:
-      - ./support/ci/rustfmt.sh
+      - make fmt
     timeout_in_minutes: 20
     retry:
       automatic:
