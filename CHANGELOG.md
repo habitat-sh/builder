@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Address Markdown lint errors [#1872](https://github.com/habitat-sh/builder/pull/1872) ([jasonheath](https://github.com/jasonheath))
 - Removes support/cycle-tools and tools/merge-{databases,shards} [#1870](https://github.com/habitat-sh/builder/pull/1870) ([jasonheath](https://github.com/jasonheath))
 - Fixes adhoc workflow [#1868](https://github.com/habitat-sh/builder/pull/1868) ([sajjaphani](https://github.com/sajjaphani))
 - Remove builder worker component [#1869](https://github.com/habitat-sh/builder/pull/1869) ([jasonheath](https://github.com/jasonheath))
