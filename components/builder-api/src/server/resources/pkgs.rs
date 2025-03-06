@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{bldr_core::{error::Error::RpcError,
-                        metrics::CounterMetric},
+use crate::{bldr_core::metrics::CounterMetric,
             db::models::{channel::{Channel,
                                    ChannelWithPromotion},
                          origin::*,
@@ -37,8 +36,7 @@ use crate::{bldr_core::{error::Error::RpcError,
                                  PackageIdent,
                                  PackageTarget},
                        ChannelIdent},
-            protocol::{jobsrv,
-                       net::NetOk},
+            protocol::jobsrv,
             server::{authorize::authorize_session,
                      error::{Error,
                              Result},
@@ -1029,13 +1027,6 @@ async fn do_upload_package_finish(req: &HttpRequest,
         }
     }
 
-    // Check with scheduler to ensure we don't have circular deps, if configured
-    match has_circular_deps(req, ident, target_from_artifact, &mut archive).await {
-        Ok(val) if val => return HttpResponse::new(StatusCode::FAILED_DEPENDENCY),
-        Err(err) => return err.into(),
-        _ => (),
-    }
-
     let file_path = &req_state(req).config.api.data_path;
     let filename = file_path.join(archive_name(ident, target_from_artifact));
     let temp_ident = ident.to_owned();
@@ -1376,61 +1367,4 @@ fn download_response_for_archive(archive: &PackageArchive,
         .insert_header(ContentType::octet_stream())
         .append_header((http::header::CACHE_CONTROL, cache_hdr))
         .streaming(rx_body.map(|s| Ok::<_, Infallible>(s)))
-}
-
-async fn has_circular_deps(req: &HttpRequest,
-                           ident: &PackageIdent,
-                           target: PackageTarget,
-                           archive: &mut PackageArchive)
-                           -> Result<bool> {
-    let mut pcr_req = jobsrv::JobGraphPackagePreCreate::new();
-    pcr_req.set_ident(format!("{}", ident));
-    pcr_req.set_target(target.to_string());
-
-    let mut pcr_deps = protobuf::RepeatedField::new();
-    let mut pcr_build_deps = protobuf::RepeatedField::new();
-
-    let build_deps_from_artifact = match archive.build_deps() {
-        Ok(build_deps) => build_deps,
-        Err(e) => {
-            debug!("Could not get build deps from {:#?}: {:#?}", archive, e);
-            return Err(Error::HabitatCore(e));
-        }
-    };
-
-    let deps_from_artifact = match archive.deps() {
-        Ok(deps) => deps,
-        Err(e) => {
-            debug!("Could not get deps from {:#?}: {:#?}", archive, e);
-            return Err(Error::HabitatCore(e));
-        }
-    };
-    for ident in build_deps_from_artifact {
-        let dep_str = format!("{}", ident);
-        pcr_build_deps.push(dep_str);
-    }
-    pcr_req.set_build_deps(pcr_build_deps);
-
-    for ident in deps_from_artifact {
-        let dep_str = format!("{}", ident);
-        pcr_deps.push(dep_str);
-    }
-    pcr_req.set_deps(pcr_deps);
-
-    match route_message::<jobsrv::JobGraphPackagePreCreate, NetOk>(req, &pcr_req).await {
-        Ok(_) => Ok(false),
-        Err(Error::BuilderCore(RpcError(code, _)))
-            if StatusCode::from_u16(code).unwrap() == StatusCode::CONFLICT =>
-        {
-            debug!("Failed package circular dependency check for {}", ident);
-            Ok(true)
-        }
-        Err(Error::BuilderCore(RpcError(code, _)))
-            if StatusCode::from_u16(code).unwrap() == StatusCode::NOT_FOUND =>
-        {
-            debug!("Graph not found for package target: {}", target);
-            Ok(false)
-        }
-        Err(err) => Err(err),
-    }
 }
