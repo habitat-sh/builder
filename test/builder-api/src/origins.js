@@ -672,7 +672,6 @@ describe("Related Origin API functions", function () {
       });
     });
 
-    // JAH
     describe("[Prereq 5]: create an origin and upload a package", function () {
       it("creates an origin", function (done) {
         request
@@ -722,6 +721,7 @@ describe("Related Origin API functions", function () {
       });
     });
 
+    // JAH: rdeps refactoring required for this work
     describe.skip("5. Attempt to delete an origin when a package exists", function () {
       it("gets 409 before the package is removed", function (done) {
         request
