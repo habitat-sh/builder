@@ -4,16 +4,16 @@
 // well.
 
 require('./helpers.js');
-require('./origins.js');
+require('./origins.js');  // 1 JAH skip (rdep)
 require('./sessions.js');
 require('./invitations.js');
 require('./settings.js');
-require('./packages.js');
+require('./packages.js'); // 1 JAH skip (rdep)
 require('./channels.js');
 require('./keys.js');
 require('./integrations.js');
 require('./profile.js');
 require('./ext.js');
-require('./misc.js');
-require('./roles.js');
+require('./misc.js'); // 2 JAH skips (rdeps)
+require('./roles.js'); // 1 JAH callout for review
 require('./etc.js');

@@ -1,4 +1,5 @@
-# shellcheck shell=bash disable=SC2034
+#!/bin/bash
+# shellcheck disable=SC2034
 
 pkg_name=builder-minio
 pkg_origin=habitat
