@@ -38,8 +38,7 @@ use crate::{bldr_core::{error::Error::RpcError,
                                  PackageTarget},
                        ChannelIdent},
             protocol::{jobsrv,
-                       net::NetOk,
-                       originsrv},
+                       net::NetOk},
             server::{authorize::authorize_session,
                      error::{Error,
                              Result},
@@ -71,7 +70,6 @@ use bytes::Bytes;
 use diesel::result::Error::NotFound;
 use futures::{channel::mpsc,
               StreamExt};
-use protobuf::Message;
 use serde::ser::Serialize;
 use std::{convert::Infallible,
           fs::{self,
@@ -94,8 +92,6 @@ pub struct Upload {
     target:   Option<String>,
     #[serde(default)]
     checksum: String,
-    #[serde(default)]
-    builder:  Option<String>,
     #[serde(default)]
     forced:   bool,
 }
