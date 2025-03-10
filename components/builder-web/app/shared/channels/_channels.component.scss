@@ -13,10 +13,10 @@
       // Other channels eg foo
       @include tag($color: $other-button-text, $background-color: $other-button-bg, $border-color: $light-blue);
 
-      // lts-yyyy channel eg lts-2024
-      &[class^="lts-"] {
-        color: $lts-button-text;
-        background-color: $lts-button-bg;
+      // base-yyyy channel eg base, base-2025
+      &[class^="base"] {
+        color: $base-button-text;
+        background-color: $base-button-bg;
       }
 
       // Stable channel
