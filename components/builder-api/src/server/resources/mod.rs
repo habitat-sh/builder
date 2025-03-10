@@ -7,6 +7,5 @@ pub mod notify;
 pub mod origins;
 pub mod pkgs;
 pub mod profile;
-pub mod projects;
 pub mod settings;
 pub mod user;

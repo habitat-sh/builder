@@ -17,7 +17,6 @@ pub const APP_NAME: &str = "bldr";
 // Statsd Listener Address
 pub const STATS_ENV: &str = "HAB_STATS_ADDR";
 
-pub type ApiEndpoint = &'static str;
 pub type InstallationId = u32;
 
 // Public Interface
@@ -50,17 +49,6 @@ pub trait CounterMetric: Metric {
     }
 }
 
-pub trait GaugeMetric: Metric {
-    /// Set the value of the gauge
-    fn set(&self, val: MetricValue) {
-        match sender().send((MetricType::Gauge, MetricOperation::Set, self.id(), Some(val), vec![]))
-        {
-            Ok(_) => (),
-            Err(e) => error!("Failed to set gauge, error: {:?}", e),
-        }
-    }
-}
-
 pub trait HistogramMetric: Metric {
     /// Set the value of the gauge
     fn set(&self, val: MetricValue) {
@@ -83,7 +71,6 @@ pub trait HistogramMetric: Metric {
 #[derive(Debug, Clone, Copy)]
 enum MetricType {
     Counter,
-    Gauge,
     Histogram,
 }
 
@@ -151,20 +138,6 @@ fn receive(rz: &SyncSender<()>, rx: &Receiver<MetricTuple>) {
                         }
                         _ => warn!("Unexpected metric operation!"),
                     };
-                }
-                MetricType::Gauge => {
-                    match mop {
-                        MetricOperation::Set => {
-                            let mid_str: &str = mid.borrow();
-                            let val_str = format!("{}", mval.unwrap());
-                            cli.gauge(mid_str, val_str, &mtags).unwrap_or_else(|e| {
-                                                                   warn!("Could not set metric; \
-                                                                          {:?}",
-                                                                         e)
-                                                               })
-                        }
-                        _ => warn!("Unexpected metric operation!"),
-                    }
                 }
                 MetricType::Histogram => {
                     match mop {

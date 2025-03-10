@@ -1,4 +1,5 @@
 #!/bin/bash
+
 RED='\033[0;31m'
 NO_COLOR='\033[0m'
 set -uo pipefail
@@ -21,7 +22,10 @@ export HAB_STATS_ADDR
 # commands return nonzero. If so, a highly-visible message is printed which
 # should make the error condition more apparent.
 stop-on-failure() {
-  (set -e; "$@");
+  (
+    set -e
+    "$@"
+  )
   rv=$?
   if [ $rv -ne 0 ]; then
     echo -e "${RED}ERROR: $* aborted due to error${NO_COLOR}"
@@ -49,6 +53,7 @@ load_env_config() {
   env_config="/src/.secrets/habitat-env"
 
   if [[ -f "${env_config}" ]]; then
+    # shellcheck disable=SC1090
     source "${env_config}"
   else
     echo -e "${RED}.secrets/habitat-env is required. Please see DEVELOPING.md for getting started instructions.${NO_COLOR}"
@@ -63,22 +68,15 @@ configure() {
 
 install-packages() {
   hab pkg install \
-  core/cacerts \
-  core/net-tools \
-  core/procps-ng \
-  core/shadow \
-  core/curl \
-  core/aws-cli \
-  core/sccache \
-  -b -c LTS-2024
-
-  # workaround for https://github.com/habitat-sh/habitat/issues/6418
-  hab pkg binlink core/cacerts
-  hab pkg binlink core/net-tools
-  hab pkg binlink core/procps-ng
-  hab pkg binlink core/shadow
-  hab pkg binlink core/curl
-  hab pkg binlink core/aws-cli
+    core/aws-cli \
+    core/cacerts \
+    core/curl \
+    core/net-tools \
+    core/procps-ng \
+    core/sccache \
+    core/shadow \
+    --channel LTS-2024 \
+    --binlink
 }
 
 _build-builder-component() {
@@ -92,28 +90,28 @@ _build-builder-component() {
 
   start-builder "$component"
   case "${component}" in
-    api)
-      generate_bldr_keys && upload_github_keys;;
-    *)
-      ;;
+  api)
+    generate_bldr_keys && upload_github_keys
+    ;;
+  *) ;;
   esac
 }
 build-builder-component() { stop-on-failure _build-builder-component "$@"; }
 
 alias bb=build-builder
 _build-builder() {
-  if ! hab sup status > /dev/null 2>&1; then
+  if ! hab svc status >/dev/null 2>&1; then
     echo "Starting supervisor"
     sup-run
     sleep 5
   fi
 
-  if [[ $(hab sup status) == "No services loaded." ]]; then
+  if [[ $(hab svc status) == "No services loaded." ]]; then
     start-builder
   fi
 
   if [[ "$#" -eq 0 ]]; then
-    build-builder api jobsrv 
+    build-builder api
     return $?
   fi
 
@@ -125,7 +123,7 @@ build-builder() { stop-on-failure _build-builder "$@"; }
 
 upload_github_keys() {
   if [[ -f "/src/.secrets/builder-github-app.pem" ]]; then
-      hab file upload "builder-api.default" "$(date +%s)" "/src/.secrets/builder-github-app.pem"
+    hab file upload "builder-api.default" "$(date +%s)" "/src/.secrets/builder-github-app.pem"
   else
     echo "Missing GitHub key file. Please follow instructions here: https://github.com/habitat-sh/builder/blob/master/DEVELOPING.md"
     sleep 10
@@ -133,7 +131,7 @@ upload_github_keys() {
 }
 
 command-exists() {
-  command -V "$1" > /dev/null 2>&1
+  command -V "$1" >/dev/null 2>&1
 }
 
 _start-builder() {
@@ -144,10 +142,9 @@ _start-builder() {
     start-builder memcached
     start-builder api
     start-builder api-proxy
-    start-builder jobsrv
     start-builder minio
     # Provide enough time for minio's reconfigure hook to create the bucket.
-    # Otherwise, the configure operation will error and abend this function.
+    # Otherwise, the configure operation will error and exit this function.
     sleep 8
     configure-minio
 
@@ -160,7 +157,8 @@ _start-builder() {
     echo "Username: depot"
     echo "Password: password"
     echo "AWS-CLI ENVVARS have been set with these values"
-    return $rv
+    # shellcheck disable=SC2320
+    return $?
   fi
 
   for component in "$@"; do
@@ -180,33 +178,33 @@ start-builder() { stop-on-failure _start-builder "$@"; }
 _load-if-not-loaded() {
   local pkg_ident
   pkg_ident=$1
-  if hab sup status "$pkg_ident" > /dev/null 2>&1; then
+  if hab svc status "$pkg_ident" >/dev/null 2>&1; then
     echo "$pkg_ident is already loaded"
   else
-    hab svc load "$@"
+    hab svc load --channel "${HAB_BLDR_CHANNEL:-LTS-2024}" "$@"
   fi
 }
 load-if-not-loaded() { stop-on-failure _load-if-not-loaded "$@"; }
 
 start-datastore() {
   echo "Starting datastore"
-  if hab sup status habitat/builder-datastore > /dev/null 2>&1; then
+  if hab svc status habitat/builder-datastore >/dev/null 2>&1; then
     echo "habitat/builder-datastore is already loaded"
   else
     init-datastore
-    hab svc load habitat/builder-datastore
+    hab svc load --channel "${HAB_BLDR_CHANNEL:-LTS-2024}" habitat/builder-datastore
   fi
 }
 
 configure-minio() {
-   export AWS_ACCESS_KEY_ID="depot"
-   export AWS_SECRET_ACCESS_KEY="password"
-   if aws --endpoint-url http://localhost:9000 s3api list-buckets | grep "habitat-builder-artifact-store.default" > /dev/null; then
-     echo "Minio already configured"
-   else
-     echo "Creating bucket in Minio"
-     aws --endpoint-url http://localhost:9000 s3api create-bucket --bucket "habitat-builder-artifact-store.default"
-   fi
+  export AWS_ACCESS_KEY_ID="depot"
+  export AWS_SECRET_ACCESS_KEY="password"
+  if aws --endpoint-url http://localhost:9000 s3api list-buckets | grep "habitat-builder-artifact-store.default" >/dev/null; then
+    echo "Minio already configured"
+  else
+    echo "Creating bucket in Minio"
+    aws --endpoint-url http://localhost:9000 s3api create-bucket --bucket "habitat-builder-artifact-store.default"
+  fi
 }
 
 start-cache() {
@@ -214,16 +212,15 @@ start-cache() {
 }
 
 declare -A svc_params=(
-  [api]="        -s at-once --bind memcached:builder-memcached.default --bind jobsrv:builder-jobsrv.default"
+  [api]="        -s at-once --bind memcached:builder-memcached.default"
   [api-proxy]="             --bind http:builder-api.default"
-  [jobsrv]="     -s at-once"
   [minio]="      -s at-once"
   [memcached]="  -s at-once"
 )
 
 _stop-builder() {
   if [[ "$#" -eq 0 ]]; then
-    stop-builder cache api api-proxy datastore jobsrv minio memcached
+    stop-builder cache api api-proxy datastore minio memcached
     return $?
   fi
 
@@ -232,7 +229,7 @@ _stop-builder() {
       hab svc unload core/sccache
     else
       echo "Unloading builder-$component"
-      hab svc unload habitat/builder-"$component"
+      hab svc unload "habitat/builder-$component"
     fi
   done
 }
@@ -249,19 +246,18 @@ generate_bldr_keys() {
     echo "Generated new builder key: $KEY_NAME"
   fi
 
-  for svc in api jobsrv; do
-    hab file upload "builder-${svc}.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.pub"
-    hab file upload "builder-${svc}.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.box.key"
-  done
+  hab file upload "builder-api.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.pub"
+  hab file upload "builder-api.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.box.key"
 }
 
 load_package() {
-  hab pkg upload --url http://localhost --auth "${HAB_AUTH_TOKEN}" "$@" --channel stable
+  # JAH:  Should there really be a --channel option here at all?
+  hab pkg upload --url http://localhost --auth "${HAB_AUTH_TOKEN}" "$@" --channel "${HAB_BLDR_CHANNEL:-LTS-2024}"
 }
 
 load_packages() {
   if [[ -d /src/pkgs ]]; then
-    for pkg in /src/pkgs/core*.hart ; do
+    for pkg in /src/pkgs/core*.hart; do
       load_package "${pkg}"
     done
   fi
@@ -272,8 +268,7 @@ origin() {
   if curl --fail localhost/v1/depot/origins \
     -d "{\"name\":\"${origin}\"}" \
     -H "Content-Type: application/json" \
-    -H "Authorization: Bearer ${HAB_AUTH_TOKEN}";
-  then
+    -H "Authorization: Bearer ${HAB_AUTH_TOKEN}"; then
     hab origin key generate "${origin}"
     hab origin key upload --url http://localhost -z "${HAB_AUTH_TOKEN}" -s "${origin}"
   else
@@ -299,21 +294,23 @@ test-builder() {
       else
         echo "No logs. Run \`test-builder\` first."
       fi
-      return;;
+      return
+      ;;
     preserve)
       echo "Setting flag to preserve data following tests."
-      preserve_flag="-p";;
+      preserve_flag="-p"
+      ;;
     esac
   fi
 
-  if hab sup status > /dev/null 2>&1; then
-     echo "Stopping supervisor"
-     hab sup term
-     sleep 8
+  if hab svc status >/dev/null 2>&1; then
+    echo "Stopping supervisor"
+    hab sup term
+    sleep 8
   fi
 
   echo "Starting supervisor in test mode. Logs saved to ${logs}"
-  HAB_FUNC_TEST=1 RUST_LOG=debug HAB_NONINTERACTIVE=true HAB_NOCOLORING=true hab sup run --no-color > ${logs} 2>&1 &
+  HAB_BLDR_CHANNEL="${HAB_BLDR_CHANNEL:-LTS-2024}" HAB_FUNC_TEST=1 RUST_LOG=debug HAB_NONINTERACTIVE=true HAB_NOCOLORING=true hab sup run --no-color >${logs} 2>&1 &
   sleep 8
 
   start-builder
@@ -334,14 +331,14 @@ function psql() {
   local config_dir port
   config_dir="/hab/svc/builder-datastore/config"
   port=$(grep port $config_dir/postgresql.conf | grep -oE '[[:digit:]]+')
-  PGPASSWORD=$(cat $config_dir/pwfile) hab pkg exec core/postgresql psql -U hab -h 127.0.0.1 -p "$port" "$@"
+  PGPASSWORD=$(cat $config_dir/pwfile) hab pkg exec core/postgresql17-client psql -U hab -h 127.0.0.1 -p "$port" "$@"
 }
 
 export -f psql
 
 # Cleanup any development touch files we laid down when checking to see if we could run NO_INSTALL_DEPS
 local_cleanup() {
-  for svc in api api-proxy datastore jobsrv minio; do
+  for svc in api api-proxy datastore minio; do
     if [ -f "/src/components/builder-${svc}/cleanup" ]; then
       rm "/src/components/builder-${svc}/cleanup"
     fi
@@ -351,7 +348,7 @@ local_cleanup() {
 alias help=dev_docs
 
 welcome() {
-  cat <<'WMSG'
+  cat <<-'WMSG'
 Welcome to...
  ____        _ _     _
 | __ ) _   _(_) | __| | ___ _ __
@@ -365,31 +362,29 @@ WMSG
 }
 
 dev_docs() {
-  cat <<DOCS
-The following commands are available:
-  build-builder (alias: bb) - Build all services
-  build-builder [SERVICE]   - Build specific service
-                              Valid: api jobsrv 
-                              Experimental: api-proxy
-  start-builder             - Start all services
-  start-builder [SERVICE]   - Start specific service
-                              Valid: api api-proxy cache datastore
-                                     jobsrv minio
-  stop-builder              - Stop all services
-  stop-builder [SERVICE]    - Stop specific service
-                              Valid: api api-proxy cache datastore
-                                     jobsrv minio
-  psql                      - Open psql shell to builder DB
-  origin                    - Create core origin
-  origin [ORIGIN]           - Create specified origin
-  status                    - Run hab svc status
-  test-builder              - Run end-to-end API tests
-  test-builder suplogs      - Display supervisor debug logs from API tests
-  test-builder preserve     - Run end-to-end API tests,
-                              preserving test data in Postgres
-  sl                        - Tail the supervisor log
-  help                      - Print this list
-DOCS
+  cat <<-DOCS
+		The following commands are available:
+		  build-builder (alias: bb) - Build all services
+		  build-builder [SERVICE]   - Build specific service
+		                              Valid: api
+		                              Experimental: api-proxy
+		  start-builder             - Start all services
+		  start-builder [SERVICE]   - Start specific service
+		                              Valid: api api-proxy cache datastore minio
+		  stop-builder              - Stop all services
+		  stop-builder [SERVICE]    - Stop specific service
+		                              Valid: api api-proxy cache datastore minio
+		  psql                      - Open psql shell to builder DB
+		  origin                    - Create core origin
+		  origin [ORIGIN]           - Create specified origin
+		  status                    - Run hab svc status
+		  test-builder              - Run end-to-end API tests
+		  test-builder suplogs      - Display supervisor debug logs from API tests
+		  test-builder preserve     - Run end-to-end API tests,
+		                              preserving test data in Postgres
+		  sl                        - Tail the supervisor log
+		  help                      - Print this list
+	DOCS
 }
 
 install-packages

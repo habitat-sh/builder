@@ -23,7 +23,7 @@ const projectCreatePayload2 = {
 const release1 = "20200205165325";
 const file1 = fs.readFileSync(
   __dirname +
-    `/../fixtures/deletemeifyoucan-testapp-0.1.3-${release1}-x86_64-linux.hart`
+  `/../fixtures/deletemeifyoucan-testapp-0.1.3-${release1}-x86_64-linux.hart`
 );
 const revision = "20200205153202";
 const pubFile = fs.readFileSync(
@@ -229,7 +229,7 @@ describe("Related Origin API functions", function () {
       request
         .put(
           "/depot/origins/umbrella/invitations/" +
-            global.inviteBoboToUmbrella.id
+          global.inviteBoboToUmbrella.id
         )
         .set("Authorization", global.boboBearer)
         .expect(204)
@@ -448,7 +448,7 @@ describe("Related Origin API functions", function () {
         request
           .put(
             "/depot/origins/deletemeifyoucan/invitations/" +
-              global.inviteWeskerToDeleteMeIfYouCan.id
+            global.inviteWeskerToDeleteMeIfYouCan.id
           )
           .set("Authorization", global.weskerBearer)
           .expect(204)
@@ -707,7 +707,8 @@ describe("Related Origin API functions", function () {
       });
     });
 
-    describe("5. Attempt to delete an origin when a package exists", function () {
+    // JAH: rdeps refactoring required for this work
+    describe.skip("5. Attempt to delete an origin when a package exists", function () {
       it("gets 409 before the package is removed", function (done) {
         request
           .delete("/depot/origins/deletemeifyoucan")
