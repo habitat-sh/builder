@@ -1,0 +1,43 @@
+log_level = "error,tokio_core=error,tokio_reactor=error,zmq=error,hyper=error"
+jobsrv_enabled = false
+
+[http]
+handler_count = 10
+listen = "0.0.0.0"
+port = 9636
+
+[api]
+features_enabled = "nativepackages"
+targets = ["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"]
+build_on_upload = false
+saas_bldr_url = "https://bldr.habitat.sh"
+key_path = "/app/keys"
+bootstrap_user = true
+
+[depot]
+jobsrv_enabled = false
+
+[oauth]
+provider = "github"
+
+[s3]
+backend = "minio"
+key_id = "root_Admin"
+secret_key = "123456789qax"
+endpoint = "http://localhost:9000"
+bucket_name = "test"
+
+[memcache]
+ttl = 15
+[[memcache.hosts]]
+host = "builder-memcache"
+port = 11211
+
+[datastore]
+user = "hab"
+password = "passwrd1298"
+connection_timeout_sec = 5
+database = "builder"
+host = "builder-datastore"
+port = 5432
+ssl_mode = "prefer"

@@ -109,6 +109,7 @@ pub struct ApiCfg {
     pub private_max_age:            usize,
     pub saas_bldr_url:              String,
     pub suppress_autobuild_origins: Vec<String>,
+    pub bootstrap_user:             bool,
 }
 
 mod deserialize_into_vec {
@@ -137,7 +138,8 @@ impl Default for ApiCfg {
                  build_on_upload:            true,
                  private_max_age:            300,
                  saas_bldr_url:              "https://bldr.habitat.sh".to_string(),
-                 suppress_autobuild_origins: vec![], }
+                 suppress_autobuild_origins: vec![],
+                 bootstrap_user:             false, }
     }
 }
 

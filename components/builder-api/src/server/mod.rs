@@ -5,6 +5,7 @@ pub mod helpers;
 pub mod migrations;
 pub mod resources;
 pub mod services;
+pub mod token;
 
 use self::{framework::middleware::authentication_middleware,
            resources::{authenticate::Authenticate,
@@ -137,6 +138,29 @@ pub async fn run(config: Config) -> error::Result<()> {
 
     migrations::encrypt_secret_keys::run(&db_pool.get_conn().unwrap(), &config.api.key_path)
         .expect("Error encrypting secret keys");
+
+    // Bootstrap user to be used for chef 360 services
+    if config.api.bootstrap_user {
+        info!("bootstrapping user");
+        let app_state = match AppState::new(&config, db_pool.clone()) {
+            Ok(state) => state,
+            Err(err) => {
+                error!("Unable to create application state, err = {}", err);
+                panic!("Cannot start without valid application state");
+            }
+        };
+
+        match token::bldr_token(app_state) {
+            Ok(token) => {
+                // Print the token if successful
+                println!("Generated token: {}", token);
+            }
+            Err(e) => {
+                // Handle the error if something goes wrong
+                eprintln!("Error generating token: {}", e);
+            }
+        }
+    }
 
     let mut srv = HttpServer::new(move || {
                       let app_state = match AppState::new(&config, db_pool.clone()) {
