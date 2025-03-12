@@ -326,22 +326,21 @@ impl fmt::Display for JobsrvCfg {
     }
 }
 
-
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct ProvisionCfg {
     pub auto_create_token: bool,
-    pub token_path:   PathBuf,
-    pub origins:      Vec<String>,
-    pub channels:     Vec<String>,
+    pub token_path:        PathBuf,
+    pub origins:           Vec<String>,
+    pub channels:          Vec<String>,
 }
 
 impl Default for ProvisionCfg {
     fn default() -> Self {
         ProvisionCfg { auto_create_token: false,
-                       token_path:   env::temp_dir(),
-                       origins:      vec!["core".to_string()],
-                       channels:     vec!["stable".to_string()], }
+                       token_path:        env::temp_dir(),
+                       origins:           vec!["core".to_string()],
+                       channels:          vec!["stable".to_string()], }
     }
 }
 
