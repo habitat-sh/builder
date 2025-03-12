@@ -31,6 +31,8 @@ services:
       - PG_MAX_CONNECTIONS=100
     ports:
       - "5432:5432"
+    volumes:
+      - ./tmp/pgdata:/var/lib/postgresql/data
     networks:
       - backend
   builder-api:
@@ -46,6 +48,7 @@ services:
       - MINIO_SECRET_KEY=123456789qax
       - MINIO_ENDPOINT=http://localhost:9000
       - MINIO_BUCKET=test
+      - RUST_LOG=debug
     networks:
       - backend
     depends_on:
