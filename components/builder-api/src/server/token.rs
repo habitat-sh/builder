@@ -16,15 +16,15 @@ const BLDR_TOKEN_FILE_NAME: &str = "HAB_AUTH_TOKEN";
 /// 3. Setting up channels for the origins.
 /// 4. Generating a user token for authentication.
 /// 5. Storing the generated token in a specified file location as defined in the provision config.
-pub fn provision_bldr_environment(app_state: AppState) -> Result<String, Error> {
+pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error> {
     // Get or Create Account
     let conn = app_state.db.get_conn().map_err(Error::DbError)?;
     let account = Account::find_or_create(&NewAccount { name: BLDR_USER_NAME, email: BLDR_USER_EMAIL }, &conn)
                             .map_err(Error::DieselError)?;
 
     for origin in &app_state.config.provision.origins {
-        let new_origin = NewOrigin { name: &origin,
-                                    owner_id: account.id as i64,
+        let new_origin = NewOrigin { name: origin,
+                                    owner_id: account.id,
                                     default_package_visibility: &PackageVisibility::Public, };
 
         match Origin::create(&new_origin, &conn) {
@@ -49,9 +49,9 @@ pub fn provision_bldr_environment(app_state: AppState) -> Result<String, Error> 
 
     for (origin, channel) in app_state.config.provision.origins.iter().zip(&filtered_channels) {
         let new_channel = CreateChannel {
-            name: &channel,
-            origin: &origin,
-            owner_id: account.id as i64,
+            name: channel,
+            origin: origin,
+            owner_id: account.id,
         };
 
         match Channel::create(&new_channel, &conn) {
@@ -78,7 +78,7 @@ pub fn provision_bldr_environment(app_state: AppState) -> Result<String, Error> 
 
     // Create token
     let token = AccessToken::user_token(&app_state.config.api.key_path, account.id as u64, FeatureFlags::all().bits())?;
-    let new_token = NewAccountToken { account_id: account.id as i64,
+    let new_token = NewAccountToken { account_id: account.id,
                                       token: &token.to_string(), };
     AccountToken::create(&new_token, &conn).map_err(Error::DieselError)?;
 

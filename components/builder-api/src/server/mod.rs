@@ -150,15 +150,15 @@ pub async fn run(config: Config) -> error::Result<()> {
             }
         };
 
-        match token::provision_bldr_environment(app_state) {
+        match token::provision_bldr_environment(&app_state) {
             Ok(_) => {
-                // The token is already handled and stored by the provision_bldr_environment function
+                // The token is successfully generated and stored at the specified location.
                 info!("Token has been successfully provisioned and stored.");
             }
             Err(e) => {
                 // Handle the error if something goes wrong and panic
                 error!("Error during bldr account provisioning, err = {}", e);
-                panic!("Token provisioning failed");
+                panic!("Error during bldr account provisioning, err = {}", e);
             }
         }
     }
