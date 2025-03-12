@@ -12,7 +12,6 @@ targets = ["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"]
 build_on_upload = false
 saas_bldr_url = "https://bldr.habitat.sh"
 key_path = "/app/keys"
-bootstrap_user = true
 
 [depot]
 jobsrv_enabled = false
@@ -41,3 +40,9 @@ database = "builder"
 host = "builder-datastore"
 port = 5432
 ssl_mode = "prefer"
+
+[provision]
+auto_create_token = true
+token_path = "/tokens"
+origins = ["core", "chef", "chef-platform"]
+channels = ["stable"]

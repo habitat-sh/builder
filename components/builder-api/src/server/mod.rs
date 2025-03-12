@@ -45,6 +45,8 @@ use rand::{self,
            Rng};
 use std::{cell::RefCell,
           collections::HashMap,
+          fs::{self, File},
+          io::Write,
           iter::FromIterator,
           sync::Arc,
           time::Duration};
@@ -140,7 +142,7 @@ pub async fn run(config: Config) -> error::Result<()> {
         .expect("Error encrypting secret keys");
 
     // Bootstrap user to be used for chef 360 services
-    if config.api.bootstrap_user {
+    if config.provision.auto_create_token {
         info!("bootstrapping user");
         let app_state = match AppState::new(&config, db_pool.clone()) {
             Ok(state) => state,
@@ -150,14 +152,25 @@ pub async fn run(config: Config) -> error::Result<()> {
             }
         };
 
-        match token::bldr_token(app_state) {
+        match token::auto_create_bldr_token(app_state) {
             Ok(token) => {
                 // Print the token if successful
                 println!("Generated token: {}", token);
+    
+                // Ensure the directory exists, will panic if it fails
+                fs::create_dir_all(&config.provision.token_path).expect("Failed to create token directory");
+    
+                // Define the path for the HAB_AUTH_TOKEN file and create it
+                let token_file_path = config.provision.token_path.join("HAB_AUTH_TOKEN");
+                let mut file = File::create(token_file_path).expect("Failed to create token file");
+    
+                // Write the token into the file and panic if an error occurs
+                file.write_all(token.as_bytes()).expect("Failed to write token to file");
             }
             Err(e) => {
-                // Handle the error if something goes wrong
+                // Handle the error if something goes wrong and panic
                 eprintln!("Error generating token: {}", e);
+                panic!("Token generation failed");
             }
         }
     }

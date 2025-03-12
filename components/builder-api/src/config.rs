@@ -47,6 +47,7 @@ pub struct Config {
     pub memcache:    MemcacheCfg,
     pub jobsrv:      JobsrvCfg,
     pub datastore:   DataStoreCfg,
+    pub provision:   ProvisionCfg,
 }
 
 #[derive(Debug)]
@@ -322,6 +323,25 @@ impl Default for JobsrvCfg {
 impl fmt::Display for JobsrvCfg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "http://{}:{}", self.host, self.port)
+    }
+}
+
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct ProvisionCfg {
+    pub auto_create_token: bool,
+    pub token_path:   PathBuf,
+    pub origins:      Vec<String>,
+    pub channels:     Vec<String>,
+}
+
+impl Default for ProvisionCfg {
+    fn default() -> Self {
+        ProvisionCfg { auto_create_token: false,
+                       token_path:   env::temp_dir(),
+                       origins:      vec!["core".to_string()],
+                       channels:     vec!["stable".to_string()], }
     }
 }
 

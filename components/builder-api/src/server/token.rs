@@ -7,7 +7,7 @@ use super::AppState;
 const BLDR_USER_NAME: &str = "chef-platform";
 const BLDR_USER_EMAIL: &str = "chef-platform@progress.com";
 
-pub fn bldr_token(app_state: AppState) -> Result<String, Error> {
+pub fn auto_create_bldr_token(app_state: AppState) -> Result<String, Error> {
     // Get or Create Account
     let conn = app_state.db.get_conn().map_err(Error::DbError)?;
     let account = match Account::find_or_create(&NewAccount { name: BLDR_USER_NAME, email: BLDR_USER_EMAIL }, &conn) {

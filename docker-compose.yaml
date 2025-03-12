@@ -55,6 +55,8 @@ services:
         condition: service_started
       builder-minio:
         condition: service_started
+    volumes:
+      - ./tmp/tokens:/tokens
 networks:
   backend:
     driver: bridge
