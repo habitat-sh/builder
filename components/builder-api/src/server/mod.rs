@@ -45,8 +45,6 @@ use rand::{self,
            Rng};
 use std::{cell::RefCell,
           collections::HashMap,
-          fs::{self, File},
-          io::Write,
           iter::FromIterator,
           sync::Arc,
           time::Duration};
@@ -152,25 +150,15 @@ pub async fn run(config: Config) -> error::Result<()> {
             }
         };
 
-        match token::auto_create_bldr_token(app_state) {
-            Ok(token) => {
-                // Print the token if successful
-                println!("Generated token: {}", token);
-    
-                // Ensure the directory exists, will panic if it fails
-                fs::create_dir_all(&config.provision.token_path).expect("Failed to create token directory");
-    
-                // Define the path for the HAB_AUTH_TOKEN file and create it
-                let token_file_path = config.provision.token_path.join("HAB_AUTH_TOKEN");
-                let mut file = File::create(token_file_path).expect("Failed to create token file");
-    
-                // Write the token into the file and panic if an error occurs
-                file.write_all(token.as_bytes()).expect("Failed to write token to file");
+        match token::provision_bldr_environment(app_state) {
+            Ok(_) => {
+                // The token is already handled and stored by the provision_bldr_environment function
+                info!("Token has been successfully provisioned and stored.");
             }
             Err(e) => {
                 // Handle the error if something goes wrong and panic
-                eprintln!("Error generating token: {}", e);
-                panic!("Token generation failed");
+                error!("Error during bldr account provisioning, err = {}", e);
+                panic!("Token provisioning failed");
             }
         }
     }
