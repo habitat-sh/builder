@@ -42,7 +42,7 @@ port = 5432
 ssl_mode = "prefer"
 
 [provision]
-auto_create_token = true
+auto_provision_account = true
 token_path = "/tokens"
 origins = ["core", "chef", "chef-platform"]
 channels = ["stable"]

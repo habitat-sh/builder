@@ -140,7 +140,7 @@ pub async fn run(config: Config) -> error::Result<()> {
         .expect("Error encrypting secret keys");
 
     // Bootstrap user to be used for chef 360 services
-    if config.provision.auto_create_token {
+    if config.provision.auto_provision_account {
         info!("bootstrapping user");
         let app_state = match AppState::new(&config, db_pool.clone()) {
             Ok(state) => state,
