@@ -70,9 +70,9 @@ pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error>
                                       .iter()
                                       .zip(&filtered_channels)
     {
-        let new_channel = CreateChannel { name:     channel,
+        let new_channel = CreateChannel { name: channel,
                                           origin,
-                                          owner_id: account.id, };
+                                          owner_id: account.id };
 
         match Channel::create(&new_channel, &conn) {
             Ok(_) => {}
