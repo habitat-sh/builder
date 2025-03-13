@@ -47,6 +47,7 @@ pub struct Config {
     pub memcache:    MemcacheCfg,
     pub jobsrv:      JobsrvCfg,
     pub datastore:   DataStoreCfg,
+    pub provision:   ProvisionCfg,
 }
 
 #[derive(Debug)]
@@ -109,6 +110,7 @@ pub struct ApiCfg {
     pub private_max_age:            usize,
     pub saas_bldr_url:              String,
     pub suppress_autobuild_origins: Vec<String>,
+    pub bootstrap_user:             bool,
 }
 
 mod deserialize_into_vec {
@@ -137,7 +139,8 @@ impl Default for ApiCfg {
                  build_on_upload:            true,
                  private_max_age:            300,
                  saas_bldr_url:              "https://bldr.habitat.sh".to_string(),
-                 suppress_autobuild_origins: vec![], }
+                 suppress_autobuild_origins: vec![],
+                 bootstrap_user:             false, }
     }
 }
 
@@ -320,6 +323,24 @@ impl Default for JobsrvCfg {
 impl fmt::Display for JobsrvCfg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "http://{}:{}", self.host, self.port)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct ProvisionCfg {
+    pub auto_provision_account: bool,
+    pub token_path:             PathBuf,
+    pub origins:                Vec<String>,
+    pub channels:               Vec<String>,
+}
+
+impl Default for ProvisionCfg {
+    fn default() -> Self {
+        ProvisionCfg { auto_provision_account: false,
+                       token_path:             env::temp_dir(),
+                       origins:                vec!["core".to_string()],
+                       channels:               vec!["stable".to_string()], }
     }
 }
 
