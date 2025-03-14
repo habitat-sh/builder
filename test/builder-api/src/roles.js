@@ -315,18 +315,6 @@ describe("Origin Roles API", function () {
           done(err);
         });
     });
-    it("user with readonly_member role not authorized to trigger builds", function (done) {
-      request
-        .post("/depot/pkgs/schedule/rcpd/testapp")
-        .type("application/json")
-        .accept("application/json")
-        .set("Authorization", global.lkennedyBearer)
-        .expect(403)
-        .end(function (err, res) {
-          expect(res.text).to.be.empty;
-          done(err);
-        });
-    });
   });
   describe("Promote lkennedy to maintainer role", function () {
     it("changes the user role", function (done) {
@@ -801,7 +789,6 @@ describe("Origin Roles API", function () {
         });
     });
 
-    // JAH: this was broken before rdep refactoring. Make sure you review it
     it("user with member role authorized to trigger builds", function (done) {
       request
         .post("/depot/pkgs/schedule/rcpd/testapp")

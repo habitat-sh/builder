@@ -10,8 +10,8 @@ use diesel::{self,
              Table};
 
 use crate::schema::{integration::origin_integrations,
-                     project::origin_projects,
-                     project_integration::origin_project_integrations};
+                    project::origin_projects,
+                    project_integration::origin_project_integrations};
 
 use crate::{bldr_core::metrics::CounterMetric,
             metrics::Counter};

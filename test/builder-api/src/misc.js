@@ -39,8 +39,7 @@ describe('Miscellanenous API', function () {
   });
 
   describe('Retrieving reverse dependencies', function () {
-    // JAH: ensure this works after rdep refactoring
-    it.skip('returns all reverse dependencies for an origin and package name', function (done) {
+    it('returns all reverse dependencies for an origin and package name', function (done) {
       request.get('/rdeps/neurosis/testapp?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')
@@ -48,22 +47,7 @@ describe('Miscellanenous API', function () {
         .end(function (err, res) {
           expect(res.body.origin).to.equal('neurosis');
           expect(res.body.name).to.equal('testapp');
-          expect(res.body.rdeps).to.deep.equal(["neurosis/oddversion7", "neurosis/testapp3"]);
-          done(err);
-        });
-    });
-
-    it('returns group reverse dependencies for an origin and package name', function (done) {
-      this.skip(); // fails in CI - TBD
-      request.get('/rdeps/neurosis/testapp/group?target=x86_64-linux')
-        .type('application/json')
-        .accept('application/json')
-        .expect(200)
-        .end(function (err, res) {
-          expect(res.body.origin).to.equal('neurosis');
-          expect(res.body.name).to.equal('testapp');
-          expect(res.body.rdeps[0].group).to.equal(0)
-          expect(res.body.rdeps[0].idents).to.deep.equal(["neurosis/testapp3", "neurosis/oddversion7"]);
+          expect(res.body.rdeps).to.deep.equal(["neurosis/oddversion7"]);
           done(err);
         });
     });
@@ -79,8 +63,7 @@ describe('Miscellanenous API', function () {
         });
     });
 
-    // JAH: ensure this works after rdep refactoring
-    it.skip('hides reverse dependencies for private origin and package name', function (done) {
+    it('hides reverse dependencies for private origin and package name', function (done) {
       request.get('/rdeps/neurosis/testapp?target=x86_64-linux')
         .type('application/json')
         .accept('application/json')

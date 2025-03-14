@@ -36,13 +36,11 @@ use crate::{bldr_core::metrics::CounterMetric,
                                  PackageIdent,
                                  PackageTarget},
                        ChannelIdent},
-            protocol::jobsrv,
             server::{authorize::authorize_session,
                      error::{Error,
                              Result},
                      feat,
-                     framework::{headers,
-                                 middleware::route_message},
+                     framework::headers,
                      helpers::{self,
                                req_state,
                                Pagination,
@@ -82,6 +80,8 @@ use std::{convert::Infallible,
           str::FromStr};
 use tempfile::tempdir_in;
 use uuid::Uuid;
+
+use super::reverse_dependencies::{self};
 
 // Query param containers
 #[derive(Debug, Deserialize)]
@@ -274,7 +274,7 @@ async fn delete_package(req: HttpRequest,
         return err.into();
     }
 
-    let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
+    let ident = PackageIdent::new(origin.clone(), pkg.clone(), Some(version), Some(release));
 
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
@@ -322,29 +322,24 @@ async fn delete_package(req: HttpRequest,
         }
     }
 
-    // Check whether package project has any rdeps
-    let mut rdeps_get = jobsrv::JobGraphPackageReverseDependenciesGet::new();
-    rdeps_get.set_origin(ident.origin().to_string());
-    rdeps_get.set_name(ident.name().to_string());
-    rdeps_get.set_target(target.to_string());
-
-    match route_message::<jobsrv::JobGraphPackageReverseDependenciesGet,
-                        jobsrv::JobGraphPackageReverseDependencies>(&req, &rdeps_get).await
-    {
-        Ok(rdeps) => {
-            if !rdeps.get_rdeps().is_empty() {
+    debug!("before match reverse_dependencies::get_rdeps in delete_package");
+    match reverse_dependencies::get_rdeps(&conn, &origin, &pkg, &target).await {
+        Ok(reverse_depenencies) => {
+            if !reverse_depenencies.rdeps.is_empty() {
                 debug!("Deleting package with rdeps not allowed: {}", ident);
                 let body = Bytes::from(format!("Deleting package with rdeps not allowed '{}'",
                                                ident).into_bytes());
                 return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
                                                BoxBody::new(body));
             }
+            debug!("after !rdeps.dependents.is_empty()");
         }
         Err(err) => {
             debug!("{}", err);
             return err.into();
         }
     }
+    debug!("after match reverse_dependencies::get_rdeps in delete_package");
 
     // TODO (SA): Wrap in transaction, or better yet, eliminate need to do
     // channel package deletion
@@ -361,12 +356,14 @@ async fn delete_package(req: HttpRequest,
         debug!("{}", err);
         return err.into();
     }
+    debug!("match Package::get");
 
     match Package::delete(DeletePackage { ident:  BuilderPackageIdent(ident.clone()),
                                           target: BuilderPackageTarget(target), },
                           &conn).map_err(Error::DieselError)
     {
         Ok(_) => {
+            debug!("in OK arm for Package::delete");
             state.memcache.borrow_mut().clear_cache_for_package(&ident);
             HttpResponse::NoContent().finish()
         }
@@ -479,6 +476,7 @@ async fn upload_package(req: HttpRequest,
     let (origin, name, version, release) = path.into_inner();
 
     let ident = PackageIdent::new(origin, name, Some(version), Some(release));
+    debug!("upload_package::ident {ident}");
 
     if !ident.valid() || !ident.fully_qualified() {
         info!("Invalid or not fully qualified package identifier: {}",

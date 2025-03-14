@@ -7,5 +7,6 @@ pub mod notify;
 pub mod origins;
 pub mod pkgs;
 pub mod profile;
+pub(crate) mod reverse_dependencies;
 pub mod settings;
 pub mod user;
