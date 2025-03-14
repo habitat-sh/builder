@@ -12,8 +12,8 @@ use diesel::{self,
              RunQueryDsl};
 
 use crate::models::{channel::{Channel,
-                               CreateChannel},
-                     package::PackageVisibility};
+                              CreateChannel},
+                    package::PackageVisibility};
 
 use crate::schema::{audit::audit_origin,
                     channel::origin_channels,

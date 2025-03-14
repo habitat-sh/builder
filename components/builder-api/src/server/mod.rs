@@ -42,6 +42,7 @@ use openssl::ssl::{SslAcceptor,
                    SslVerifyMode};
 use rand::{self,
            Rng};
+use resources::jobs::Jobs;
 use std::{cell::RefCell,
           collections::HashMap,
           iter::FromIterator,
@@ -181,6 +182,7 @@ pub async fn run(config: Config) -> error::Result<()> {
                     .configure(Authenticate::register)
                     .configure(Channels::register)
                     .configure(Ext::register)
+                    .configure(Jobs::register)
                     .configure(Notify::register)
                     .configure(Origins::register)
                     .configure(Packages::register)

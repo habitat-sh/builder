@@ -721,8 +721,7 @@ describe("Related Origin API functions", function () {
       });
     });
 
-    // JAH: rdeps refactoring required for this work
-    describe.skip("5. Attempt to delete an origin when a package exists", function () {
+    describe("5. Attempt to delete an origin when a package exists", function () {
       it("gets 409 before the package is removed", function (done) {
         request
           .delete("/depot/origins/deletemeifyoucan")

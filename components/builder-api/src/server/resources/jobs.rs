@@ -15,8 +15,6 @@
 use std::{collections::HashMap,
           str::FromStr};
 
-use protobuf::RepeatedField;
-
 use actix_web::{web::{self,
                       Path,
                       Query,
@@ -24,10 +22,7 @@ use actix_web::{web::{self,
                 HttpRequest,
                 HttpResponse};
 
-use crate::protocol::{jobsrv,
-                      originsrv::OriginPackageIdent};
-
-use crate::hab_core::package::PackageTarget;
+use crate::protocol::originsrv::OriginPackageIdent;
 
 use crate::db::models::{origin::*,
                         package::*};
@@ -35,74 +30,68 @@ use crate::db::models::{origin::*,
 use crate::server::{authorize::authorize_session,
                     error::{Error,
                             Result},
-                    framework::middleware::route_message,
-                    helpers::{self,
-                              req_state,
+                    helpers::{req_state,
                               Target}};
+
+use super::reverse_dependencies::{self,
+                                  ReverseDependencies};
 
 pub struct Jobs;
 
 impl Jobs {
-    // Route registration
-    //
     pub fn register(cfg: &mut ServiceConfig) {
         cfg.route("/rdeps/{origin}/{name}", web::get().to(get_rdeps));
     }
 }
-// Route handlers - these functions can return any Responder trait
-//
+
 #[allow(clippy::needless_pass_by_value)]
 async fn get_rdeps(req: HttpRequest,
                    path: Path<(String, String)>,
                    qtarget: Query<Target>)
                    -> HttpResponse {
+    trace!("builder_api::server::resources::jobs::get_rdeps");
     let (origin, name) = path.into_inner();
 
-    // TODO: Deprecate target from headers
-    let target = match qtarget.target {
-        Some(ref t) => {
-            trace!("Query requested target = {}", t);
-            match PackageTarget::from_str(t) {
-                Ok(t) => t,
-                Err(err) => return Error::HabitatCore(err).into(),
-            }
-        }
-        None => helpers::target_from_headers(&req),
-    };
+    let target: String = qtarget.target
+                                .clone()
+                                .unwrap_or_else(|| "x86_64-linux".to_string());
 
-    let mut rdeps_get = jobsrv::JobGraphPackageReverseDependenciesGet::new();
-    rdeps_get.set_origin(origin);
-    rdeps_get.set_name(name);
-    rdeps_get.set_target(target.to_string());
+    let connection = req_state(&req).db
+                                    .get_conn()
+                                    .map_err(Error::DbError)
+                                    .unwrap();
 
-    match route_message::<jobsrv::JobGraphPackageReverseDependenciesGet,
-                        jobsrv::JobGraphPackageReverseDependencies>(&req, &rdeps_get).await
-    {
-        Ok(rdeps) => {
-            let filtered = match filtered_rdeps(&req, &rdeps) {
+    match reverse_dependencies::get_rdeps(&connection, &origin, &name, &target).await {
+        Ok(reverse_dependencies) => {
+            debug!("BEFORE FILTERING: reverse_dependencies: {:?}",
+                   reverse_dependencies);
+            let filtered = match filtered_rdeps(&req, &reverse_dependencies) {
                 Ok(f) => f,
                 Err(err) => return err.into(),
             };
+            debug!("AFTER FILTERING: reverse_dependencies: {:?}",
+                   reverse_dependencies);
             HttpResponse::Ok().json(filtered)
         }
         Err(err) => {
             debug!("{}", err);
-            err.into()
+            HttpResponse::InternalServerError().json(err.to_string())
         }
     }
 }
 
 fn filtered_rdeps(req: &HttpRequest,
-                  rdeps: &jobsrv::JobGraphPackageReverseDependencies)
-                  -> Result<jobsrv::JobGraphPackageReverseDependencies> {
-    let mut new_rdeps = jobsrv::JobGraphPackageReverseDependencies::new();
-    new_rdeps.set_origin(rdeps.get_origin().to_string());
-    new_rdeps.set_name(rdeps.get_name().to_string());
+                  reverse_dependencies: &ReverseDependencies)
+                  -> Result<ReverseDependencies> {
+    trace!("builder_api::server::resources::jobs::filtered_rdeps");
 
     let mut origin_map = HashMap::new();
-    let mut short_deps = RepeatedField::new();
+    let mut new_dependents: Vec<String> = Vec::new();
+    let mut filtered_rdeps = ReverseDependencies { origin: reverse_dependencies.origin.clone(),
+                                                   name:   reverse_dependencies.name.clone(),
+                                                   rdeps:  Vec::new(), };
 
-    for rdep in rdeps.get_rdeps() {
+    for rdep in reverse_dependencies.rdeps.iter() {
         let ident = OriginPackageIdent::from_str(rdep)?;
         let origin_name = ident.get_origin();
         let pv = if !origin_map.contains_key(origin_name) {
@@ -117,13 +106,13 @@ fn filtered_rdeps(req: &HttpRequest,
         if pv != PackageVisibility::Public
            && authorize_session(req, Some(origin_name), Some(OriginMemberRole::Member)).is_err()
         {
-            debug!("Skipping unauthorized non-public origin package: {}", rdep);
+            debug!("Skipping unauthorized non-public origin package: {origin_name}");
             continue; // Skip any unauthorized origin packages
         }
 
-        short_deps.push(rdep.to_string())
+        new_dependents.push(rdep.clone())
     }
 
-    new_rdeps.set_rdeps(short_deps);
-    Ok(new_rdeps)
+    filtered_rdeps.rdeps = new_dependents;
+    Ok(filtered_rdeps)
 }
