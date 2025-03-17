@@ -1,6 +1,3 @@
-log_level = "error,tokio_core=error,tokio_reactor=error,zmq=error,hyper=error"
-jobsrv_enabled = false
-
 [http]
 handler_count = 10
 listen = "0.0.0.0"
