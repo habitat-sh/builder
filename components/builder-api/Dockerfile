@@ -46,45 +46,46 @@ RUN cargo fetch
 ENV PATH="/usr/local/x86_64-linux-musl-cross/bin:$PATH"
 ENV CC=musl-gcc
 ENV CXX=musl-g++
-ENV RUSTFLAGS="-C target-feature=+crt-static \
-    -C link-arg=-L/usr/lib/x86_64-linux-gnu \
-    -C link-arg=-lpq \
-    -C link-arg=-lz \
-    -C link-arg=-lgssapi_krb5 \
-    -C link-arg=-lssl \
-    -C link-arg=-lcrypto \
-    -C link-arg=-lldap \
-    -C link-arg=-Wl,--no-as-needed \
-    -C link-arg=-Wl,--copy-dt-needed-entries"
+# ENV RUSTFLAGS="-C target-feature=+crt-static \
+#     -C link-arg=-Wl,--no-as-needed \
+#     -C link-arg=-lpq \
+#     -C link-arg=-lz \
+#     -C link-arg=-lgssapi_krb5 \
+#     -C link-arg=-lldap \
+#     -C link-arg=-ldl \
+#     -C link-arg=-Wl,--copy-dt-needed-entries"
+
+ENV RUSTFLAGS="-C target-feature=+crt-static -C link-arg=-Wl,--no-as-needed -C link-arg=-lpq -C link-arg=-lz -C link-arg=-lgssapi_krb5 -C link-arg=-lldap -C link-arg=-ldl -C link-arg=-Wl,--copy-dt-needed-entries"
+
 
 ENV OPENSSL_STATIC=1
+ENV OPENSSL_VENDORED=1
 ENV LIBZMQ_STATIC=1
 ENV SQLITE3_STATIC=1
 ENV PQ_LIB_STATIC=1
-ENV OPENSSL_DIR="/usr"
-ENV OPENSSL_LIB_DIR="/usr/lib/x86_64-linux-gnu"
-ENV OPENSSL_INCLUDE_DIR="/usr/include"
+# ENV OPENSSL_DIR="/usr"
+# ENV OPENSSL_LIB_DIR="/usr/lib/x86_64-linux-gnu"
+# ENV OPENSSL_INCLUDE_DIR="/usr/include"
 ENV PKG_CONFIG_SYSROOT_DIR=/usr
 ENV PKG_CONFIG_ALLOW_CROSS=1
 ENV PKG_CONFIG_ALLOW_STATIC=1
-ENV PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig"
+ENV PKG_CONFIG_PATH=""
 
 RUN echo "/usr/local/x86_64-linux-musl-cross/lib" > /etc/ld.so.conf.d/musl.conf \
     echo "/usr/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/postgresql.conf \
     && ldconfig
 
 RUN mkdir -p ~/.cargo && \
-    echo "[target.x86_64-unknown-linux-musl]" >> ~/.cargo/config && \
-    echo "rustflags = [\"-C\", \"target-feature=+crt-static\", \"-C\", \"link-arg=-L/usr/lib/x86_64-linux-gnu\", \"-C\", \"link-arg=-lpq\", \"-C\", \"link-arg=-lz\", \"-C\", \"link-arg=-lgssapi_krb5\"]" >> ~/.cargo/config
-
+    echo "[target.x86_64-unknown-linux-musl]" > ~/.cargo/config && \
+    echo 'rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=-lpq", "-C", "link-arg=-lz", "-C", "link-arg=-lgssapi_krb5", "-C", "link-arg=-lldap", "-C", "link-arg=-ldl", "-C", "link-arg=-Wl,--copy-dt-needed-entries"]' >> ~/.cargo/config
 
 RUN ldd /usr/lib/x86_64-linux-gnu/libpq.so && \
 ldd /usr/lib/x86_64-linux-gnu/libssl.so* && \
 ldd /usr/lib/x86_64-linux-gnu/libcrypto.so* && \
 ldd /usr/lib/x86_64-linux-gnu/libgssapi_krb5.so
 
-RUN ln -s /usr/lib/x86_64-linux-gnu/libcrypto.so.3 /usr/lib/libcrypto.so && \
-    ln -s /usr/lib/x86_64-linux-gnu/libssl.so.3 /usr/lib/libssl.so
+# RUN ln -s /usr/lib/x86_64-linux-gnu/libcrypto.so.3 /usr/lib/libcrypto.so && \
+#     ln -s /usr/lib/x86_64-linux-gnu/libssl.so.3 /usr/lib/libssl.so
 
 WORKDIR /workspace/components/builder-api
 RUN cargo build --release --target x86_64-unknown-linux-musl --bin bldr-api \

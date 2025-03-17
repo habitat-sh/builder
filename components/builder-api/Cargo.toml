@@ -29,7 +29,7 @@ lazy_static = "*"
 log = "*"
 memcache = "*"
 num_cpus = "*"
-openssl = "*"
+openssl = { version = "*", features = ["vendored"] }
 percent-encoding = "*"
 protobuf = "*"
 reqwest = "*"
