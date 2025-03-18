@@ -1,7 +1,6 @@
 [http]
-handler_count = 10
-listen = "0.0.0.0"
-port = 9636
+# listen = "0.0.0.0"
+# port = 9636
 
 [api]
 features_enabled = "nativepackages"
@@ -33,6 +32,6 @@ ssl_mode = "prefer"
 
 [provision]
 auto_provision_account = true
-token_path = "/tokens"
+# token_path = "/tokens"
 origins = ["core", "chef", "chef-platform"]
 channels = ["stable"]

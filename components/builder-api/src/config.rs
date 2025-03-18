@@ -205,8 +205,17 @@ impl Default for TLSClientCfg {
 
 impl Default for HttpCfg {
     fn default() -> Self {
-        HttpCfg { listen:        IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-                  port:          9636,
+        let listen = env::var("BLDR_LISTEN")
+            .ok()
+            .and_then(|addr| addr.parse().ok())
+            .unwrap_or(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)));
+        let port = env::var("BLDR_PORT")
+            .ok()
+            .and_then(|val| val.parse::<u16>().ok())
+            .unwrap_or(9636);
+
+        HttpCfg { listen,
+                  port,
                   tls:           None,
                   handler_count: Config::default_handler_count(),
                   keep_alive:    60, }
@@ -348,8 +357,9 @@ pub struct ProvisionCfg {
 
 impl Default for ProvisionCfg {
     fn default() -> Self {
+        let token_path = env::var("BLDR_TOKEN_DIR").map(PathBuf::from).unwrap_or_else(|_| env::temp_dir());
         ProvisionCfg { auto_provision_account: false,
-                       token_path:             env::temp_dir(),
+                       token_path,
                        origins:                vec!["core".to_string()],
                        channels:               vec!["stable".to_string()], }
     }

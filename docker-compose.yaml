@@ -41,6 +41,9 @@ services:
     ports:
       - "9636:9636"
     environment:
+      - BLDR_LISTEN=0.0.0.0
+      - BLDR_PORT=9636
+      - BLDR_TOKEN_DIR=/tokens
       - POSTGRES_HOST=builder-datastore
       - POSTGRES_PORT=5432
       - POSTGRES_DB=builder
