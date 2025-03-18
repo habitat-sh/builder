@@ -18,7 +18,8 @@ use percent_encoding::{utf8_percent_encode,
 use postgres_shared::params::{ConnectParams,
                               Host,
                               IntoConnectParams};
-use std::{error::Error,
+use std::{env,
+          error::Error,
           fmt};
 
 // The characters in this set are copied from
@@ -59,16 +60,26 @@ pub struct DataStoreCfg {
 
 impl Default for DataStoreCfg {
     fn default() -> Self {
-        DataStoreCfg { host:                   String::from("localhost"),
-                       port:                   5432,
-                       user:                   String::from("hab"),
-                       password:               None,
-                       database:               String::from("builder"),
+        let host = env::var("POSTGRES_HOST").unwrap_or_else(|_| String::from("localhost"));
+        let port = env::var("POSTGRES_PORT")
+            .ok()
+            .and_then(|val| val.parse::<u16>().ok())
+            .unwrap_or(5432);
+        let user = env::var("POSTGRES_USER").unwrap_or_else(|_| String::from("hab"));
+        let password = env::var("POSTGRES_PASSWORD").ok();
+        let database = env::var("POSTGRES_DB").unwrap_or_else(|_| String::from("builder"));
+        let ssl_mode = env::var("POSTGRES_SSLMODE").ok();
+
+        DataStoreCfg { host,
+                       port,
+                       user,
+                       password,
+                       database,
                        connection_retry_ms:    300,
                        connection_timeout_sec: 3600,
                        connection_test:        false,
                        pool_size:              (num_cpus::get() * 2) as u32,
-                       ssl_mode:               None,
+                       ssl_mode,
                        ssl_cert:               None,
                        ssl_key:                None,
                        ssl_root_cert:          None, }

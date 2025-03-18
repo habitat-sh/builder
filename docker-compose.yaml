@@ -41,9 +41,12 @@ services:
     ports:
       - "9636:9636"
     environment:
+      - POSTGRES_HOST=builder-datastore
+      - POSTGRES_PORT=5432
       - POSTGRES_DB=builder
       - POSTGRES_USER=hab
       - POSTGRES_PASSWORD=passwrd1298
+      - POSTGRES_SSLMODE=prefer
       - MINIO_ACCESS_KEY=root_Admin
       - MINIO_SECRET_KEY=123456789qax
       - MINIO_ENDPOINT=http://localhost:9000

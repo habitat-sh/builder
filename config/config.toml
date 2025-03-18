@@ -10,12 +10,6 @@ build_on_upload = false
 saas_bldr_url = "https://bldr.habitat.sh"
 key_path = "/app/keys"
 
-[depot]
-jobsrv_enabled = false
-
-[oauth]
-provider = "github"
-
 [s3]
 backend = "minio"
 key_id = "root_Admin"
@@ -30,13 +24,12 @@ host = "builder-memcache"
 port = 11211
 
 [datastore]
-user = "hab"
-password = "passwrd1298"
-connection_timeout_sec = 5
-database = "builder"
-host = "builder-datastore"
-port = 5432
+# host = "localhost"
+# port = 5432
 ssl_mode = "prefer"
+# user = "hab"
+# password = ""
+# database = "builder"
 
 [provision]
 auto_provision_account = true
