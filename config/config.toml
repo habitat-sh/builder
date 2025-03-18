@@ -20,8 +20,8 @@ bucket_name = "test"
 [memcache]
 ttl = 15
 [[memcache.hosts]]
-host = "builder-memcache"
-port = 11211
+# host = "builder-memcache"
+# port = 11211
 
 [datastore]
 # host = "localhost"

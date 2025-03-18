@@ -47,6 +47,8 @@ services:
       - POSTGRES_USER=hab
       - POSTGRES_PASSWORD=passwrd1298
       - POSTGRES_SSLMODE=prefer
+      - MEMCACHED_HOST=builder-memcache
+      - MEMCACHED_PORT=11211
       - MINIO_ACCESS_KEY=root_Admin
       - MINIO_SECRET_KEY=123456789qax
       - MINIO_ENDPOINT=http://localhost:9000

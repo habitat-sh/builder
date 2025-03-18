@@ -243,9 +243,15 @@ pub struct MemcacheCfg {
 
 impl Default for MemcacheCfgHosts {
     fn default() -> Self {
-        MemcacheCfgHosts { host: String::from("localhost"),
-                           port: 11211,
-                           tls:  None, }
+        let host = env::var("MEMCACHED_HOST").unwrap_or_else(|_| String::from("localhost"));
+        let port = env::var("MEMCACHED_PORT")
+            .ok()
+            .and_then(|val| val.parse::<u16>().ok())
+            .unwrap_or(11211);
+
+        MemcacheCfgHosts { host,
+                           port,
+                           tls: None, }
     }
 }
 
