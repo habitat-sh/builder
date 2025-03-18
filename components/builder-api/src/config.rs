@@ -87,11 +87,16 @@ pub struct S3Cfg {
 
 impl Default for S3Cfg {
     fn default() -> Self {
-        S3Cfg { key_id:      String::from("depot"),
-                secret_key:  String::from("password"),
-                bucket_name: String::from("habitat-builder-artifact-store.default"),
-                backend:     S3Backend::Minio,
-                endpoint:    String::from("http://localhost:9000"), }
+        let endpoint = env::var("MINIO_ENDPOINT").unwrap_or_else(|_| String::from("http://localhost:9000"));
+        let key_id = env::var("MINIO_ACCESS_KEY").unwrap_or_else(|_| String::from("depot"));
+        let secret_key = env::var("MINIO_SECRET_KEY").unwrap_or_else(|_| String::from("password"));
+        let bucket_name = env::var("MINIO_BUCKET_NAME").unwrap_or_else(|_| String::from("habitat-builder-artifact-store.default"));
+
+        S3Cfg { key_id,
+                secret_key,
+                bucket_name,
+                backend: S3Backend::Minio,
+                endpoint, }
     }
 }
 

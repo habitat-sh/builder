@@ -49,10 +49,10 @@ services:
       - POSTGRES_SSLMODE=prefer
       - MEMCACHED_HOST=builder-memcache
       - MEMCACHED_PORT=11211
+      - MINIO_ENDPOINT=http://localhost:9000
       - MINIO_ACCESS_KEY=root_Admin
       - MINIO_SECRET_KEY=123456789qax
-      - MINIO_ENDPOINT=http://localhost:9000
-      - MINIO_BUCKET=test
+      - MINIO_BUCKET_NAME=test
       - RUST_LOG=debug
     networks:
       - backend

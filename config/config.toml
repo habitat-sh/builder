@@ -12,10 +12,10 @@ key_path = "/app/keys"
 
 [s3]
 backend = "minio"
-key_id = "root_Admin"
-secret_key = "123456789qax"
-endpoint = "http://localhost:9000"
-bucket_name = "test"
+# endpoint = "http://localhost:9000"
+# key_id = "root_Admin"
+# secret_key = "123456789qax"
+# bucket_name = "test"
 
 [memcache]
 ttl = 15
