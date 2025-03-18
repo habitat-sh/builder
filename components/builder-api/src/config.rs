@@ -87,16 +87,19 @@ pub struct S3Cfg {
 
 impl Default for S3Cfg {
     fn default() -> Self {
-        let endpoint = env::var("MINIO_ENDPOINT").unwrap_or_else(|_| String::from("http://localhost:9000"));
+        let endpoint =
+            env::var("MINIO_ENDPOINT").unwrap_or_else(|_| String::from("http://localhost:9000"));
         let key_id = env::var("MINIO_ACCESS_KEY").unwrap_or_else(|_| String::from("depot"));
         let secret_key = env::var("MINIO_SECRET_KEY").unwrap_or_else(|_| String::from("password"));
-        let bucket_name = env::var("MINIO_BUCKET_NAME").unwrap_or_else(|_| String::from("habitat-builder-artifact-store.default"));
+        let bucket_name = env::var("MINIO_BUCKET_NAME").unwrap_or_else(|_| {
+                              String::from("habitat-builder-artifact-store.default")
+                          });
 
         S3Cfg { key_id,
                 secret_key,
                 bucket_name,
                 backend: S3Backend::Minio,
-                endpoint, }
+                endpoint }
     }
 }
 
@@ -205,20 +208,18 @@ impl Default for TLSClientCfg {
 
 impl Default for HttpCfg {
     fn default() -> Self {
-        let listen = env::var("BLDR_LISTEN")
-            .ok()
-            .and_then(|addr| addr.parse().ok())
-            .unwrap_or(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)));
-        let port = env::var("BLDR_PORT")
-            .ok()
-            .and_then(|val| val.parse::<u16>().ok())
-            .unwrap_or(9636);
+        let listen = env::var("BLDR_LISTEN").ok()
+                                            .and_then(|addr| addr.parse().ok())
+                                            .unwrap_or(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)));
+        let port = env::var("BLDR_PORT").ok()
+                                        .and_then(|val| val.parse::<u16>().ok())
+                                        .unwrap_or(9636);
 
         HttpCfg { listen,
                   port,
-                  tls:           None,
+                  tls: None,
                   handler_count: Config::default_handler_count(),
-                  keep_alive:    60, }
+                  keep_alive: 60 }
     }
 }
 
@@ -258,14 +259,13 @@ pub struct MemcacheCfg {
 impl Default for MemcacheCfgHosts {
     fn default() -> Self {
         let host = env::var("MEMCACHED_HOST").unwrap_or_else(|_| String::from("localhost"));
-        let port = env::var("MEMCACHED_PORT")
-            .ok()
-            .and_then(|val| val.parse::<u16>().ok())
-            .unwrap_or(11211);
+        let port = env::var("MEMCACHED_PORT").ok()
+                                             .and_then(|val| val.parse::<u16>().ok())
+                                             .unwrap_or(11211);
 
         MemcacheCfgHosts { host,
                            port,
-                           tls: None, }
+                           tls: None }
     }
 }
 
@@ -357,11 +357,13 @@ pub struct ProvisionCfg {
 
 impl Default for ProvisionCfg {
     fn default() -> Self {
-        let token_path = env::var("BLDR_TOKEN_DIR").map(PathBuf::from).unwrap_or_else(|_| env::temp_dir());
+        let token_path = env::var("BLDR_TOKEN_DIR").map(PathBuf::from)
+                                                   .unwrap_or_else(|_| env::temp_dir());
+
         ProvisionCfg { auto_provision_account: false,
                        token_path,
-                       origins:                vec!["core".to_string()],
-                       channels:               vec!["stable".to_string()], }
+                       origins: vec!["core".to_string()],
+                       channels: vec!["stable".to_string()] }
     }
 }
 
