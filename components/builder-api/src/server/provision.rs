@@ -31,8 +31,8 @@ pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error>
     let username = &app_state.config.provision.username;
     let email = &app_state.config.provision.email;
     let conn = app_state.db.get_conn().map_err(Error::DbError)?;
-    let account = Account::find_or_create(&NewAccount { name:  username,
-                                                        email, },
+    let account = Account::find_or_create(&NewAccount { name: username,
+                                                        email },
                                           &conn).map_err(Error::DieselError)?;
 
     for origin in &app_state.config.provision.origins {

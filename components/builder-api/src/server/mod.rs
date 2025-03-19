@@ -141,7 +141,8 @@ pub async fn run(config: Config) -> error::Result<()> {
                 info!("Builder encryption keys already exist; not creating them.");
             }
             Err(e) => {
-                debug!("Missing bldr encryption keys in cache, creating, err: {}", e);
+                debug!("Missing bldr encryption keys in cache, creating, err: {}",
+                       e);
                 key_cache.new_user_encryption_pair(BUILDER_KEY_NAME)?;
             }
         }
