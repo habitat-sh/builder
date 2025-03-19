@@ -1,0 +1,34 @@
+<div class="dialog">
+  <section class="custom-header">
+    <h2>{{ heading }}</h2>
+    <a class="close-button" (click)="cancel()">
+      <h2>
+        <hab-icon symbol="close"></hab-icon>
+      </h2>
+    </a>
+  </section>
+  <section class="body">
+    <span>
+      Kindly Enter the license key to proceed
+    </span>
+    <input type="password" placeholder="License Key" name="email" [ngModel]="licenseKey" autocomplete="off" required>
+  </section>
+  <section class="controls">
+    <button mat-raised-button color="primary" class="button proceed-button " (click)="proceed()">
+      {{ action }}
+    </button>
+  </section>
+</div>
+
+<style>
+    .custom-header {
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center;
+    }
+
+    .proceed-button {
+      width: 100%; 
+      height: 3rem;
+    }
+</style>
