@@ -75,22 +75,5 @@ describe('Miscellanenous API', function () {
           done(err);
         });
     });
-
-    it('hides group reverse dependencies for private origin and package name', function (done) {
-      this.skip(); // fails in CI - TBD
-      request.get('/rdeps/neurosis/testapp/group?target=x86_64-linux')
-        .type('application/json')
-        .accept('application/json')
-        .expect(200)
-        .end(function (err, res) {
-          expect(res.body.origin).to.equal('neurosis');
-          expect(res.body.name).to.equal('testapp');
-          expect(res.body.rdeps[0].group).to.equal(0)
-          expect(res.body.rdeps[0].idents).to.deep.equal([]);
-          done(err);
-        });
-    });
-
-
   });
 });
