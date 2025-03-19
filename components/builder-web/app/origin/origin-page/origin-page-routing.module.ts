@@ -31,6 +31,7 @@ const routes: Routes = [
   {
     path: 'origins/:origin',
     component: OriginPageComponent,
+    canActivate: [SignedInGuard],
     children: [
       {
         path: '',

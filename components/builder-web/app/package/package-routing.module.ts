@@ -31,6 +31,7 @@ const routes: Routes = [
   {
     path: 'pkgs/:origin/:name',
     component: PackageComponent,
+    canActivate: [SignedInGuard],
     children: [
       {
         path: '',
