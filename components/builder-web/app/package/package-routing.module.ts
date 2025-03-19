@@ -35,14 +35,17 @@ const routes: Routes = [
       {
         path: '',
         component: PackageVersionsComponent,
+        canActivate: [SignedInGuard]
       },
       {
         path: 'latest',
-        component: PackageLatestComponent
+        component: PackageLatestComponent,
+        canActivate: [SignedInGuard]
       },
       {
         path: 'latest/:target',
-        component: PackageLatestComponent
+        component: PackageLatestComponent,
+        canActivate: [SignedInGuard]
       },
       {
         path: 'jobs',
@@ -66,11 +69,13 @@ const routes: Routes = [
       },
       {
         path: ':version',
-        component: PackageVersionsComponent
+        component: PackageVersionsComponent,
+        canActivate: [SignedInGuard]
       },
       {
         path: ':version/:release',
-        component: PackageReleaseComponent
+        component: PackageReleaseComponent,
+        canActivate: [SignedInGuard]
       },
       {
         path: ':version/:release/settings',

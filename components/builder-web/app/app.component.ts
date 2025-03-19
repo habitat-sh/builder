@@ -22,7 +22,6 @@ import {
   identifyUser, loadFeatures, removeNotification, exchangeOAuthCode,
   routeChange, loadOAuthProvider, routeChangeEnd, setPackagesSearchQuery, signOut, toggleUserNavMenu
 } from './actions/index';
-import { debounce } from 'lodash';
 
 const md5 = require('blueimp-md5');
 
@@ -51,15 +50,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
       if (event instanceof NavigationEnd) {
         store.dispatch(routeChangeEnd({ event, route }));
-        // Use debounce to prevent multiple navigations
-        const debouncedNavigate = debounce(() => {
-          // If user is not signed then navigate to sign-in page
-          if (!this.isSignedIn) {
-            this.router.navigate(['/sign-in']);
-          }
-        }, 300); // Adjust the debounce delay as needed
-        // Call the debounced function
-        debouncedNavigate();
       }
 
       // Clear the package search when the route changes
