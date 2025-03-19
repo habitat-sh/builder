@@ -29,7 +29,6 @@ use crate::bldr_api::{config::Config,
                       server};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
-const CFG_DEFAULT_PATH: &str = "/hab/svc/builder-api/config/config.toml";
 
 #[actix_rt::main]
 async fn main() {
@@ -51,7 +50,7 @@ fn app<'a, 'b>() -> clap::App<'a, 'b> {
         (@subcommand start =>
             (about: "Run the builder-api server")
             (@arg config: -c --config +takes_value
-                "Filepath to configuration file. [default: /hab/svc/builder-api/config/config.toml]")
+                "Filepath to configuration file.")
             (@arg path: -p --path +takes_value
                 "Filepath to store packages, keys, and other artifacts.")
             (@arg port: --port +takes_value "Listen port. [default: 9636]")
@@ -64,7 +63,7 @@ fn config_from_args(matches: &clap::ArgMatches) -> Config {
     let args = matches.subcommand_matches(cmd).unwrap();
     let mut config = match args.value_of("config") {
         Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
-        None => Config::from_file(CFG_DEFAULT_PATH).unwrap_or_default(),
+        None => Config::default(),
     };
 
     if let Some(port) = args.value_of("port") {

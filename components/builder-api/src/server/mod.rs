@@ -3,9 +3,9 @@ pub mod error;
 pub mod framework;
 pub mod helpers;
 pub mod migrations;
+pub mod provision;
 pub mod resources;
 pub mod services;
-pub mod provision;
 
 use self::{framework::middleware::authentication_middleware,
            resources::{authenticate::Authenticate,
