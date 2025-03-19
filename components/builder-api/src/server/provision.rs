@@ -17,8 +17,6 @@ use std::{fs::{self,
                File},
           io::Write};
 
-const BLDR_USER_NAME: &str = "chef-platform";
-const BLDR_USER_EMAIL: &str = "chef-platform@progress.com";
 const BLDR_TOKEN_FILE_NAME: &str = "HAB_AUTH_TOKEN";
 
 /// This function handles the provisioning of the Builder environment.
@@ -30,9 +28,11 @@ const BLDR_TOKEN_FILE_NAME: &str = "HAB_AUTH_TOKEN";
 /// 5. Storing the generated token in a specified file location as defined in the provision config.
 pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error> {
     // Get or Create Account
+    let username = &app_state.config.provision.username;
+    let email = &app_state.config.provision.email;
     let conn = app_state.db.get_conn().map_err(Error::DbError)?;
-    let account = Account::find_or_create(&NewAccount { name:  BLDR_USER_NAME,
-                                                        email: BLDR_USER_EMAIL, },
+    let account = Account::find_or_create(&NewAccount { name:  username,
+                                                        email: email, },
                                           &conn).map_err(Error::DieselError)?;
 
     for origin in &app_state.config.provision.origins {

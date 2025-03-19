@@ -350,6 +350,8 @@ impl fmt::Display for JobsrvCfg {
 #[serde(default)]
 pub struct ProvisionCfg {
     pub auto_provision_account: bool,
+    pub username:               String,
+    pub email:                  String,
     pub token_path:             PathBuf,
     pub origins:                Vec<String>,
     pub channels:               Vec<String>,
@@ -361,6 +363,8 @@ impl Default for ProvisionCfg {
                                                    .unwrap_or_else(|_| env::temp_dir());
 
         ProvisionCfg { auto_provision_account: false,
+                       username: "chef-platform".to_string(),
+                       email: "chef-platform@progress.com".to_string(),
                        token_path,
                        origins: vec!["core".to_string()],
                        channels: vec!["stable".to_string()] }

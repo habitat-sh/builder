@@ -5,7 +5,7 @@ pub mod helpers;
 pub mod migrations;
 pub mod resources;
 pub mod services;
-pub mod token;
+pub mod provision;
 
 use self::{framework::middleware::authentication_middleware,
            resources::{authenticate::Authenticate,
@@ -150,7 +150,7 @@ pub async fn run(config: Config) -> error::Result<()> {
             }
         };
 
-        match token::provision_bldr_environment(&app_state) {
+        match provision::provision_bldr_environment(&app_state) {
             Ok(_) => {
                 // The token is successfully generated and stored at the specified location.
                 info!("Token has been successfully provisioned and stored.");
@@ -233,4 +233,33 @@ pub async fn run(config: Config) -> error::Result<()> {
         None => srv.bind(cfg.http.clone())?,
     };
     Ok(srv.run().await?)
+}
+
+pub async fn provision_user(config: Config) -> error::Result<()> {
+    let db_pool = DbPool::new(&config.datastore.clone());
+    // Bootstrap user to be used for chef 360 services
+    if config.provision.auto_provision_account {
+        info!("bootstrapping user");
+        let app_state = match AppState::new(&config, db_pool.clone()) {
+            Ok(state) => state,
+            Err(err) => {
+                error!("Unable to create application state, err = {}", err);
+                panic!("Cannot start without valid application state");
+            }
+        };
+
+        match provision::provision_bldr_environment(&app_state) {
+            Ok(_) => {
+                // The token is successfully generated and stored at the specified location.
+                info!("Token has been successfully provisioned and stored.");
+            }
+            Err(e) => {
+                // Handle the error if something goes wrong and panic
+                error!("Error during bldr account provisioning, err = {}", e);
+                panic!("Error during bldr account provisioning, err = {}", e);
+            }
+        }
+    }
+
+    Ok(())
 }

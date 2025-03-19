@@ -32,6 +32,8 @@ ssl_mode = "prefer"
 
 [provision]
 auto_provision_account = true
+username = "chef-platform"
+email = "chef-platform@progress.com"
 # token_path = "/tokens"
 origins = ["core", "chef", "chef-platform"]
 channels = ["stable"]
