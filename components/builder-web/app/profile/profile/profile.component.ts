@@ -19,6 +19,7 @@ import { AppStore } from '../../app.store';
 import { SimpleConfirmDialog } from '../../shared/dialog/simple-confirm/simple-confirm.dialog';
 import { clearAccessTokens, clearNewAccessToken, deleteAccessToken, fetchProfile, fetchAccessTokens, generateAccessToken, saveProfile } from '../../actions/index';
 import config from '../../config';
+import { ValidLicenseConfirmDialog } from '../../shared/dialog/valid-license-confirm/valid-license-confirm.dialog';
 
 @Component({
   template: require('./profile.component.html')
@@ -35,6 +36,14 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.fetch();
+    this.confirmDialog.open(ValidLicenseConfirmDialog, {
+      width: '480px',
+      data: {
+        heading: 'A Valid key is required for viewing and downloading the packages on the builder.',
+        body: ``,
+        action: `Proceed`
+      }
+    });
   }
 
   ngOnDestroy() {

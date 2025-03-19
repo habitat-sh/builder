@@ -23,6 +23,7 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
 export class ValidLicenseConfirmDialog {
 
   licenseKey: string;
+  hide = true;
 
   constructor(
     private ref: MatDialogRef<ValidLicenseConfirmDialog>,
@@ -49,5 +50,14 @@ export class ValidLicenseConfirmDialog {
   cancel() {
     this.ref.close(false);
     this.location.back();
+  }
+
+  togglePasswordVisibility() {
+    const passwordField = document.getElementById('passwordField') as HTMLInputElement;
+    if (passwordField.type === 'password') {
+      passwordField.type = 'text';
+    } else {
+      passwordField.type = 'password';
+    }
   }
 }

@@ -1,5 +1,5 @@
-<div class="dialog">
-  <section class="custom-header">
+<div class="dialog simple-confirm">
+  <section class="header custom-header">
     <h2>{{ heading }}</h2>
     <a class="close-button" (click)="cancel()">
       <h2>
@@ -8,13 +8,18 @@
     </a>
   </section>
   <section class="body">
-    <span>
-      Kindly Enter the license key to proceed
-    </span>
-    <input type="password" placeholder="License Key" name="email" [ngModel]="licenseKey" autocomplete="off" required>
+    <div class="message">
+      <span>
+        Kindly Enter the license key to proceed
+      </span>
+    </div>
+    <div class="input-container">
+      <input matInput placeholder="License Key" name="licenseKey" [(ngModel)]="licenseKey" [type]="hide ? 'password' : 'text'" autocomplete="off" required>
+      <hab-icon class="show-icon" symbol="{{hide ? 'visibility-off' : 'visibility'}}" (click)="hide = !hide" (keydown)="hide = !hide"></hab-icon>
+    </div>
   </section>
   <section class="controls">
-    <button mat-raised-button color="primary" class="button proceed-button " (click)="proceed()">
+    <button mat-raised-button color="primary" class="button proceed-button" (click)="proceed()">
       {{ action }}
     </button>
   </section>
@@ -22,13 +27,27 @@
 
 <style>
     .custom-header {
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center;
+      display: flex;
     }
 
     .proceed-button {
       width: 100%; 
       height: 3rem;
+    }
+
+    .message {
+      margin-bottom: 8px;
+    }
+
+    .input-container {
+      display: flex;
+      justify-content: flex-start;
+      flex-direction: row-reverse;
+
+      .show-icon {
+        position: absolute;
+        margin-right: 1rem;
+        margin-top: 0.6rem;
+      }
     }
 </style>
