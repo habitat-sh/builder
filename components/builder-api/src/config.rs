@@ -118,7 +118,6 @@ pub struct ApiCfg {
     pub private_max_age:            usize,
     pub saas_bldr_url:              String,
     pub suppress_autobuild_origins: Vec<String>,
-    pub bootstrap_user:             bool,
 }
 
 mod deserialize_into_vec {
@@ -137,23 +136,23 @@ mod deserialize_into_vec {
 impl Default for ApiCfg {
     fn default() -> Self {
         let data_path = env::var("BLDR_DATA_DIR").map(PathBuf::from)
-                                                   .unwrap_or_else(|_| env::temp_dir().join("data"));
-        let key_path = env::var("BLDR_HAB_KEY_DIR").map(PathBuf::from)
-                                                   .unwrap_or_else(|_| env::temp_dir().join("files"));
+                                                 .unwrap_or_else(|_| env::temp_dir().join("data"));
+        let key_path =
+            env::var("BLDR_HAB_KEY_DIR").map(PathBuf::from)
+                                        .unwrap_or_else(|_| env::temp_dir().join("files"));
 
         ApiCfg { data_path,
-                 log_path:                   env::temp_dir(),
-                 key_path:                   KeyCache::new(key_path),
-                 targets:                    vec![target::X86_64_LINUX,
-                                                  target::X86_64_LINUX_KERNEL2,
-                                                  target::X86_64_WINDOWS,],
-                 build_targets:              vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
-                 features_enabled:           vec!["jobsrv".to_string()],
-                 build_on_upload:            true,
-                 private_max_age:            300,
-                 saas_bldr_url:              "https://bldr.habitat.sh".to_string(),
-                 suppress_autobuild_origins: vec![],
-                 bootstrap_user:             false, }
+                 log_path: env::temp_dir(),
+                 key_path: KeyCache::new(key_path),
+                 targets: vec![target::X86_64_LINUX,
+                               target::X86_64_LINUX_KERNEL2,
+                               target::X86_64_WINDOWS,],
+                 build_targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
+                 features_enabled: vec!["jobsrv".to_string()],
+                 build_on_upload: true,
+                 private_max_age: 300,
+                 saas_bldr_url: "https://bldr.habitat.sh".to_string(),
+                 suppress_autobuild_origins: vec![] }
     }
 }
 
