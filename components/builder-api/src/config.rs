@@ -136,10 +136,9 @@ mod deserialize_into_vec {
 impl Default for ApiCfg {
     fn default() -> Self {
         let data_path = env::var("BLDR_DATA_DIR").map(PathBuf::from)
-                                                 .unwrap_or_else(|_| env::temp_dir().join("data"));
-        let key_path =
-            env::var("BLDR_HAB_KEY_DIR").map(PathBuf::from)
-                                        .unwrap_or_else(|_| env::temp_dir().join("files"));
+                                                 .unwrap_or_else(|_| PathBuf::from("files"));
+        let key_path = env::var("BLDR_HAB_KEY_DIR").map(PathBuf::from)
+                                                   .unwrap_or_else(|_| PathBuf::from("files"));
 
         ApiCfg { data_path,
                  log_path: env::temp_dir(),
@@ -195,8 +194,8 @@ pub struct TLSClientCfg {
 
 impl Default for TLSServerCfg {
     fn default() -> Self {
-        TLSServerCfg { cert_path:    PathBuf::from(env::temp_dir().join("files/service.crt")),
-                       key_path:     PathBuf::from(env::temp_dir().join("files/service.key")),
+        TLSServerCfg { cert_path:    PathBuf::from("files/server.crt"),
+                       key_path:     PathBuf::from("files/server.key"),
                        ca_cert_path: None, }
     }
 }
