@@ -44,6 +44,8 @@ services:
       - BLDR_LISTEN=0.0.0.0
       - BLDR_PORT=9636
       - BLDR_TOKEN_DIR=/tokens
+      - BLDR_HAB_KEY_DIR=/keys
+      - BLDR_DATA_DIR=/data
       - POSTGRES_HOST=builder-datastore
       - POSTGRES_PORT=5432
       - POSTGRES_DB=builder
@@ -52,7 +54,7 @@ services:
       - POSTGRES_SSLMODE=prefer
       - MEMCACHED_HOST=builder-memcache
       - MEMCACHED_PORT=11211
-      - MINIO_ENDPOINT=http://localhost:9000
+      - MINIO_ENDPOINT=http://builder-minio:9000
       - MINIO_ACCESS_KEY=root_Admin
       - MINIO_SECRET_KEY=123456789qax
       - MINIO_BUCKET_NAME=test
@@ -67,7 +69,9 @@ services:
       builder-minio:
         condition: service_started
     volumes:
-      - ./tmp/tokens:/tokens
+      - ./tmp/bldr/tokens:/tokens
+      - ./tmp/bldr/keys:/keys
+      - ./tmp/bldr/data:/data
 networks:
   backend:
     driver: bridge

@@ -136,9 +136,14 @@ mod deserialize_into_vec {
 
 impl Default for ApiCfg {
     fn default() -> Self {
-        ApiCfg { data_path:                  PathBuf::from("/hab/svc/builder-api/data"),
+        let data_path = env::var("BLDR_DATA_DIR").map(PathBuf::from)
+                                                   .unwrap_or_else(|_| env::temp_dir().join("data"));
+        let key_path = env::var("BLDR_HAB_KEY_DIR").map(PathBuf::from)
+                                                   .unwrap_or_else(|_| env::temp_dir().join("files"));
+
+        ApiCfg { data_path,
                  log_path:                   env::temp_dir(),
-                 key_path:                   KeyCache::new("/hab/svc/builder-api/files"),
+                 key_path:                   KeyCache::new(key_path),
                  targets:                    vec![target::X86_64_LINUX,
                                                   target::X86_64_LINUX_KERNEL2,
                                                   target::X86_64_WINDOWS,],
@@ -191,8 +196,8 @@ pub struct TLSClientCfg {
 
 impl Default for TLSServerCfg {
     fn default() -> Self {
-        TLSServerCfg { cert_path:    PathBuf::from("/hab/svc/builder-api/files/service.crt"),
-                       key_path:     PathBuf::from("/hab/svc/builder-api/files/service.key"),
+        TLSServerCfg { cert_path:    PathBuf::from(env::temp_dir().join("files/service.crt")),
+                       key_path:     PathBuf::from(env::temp_dir().join("files/service.key")),
                        ca_cert_path: None, }
     }
 }

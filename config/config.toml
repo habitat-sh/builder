@@ -7,7 +7,8 @@ features_enabled = "nativepackages"
 targets = ["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"]
 build_on_upload = false
 saas_bldr_url = "https://bldr.habitat.sh"
-key_path = "/app/keys"
+# key_path = "/app/keys"
+# data_path = "/app/data"
 
 [s3]
 backend = "minio"

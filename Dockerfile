@@ -34,7 +34,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Create the /app directory to store the binary and config
 RUN mkdir -p /app
-RUN mkdir -p /app/keys
 
 COPY --from=builder /src/target/release/bldr-api /app/bldr-api
 
