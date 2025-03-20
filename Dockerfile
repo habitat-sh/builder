@@ -32,13 +32,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create the /app directory to store the binary and config
+# Create the /app directory to store the binary
 RUN mkdir -p /app
 
 COPY --from=builder /src/target/release/bldr-api /app/bldr-api
 
-# Ensure the config file is included, adjust path if needed
-COPY --from=builder /src/config/config.toml /app/config/config.toml
-
-# Run the compiled static binary
-ENTRYPOINT ["/app/bldr-api", "start", "-c", "/app/config/config.toml"]
+# Run the compiled binary
+ENTRYPOINT ["/app/bldr-api", "start", "-c", "/config/config.toml"]
