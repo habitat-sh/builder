@@ -209,11 +209,31 @@ impl Default for TLSClientCfg {
     }
 }
 
+/// Resolves a given address string to an `IpAddr`.
+///
+/// - If the input is a valid IP address, it is returned as-is.
+/// - If the input is a hostname, it attempts to resolve it to an IP.
+/// - Returns an error if the input is neither a valid IP nor a resolvable hostname.
+fn resolve_addr(addr: &str) -> Result<IpAddr, String> {
+    addr.parse()
+        .map_err(|_| format!("Invalid IP address or hostname: {}", addr))
+        .or_else(|_| {
+            (addr, 0) // Use port 0 since we only need the IP
+                     .to_socket_addrs()
+                     .map_err(|_| format!("Failed to resolve hostname: {}", addr))?
+                     .next()
+                     .map(|socket_addr| socket_addr.ip())
+                     .ok_or_else(|| format!("No IP addresses found for hostname: {}", addr))
+        })
+}
+
 impl Default for HttpCfg {
     fn default() -> Self {
-        let listen = env::var("BLDR_LISTEN").ok()
-                                            .and_then(|addr| addr.parse().ok())
-                                            .unwrap_or(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)));
+        let listen = match env::var("BLDR_LISTEN") {
+            Ok(addr) => resolve_addr(&addr).expect("Failed to resolve BLDR_LISTEN"),
+            Err(_) => IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), /* Use default if BLDR_LISTEN is not
+                                                              * set */
+        };
         let port = env::var("BLDR_PORT").ok()
                                         .and_then(|val| val.parse::<u16>().ok())
                                         .unwrap_or(9636);

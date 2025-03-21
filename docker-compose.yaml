@@ -41,7 +41,8 @@ services:
     ports:
       - "9636:9636"
     environment:
-      - BLDR_LISTEN=0.0.0.0
+      # You can specify an IP address or DNS here
+      - BLDR_LISTEN=builder-api
       - BLDR_PORT=9636
       - BLDR_TOKEN_DIR=/tokens
       - BLDR_HAB_KEY_DIR=/keys
