@@ -90,6 +90,15 @@ pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error>
         }
     }
 
+    let tokens = AccountToken::list(account.id as u64, &conn).map_err(Error::DieselError)?;
+    assert!(tokens.len() <= 1); // Can only have max of 1 token
+
+    // If a token is already found, return it
+    if let Some(access_token) = tokens.first() {
+        info!("An existing auth token is already present, skipping create");
+        return Ok(access_token.token.to_string());
+    }
+
     // Create token
     let token = AccessToken::user_token(&app_state.config.api.key_path,
                                         account.id as u64,
@@ -97,9 +106,6 @@ pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error>
     let new_token = NewAccountToken { account_id: account.id,
                                       token:      &token.to_string(), };
     AccountToken::create(&new_token, &conn).map_err(Error::DieselError)?;
-
-    let tokens = AccountToken::list(account.id as u64, &conn).map_err(Error::DieselError)?;
-    assert!(tokens.len() <= 1); // Can only have max of 1 token
 
     // Store the token in a file
     fs::create_dir_all(&app_state.config.provision.token_path).map_err(Error::IO)?;
