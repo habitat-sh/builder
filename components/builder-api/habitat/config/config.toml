@@ -25,11 +25,11 @@ root = "{{pkg.svc_static_path}}"
 
 [memcache]
 ttl = {{cfg.memcache.ttl}}
-{{~#each bind.memcached.members as |member|}}
+{{#each bind.memcached.members as |member|}}
 [[memcache.hosts]]
 host = "{{member.sys.ip}}"
 port = {{member.cfg.port}}
-{{~/each}}
+{{/each}}
 
 [jobsrv]
 {{~#eachAlive bind.jobsrv.members as |member|}}
