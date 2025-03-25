@@ -3,7 +3,6 @@ pub mod channels;
 pub mod events;
 pub mod ext;
 pub mod jobs;
-pub mod notify;
 pub mod origins;
 pub mod pkgs;
 pub mod profile;
