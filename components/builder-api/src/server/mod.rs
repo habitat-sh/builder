@@ -12,7 +12,6 @@ use self::{framework::middleware::authentication_middleware,
                        channels::Channels,
                        events::Events,
                        ext::Ext,
-                       notify::Notify,
                        origins::Origins,
                        pkgs::Packages,
                        profile::Profile,
@@ -34,7 +33,6 @@ use actix_web::{http::{KeepAlive,
                 HttpResponse,
                 HttpServer};
 use artifactory_client::client::ArtifactoryClient;
-use github_api_client::GitHubClient;
 use oauth_client::client::OAuth2Client;
 use openssl::ssl::{SslAcceptor,
                    SslFiletype,
@@ -76,7 +74,6 @@ features! {
 pub struct AppState {
     config:      Config,
     packages:    S3Handler,
-    github:      GitHubClient,
     oauth:       OAuth2Client,
     memcache:    RefCell<MemcacheClient>,
     artifactory: ArtifactoryClient,
@@ -88,7 +85,6 @@ impl AppState {
         let app_state =
             AppState { config: config.clone(),
                        packages: S3Handler::new(config.s3.clone()),
-                       github: GitHubClient::new(config.github.clone())?,
                        oauth: OAuth2Client::new(config.oauth.clone())?,
                        memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
                        artifactory: ArtifactoryClient::new(config.artifactory.clone())?,
@@ -181,7 +177,6 @@ pub async fn run(config: Config) -> error::Result<()> {
                     .configure(Channels::register)
                     .configure(Ext::register)
                     .configure(Jobs::register)
-                    .configure(Notify::register)
                     .configure(Origins::register)
                     .configure(Packages::register)
                     .configure(Profile::register)

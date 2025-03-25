@@ -19,25 +19,6 @@ describe('Miscellanenous API', function () {
     });
   });
 
-  // We're going to simulate receiving a GH ping hook
-  describe('Receiving a GitHub webhook', function () {
-    it('succeeds', function (done) {
-      this.skip(); // don't run in master until passing
-
-      request.post('/notify')
-        .type('application/json')
-        .accept('application/json')
-        .set('X-Github-Event', 'ping')
-        .set('X-Hub-Signature', 'sha1=6e30dd2c021bdb935f98a827a3d31a2fbdab69d6')
-        .send(hookPayload)
-        .expect(200)
-        .end(function (err, res) {
-          expect(res.text).to.be.empty;
-          done(err);
-        });
-    });
-  });
-
   describe('Retrieving reverse dependencies', function () {
     it('returns all reverse dependencies for an origin and package name', function (done) {
       request.get('/rdeps/neurosis/testapp?target=x86_64-linux')
