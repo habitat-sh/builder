@@ -18,6 +18,7 @@ const release10 = '20190511004436';
 const release11 = '20190618173321';
 const release12 = '20190618175235';
 const release13 = '20220824122359';
+const release14 = '20190327162537';
 
 const file1 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release1}-x86_64-linux.hart`);
 const file2 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release2}-x86_64-linux.hart`);
@@ -32,6 +33,7 @@ const file10 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.13
 const file11 = fs.readFileSync(__dirname + `/../fixtures/neurosis-neurosis-2.0-${release11}-x86_64-linux.hart`);
 const file12 = fs.readFileSync(__dirname + `/../fixtures/neurosis-abracadabra-3.0-${release12}-x86_64-linux.hart`);
 const file13 = fs.readFileSync(__dirname + `/../fixtures/neurosis-native-testapp-0.1.0-${release13}-x86_64-linux.hart`);
+const file14 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release14}-x86_64-linux.hart`);
 
 const fakefile1 = fs.readFileSync(__dirname + `/../fixtures/fake/neurosis-testapp-0.1.3-${release1}-x86_64-linux.hart`);
 
@@ -929,6 +931,19 @@ describe('Working with packages', function () {
           done(err);
         });
     });
+
+    it('uploads a package needed for proper testing of reverse dependencies', function (done) {
+      request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release14}`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file14.length)
+        .query({ checksum: 'c6b1fa8fe3ffcd439425818caa3b2ff336f86ad019837039a8d18ca65781473f' })
+        .send(file14)
+        .expect(201)
+        .end(function (err, res) {
+          expect(res.text).to.equal(`/pkgs/neurosis/testapp/0.1.3/${release14}/download`);
+          done(err);
+        });
+    })
 
     it('fails for non-leaf packages', function (done) {
       request.delete(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)

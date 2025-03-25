@@ -27,9 +27,6 @@ do
     dns=${l%;*}
     name=${l#*;}
     user=ubuntu
-    if [[ "$name" == *"builder-windows-worker"* ]] ; then
-        user=Administrator
-    fi
     echo "Host ${name}" >> ~/.ssh/config
     echo "  HostName ${dns}" >> ~/.ssh/config
     echo "  StrictHostKeyChecking no" >> ~/.ssh/config

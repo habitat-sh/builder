@@ -45,7 +45,6 @@ pub struct Config {
     pub s3:          S3Cfg,
     pub ui:          UiCfg,
     pub memcache:    MemcacheCfg,
-    pub jobsrv:      JobsrvCfg,
     pub datastore:   DataStoreCfg,
     pub provision:   ProvisionCfg,
 }
@@ -106,18 +105,15 @@ impl Default for S3Cfg {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct ApiCfg {
-    pub data_path:                  PathBuf,
-    pub log_path:                   PathBuf,
+    pub data_path:        PathBuf,
+    pub log_path:         PathBuf,
     /// Location of Builder encryption keys
-    pub key_path:                   KeyCache,
-    pub targets:                    Vec<PackageTarget>,
-    pub build_targets:              Vec<PackageTarget>,
+    pub key_path:         KeyCache,
+    pub targets:          Vec<PackageTarget>,
     #[serde(with = "deserialize_into_vec")]
-    pub features_enabled:           Vec<String>,
-    pub build_on_upload:            bool,
-    pub private_max_age:            usize,
-    pub saas_bldr_url:              String,
-    pub suppress_autobuild_origins: Vec<String>,
+    pub features_enabled: Vec<String>,
+    pub private_max_age:  usize,
+    pub saas_bldr_url:    String,
 }
 
 mod deserialize_into_vec {
@@ -146,12 +142,9 @@ impl Default for ApiCfg {
                  targets: vec![target::X86_64_LINUX,
                                target::X86_64_LINUX_KERNEL2,
                                target::X86_64_WINDOWS,],
-                 build_targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
                  features_enabled: vec!["jobsrv".to_string()],
-                 build_on_upload: true,
                  private_max_age: 300,
-                 saas_bldr_url: "https://bldr.habitat.sh".to_string(),
-                 suppress_autobuild_origins: vec![] }
+                 saas_bldr_url: "https://bldr.habitat.sh".to_string() }
     }
 }
 
@@ -407,11 +400,8 @@ mod tests {
         log_path = "/hab/svc/hab-depot/var/log"
         key_path = "/hab/svc/hab-depot/files"
         targets = ["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"]
-        build_targets = ["x86_64-linux"]
         features_enabled = "foo, bar"
-        build_on_upload = false
         private_max_age = 400
-        suppress_autobuild_origins = ["origin1", "origin2"]
 
         [http]
         listen = "0:0:0:0:0:0:0:1"
@@ -484,12 +474,8 @@ mod tests {
         assert_eq!(config.api.targets[1], target::X86_64_LINUX_KERNEL2);
         assert_eq!(config.api.targets[2], target::X86_64_WINDOWS);
 
-        assert_eq!(config.api.build_targets.len(), 1);
-        assert_eq!(config.api.build_targets[0], target::X86_64_LINUX);
-
         assert_eq!(&config.api.features_enabled,
                    &["FOO".to_string(), "BAR".to_string()]);
-        assert!(!config.api.build_on_upload);
         assert_eq!(config.api.private_max_age, 400);
 
         assert_eq!(&format!("{}", config.http.listen), "::1");
@@ -497,11 +483,6 @@ mod tests {
         assert_eq!(config.memcache.ttl, 11);
         assert_eq!(&format!("{}", config.memcache.hosts[0]),
                    "memcache://192.168.0.1:12345");
-
-        assert_eq!(&config.api.suppress_autobuild_origins,
-                   &["origin1".to_string(), "origin2".to_string()]);
-
-        assert_eq!(&format!("{}", config.jobsrv), "http://1.2.3.4:1234");
 
         assert_eq!(config.http.port, 9636);
         assert_eq!(config.http.handler_count, 128);

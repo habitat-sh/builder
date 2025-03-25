@@ -87,39 +87,6 @@ steps:
         docker:
           privileged: true
 
-  - label: "[unit] :linux: builder-graph"
-    command:
-      - ./test/run_cargo_test.sh builder-graph
-    retry:
-      automatic:
-        limit: 1
-    expeditor:
-      executor:
-        docker:
-          privileged: true
-
-  - label: "[unit] :linux: builder-jobsrv"
-    command:
-      - ./test/run_cargo_test.sh builder-jobsrv
-    retry:
-      automatic:
-        limit: 1
-    expeditor:
-      executor:
-        docker:
-          privileged: true
-
-  - label: "[unit] :linux: builder-protocol"
-    command:
-      - ./test/run_cargo_test.sh builder-protocol
-    retry:
-      automatic:
-        limit: 1
-    expeditor:
-      executor:
-        docker:
-          privileged: true
-
   - label: "[unit] :linux: github-api-client"
     command:
       - ./test/run_cargo_test.sh github-api-client

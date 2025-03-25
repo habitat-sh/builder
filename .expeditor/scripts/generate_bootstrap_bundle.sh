@@ -129,15 +129,6 @@ hab pkg download \
 # `core-hab-launcher-${VERSION}-${RELEASE}-x86_64-linux.hart`, etc.
 hab_hart () {
     local pkg_target=${1:-x86_64-linux}
-    # Until habitat/builder-worker is part of our release pipeline,
-    # it's likely that we will end up with more than one `core/hab`
-    # artifact: one from the release, and the previous one, brought in
-    # by habitat/builder-worker (because, until that's automated, it
-    # won't have been updated to depend on the new one yet!)
-    #
-    # Once this is no longer the case, you can remove the warning
-    # comment at the declaration of `${this_bootstrap_bundle}`.
-    #
     # The `sort` invocation will sort the output of `find` by the
     # release timestamp, and then take the most recent one (i.e., the
     # last)

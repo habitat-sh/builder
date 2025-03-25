@@ -9,10 +9,9 @@ use diesel::{self,
              RunQueryDsl,
              Table};
 
-use crate::{protocol::originsrv,
-            schema::{integration::origin_integrations,
-                     project::origin_projects,
-                     project_integration::origin_project_integrations}};
+use crate::schema::{integration::origin_integrations,
+                    project::origin_projects,
+                    project_integration::origin_project_integrations};
 
 use crate::{bldr_core::metrics::CounterMetric,
             metrics::Counter};
@@ -133,15 +132,5 @@ impl ProjectIntegration {
             .do_update()
             .set(origin_project_integrations::body.eq(req.body))
             .execute(conn)
-    }
-}
-
-#[allow(clippy::from_over_into)]
-impl Into<originsrv::OriginProjectIntegration> for ProjectIntegration {
-    fn into(self) -> originsrv::OriginProjectIntegration {
-        let mut opi = originsrv::OriginProjectIntegration::new();
-        opi.set_origin(self.origin);
-        opi.set_body(self.body);
-        opi
     }
 }

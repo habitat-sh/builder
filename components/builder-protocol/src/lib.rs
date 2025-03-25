@@ -11,18 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#[macro_use]
-extern crate lazy_static;
-
 use habitat_core as hab_core;
 
 pub mod error;
-pub mod jobsrv;
 pub mod message;
-pub mod net;
 pub mod originsrv;
 
-pub use crate::{error::{ProtocolError,
-                        ProtocolResult},
-                message::Protocol};
+pub use crate::error::{ProtocolError,
+                       ProtocolResult};
