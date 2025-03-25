@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Automate bldr user proision [#1877](https://github.com/habitat-sh/builder/pull/1877) ([sajjaphani](https://github.com/sajjaphani))
 - Fixed base channel button colour pallet [#1876](https://github.com/habitat-sh/builder/pull/1876) ([sougata-progress](https://github.com/sougata-progress))
 - Aligns rustfmt between Makefile and verify pipeline [#1874](https://github.com/habitat-sh/builder/pull/1874) ([jasonheath](https://github.com/jasonheath))
 - Address Markdown lint errors [#1872](https://github.com/habitat-sh/builder/pull/1872) ([jasonheath](https://github.com/jasonheath))
