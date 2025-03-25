@@ -1,14 +1,11 @@
 use crate::{bldr_core::{access_token::{AccessToken,
                                        BUILDER_ACCOUNT_ID,
                                        BUILDER_ACCOUNT_NAME},
-                        metrics::CounterMetric,
                         privilege::FeatureFlags},
             db::models::account::*,
             protocol::{self,
                        originsrv},
             server::{error,
-                     helpers::req_state,
-                     services::metrics::Counter,
                      AppState}};
 use actix_web::{body::BoxBody,
                 dev::{Service,
@@ -18,7 +15,6 @@ use actix_web::{body::BoxBody,
                 web::Data,
                 Error,
                 HttpMessage,
-                HttpRequest,
                 HttpResponse};
 use futures::future::{ok,
                       Either,
@@ -28,18 +24,6 @@ use std::env;
 
 lazy_static! {
     static ref SESSION_DURATION: u32 = 3 * 24 * 60 * 60;
-}
-
-pub async fn route_message<R, T>(req: &HttpRequest, msg: &R) -> error::Result<T>
-    where R: protobuf::Message,
-          T: protobuf::Message
-{
-    Counter::RouteMessage.increment();
-    // Route via Protobuf over HTTP
-    req_state(req).jobsrv
-                  .rpc::<R, T>(msg)
-                  .await
-                  .map_err(error::Error::BuilderCore)
 }
 
 // Optional Authentication - this middleware does not enforce authentication,

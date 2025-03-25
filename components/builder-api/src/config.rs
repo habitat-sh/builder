@@ -45,7 +45,6 @@ pub struct Config {
     pub s3:          S3Cfg,
     pub ui:          UiCfg,
     pub memcache:    MemcacheCfg,
-    pub jobsrv:      JobsrvCfg,
     pub datastore:   DataStoreCfg,
     pub provision:   ProvisionCfg,
 }
@@ -506,8 +505,6 @@ mod tests {
 
         assert_eq!(&config.api.suppress_autobuild_origins,
                    &["origin1".to_string(), "origin2".to_string()]);
-
-        assert_eq!(&format!("{}", config.jobsrv), "http://1.2.3.4:1234");
 
         assert_eq!(config.http.port, 9636);
         assert_eq!(config.http.handler_count, 128);
