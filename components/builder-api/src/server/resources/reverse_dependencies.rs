@@ -18,33 +18,12 @@ pub(crate) struct Dependent {
     pub short_id: String, // "origin/name"
 }
 
-// impl fmt::Display for Dependent {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{}", self.short_id)
-//     }
-// }
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct ReverseDependencies {
     pub origin: String,
     pub name:   String,
     pub rdeps:  Vec<String>,
 }
-
-// impl fmt::Display for ReverseDependencies {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{}, {}", self.origin, self.name);
-//         write!(f, "{}", self.name)
-//     }
-// }
-
-// impl ReverseDependencies {
-//     fn new(origin: String, name: String, dependents: Vec<Dependent>) -> ReverseDependencies {
-//         ReverseDependencies { origin,
-//                               name,
-//                               dependents }
-//     }
-// }
 
 #[allow(clippy::needless_pass_by_value)]
 pub(crate) async fn get_rdeps(conn: &PooledConnection<ConnectionManager<PgConnection>>,
@@ -74,14 +53,7 @@ pub(crate) async fn get_rdeps(conn: &PooledConnection<ConnectionManager<PgConnec
     debug!("debug_query {}", debug_query::<Pg, _>(&query));
 
     let rdeps = query.load::<Dependent>(conn).map_err(Error::DieselError)?;
-    // debug!("dependents: {:?}", dependents);
 
-    // let reverse_dependencies =
-    //     ReverseDependencies::new(origin.to_string(),
-    //                              name.to_string(),
-    //                              dependents.iter().map(|d| d.short_id.clone()).collect());
-
-    // let dependents: Vec<Dependent> = result;
     let reverse_dependencies =
         ReverseDependencies { origin: origin.to_string(),
                               name:   name.to_string(),
