@@ -3,6 +3,7 @@ pub mod error;
 pub mod framework;
 pub mod helpers;
 pub mod migrations;
+pub mod provision;
 pub mod resources;
 pub mod services;
 
@@ -34,6 +35,7 @@ use actix_web::{http::{KeepAlive,
                 HttpResponse,
                 HttpServer};
 use artifactory_client::client::ArtifactoryClient;
+use builder_core::keys::BUILDER_KEY_NAME;
 use github_api_client::GitHubClient;
 use oauth_client::client::OAuth2Client;
 use openssl::ssl::{SslAcceptor,
@@ -131,12 +133,49 @@ pub async fn run(config: Config) -> error::Result<()> {
     let cfg = Arc::new(config.clone());
     let db_pool = DbPool::new(&config.datastore.clone());
 
+    // Ensure bldr keys are available before starting the migration when provisioning a user.
+    if config.provision.auto_provision_account {
+        let key_cache = &config.api.key_path;
+        match key_cache.latest_builder_key() {
+            Ok(_) => {
+                info!("Builder encryption keys already exist; not creating them.");
+            }
+            Err(e) => {
+                debug!("Missing bldr encryption keys in cache, creating, err: {}",
+                       e);
+                key_cache.new_user_encryption_pair(BUILDER_KEY_NAME)?;
+            }
+        }
+    }
+
     migration::setup(&db_pool.get_conn().unwrap()).unwrap();
 
     migrations::migrate_to_encrypted(&db_pool.get_conn().unwrap(), &config.api.key_path).unwrap();
 
     migrations::encrypt_secret_keys::run(&db_pool.get_conn().unwrap(), &config.api.key_path)
         .expect("Error encrypting secret keys");
+
+    // Bootstrap the user if automatic provisioning of the account is enabled.
+    if config.provision.auto_provision_account {
+        info!("bootstrapping user");
+        let app_state = match AppState::new(&config, db_pool.clone()) {
+            Ok(state) => state,
+            Err(err) => {
+                error!("Unable to create application state, err = {}", err);
+                panic!("Cannot start without valid application state");
+            }
+        };
+
+        match provision::provision_bldr_environment(&app_state) {
+            Ok(_) => {
+                info!("Token has been successfully provisioned and stored.");
+            }
+            Err(e) => {
+                error!("Error during bldr account provisioning, err = {}", e);
+                panic!("Error during bldr account provisioning, err = {}", e);
+            }
+        }
+    }
 
     let mut srv = HttpServer::new(move || {
                       let app_state = match AppState::new(&config, db_pool.clone()) {
