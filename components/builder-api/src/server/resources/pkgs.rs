@@ -322,24 +322,20 @@ async fn delete_package(req: HttpRequest,
         }
     }
 
-    debug!("before match reverse_dependencies::get_rdeps in delete_package");
     match reverse_dependencies::get_rdeps(&conn, &origin, &pkg, &target).await {
         Ok(reverse_depenencies) => {
             if !reverse_depenencies.rdeps.is_empty() {
-                debug!("Deleting package with rdeps not allowed: {}", ident);
                 let body = Bytes::from(format!("Deleting package with rdeps not allowed '{}'",
                                                ident).into_bytes());
                 return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
                                                BoxBody::new(body));
             }
-            debug!("after !rdeps.dependents.is_empty()");
         }
         Err(err) => {
             debug!("{}", err);
             return err.into();
         }
     }
-    debug!("after match reverse_dependencies::get_rdeps in delete_package");
 
     // TODO (SA): Wrap in transaction, or better yet, eliminate need to do
     // channel package deletion
@@ -356,14 +352,12 @@ async fn delete_package(req: HttpRequest,
         debug!("{}", err);
         return err.into();
     }
-    debug!("match Package::get");
 
     match Package::delete(DeletePackage { ident:  BuilderPackageIdent(ident.clone()),
                                           target: BuilderPackageTarget(target), },
                           &conn).map_err(Error::DieselError)
     {
         Ok(_) => {
-            debug!("in OK arm for Package::delete");
             state.memcache.borrow_mut().clear_cache_for_package(&ident);
             HttpResponse::NoContent().finish()
         }
@@ -476,7 +470,6 @@ async fn upload_package(req: HttpRequest,
     let (origin, name, version, release) = path.into_inner();
 
     let ident = PackageIdent::new(origin, name, Some(version), Some(release));
-    debug!("upload_package::ident {ident}");
 
     if !ident.valid() || !ident.fully_qualified() {
         info!("Invalid or not fully qualified package identifier: {}",
