@@ -38,6 +38,5 @@ pub mod logger;
 pub mod metrics;
 pub mod privilege;
 pub mod rpc;
-pub mod socket;
 
 pub use crate::error::Error;
