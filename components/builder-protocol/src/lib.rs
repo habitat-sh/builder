@@ -14,11 +14,8 @@
 use habitat_core as hab_core;
 
 pub mod error;
-pub mod jobsrv;
 pub mod message;
-pub mod net;
 pub mod originsrv;
 
-pub use crate::{error::{ProtocolError,
-                        ProtocolResult},
-                message::Protocol};
+pub use crate::error::{ProtocolError,
+                       ProtocolResult};

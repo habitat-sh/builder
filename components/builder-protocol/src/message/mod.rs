@@ -13,18 +13,9 @@
 // limitations under the License.
 
 #[allow(renamed_and_removed_lints)]
-pub mod jobsrv;
-#[allow(renamed_and_removed_lints)]
-pub mod net;
-#[allow(renamed_and_removed_lints)]
 pub mod originsrv;
 
 use crate::error::ProtocolError;
-
-pub use self::net::{ErrCode,
-                    NetError,
-                    NetOk,
-                    Protocol};
 
 pub fn decode<T>(bytes: &[u8]) -> Result<T, ProtocolError>
     where T: protobuf::Message

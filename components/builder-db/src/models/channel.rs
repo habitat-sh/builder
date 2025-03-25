@@ -6,7 +6,6 @@ use crate::{models::{package::{BuilderPackageIdent,
                                PackageVisibility,
                                PackageWithVersionArray},
                      pagination::Paginate},
-            protocol::jobsrv::JobGroupTrigger,
             schema::{audit::{audit_package,
                              audit_package_group},
                      channel::{origin_channel_packages,
@@ -386,16 +385,6 @@ pub enum PackageChannelTrigger {
     Unknown,
     BuilderUi,
     HabClient,
-}
-
-impl From<JobGroupTrigger> for PackageChannelTrigger {
-    fn from(value: JobGroupTrigger) -> PackageChannelTrigger {
-        match value {
-            JobGroupTrigger::HabClient => PackageChannelTrigger::HabClient,
-            JobGroupTrigger::BuilderUI => PackageChannelTrigger::BuilderUi,
-            _ => PackageChannelTrigger::Unknown,
-        }
-    }
 }
 
 #[derive(Clone, DbEnum, Debug, Serialize, Deserialize, PartialEq)]
