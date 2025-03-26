@@ -30,6 +30,9 @@ mkdir -p /hab/user/builder-api/config
 cat <<EOT > /hab/user/builder-api/config/user.toml
 log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error,hyper=error"
 
+[api]
+allowed_users_for_origin_create = ['bobo', 'mystique', 'wesker', 'lkennedy']
+
 [http]
 handler_count = 15
 

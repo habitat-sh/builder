@@ -106,18 +106,19 @@ impl Default for S3Cfg {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct ApiCfg {
-    pub data_path:                  PathBuf,
-    pub log_path:                   PathBuf,
+    pub data_path: PathBuf,
+    pub log_path: PathBuf,
     /// Location of Builder encryption keys
-    pub key_path:                   KeyCache,
-    pub targets:                    Vec<PackageTarget>,
-    pub build_targets:              Vec<PackageTarget>,
+    pub key_path: KeyCache,
+    pub targets: Vec<PackageTarget>,
+    pub build_targets: Vec<PackageTarget>,
     #[serde(with = "deserialize_into_vec")]
-    pub features_enabled:           Vec<String>,
-    pub build_on_upload:            bool,
-    pub private_max_age:            usize,
-    pub saas_bldr_url:              String,
+    pub features_enabled: Vec<String>,
+    pub build_on_upload: bool,
+    pub private_max_age: usize,
+    pub saas_bldr_url: String,
     pub suppress_autobuild_origins: Vec<String>,
+    pub allowed_users_for_origin_create: Vec<String>,
 }
 
 mod deserialize_into_vec {
@@ -151,7 +152,8 @@ impl Default for ApiCfg {
                  build_on_upload: true,
                  private_max_age: 300,
                  saas_bldr_url: "https://bldr.habitat.sh".to_string(),
-                 suppress_autobuild_origins: vec![] }
+                 suppress_autobuild_origins: vec![],
+                 allowed_users_for_origin_create: vec![] }
     }
 }
 
@@ -412,6 +414,7 @@ mod tests {
         build_on_upload = false
         private_max_age = 400
         suppress_autobuild_origins = ["origin1", "origin2"]
+        allowed_users_for_origin_create = ["super1", "super2"]
 
         [http]
         listen = "0:0:0:0:0:0:0:1"
@@ -486,6 +489,9 @@ mod tests {
 
         assert_eq!(config.api.build_targets.len(), 1);
         assert_eq!(config.api.build_targets[0], target::X86_64_LINUX);
+
+        assert_eq!(&config.api.allowed_users_for_origin_create,
+                   &["super1".to_string(), "super2".to_string()]);
 
         assert_eq!(&config.api.features_enabled,
                    &["FOO".to_string(), "BAR".to_string()]);

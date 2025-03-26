@@ -42,6 +42,10 @@ export class OriginsPageComponent implements OnInit {
     }
   }
 
+  get builderEnabled() {
+    return this.store.getState().features.builder;
+  }
+
   get config() {
     return config;
   }
