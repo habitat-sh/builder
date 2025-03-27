@@ -7,9 +7,6 @@ habitatConfig({
     // Cookie domain (optional; e.g., 'bldr.company.co')
     cookie_domain: "",
 
-    // The URL for the Builder demo app
-    demo_app_url: "https://www.habitat.sh/demo/build-system/steps/1/",
-
     // The URL for documentation
     docs_url: "https://www.habitat.sh/docs",
 

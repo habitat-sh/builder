@@ -111,6 +111,20 @@ describe("Origin API", function () {
     });
   });
 
+  describe("Create origin when not allowed", function () {
+    it("requires the user to be allowed", function (done) {
+      request
+        .post("/depot/origins")
+        .set("Authorization", global.hankBearer)
+        .send({ name: "hank" })
+        .expect(403)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+  });
+
   describe("Updating origins", function () {
     it("requires authentication", function (done) {
       request

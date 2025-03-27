@@ -181,6 +181,14 @@ async fn create_origin(req: HttpRequest,
         Ok(session) => session,
         Err(err) => return err.into(),
     };
+    if !state.config.api.allowed_users_for_origin_create.is_empty()
+       && !state.config
+                .api
+                .allowed_users_for_origin_create
+                .contains(&session.get_name().to_string())
+    {
+        return HttpResponse::new(StatusCode::FORBIDDEN);
+    }
 
     let dpv = match body.clone().default_package_visibility {
         Some(viz) => viz,

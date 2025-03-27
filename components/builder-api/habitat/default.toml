@@ -8,6 +8,7 @@ build_on_upload = true
 saas_bldr_url = "https://bldr.habitat.sh"
 suppress_autobuild_origins = []
 allowed_native_package_origins = []
+allowed_users_for_origin_create = []
 
 [http]
 listen = "0.0.0.0"

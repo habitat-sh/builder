@@ -1,5 +1,9 @@
 .origins-page-component {
 
+  .error {
+    color: map-get($form-colors, error);
+  }
+
   .nav-list {
     font-size: $base-font-size;
 
