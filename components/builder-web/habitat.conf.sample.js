@@ -7,6 +7,10 @@ habitatConfig({
     // Cookie domain (optional; e.g., 'bldr.company.co')
     cookie_domain: "",
 
+    // Turn off the "Create Origin" button on the "my origins" page.
+    // This is true on publuc builder. False for on-prem
+    disable_origin_create: false,
+
     // The URL for documentation
     docs_url: "https://www.habitat.sh/docs",
 
