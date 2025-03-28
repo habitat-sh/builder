@@ -12,4 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use habitat_core::{crypto::keys::{BuilderSecretEncryptionKey, KeyCache, NamedRevision}, Error};
+
 pub const BUILDER_KEY_NAME: &str = "bldr";
+
+pub fn get_latest_builder_key(key_cache: &KeyCache) -> Result<BuilderSecretEncryptionKey, Error> {
+    key_cache.latest_builder_key()
+}
+
+pub fn get_builder_key_for_revision(key_cache: &KeyCache, named_revision: &NamedRevision) -> Result<BuilderSecretEncryptionKey, Error> {
+    key_cache.builder_secret_encryption_key(named_revision)
+}

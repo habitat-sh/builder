@@ -22,7 +22,7 @@ use self::{framework::middleware::authentication_middleware,
                        user::User},
            services::{memcache::MemcacheClient,
                       s3::S3Handler}};
-use crate::{bldr_core::rpc::RpcClient,
+use crate::{bldr_core::{keys, rpc::RpcClient},
             config::{Config,
                      GatewayCfg},
             db::{migration,
@@ -35,7 +35,6 @@ use actix_web::{http::{KeepAlive,
                 HttpResponse,
                 HttpServer};
 use artifactory_client::client::ArtifactoryClient;
-use builder_core::keys::BUILDER_KEY_NAME;
 use github_api_client::GitHubClient;
 use oauth_client::client::OAuth2Client;
 use openssl::ssl::{SslAcceptor,
@@ -133,19 +132,9 @@ pub async fn run(config: Config) -> error::Result<()> {
     let cfg = Arc::new(config.clone());
     let db_pool = DbPool::new(&config.datastore.clone());
 
-    // Ensure bldr keys are available before starting the migration when provisioning a user.
-    if config.provision.auto_provision_account {
-        let key_cache = &config.api.key_path;
-        match key_cache.latest_builder_key() {
-            Ok(_) => {
-                info!("Builder encryption keys already exist; not creating them.");
-            }
-            Err(e) => {
-                debug!("Missing bldr encryption keys in cache, creating, err: {}",
-                       e);
-                key_cache.new_user_encryption_pair(BUILDER_KEY_NAME)?;
-            }
-        }
+    // Check if the builder encryption key is present; if not, panic with an appropriate error.
+    if let Err(e) = keys::get_latest_builder_key(&config.api.key_path){
+        panic!("Failed to get the builder encryption key, error = {}", e);
     }
 
     migration::setup(&db_pool.get_conn().unwrap()).unwrap();

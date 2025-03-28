@@ -1,7 +1,7 @@
 //! This module holds code that's common to dealing with the
 //! encrypting and decrytping data in Builder.
 
-use crate::error::Result;
+use crate::{error::Result, keys};
 use habitat_core::crypto::keys::{BuilderSecretEncryptionKey,
                                  Key,
                                  KeyCache,
@@ -24,7 +24,7 @@ use habitat_core::crypto::keys::{BuilderSecretEncryptionKey,
 pub fn encrypt<B>(key_cache: &KeyCache, bytes: B) -> Result<(String, KeyRevision)>
     where B: AsRef<[u8]>
 {
-    let key = key_cache.latest_builder_key()?;
+    let key = keys::get_latest_builder_key(key_cache)?;
     Ok(encrypt_with_key(&key, bytes))
 }
 
@@ -48,6 +48,6 @@ pub fn encrypt_with_key<B>(key: &BuilderSecretEncryptionKey, bytes: B) -> (Strin
 /// cleaning up callsites. But for now, you get bytes!
 pub fn decrypt(key_cache: &KeyCache, encrypted_message: &str) -> Result<Vec<u8>> {
     let encrypted_message = encrypted_message.parse::<SignedBox>()?;
-    let builder_key = key_cache.builder_secret_encryption_key(encrypted_message.decryptor())?;
+    let builder_key = keys::get_builder_key_for_revision(key_cache, encrypted_message.decryptor())?;
     Ok(builder_key.decrypt(&encrypted_message)?)
 }
