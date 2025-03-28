@@ -42,8 +42,8 @@ export class OriginsPageComponent implements OnInit {
     }
   }
 
-  get builderEnabled() {
-    return this.store.getState().features.builder;
+  get originCreateDisabled() {
+    return config.disable_origin_create;
   }
 
   get config() {

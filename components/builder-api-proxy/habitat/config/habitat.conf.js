@@ -2,6 +2,7 @@ habitatConfig({
     company_id: "{{cfg.analytics.company_id}}",
     company_name: "{{cfg.analytics.company_name}}",
     cookie_domain: "{{cfg.cookie_domain}}",
+    disable_origin_create: {{ cfg.hosted }},
     docs_url: "{{cfg.docs_url}}",
     enable_builder: {{ cfg.enable_builder }},
     enable_visibility: {{ cfg.enable_visibility }},
