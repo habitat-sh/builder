@@ -46,6 +46,7 @@ import { KeysPipe } from './pipes/keys.pipe';
 import { SimpleConfirmDialog } from './dialog/simple-confirm/simple-confirm.dialog';
 import { PromoteConfirmDialog } from './dialog/promote-confirm/promote-confirm.dialog';
 import { EulaConfirmDialog } from './dialog/eula-confirm/eula-confirm.dialog';
+import { ValidLicenseConfirmDialog } from './dialog/valid-license-confirm/valid-license-confirm.dialog';
 import { BuilderEnabledGuard } from './guards/builder-enabled.guard';
 import { VisibilityEnabledGuard } from './guards/visibility-enabled.guard';
 import { OriginMemberGuard } from './guards/origin-member.guard';
@@ -93,6 +94,7 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     SimpleConfirmDialog,
     PromoteConfirmDialog,
     EulaConfirmDialog,
+    ValidLicenseConfirmDialog,
     JobNoticeComponent,
     KeysPipe
   ],
@@ -102,7 +104,8 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     JobCancelDialog,
     SimpleConfirmDialog,
     PromoteConfirmDialog,
-    EulaConfirmDialog
+    EulaConfirmDialog,
+    ValidLicenseConfirmDialog
   ],
   exports: [
     MatMenuModule,
