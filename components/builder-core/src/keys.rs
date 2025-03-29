@@ -54,7 +54,9 @@ pub fn get_latest_builder_key(key_cache: &KeyCache) -> Result<BuilderSecretEncry
 /// an error is returned with details about the mismatch.
 /// If the key is not found in the environment, the function falls back to fetching the key from
 /// the `key_cache` based on the provided `named_revision`.
-pub fn get_builder_key_for_revision(key_cache: &KeyCache, named_revision: &NamedRevision) -> Result<BuilderSecretEncryptionKey, Error> {
+pub fn get_builder_key_for_revision(key_cache: &KeyCache,
+                                    named_revision: &NamedRevision)
+                                    -> Result<BuilderSecretEncryptionKey, Error> {
     if let Some(result) = get_bldr_secret_key_from_env() {
         let key = result?;
 
