@@ -1,7 +1,8 @@
 use crate::{db::models::keys::OriginPrivateSigningKey,
             server::error::{Error,
                             Result}};
-use builder_core::{crypto, keys};
+use builder_core::{crypto,
+                   keys};
 use diesel::pg::PgConnection;
 use habitat_core::crypto::keys::{Key,
                                  KeyCache};

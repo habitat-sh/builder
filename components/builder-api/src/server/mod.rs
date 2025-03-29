@@ -22,7 +22,8 @@ use self::{framework::middleware::authentication_middleware,
                        user::User},
            services::{memcache::MemcacheClient,
                       s3::S3Handler}};
-use crate::{bldr_core::{keys, rpc::RpcClient},
+use crate::{bldr_core::{keys,
+                        rpc::RpcClient},
             config::{Config,
                      GatewayCfg},
             db::{migration,
@@ -133,7 +134,7 @@ pub async fn run(config: Config) -> error::Result<()> {
     let db_pool = DbPool::new(&config.datastore.clone());
 
     // Check if the builder encryption key is present; if not, panic with an appropriate error.
-    if let Err(e) = keys::get_latest_builder_key(&config.api.key_path){
+    if let Err(e) = keys::get_latest_builder_key(&config.api.key_path) {
         panic!("Failed to get the builder encryption key, error = {}", e);
     }
 
