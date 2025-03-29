@@ -67,3 +67,75 @@ pub fn get_builder_key_for_revision(key_cache: &KeyCache, named_revision: &Named
 
     key_cache.builder_secret_encryption_key(named_revision)
 }
+
+/// This module contains tests that interact with the process environment (via environment variables).
+/// 
+/// These tests cannot be run in parallel because they modify the `BLDR_SECRET_KEY` environment variable, 
+/// and concurrent access may cause interference or inconsistent results. 
+/// 
+/// Some tests are ignored for manual inspection when issues occur. 
+/// In the future, we may use a crate like 'temp-env' to handle environment-based tests if needed.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+
+    // Helper function to set the env variable
+    fn set_bldr_secret_key(key_value: &str) {
+        env::set_var("BLDR_SECRET_KEY", key_value);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_bldr_secret_key_not_set() {
+        let result = get_bldr_secret_key_from_env();
+
+        assert!(result.is_none(), "Expected None when BLDR_SECRET_KEY is not set");
+    }
+
+    // Test case for BLDR_SECRET_KEY with escaped newlines
+    #[test]
+    fn test_bldr_secret_key_with_escaped_newlines() {
+        let key_with_escaped_newlines = r#"BOX-SEC-1\nbldr-20200825205529\n\nM9u8wuJmZMsmVG4tNgngYJDapjIJE1RnxJAFVN97Bxs="#;
+
+        set_bldr_secret_key(key_with_escaped_newlines);
+
+        let result = get_bldr_secret_key_from_env();
+
+        assert!(result.is_some(), "The result should be Some.");
+
+        match result.unwrap() {
+            Ok(key) => {
+                assert_eq!(format!("{}", key.named_revision()), "bldr-20200825205529");
+            }
+            Err(e) => {
+                panic!("Failed to parse key: {}", e);
+            }
+        }
+    }
+
+    // Test case for BLDR_SECRET_KEY with actual newlines
+    #[test]
+    #[ignore]
+    fn test_bldr_secret_key_with_actual_newlines() {
+        let key_with_newlines = r#"BOX-SEC-1
+bldr-20200825205529
+
+M9u8wuJmZMsmVG4tNgngYJDapjIJE1RnxJAFVN97Bxs="#;
+
+        set_bldr_secret_key(key_with_newlines);
+
+        let result = get_bldr_secret_key_from_env();
+
+        assert!(result.is_some(), "The result should be Some.");
+
+        match result.unwrap() {
+            Ok(key) => {
+                assert_eq!(format!("{}", key.named_revision()), "bldr-20200825205529");
+            }
+            Err(e) => {
+                panic!("Failed to parse key: {}", e);
+            }
+        }
+    }
+}
