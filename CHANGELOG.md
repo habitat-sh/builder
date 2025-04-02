@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Support loading builder encryption key from env [#1880](https://github.com/habitat-sh/builder/pull/1880) ([sajjaphani](https://github.com/sajjaphani))
 - turn off rigin creation based on cfg.hosted and not enable_builder [#1881](https://github.com/habitat-sh/builder/pull/1881) ([mwrock](https://github.com/mwrock))
 - ability to restrict origin creation to authorized users [#1879](https://github.com/habitat-sh/builder/pull/1879) ([mwrock](https://github.com/mwrock))
 - Automate bldr user proision [#1877](https://github.com/habitat-sh/builder/pull/1877) ([sajjaphani](https://github.com/sajjaphani))
