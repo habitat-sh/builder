@@ -1,7 +1,8 @@
 use crate::{db::models::keys::OriginPrivateSigningKey,
             server::error::{Error,
                             Result}};
-use builder_core::crypto;
+use builder_core::{crypto,
+                   keys};
 use diesel::pg::PgConnection;
 use habitat_core::crypto::keys::{Key,
                                  KeyCache};
@@ -16,7 +17,7 @@ pub fn migrate_to_encrypted(conn: &PgConnection, key_cache: &KeyCache) -> Result
     let start_time = Instant::now();
     let mut updated_keys = 0;
     let mut skipped_keys = 0;
-    let builder_secret_key = key_cache.latest_builder_key()?;
+    let builder_secret_key = keys::get_latest_builder_key(key_cache)?;
     let mut next_id: i64 = 0;
 
     loop {
