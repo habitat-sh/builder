@@ -105,11 +105,11 @@ impl Default for S3Cfg {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct ApiCfg {
-    pub data_path:        PathBuf,
-    pub log_path:         PathBuf,
+    pub data_path: PathBuf,
+    pub log_path: PathBuf,
     /// Location of Builder encryption keys
-    pub key_path:         KeyCache,
-    pub targets:          Vec<PackageTarget>,
+    pub key_path: KeyCache,
+    pub targets: Vec<PackageTarget>,
     #[serde(with = "deserialize_into_vec")]
     pub features_enabled: Vec<String>,
     pub private_max_age: usize,
