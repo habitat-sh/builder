@@ -35,6 +35,7 @@ pub mod crypto;
 pub mod error;
 pub mod http_client;
 pub mod logger;
+pub mod keys;
 pub mod metrics;
 pub mod privilege;
 pub mod rpc;

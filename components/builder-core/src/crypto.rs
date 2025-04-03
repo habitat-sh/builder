@@ -1,8 +1,7 @@
 //! This module holds code that's common to dealing with the
 //! encrypting and decrytping data in Builder.
 
-use crate::{error::Result,
-            keys};
+use crate::{error::Result, keys};
 use habitat_core::crypto::keys::{BuilderSecretEncryptionKey,
                                  Key,
                                  KeyCache,
