@@ -7,8 +7,6 @@ members = [
   "components/builder-api",
   "components/builder-core",
   "components/builder-db",
-  "components/builder-graph",
-  "components/builder-jobsrv",
   "components/builder-protocol",
   "components/github-api-client",
   "components/oauth-client",

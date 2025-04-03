@@ -1,3 +1,5 @@
+#!/bin/bash
+
 source ../habitat/plan.sh
 source ../../../support/ci/builder-dev-base-plan.sh
 
@@ -6,7 +8,7 @@ pkg_origin=habitat-dev
 
 # shellcheck disable=2154
 do_build() {
-  pushd "$HAB_CACHE_SRC_PATH" > /dev/null || exit
+  pushd "$HAB_CACHE_SRC_PATH" >/dev/null || exit
   export HOME=$HAB_CACHE_SRC_PATH
   export PATH=./node_modules/.bin:$PATH
   npm install
@@ -29,7 +31,7 @@ do_build() {
   npm run dist -- "${pkg_path: -14}"
 
   rm -rf dist/node_modules
-  popd > /dev/null || exit
+  popd >/dev/null || exit
 }
 
 do_install() {

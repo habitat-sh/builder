@@ -38,6 +38,3 @@ impl fmt::Display for Cache {
         }
     }
 }
-
-pub const XGITHUBEVENT: &str = "X-GitHub-Event";
-pub const XHUBSIGNATURE: &str = "X-Hub-Signature";

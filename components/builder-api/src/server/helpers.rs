@@ -2,7 +2,6 @@ use crate::{db::models::{channel::PackageChannelTrigger as PCT,
                          origin::OriginMemberRole,
                          package::PackageVisibility},
             hab_core::package::PackageTarget,
-            protocol::jobsrv,
             server::{authorize::authorize_session,
                      AppState}};
 use actix_web::{http::header,
@@ -110,26 +109,6 @@ pub fn extract_pagination_in_pages(pagination: &Query<Pagination>) -> (isize, is
     (pagination.range / PAGINATION_RANGE_MAX + 1, PAGINATION_RANGE_MAX)
 }
 
-pub fn extract_target(qtarget: &Query<Target>) -> PackageTarget {
-    match qtarget.target {
-        Some(ref t) => {
-            trace!("Query requested target = {}", t);
-            match PackageTarget::from_str(t) {
-                Ok(t) => t,
-                Err(err) => {
-                    debug!("Invalid target requested: {}, err = {:?}", t, err);
-                    debug!("USING DEFAULT = x86_64-linux");
-                    PackageTarget::from_str("x86_64-linux").unwrap()
-                }
-            }
-        }
-        None => {
-            debug!("NO TARGET PASSED. USING DEFAULT = x86_64-linux");
-            PackageTarget::from_str("x86_64-linux").unwrap()
-        }
-    }
-}
-
 // TODO: Deprecate getting target from User Agent header
 pub fn target_from_headers(req: &HttpRequest) -> PackageTarget {
     let user_agent_header = match req.headers().get(header::USER_AGENT) {
@@ -184,29 +163,6 @@ pub fn visibility_for_optional_session(req: &HttpRequest,
     }
 
     v
-}
-
-pub fn trigger_from_request(req: &HttpRequest) -> jobsrv::JobGroupTrigger {
-    // TODO: the search strings should be configurable.
-    if let Some(agent) = req.headers().get(header::USER_AGENT) {
-        if let Ok(s) = agent.to_str() {
-            if s.starts_with("hab/") {
-                return jobsrv::JobGroupTrigger::HabClient;
-            }
-        }
-    }
-
-    if let Some(referer) = req.headers().get(header::REFERER) {
-        if let Ok(s) = referer.to_str() {
-            // this needs to be as generic as possible otherwise local dev envs and on-prem depots
-            // won't work
-            if s.contains("http") {
-                return jobsrv::JobGroupTrigger::BuilderUI;
-            }
-        }
-    }
-
-    jobsrv::JobGroupTrigger::Unknown
 }
 
 // TED remove function above when it's no longer used anywhere

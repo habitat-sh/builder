@@ -60,19 +60,6 @@ EOF
   echo "$sql" | hab pkg exec core/postgresql psql -U hab builder
 done
 
-# cleanup jobs
-for origin in "${origins[@]}"
-do
-  sql=$(cat <<EOF
-DELETE FROM busy_workers WHERE job_id IN (SELECT id FROM jobs WHERE project_name LIKE '$origin%');
-DELETE FROM group_projects WHERE project_name LIKE '$origin%';
-DELETE FROM groups WHERE project_name LIKE '$origin%';
-DELETE FROM jobs WHERE project_name LIKE '$origin%';
-EOF
-)
-  echo "$sql" | hab pkg exec core/postgresql psql -U hab builder
-done
-
 # cleanup files
 if [ -d "$depot" ]; then
   pushd $depot

@@ -29,8 +29,7 @@ use builder_core::http_client::{HttpClient,
 
 use crate::server::{authorize::authorize_session,
                     error::{Error,
-                            Result},
-                    services::github};
+                            Result}};
 
 #[derive(Deserialize, Serialize)]
 pub struct Body {
@@ -45,9 +44,7 @@ impl Ext {
     // Route registration
     //
     pub fn register(cfg: &mut ServiceConfig) {
-        cfg.route("/ext/installations/{install_id}/repos/{repo_id}/contents/{path}",
-                  web::get().to(github::repo_file_content))
-           .route("/ext/integrations/{registry_type}/credentials/validate",
+        cfg.route("/ext/integrations/{registry_type}/credentials/validate",
                   web::post().to(validate_registry_credentials));
     }
 }

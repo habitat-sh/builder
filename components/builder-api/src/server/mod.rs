@@ -12,18 +12,14 @@ use self::{framework::middleware::authentication_middleware,
                        channels::Channels,
                        events::Events,
                        ext::Ext,
-                       jobs::Jobs,
-                       notify::Notify,
                        origins::Origins,
                        pkgs::Packages,
                        profile::Profile,
-                       projects::Projects,
                        settings::Settings,
                        user::User},
            services::{memcache::MemcacheClient,
                       s3::S3Handler}};
-use crate::{bldr_core::{keys,
-                        rpc::RpcClient},
+use crate::{bldr_core::keys,
             config::{Config,
                      GatewayCfg},
             db::{migration,
@@ -36,7 +32,6 @@ use actix_web::{http::{KeepAlive,
                 HttpResponse,
                 HttpServer};
 use artifactory_client::client::ArtifactoryClient;
-use github_api_client::GitHubClient;
 use oauth_client::client::OAuth2Client;
 use openssl::ssl::{SslAcceptor,
                    SslFiletype,
@@ -44,6 +39,7 @@ use openssl::ssl::{SslAcceptor,
                    SslVerifyMode};
 use rand::{self,
            Rng};
+use resources::jobs::Jobs;
 use std::{cell::RefCell,
           collections::HashMap,
           iter::FromIterator,
@@ -67,7 +63,6 @@ const TLS_CIPHERS: &str = "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SH
 features! {
     pub mod feat {
         const List = 0b0000_0001,
-        const Jobsrv = 0b0000_0010,
         const LegacyProject = 0b0000_0011,
         const Artifactory = 0b0000_0100,
         const BuildDeps = 0b0000_1000
@@ -78,8 +73,6 @@ features! {
 pub struct AppState {
     config:      Config,
     packages:    S3Handler,
-    github:      GitHubClient,
-    jobsrv:      RpcClient,
     oauth:       OAuth2Client,
     memcache:    RefCell<MemcacheClient>,
     artifactory: ArtifactoryClient,
@@ -91,8 +84,6 @@ impl AppState {
         let app_state =
             AppState { config: config.clone(),
                        packages: S3Handler::new(config.s3.clone()),
-                       github: GitHubClient::new(config.github.clone())?,
-                       jobsrv: RpcClient::new(&format!("{}", config.jobsrv)),
                        oauth: OAuth2Client::new(config.oauth.clone())?,
                        memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
                        artifactory: ArtifactoryClient::new(config.artifactory.clone())?,
@@ -104,7 +95,6 @@ impl AppState {
 
 fn enable_features(config: &Config) {
     let features: HashMap<_, _> = HashMap::from_iter(vec![("LIST", feat::List),
-                                                          ("JOBSRV", feat::Jobsrv),
                                                           ("LEGACYPROJECT", feat::LegacyProject),
                                                           ("ARTIFACTORY", feat::Artifactory),
                                                           ("BUILDDEPS", feat::BuildDeps),]);
@@ -186,11 +176,9 @@ pub async fn run(config: Config) -> error::Result<()> {
                     .configure(Channels::register)
                     .configure(Ext::register)
                     .configure(Jobs::register)
-                    .configure(Notify::register)
                     .configure(Origins::register)
                     .configure(Packages::register)
                     .configure(Profile::register)
-                    .configure(Projects::register)
                     .configure(Settings::register)
                     .configure(User::register)
                     .configure(Events::register)
