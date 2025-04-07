@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Terraform Cleanup and Review [#1882](https://github.com/habitat-sh/builder/pull/1882) ([jasonheath](https://github.com/jasonheath))
 - Removal  jobsrv, graph, and worker and associated cleanup [#1875](https://github.com/habitat-sh/builder/pull/1875) ([jasonheath](https://github.com/jasonheath))
 - Support loading builder encryption key from env [#1880](https://github.com/habitat-sh/builder/pull/1880) ([sajjaphani](https://github.com/sajjaphani))
 - turn off rigin creation based on cfg.hosted and not enable_builder [#1881](https://github.com/habitat-sh/builder/pull/1881) ([mwrock](https://github.com/mwrock))
