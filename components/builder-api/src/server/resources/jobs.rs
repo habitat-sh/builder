@@ -49,7 +49,6 @@ async fn get_rdeps(req: HttpRequest,
                    path: Path<(String, String)>,
                    qtarget: Query<Target>)
                    -> HttpResponse {
-    trace!("builder_api::server::resources::jobs::get_rdeps");
     let (origin, name) = path.into_inner();
 
     let target: String = qtarget.target
@@ -83,8 +82,6 @@ async fn get_rdeps(req: HttpRequest,
 fn filtered_rdeps(req: &HttpRequest,
                   reverse_dependencies: &ReverseDependencies)
                   -> Result<ReverseDependencies> {
-    trace!("builder_api::server::resources::jobs::filtered_rdeps");
-
     let mut origin_map = HashMap::new();
     let mut new_dependents: Vec<String> = Vec::new();
     let mut filtered_rdeps = ReverseDependencies { origin: reverse_dependencies.origin.clone(),

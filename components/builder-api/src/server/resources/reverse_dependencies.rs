@@ -31,8 +31,6 @@ pub(crate) async fn get_rdeps(conn: &PooledConnection<ConnectionManager<PgConnec
                               name: &str,
                               target: &str)
                               -> Result<ReverseDependencies> {
-    trace!("builder_api::server::resources::reverse_dependencies::get_rdeps");
-
     let sql_stmt = r###"
         select * from (
             select distinct op3.origin||'/'||op3.name as short_id
