@@ -31,19 +31,23 @@ const routes: Routes = [
   {
     path: 'origins/:origin',
     component: OriginPageComponent,
+    canActivate: [SignedInGuard],
     children: [
       {
         path: '',
         redirectTo: 'packages',
-        pathMatch: 'full'
+        pathMatch: 'full',
+        canActivate: [SignedInGuard]
       },
       {
         path: 'packages',
-        component: OriginPackagesTabComponent
+        component: OriginPackagesTabComponent,
+        canActivate: [SignedInGuard]
       },
       {
         path: 'keys',
-        component: OriginKeysTabComponent
+        component: OriginKeysTabComponent,
+        canActivate: [SignedInGuard]
       },
       {
         path: 'members',
@@ -72,7 +76,8 @@ const routes: Routes = [
       },
       {
         path: '**',
-        redirectTo: 'packages'
+        redirectTo: 'packages',
+        canActivate: [SignedInGuard]
       }
     ]
   }
