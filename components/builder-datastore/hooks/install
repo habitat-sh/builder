@@ -41,43 +41,7 @@ function create_builder_database() {
   createdb
 }
 
-installed_ident
-installed_version
-packaged_ident
-packaged_version=
-function get_postgres_dependency() {
-
-  # intermediate variable to cut down ${{{parenthetical_madness[@]}}}
-  local -a pkg_deps={{pkg.deps}}
-
-  for x in "${pkg_deps[@]}"; do
-    if [[ $x =~ postgres ]]; then
-      finds+=("$x")
-    fi
-  done
-
-  if ((${#pkg_deps[@]} == 1)); then
-    postgres_dep="${pkg_deps[0]}"
-    return 0
-  fi
-
-  if ((${#pkg_deps[@]} == 0)); then
-    echo "Failed to find a PostgreSQL dependency"
-    exit 3
-  fi
-
-  if ((${#pkg_deps[@]} > 1)); then
-    echo "Somehow found multiple PostgreSQL dependencies: ${pkg_deps[*]}"
-    exit 4
-  fi
-
-  # I don't really see how we get here but fail loudly just in case
-  echo "PostgreSQL dependency resolution failed"
-  exit 5
-}
-
 function upgrade_needed() {
-  local OIFS="$IFS"
 
   # There is an argument to be made that this version check logic should
   # account for a 3 part version number instead of just a 2 part but starting
@@ -90,44 +54,64 @@ function upgrade_needed() {
   # https://www.postgresql.org/support/versioning/
   # https://endoflife.date/postgresql
 
-  get_postgres_dependency
-
-  local -a version_installed
-  local -a version_packaged
-  local moment
-  moment="$(date +'%s')" # seconds since epoch
-
-
+  OIFS="$IFS"
   IFS='.'
 
-  read -ra version_installed <<<"$(sudo cat /hab/svc/builder-datastore/data/PG_VERSION)"
-  read -ra version_packaged <<<"$(sudo hab pkg exec "$postgres_dep" pg_config -- --version | awk '{print $2}')"
+  read -ra installed_version <<<"$(sudo cat /hab/svc/builder-datastore/data/PG_VERSION)"
+  if [[ ! (${installed_version[0]} =~ [[:digit:]]+ && ${installed_version[1]} =~ [[:digit:]]+) ]]; then
+    echo "Failed to parse the version of the installed PostgreSQL: We detected ${installed_version[*]}"
+    exit 10
+  fi
 
-  retval=1
-  if ((version_installed[0] < version_packaged[0])); then
-    echo "PostgreSQL upgrade needed: ${version_installed[*]} < ${version_packaged[*]}"
-    retval=0
+  read -ra packaged_version <<<"$(sudo hab pkg exec {{pkg.ident}} pg_config -- --version | awk '{print $2}')"
+  if [[ ! (${packaged_version[0]} =~ [[:digit:]]+ && ${packaged_version[1]} =~ [[:digit:]]+) ]]; then
+    echo "Failed to parse the version of the packaged PostgreSQL: We detected ${packaged_version[*]}"
+    exit 11
+  fi
+
+  IFS="$OIFS"
+
+  let retval=1
+  if ((installed_version[0] < packaged_version[0])); then
+    echo "PostgreSQL upgrade needed: ${installed_version[*]} < ${packaged_version[*]}"
+    let retval=0
   else
-    if ((version_installed[0] == version_packaged[0])); then
-      if ((version_installed[1] < version_packaged[1])); then
-        echo "PostgreSQL upgrade needed: ${version_installed[*]} < ${version_packaged[*]}"
-        retval=0
+    if ((installed_version[0] == packaged_version[0])); then
+      if ((installed_version[1] < packaged_version[1])); then
+        echo "PostgreSQL upgrade needed: ${installed_version[*]} < ${packaged_version[*]}"
+        let retval=0
       fi
     fi
   fi
 
-  IFS="$OIFS"
   return $retval
+}
+
+function get_installed_ident() {
+  if ((${installed_version[0]} == 9)); then
+    installed_ident=core/postgresql$(IFS='' echo "${packaged_version[*]:0:2}")
+  else
+    installed_ident=core/postgresql${packaged_version[0]}
+  fi
 }
 
 function upgrade_postgres() {
 
   echo Upgrading PostgreSQL
 
+  local moment
+  moment=$(date +'%s')
+
+  local packaged_environment
+  packaged_environment=$(hab pkg env {{pkg.ident}})
+
+  get_installed_ident
+  eval "$(hab pkg env "${installed_ident}")"
+
+  # environment should now match when postgresql was previously installed
+
   # pg_ctl start [-D datadir] [-l filename] [-W] [-t seconds] [-s] [-o options] [-p path] [-c]
-  pg_ctl start -D {{pkg.svc_data_path}}
-  # [-l filename]
-  # [-p path]
+  pg_ctl start -D {{pkg.svc_data_path}} -l {{pkg.svc_path}}/logs/migration_"$moment".log
 
   if [[ ! -f '/hab/tmp' ]]; then
     # might add -p but if /hab doesn't exist there are, shall we say, issues
@@ -142,46 +126,45 @@ function upgrade_postgres() {
   # STEP 1) Making a backup, making sure that your database is not being updated
 
   local pg_dump_file
-  pg_dump_file="/hab/tmp/pg_dump_$(date --iso-8601=seconds).sql"
-  pg_dump >"$pg_dump_file"
+  pg_dump_file="/hab/tmp/pg_dump_$moment.sql"
+  hab pkg exec {{pkg.ident}} pg_dump >"$pg_dump_file"
+  # "It is recommended that you use the pg_dump and pg_dumpall programs from the
+  # newer version of PostgreSQL, to take advantage of enhancements that might
+  # have been made in these programs. Current releases of the dump programs can
+  # read data from any server version back to 9.2."
+  #
+  # https://www.postgresql.org/docs/17/upgrading.html#UPGRADING-VIA-PGDUMPALL
 
   # STEP 2) Shut down the old server
-
-  # reenable the ability for users to connect to this database before shutting
-  # it down and moving it. The thought being that it would be might be easy to
-  # restore an old database and just as easy to forget that you had to reenable
-  # the ability to connect.
-  psql -c "ALTER DATABASE {{cfg.datastore.database}} WITH ALLOW_CONNECTIONS = true;"
 
   pg_ctl stop
 
   # STEP 3) Rename the old installation directory
 
-  local installed_version
-  installed_version="$(cat {{pkg.svc_data_path}}/PG_VERSION)"
-  mv "{{pkg.svc_data_path}}" "{{pkg.svc_data_path}}.old.v$installed_version"
-  # JAH: Maybe move to the /hab/tmp  instead of inside the svc directory?
-
+  # JAH: Maybe move to the /hab/tmp instead of inside the svc directory?
+  IFS='' mv "{{pkg.svc_data_path}}" "{{pkg.svc_data_path}}.old.v${installed_version[*]}"
 
   # STEP 4) Install the new version of PostgreSQL (as outlined in Chapter 17)
   # This is a noop for us as our habitat package represents the same output
 
+  eval "$packaged_environment"
+  # Let's go back to the packaged environment we're upgrading to
 
   # STEP 5) If needed, create a new database cluster. Remember you must be logged in as the special database user account
   create_postgres_cluster
   create_builder_database
 
-
   # STEP 6) Restore your previous pg_hba.conf and any postgresql.conf modifications
   # This is a noop for us as our hab svc
 
-
   # STEP 7) Start the database server (again using the special database user account)
-
+  pg_ctl start -D {{pkg.svc_data_path}} -l {{pkg.svc_path}}/logs/migration_"$moment".log
 
   # STEP 8) Finally, restore your data from backup
+  psql -d postgres -f "$pg_dump_file"
 
   # JAH: password upgrade would go here
+
 }
 
 #-------------------------------------------------------------------------------
@@ -213,3 +196,5 @@ if upgrade_needed; then
 else
   echo PostgreSQL upgrade is not needed
 fi
+
+IFS="$OIFS"
