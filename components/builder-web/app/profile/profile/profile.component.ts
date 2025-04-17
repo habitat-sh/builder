@@ -25,6 +25,11 @@ import config from '../../config';
 })
 export class ProfileComponent implements OnInit, OnDestroy {
 
+  licenseKey = '';
+  licenseValid = false;
+  licenseValidationMessage = '';
+  validatingLicenseKey = false;
+
   constructor(
     private confirmDialog: MatDialog,
     private store: AppStore,
@@ -85,6 +90,73 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   save(form) {
     this.store.dispatch(saveProfile({ email: form.email }, this.token));
+  }
+
+  validateLicenseKey() {
+    this.validatingLicenseKey = true;
+    this.licenseValidationMessage = '';
+    this.licenseValid = false;
+
+    this.callLicenseApi(this.licenseKey)
+      .then(data => {
+        const habitat = data.entitlements?.find((e: any) => e.name === 'Habitat');
+        const expirationStr = habitat?.period?.end ||
+          (data.entitlements && data.entitlements[0]?.period?.end) ||
+          null;
+
+        if (expirationStr) {
+          const expirationDate = new Date(expirationStr);
+          const now = new Date();
+
+          if (expirationDate >= now) {
+            this.licenseValid = true;
+            this.licenseValidationMessage = `License valid till ${expirationStr}`;
+          } else {
+            this.licenseValid = false;
+            this.licenseValidationMessage = `License expired on ${expirationStr}`;
+          }
+
+        } else {
+          this.licenseValid = false;
+          this.licenseValidationMessage = 'Unable to determine license expiration date.';
+        }
+
+        this.validatingLicenseKey = false;
+      })
+      .catch(err => {
+        this.licenseValid = false;
+        this.licenseValidationMessage = err.message || 'License validation failed.';
+        this.validatingLicenseKey = false;
+      });
+  }
+
+  clearLicenseKey() {
+    this.licenseKey = '';
+    this.licenseValidationMessage = '';
+    this.licenseValid = false;
+  }
+
+  private callLicenseApi(licenseId: string): Promise<any> {
+    const version = '2';
+    const url = `http://licensing-acceptance.chef.co/License/download?licenseId=${encodeURIComponent(licenseId)}&version=${version}`;
+
+    return new Promise((resolve, reject) => {
+      fetch(url, {
+        method: 'GET',
+        headers: {
+          accept: 'application/json'
+        }
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            response.json().then(data => resolve(data));
+          } else {
+            reject(new Error(response.statusText));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
   }
 
   get accessToken() {
@@ -150,5 +222,17 @@ export class ProfileComponent implements OnInit, OnDestroy {
   private clearAccessTokens() {
     this.store.dispatch(clearAccessTokens());
     this.store.dispatch(clearNewAccessToken());
+  }
+
+  private handleUnauthorized(response: Response, reject: (reason?: any) => void): Response {
+    if (response.status === 401) {
+      reject(new Error('Unauthorized'));
+    }
+    return response;
+  }
+
+  private handleError(error: any, reject: (reason?: any) => void) {
+    console.error('API error:', error);
+    reject(error);
   }
 }
