@@ -95,28 +95,42 @@ function get_installed_ident() {
   fi
 }
 
+function manage_readme() {
+  local readme
+  readme="$1/README.txt"
+  if [[ ! -f "$readme" ]]; then
+    cat <<-EOF >"$readme"
+			This directory contains subdirectories used when upgrading PostgreSQL from
+			one version to another. The subdirectories are named using the date and time
+			of the upgrades. When you feel comfortable with the success of the upgrade
+			you may delete these files.
+		EOF
+  fi
+}
+
 function upgrade_postgres() {
 
   echo Upgrading PostgreSQL
 
   local moment
-  moment=$(date +'%s')
+  moment=$(date '+%Y%m%d%H%M%S')
 
-  local packaged_environment
-  packaged_environment=$(hab pkg env {{pkg.ident}})
+  local work_dir
+  work_dir="{{pkg.svc_var_path}}/tmp/upgrades/$moment"
+  mkdir -p "$work_dir"
 
+  manage_readme "$work_dir"
+
+  local upgrade_log
+  upgrade_log="$work_dir/upgrade.log"
+
+  # Configure the environment such that we will be starting and stop postgres
+  # with the binaries of the previous version of PostgreSQL.
   get_installed_ident
   eval "$(hab pkg env "${installed_ident}")"
 
-  # environment should now match when postgresql was previously installed
-
   # pg_ctl start [-D datadir] [-l filename] [-W] [-t seconds] [-s] [-o options] [-p path] [-c]
-  pg_ctl start -D {{pkg.svc_data_path}} -l {{pkg.svc_path}}/logs/migration_"$moment".log
-
-  if [[ ! -f '/hab/tmp' ]]; then
-    # might add -p but if /hab doesn't exist there are, shall we say, issues
-    mkdir /hab/tmp
-  fi
+  pg_ctl start -D {{pkg.svc_data_path}} -l "$upgrade_log"
 
   # https://dba.stackexchange.com/questions/264427/how-to-estimate-the-size-of-a-postgresql-db-to-be-dumped-through-pg-dump
   # Estimate available space
@@ -126,7 +140,7 @@ function upgrade_postgres() {
   # STEP 1) Making a backup, making sure that your database is not being updated
 
   local pg_dump_file
-  pg_dump_file="/hab/tmp/pg_dump_$moment.sql"
+  pg_dump_file="$work_dir/pg_dump.sql"
   hab pkg exec {{pkg.ident}} pg_dump >"$pg_dump_file"
   # "It is recommended that you use the pg_dump and pg_dumpall programs from the
   # newer version of PostgreSQL, to take advantage of enhancements that might
@@ -141,30 +155,32 @@ function upgrade_postgres() {
 
   # STEP 3) Rename the old installation directory
 
-  # JAH: Maybe move to the /hab/tmp instead of inside the svc directory?
-  IFS='' mv "{{pkg.svc_data_path}}" "{{pkg.svc_data_path}}.old.v${installed_version[*]}"
+  local previous_dir
+  previous_dir="$work_dir/previous"
+  IFS='' mv "{{pkg.svc_data_path}}" "$previous_dir"
 
   # STEP 4) Install the new version of PostgreSQL (as outlined in Chapter 17)
-  # This is a noop for us as our habitat package represents the same output
+  # This is a noop for us as our habitat package stands in
 
-  eval "$packaged_environment"
-  # Let's go back to the packaged environment we're upgrading to
+  # Restore the environment of the packaged PostgreSQL we're upgrading to
+  eval "$(hab pkg env {{pkg.ident}})"
 
   # STEP 5) If needed, create a new database cluster. Remember you must be logged in as the special database user account
   create_postgres_cluster
   create_builder_database
 
   # STEP 6) Restore your previous pg_hba.conf and any postgresql.conf modifications
-  # This is a noop for us as our hab svc
+  # This is a noop for us as our hab svc layout manages this
 
   # STEP 7) Start the database server (again using the special database user account)
   pg_ctl start -D {{pkg.svc_data_path}} -l {{pkg.svc_path}}/logs/migration_"$moment".log
 
   # STEP 8) Finally, restore your data from backup
-  psql -d postgres -f "$pg_dump_file"
+  command psql -d postgres -f "$pg_dump_file"
 
-  # JAH: password upgrade would go here
-
+  # JAH: password upgrade would go here but would we even need it?
+  # JAH: will this method of upgrade address it?
+  # JAH: scram-sha-256 isn't supported until 10.x
 }
 
 #-------------------------------------------------------------------------------
@@ -185,7 +201,7 @@ PGPASSWORD="$(cat {{pkg.svc_config_path}}/pwfile)"
 PGDATABASE="{{cfg.datastore.database}}"
 export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
 
-if [[ $(psql --no-password -c ";") ]]; then
+if [[ $(command psql --no-password -c ";") ]]; then
   echo The builder database exists inside the PostgreSQL cluster
 else
   create_builder_database
