@@ -2,46 +2,64 @@
 # shellcheck disable=SC1083
 
 set -euo pipefail
+set -x
 exec 2>&1
+
+mkdir -p {{pkg.svc_path}}
+cd {{pkg.svc_path}}
+
+OIFS=$IFS
+IFS='.'
+
+pg_version_file={{pkg.svc_data_path}}/PG_VERSION
+moment=$(date '+%Y%m%d%H%M%S')
+pwfile="{{pkg.svc_config_path}}/pwfile"
+packaged_ident={{pkg.ident}}
+postgres_ident=$packaged_ident
 
 function create_postgres_cluster() {
 
-  echo PostgreSQL Cluster does not exist, creating with 'initdb'
+  echo Creating PostgreSQL Cluster
 
-  export RANDFILE="{{pkg.svc_var_path}}/.rnd"
-  DB_PASSWORD="{{cfg.init.superuser_password}}"
+  export randfile="{{pkg.svc_var_path}}/.rnd"
+  sudo touch $randfile
+
+  if [[ ! -f "$pwfile" ]]; then
+    DB_PASSWORD="{{cfg.init.superuser_password}}"
+    if [[ -z "${DB_PASSWORD}" ]]; then
+      openssl rand -base64 32 >"$pwfile"
+    else
+      echo "${DB_PASSWORD}" >"$pwfile"
+    fi
+    chmod 400 "$pwfile"
+  fi
 
   mkdir -p {{pkg.svc_config_path}}/conf.d
   mkdir -p {{pkg.svc_var_path}}/pg_stat_tmp
 
   chown -R hab:hab {{pkg.svc_var_path}}
-  touch $RANDFILE
 
-  if [ -z "${DB_PASSWORD}" ]; then
-    openssl rand -base64 32 >{{pkg.svc_config_path}}/pwfile
-  else
-    echo "${DB_PASSWORD}" >{{pkg.svc_config_path}}/pwfile
-  fi
-
-  initdb \
+  hab pkg exec "$postgres_ident" initdb -- \
     --username {{cfg.datastore.user}} \
     --encoding {{cfg.init.encoding}} \
     --pgdata {{pkg.svc_data_path}} \
     --pwfile {{pkg.svc_config_path}}/pwfile \
     --no-locale
-
-  chmod 400 {{pkg.svc_config_path}}/pwfile
 }
 
 function create_builder_database() {
-  # This call to postgres' createdb command depends on the various PG* envvars
-  # but they have been "inlined" into "main". Also the createdb call used to
-  # happen in the init of builder-api but ensure that the baseline DB is ready
-  # for the rest of the system really feels like it lives here.
-  createdb
+  # JAH: The createdb call used to happen in the init hook of builder-api, what do?
+  if hab pkg exec "$postgres_ident" psql -- --no-password -c ";"; then
+    echo The builder database already exists
+  else
+    echo Creating the builder database
+    createdb
+  fi
 }
 
-function upgrade_needed() {
+function postgres_needs_upgraded() {
+
+  echo Checking if PostgreSQL needs to be upgraded
 
   # There is an argument to be made that this version check logic should
   # account for a 3 part version number instead of just a 2 part but starting
@@ -54,10 +72,14 @@ function upgrade_needed() {
   # https://www.postgresql.org/support/versioning/
   # https://endoflife.date/postgresql
 
-  OIFS="$IFS"
-  IFS='.'
+  read -ra pg_version <<<"$(sudo cat /hab/svc/builder-datastore/data/PG_VERSION)"
+  if (( ${pg_version[0]} == 9 )); then
+    installed_ident="core/postgresql${pg_version[0]}${pg_version[1]}"
+  else
+    installed_ident=core/postgresql${pg_version[0]}
+  fi
 
-  read -ra installed_version <<<"$(sudo cat /hab/svc/builder-datastore/data/PG_VERSION)"
+  read -ra installed_version <<<"$(sudo hab pkg exec "$installed_ident" pg_config -- --version | awk '{print $2}')"
   if [[ ! (${installed_version[0]} =~ [[:digit:]]+ && ${installed_version[1]} =~ [[:digit:]]+) ]]; then
     echo "Failed to parse the version of the installed PostgreSQL: We detected ${installed_version[*]}"
     exit 10
@@ -68,8 +90,6 @@ function upgrade_needed() {
     echo "Failed to parse the version of the packaged PostgreSQL: We detected ${packaged_version[*]}"
     exit 11
   fi
-
-  IFS="$OIFS"
 
   let retval=1
   if ((installed_version[0] < packaged_version[0])); then
@@ -87,15 +107,7 @@ function upgrade_needed() {
   return $retval
 }
 
-function get_installed_ident() {
-  if ((${installed_version[0]} == 9)); then
-    installed_ident=core/postgresql$(IFS='' echo "${packaged_version[*]:0:2}")
-  else
-    installed_ident=core/postgresql${packaged_version[0]}
-  fi
-}
-
-function manage_readme() {
+function manage_upgrade_readme() {
   local readme
   readme="$1/README.txt"
   if [[ ! -f "$readme" ]]; then
@@ -108,32 +120,59 @@ function manage_readme() {
   fi
 }
 
+start_postgres() {
+  echo Starting PostgreSQL
+  hab pkg exec "$postgres_ident" pg_ctl -- start -D {{pkg.svc_data_path}}
+  for ((i = 0; i < 10; i++)); do
+    if ! hab pkg exec "$postgres_ident" pg_isready >/dev/null; then
+      : Waiting for PostgreSQL to be ready
+      sleep 1
+    else
+      return 0
+    fi
+  done
+}
+
+stop_postgres() {
+  echo Stopping PostgreSQL
+  hab pkg exec "$postgres_ident" pg_ctl -- stop -D {{pkg.svc_data_path}}
+}
+
+function postgres_installed() {
+  if [[ -f "$pg_version_file" ]]; then
+    echo PostgreSQL is installed
+    return 0
+  else
+    echo PostgreSQL will be installed
+    return 1
+  fi
+}
+
+function install_postgres() {
+
+  echo Installing PostgreSQL
+
+  create_postgres_cluster
+  start_postgres
+  create_builder_database
+
+  stop_postgres
+}
+
 function upgrade_postgres() {
 
   echo Upgrading PostgreSQL
-
-  local moment
-  moment=$(date '+%Y%m%d%H%M%S')
 
   local work_dir
   work_dir="{{pkg.svc_var_path}}/tmp/upgrades/$moment"
   mkdir -p "$work_dir"
 
-  manage_readme "$work_dir"
+  manage_upgrade_readme "$work_dir"
 
-  local upgrade_log
-  upgrade_log="$work_dir/upgrade.log"
-
-  # Configure the environment such that we will be starting and stop postgres
-  # with the binaries of the previous version of PostgreSQL.
-  get_installed_ident
-  eval "$(hab pkg env "${installed_ident}")"
+  postgres_ident=$installed_ident
 
   # pg_ctl start [-D datadir] [-l filename] [-W] [-t seconds] [-s] [-o options] [-p path] [-c]
-  pg_ctl start -D {{pkg.svc_data_path}} -l "$upgrade_log"
-
-  # https://dba.stackexchange.com/questions/264427/how-to-estimate-the-size-of-a-postgresql-db-to-be-dumped-through-pg-dump
-  # Estimate available space
+  start_postgres
 
   # https://www.postgresql.org/docs/17/upgrading.html
 
@@ -141,57 +180,52 @@ function upgrade_postgres() {
 
   local pg_dump_file
   pg_dump_file="$work_dir/pg_dump.sql"
-  hab pkg exec {{pkg.ident}} pg_dump >"$pg_dump_file"
+
+  # https://www.postgresql.org/docs/17/upgrading.html#UPGRADING-VIA-PGDUMPALL
   # "It is recommended that you use the pg_dump and pg_dumpall programs from the
   # newer version of PostgreSQL, to take advantage of enhancements that might
   # have been made in these programs. Current releases of the dump programs can
   # read data from any server version back to 9.2."
-  #
-  # https://www.postgresql.org/docs/17/upgrading.html#UPGRADING-VIA-PGDUMPALL
+  hab pkg exec $packaged_ident pg_dump >"$pg_dump_file"
 
   # STEP 2) Shut down the old server
 
-  pg_ctl stop
+  stop_postgres
 
   # STEP 3) Rename the old installation directory
 
   local previous_dir
   previous_dir="$work_dir/previous"
-  IFS='' mv "{{pkg.svc_data_path}}" "$previous_dir"
+  sudo mv "{{pkg.svc_data_path}}" "$previous_dir"
 
   # STEP 4) Install the new version of PostgreSQL (as outlined in Chapter 17)
   # This is a noop for us as our habitat package stands in
 
   # Restore the environment of the packaged PostgreSQL we're upgrading to
-  eval "$(hab pkg env {{pkg.ident}})"
+  postgres_ident=$packaged_ident
 
   # STEP 5) If needed, create a new database cluster. Remember you must be logged in as the special database user account
-  create_postgres_cluster
-  create_builder_database
+  install_postgres
 
   # STEP 6) Restore your previous pg_hba.conf and any postgresql.conf modifications
-  # This is a noop for us as our hab svc layout manages this
+  # This is a noop for us as its managed as part of the hab svc
 
   # STEP 7) Start the database server (again using the special database user account)
-  pg_ctl start -D {{pkg.svc_data_path}} -l {{pkg.svc_path}}/logs/migration_"$moment".log
+  start_postgres
 
   # STEP 8) Finally, restore your data from backup
-  command psql -d postgres -f "$pg_dump_file"
+  hab pkg exec $postgres_ident psql -- -d postgres -f "$pg_dump_file"
 
   # JAH: password upgrade would go here but would we even need it?
   # JAH: will this method of upgrade address it?
   # JAH: scram-sha-256 isn't supported until 10.x
+
+  stop_postgres
 }
 
 #-------------------------------------------------------------------------------
 # BEGIN "main"
 #-------------------------------------------------------------------------------
-
-if [[ -f "{{pkg.svc_data_path}}/PG_VERSION" ]]; then
-  echo The PostgreSQL DB Cluster exists
-else
-  create_postgres_cluster
-fi
 
 # These env vars are needed by everything that follows
 PGHOST="{{cfg.datastore.host}}"
@@ -201,16 +235,14 @@ PGPASSWORD="$(cat {{pkg.svc_config_path}}/pwfile)"
 PGDATABASE="{{cfg.datastore.database}}"
 export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
 
-if [[ $(command psql --no-password -c ";") ]]; then
-  echo The builder database exists inside the PostgreSQL cluster
-else
-  create_builder_database
-fi
+echo Installing builder-datastore
 
-if upgrade_needed; then
+if ! postgres_installed; then
+  install_postgres
+elif postgres_needs_upgraded; then
   upgrade_postgres
 else
-  echo PostgreSQL upgrade is not needed
+  echo PostgreSQL is installed and no upgrade is needed
 fi
 
 IFS="$OIFS"
