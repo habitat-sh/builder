@@ -15,3 +15,4 @@ pub mod project;
 pub mod project_integration;
 pub mod secrets;
 pub mod settings;
+pub mod license_keys;

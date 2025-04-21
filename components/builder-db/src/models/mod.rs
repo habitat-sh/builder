@@ -17,6 +17,7 @@ pub mod project_integration;
 pub mod projects;
 pub mod secrets;
 pub mod settings;
+pub mod license_keys;
 
 mod db_id_format {
     use serde::{self,

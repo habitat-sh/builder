@@ -110,6 +110,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
           if (expirationDate >= now) {
             this.licenseValid = true;
+            this.saveLicenseKeyToBackend(expirationStr);
             this.licenseValidationMessage = `License valid till ${expirationStr}`;
           } else {
             this.licenseValid = false;
@@ -127,6 +128,35 @@ export class ProfileComponent implements OnInit, OnDestroy {
         this.licenseValid = false;
         this.licenseValidationMessage = err.message || 'License validation failed.';
         this.validatingLicenseKey = false;
+      });
+  }
+
+  saveLicenseKeyToBackend(expirationDate: string) {
+    const body = {
+      email: this.profile.email,
+      license_key: this.licenseKey,
+      expiration_date: expirationDate
+    };
+
+    fetch('/v1/profile/license', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to store license key');
+        }
+        return res.json();
+      })
+      .then(() => {
+        console.log('License key saved to backend');
+      })
+      .catch(err => {
+        console.error('Error saving license key to backend:', err);
       });
   }
 

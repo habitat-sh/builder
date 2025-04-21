@@ -1,5 +1,5 @@
 use crate::{bldr_core,
-            db::models::account::*,
+            db::models::{account::*,license_keys::*},
             protocol::originsrv,
             server::{authorize::authorize_session,
                      error::{Error,
@@ -27,6 +27,13 @@ pub struct UserUpdateReq {
     pub email: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct LicensePayload {
+    pub email: String,
+    pub license_key: String,
+    pub expiration_date: String,
+}
+
 pub struct Profile {}
 
 impl Profile {
@@ -39,7 +46,8 @@ impl Profile {
            .route("/profile/access-tokens",
                   web::post().to(generate_access_token))
            .route("/profile/access-tokens/{id}",
-                  web::delete().to(revoke_access_token));
+                  web::delete().to(revoke_access_token))
+           .route("/profile/license", web::post().to(set_license));
     }
 }
 
@@ -203,6 +211,37 @@ async fn revoke_access_token(req: HttpRequest,
             debug!("{}", err);
             err.into()
         }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+async fn set_license(req: HttpRequest,
+                     state: Data<AppState>,
+                     Json(payload): Json<LicensePayload>)
+                     -> HttpResponse {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    match authorize_session(&req, None, None) {
+        Ok(_session) => {
+
+            let new_license = NewLicenseKey {
+                email:           &payload.email,
+                license_key:     &payload.license_key,
+                expiration_date: &payload.expiration_date,
+            };
+
+            match LicenseKey::create(&new_license, &conn).map_err(Error::DieselError) {
+                Ok(license) => HttpResponse::Ok().json(license),
+                Err(err) => {
+                    debug!("{}", err);
+                    err.into()
+                }
+            }
+        }
+        Err(err) => err.into(),
     }
 }
 
