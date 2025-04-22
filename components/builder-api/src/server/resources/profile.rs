@@ -1,5 +1,6 @@
 use crate::{bldr_core,
-            db::models::{account::*,license_keys::*},
+            db::models::{account::*,
+                         license_keys::*},
             protocol::originsrv,
             server::{authorize::authorize_session,
                      error::{Error,
@@ -29,8 +30,8 @@ pub struct UserUpdateReq {
 
 #[derive(Debug, Deserialize)]
 pub struct LicensePayload {
-    pub email: String,
-    pub license_key: String,
+    pub email:           String,
+    pub license_key:     String,
     pub expiration_date: String,
 }
 
@@ -226,12 +227,9 @@ async fn set_license(req: HttpRequest,
 
     match authorize_session(&req, None, None) {
         Ok(_session) => {
-
-            let new_license = NewLicenseKey {
-                email:           &payload.email,
-                license_key:     &payload.license_key,
-                expiration_date: &payload.expiration_date,
-            };
+            let new_license = NewLicenseKey { email:           &payload.email,
+                                              license_key:     &payload.license_key,
+                                              expiration_date: &payload.expiration_date, };
 
             match LicenseKey::create(&new_license, &conn).map_err(Error::DieselError) {
                 Ok(license) => HttpResponse::Ok().json(license),

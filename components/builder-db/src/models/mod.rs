@@ -10,6 +10,7 @@ pub mod channel;
 pub mod integration;
 pub mod invitations;
 pub mod keys;
+pub mod license_keys;
 pub mod origin;
 pub mod package;
 pub mod pagination;
@@ -17,7 +18,6 @@ pub mod project_integration;
 pub mod projects;
 pub mod secrets;
 pub mod settings;
-pub mod license_keys;
 
 mod db_id_format {
     use serde::{self,

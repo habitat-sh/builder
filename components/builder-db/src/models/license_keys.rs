@@ -9,8 +9,8 @@ use diesel::{self,
 
 use crate::{bldr_core::metrics::CounterMetric,
             metrics::Counter,
-            schema::account::accounts,
-            schema::license_keys::license_keys};
+            schema::{account::accounts,
+                     license_keys::license_keys}};
 
 #[derive(Debug, Identifiable, Serialize, Queryable)]
 pub struct LicenseKey {
@@ -39,10 +39,9 @@ impl LicenseKey {
     pub fn create(req: &NewLicenseKey, conn: &PgConnection) -> QueryResult<LicenseKey> {
         Counter::DBCall.increment();
 
-        let account_id = accounts::table
-            .filter(accounts::email.eq(req.email))
-            .select(accounts::id)
-            .first::<i64>(conn)?;
+        let account_id = accounts::table.filter(accounts::email.eq(req.email))
+                                        .select(accounts::id)
+                                        .first::<i64>(conn)?;
 
         diesel::insert_into(license_keys::table).values((
             license_keys::account_id.eq(account_id),
