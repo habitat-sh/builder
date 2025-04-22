@@ -8,4 +8,6 @@ CREATE TABLE IF NOT EXISTS license_keys (
     created_at timestamp with time zone DEFAULT now()
 );
 
+ALTER TABLE license_keys DROP CONSTRAINT IF EXISTS license_keys_account_id_key;
+
 ALTER TABLE license_keys ADD CONSTRAINT license_keys_account_id_key UNIQUE (account_id);
