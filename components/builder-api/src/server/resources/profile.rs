@@ -1,3 +1,4 @@
+use reqwest;
 use crate::{bldr_core,
             db::models::{account::*,
                          license_keys::*},
@@ -32,7 +33,6 @@ pub struct UserUpdateReq {
 pub struct LicensePayload {
     pub account_id:      String,
     pub license_key:     String,
-    pub expiration_date: String,
 }
 
 pub struct Profile {}
@@ -227,12 +227,56 @@ async fn set_license(req: HttpRequest,
 
     match authorize_session(&req, None, None) {
         Ok(_session) => {
-            let new_license = NewLicenseKey { account_id:           payload.account_id.trim().parse::<i64>().unwrap(),
-                                              license_key:     &payload.license_key,
-                                              expiration_date: &payload.expiration_date, };
+            let license_url = format!(
+                "http://licensing-acceptance.chef.co/License/download?licenseId={}&version=2",
+                payload.license_key
+            );
+
+            let response = match reqwest::blocking::Client::new()
+                .get(&license_url)
+                .header("Accept", "application/json")
+                .send() {
+                Ok(resp) => resp,
+                Err(err) => return HttpResponse::InternalServerError().body(format!("License API error: {}", err)),
+            };
+
+            if !response.status().is_success() {
+                return HttpResponse::BadRequest().body("Invalid license key or failed to fetch license info.");
+            }
+
+            let json: serde_json::Value = match response.json() {
+                Ok(data) => data,
+                Err(err) => return HttpResponse::InternalServerError().body(format!("JSON parse error: {}", err)),
+            };
+
+            let expiration_str = json["entitlements"]
+                .as_array()
+                .and_then(|entitlements| {
+                    entitlements.iter().find_map(|ent| {
+                        if ent["name"] == "Habitat" {
+                            ent["period"]["end"].as_str()
+                        } else {
+                            None
+                        }
+                    })
+                    .or_else(|| entitlements.first()?.get("period")?.get("end")?.as_str())
+                });
+
+            let expiration_date = match expiration_str {
+                Some(date) => date,
+                None => return HttpResponse::BadRequest().body("Unable to determine license expiration date."),
+            };
+
+            let new_license = NewLicenseKey {
+                account_id: payload.account_id.trim().parse::<i64>().unwrap(),
+                license_key: &payload.license_key,
+                expiration_date,
+            };
 
             match LicenseKey::create(&new_license, &conn).map_err(Error::DieselError) {
-                Ok(license) => HttpResponse::Ok().json(license),
+                Ok(license) => HttpResponse::Ok().json(json!({
+                    "expiration_date": license.expiration_date
+                })),
                 Err(err) => {
                     debug!("{}", err);
                     err.into()

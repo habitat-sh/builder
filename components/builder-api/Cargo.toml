@@ -32,7 +32,7 @@ num_cpus = "*"
 openssl = "*"
 percent-encoding = "*"
 protobuf = "*"
-reqwest = "*"
+reqwest = { version = "*", features = ["blocking", "json"] }
 serde = "*"
 serde_derive = "*"
 serde_json = "*"

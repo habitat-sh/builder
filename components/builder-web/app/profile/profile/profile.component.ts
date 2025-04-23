@@ -92,50 +92,14 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.store.dispatch(saveProfile({ email: form.email }, this.token));
   }
 
-  validateLicenseKey() {
+  saveLicenseKeyToBackend() {
     this.validatingLicenseKey = true;
     this.licenseValidationMessage = '';
     this.licenseValid = false;
 
-    this.callLicenseApi(this.licenseKey)
-      .then(data => {
-        const habitat = data.entitlements?.find((e: any) => e.name === 'Habitat');
-        const expirationStr = habitat?.period?.end ||
-          (data.entitlements && data.entitlements[0]?.period?.end) ||
-          null;
-
-        if (expirationStr) {
-          const expirationDate = new Date(expirationStr);
-          const now = new Date();
-
-          if (expirationDate >= now) {
-            this.licenseValid = true;
-            this.saveLicenseKeyToBackend(expirationStr);
-            this.licenseValidationMessage = `License valid till ${expirationStr}`;
-          } else {
-            this.licenseValid = false;
-            this.licenseValidationMessage = `License expired on ${expirationStr}`;
-          }
-
-        } else {
-          this.licenseValid = false;
-          this.licenseValidationMessage = 'Unable to determine license expiration date.';
-        }
-
-        this.validatingLicenseKey = false;
-      })
-      .catch(err => {
-        this.licenseValid = false;
-        this.licenseValidationMessage = err.message || 'License validation failed.';
-        this.validatingLicenseKey = false;
-      });
-  }
-
-  saveLicenseKeyToBackend(expirationDate: string) {
     const body = {
       account_id: this.profile.id,
-      license_key: this.licenseKey,
-      expiration_date: expirationDate
+      license_key: this.licenseKey
     };
 
     fetch('/v1/profile/license', {
@@ -147,16 +111,19 @@ export class ProfileComponent implements OnInit, OnDestroy {
       body: JSON.stringify(body)
     })
       .then(res => {
+        this.validatingLicenseKey = false;
         if (!res.ok) {
-          throw new Error('Failed to store license key');
+          throw new Error('License validation failed.');
         }
         return res.json();
       })
-      .then(() => {
-        console.log('License key saved to backend');
+      .then(data => {
+        this.licenseValid = true;
+        this.licenseValidationMessage = `License valid till ${data.expiration_date}`;
       })
       .catch(err => {
-        console.error('Error saving license key to backend:', err);
+        this.licenseValid = false;
+        this.licenseValidationMessage = err.message || 'License validation failed.';
       });
   }
 
@@ -164,29 +131,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.licenseKey = '';
     this.licenseValidationMessage = '';
     this.licenseValid = false;
-  }
-
-  private callLicenseApi(licenseId: string): Promise<any> {
-    const version = '2';
-    const url = `http://licensing-acceptance.chef.co/License/download?licenseId=${encodeURIComponent(licenseId)}&version=${version}`;
-
-    return new Promise((resolve, reject) => {
-      fetch(url, {
-        method: 'GET',
-        headers: {
-          accept: 'application/json'
-        }
-      })
-        .then(response => this.handleUnauthorized(response, reject))
-        .then(response => {
-          if (response.ok) {
-            response.json().then(data => resolve(data));
-          } else {
-            reject(new Error(response.statusText));
-          }
-        })
-        .catch(error => this.handleError(error, reject));
-    });
   }
 
   get accessToken() {
