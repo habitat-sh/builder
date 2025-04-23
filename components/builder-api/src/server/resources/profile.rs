@@ -229,15 +229,11 @@ async fn set_license(req: HttpRequest,
 
     match authorize_session(&req, None, None) {
         Ok(_session) => {
-            // let license_url = format!(
-            //     "http://licensing-acceptance.chef.co/License/download?licenseId={}&version=2",
-            //     payload.license_key
-            // );
             let base_url = &state.config.api.license_validation_url;
             let license_url = format!("{}?licenseId={}&version=2", base_url, payload.license_key);
 
             let response =
-                match reqwest::blocking::Client::new().get(&license_url)
+                match reqwest::blocking::Client::new().get(license_url)
                                                       .header("Accept", "application/json")
                                                       .send()
                 {
