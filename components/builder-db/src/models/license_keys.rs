@@ -30,7 +30,6 @@ pub struct NewLicenseKey<'a> {
 }
 
 impl LicenseKey {
-
     pub fn create(req: &NewLicenseKey, conn: &PgConnection) -> QueryResult<LicenseKey> {
         Counter::DBCall.increment();
 
