@@ -40,6 +40,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.fetch();
+    this.fetchLicenseKey();
   }
 
   ngOnDestroy() {
@@ -154,6 +155,26 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.licenseKey = '';
     this.licenseValidationMessage = '';
     this.licenseValid = false;
+  }
+
+  private fetchLicenseKey() {
+    fetch('/v1/profile/license', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.token}`
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.license_key) {
+          this.licenseKey = data.license_key;
+          this.licenseValid = true;
+          this.licenseValidationMessage = `License valid till ${data.expiration_date}`;
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching license key from backend:', err);
+      });
   }
 
   get accessToken() {

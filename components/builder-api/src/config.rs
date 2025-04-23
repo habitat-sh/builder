@@ -116,6 +116,7 @@ pub struct ApiCfg {
     pub saas_bldr_url: String,
     pub suppress_autobuild_origins: Vec<String>,
     pub allowed_users_for_origin_create: Vec<String>,
+    pub license_validation_url: String,
 }
 
 mod deserialize_into_vec {
@@ -147,6 +148,8 @@ impl Default for ApiCfg {
                  features_enabled: vec!["jobsrv".to_string()],
                  private_max_age: 300,
                  saas_bldr_url: "https://bldr.habitat.sh".to_string(),
+                 license_validation_url:
+                     "http://licensing-acceptance.chef.co/License/download".to_string(),
                  suppress_autobuild_origins: vec![],
                  allowed_users_for_origin_create: vec![] }
     }

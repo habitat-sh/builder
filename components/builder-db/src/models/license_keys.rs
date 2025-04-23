@@ -4,6 +4,7 @@ use diesel::{self,
              pg::PgConnection,
              result::QueryResult,
              ExpressionMethods,
+             OptionalExtension,
              QueryDsl,
              RunQueryDsl};
 
@@ -52,5 +53,15 @@ impl LicenseKey {
 
         diesel::delete(license_keys::table.filter(license_keys::account_id.eq(account_id)))
             .execute(conn)
+    }
+
+    pub fn get_by_account_id(account_id: i64,
+                             conn: &PgConnection)
+                             -> QueryResult<Option<LicenseKey>> {
+        Counter::DBCall.increment();
+
+        license_keys::table.filter(license_keys::account_id.eq(account_id))
+                           .first::<LicenseKey>(conn)
+                           .optional()
     }
 }
