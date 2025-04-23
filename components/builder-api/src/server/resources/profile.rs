@@ -30,7 +30,7 @@ pub struct UserUpdateReq {
 
 #[derive(Debug, Deserialize)]
 pub struct LicensePayload {
-    pub email:           String,
+    pub account_id:      String,
     pub license_key:     String,
     pub expiration_date: String,
 }
@@ -227,7 +227,7 @@ async fn set_license(req: HttpRequest,
 
     match authorize_session(&req, None, None) {
         Ok(_session) => {
-            let new_license = NewLicenseKey { email:           &payload.email,
+            let new_license = NewLicenseKey { account_id:           payload.account_id.trim().parse::<i64>().unwrap(),
                                               license_key:     &payload.license_key,
                                               expiration_date: &payload.expiration_date, };
 

@@ -133,7 +133,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   saveLicenseKeyToBackend(expirationDate: string) {
     const body = {
-      email: this.profile.email,
+      account_id: this.profile.id,
       license_key: this.licenseKey,
       expiration_date: expirationDate
     };

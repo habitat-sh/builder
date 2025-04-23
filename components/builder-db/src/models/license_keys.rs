@@ -24,27 +24,18 @@ pub struct LicenseKey {
 }
 
 pub struct NewLicenseKey<'a> {
-    pub email:           &'a str,
+    pub account_id:      i64,
     pub license_key:     &'a str,
     pub expiration_date: &'a str,
 }
 
 impl LicenseKey {
-    pub fn get_by_account_id(account_id: i64, conn: &PgConnection) -> QueryResult<LicenseKey> {
-        Counter::DBCall.increment();
-        license_keys::table.filter(license_keys::account_id.eq(account_id))
-                           .get_result(conn)
-    }
 
     pub fn create(req: &NewLicenseKey, conn: &PgConnection) -> QueryResult<LicenseKey> {
         Counter::DBCall.increment();
 
-        let account_id = accounts::table.filter(accounts::email.eq(req.email))
-                                        .select(accounts::id)
-                                        .first::<i64>(conn)?;
-
         diesel::insert_into(license_keys::table).values((
-            license_keys::account_id.eq(account_id),
+            license_keys::account_id.eq(req.account_id),
             license_keys::license_key.eq(req.license_key),
             license_keys::expiration_date.eq(req.expiration_date),
         ))
@@ -55,10 +46,5 @@ impl LicenseKey {
             license_keys::expiration_date.eq(req.expiration_date),
         ))
         .get_result(conn)
-    }
-
-    pub fn delete_by_id(id: i64, conn: &PgConnection) -> QueryResult<usize> {
-        Counter::DBCall.increment();
-        diesel::delete(license_keys::table.find(id)).execute(conn)
     }
 }
