@@ -103,7 +103,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
     };
 
     fetch('/v1/profile/license', {
-      method: 'POST',
+      method: 'PUT',
       headers: {
         'Authorization': `Bearer ${this.token}`,
         'Content-Type': 'application/json'
@@ -124,6 +124,29 @@ export class ProfileComponent implements OnInit, OnDestroy {
       .catch(err => {
         this.licenseValid = false;
         this.licenseValidationMessage = err.message || 'License validation failed.';
+      });
+  }
+
+  deleteLicenseKey() {
+    fetch('/v1/profile/license', {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${this.token}`
+      }
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to delete license key.');
+        }
+        return res.text();
+      })
+      .then(() => {
+        this.clearLicenseKey();
+        console.log('License key deleted successfully.');
+      })
+      .catch(err => {
+        this.licenseValidationMessage = err.message || 'License deletion failed.';
+        console.error('Error deleting license key:', err);
       });
   }
 
