@@ -10,8 +10,7 @@ use diesel::{self,
 
 use crate::{bldr_core::metrics::CounterMetric,
             metrics::Counter,
-            schema::{account::accounts,
-                     license_keys::license_keys}};
+            schema::license_keys::license_keys};
 
 #[derive(Debug, Identifiable, Serialize, Queryable)]
 pub struct LicenseKey {
