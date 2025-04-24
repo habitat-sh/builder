@@ -229,7 +229,7 @@ async fn set_license(req: HttpRequest,
 
     match authorize_session(&req, None, None) {
         Ok(_session) => {
-            let base_url = &state.config.api.license_validation_url;
+            let base_url = &state.config.api.license_server_url;
             let license_url = format!("{}?licenseId={}&version=2", base_url, payload.license_key);
 
             let response =
@@ -241,46 +241,51 @@ async fn set_license(req: HttpRequest,
                     Err(err) => {
                         return HttpResponse::InternalServerError().body(format!("License API \
                                                                                  error: {}",
-                                                                                err))
+                                                                                err));
                     }
                 };
 
-            if !response.status().is_success() {
-                return HttpResponse::BadRequest().body("Invalid license key or failed to fetch \
-                                                        license info.");
+            let status = response.status();
+            let body =
+                match response.text() {
+                    Ok(text) => text,
+                    Err(err) => {
+                        return HttpResponse::InternalServerError()
+                        .body(format!("Failed to read license server response: {}", err));
+                    }
+                };
+
+            if !status.is_success() {
+                return HttpResponse::build(status).body(body);
             }
 
-            let json: serde_json::Value = match response.json() {
+            let json: serde_json::Value = match serde_json::from_str(&body) {
                 Ok(data) => data,
                 Err(err) => {
                     return HttpResponse::InternalServerError().body(format!("JSON parse error: \
                                                                              {}",
-                                                                            err))
+                                                                            err));
                 }
             };
 
             let expiration_str = json["entitlements"].as_array().and_then(|entitlements| {
-                                                                    entitlements.iter()
-                                                               .find_map(|ent| {
-                                                                   if ent["name"] == "Habitat" {
-                                                                       ent["period"]["end"].as_str()
-                                                                   } else {
-                                                                       None
-                                                                   }
-                                                               })
-                                                               .or_else(|| {
-                                                                   entitlements.first()?
-                                                                               .get("period")?
-                                                                               .get("end")?
-                                                                               .as_str()
-                                                               })
+                                                                    entitlements
+                        .iter()
+                        .find_map(|ent| {
+                            if ent["name"] == "Habitat" {
+                                ent["period"]["end"].as_str()
+                            } else {
+                                None
+                            }
+                        })
+                        .or_else(|| entitlements.first()?.get("period")?.get("end")?.as_str())
                                                                 });
 
             let expiration_date = match expiration_str {
                 Some(date) => date,
                 None => {
                     return HttpResponse::BadRequest().body("Unable to determine license \
-                                                            expiration date.")
+                                                            expiration date.");
                 }
             };
 
@@ -301,6 +306,7 @@ async fn set_license(req: HttpRequest,
                 }
             }
         }
+
         Err(err) => err.into(),
     }
 }

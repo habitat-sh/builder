@@ -3,7 +3,7 @@ log_level = "info"
 [api]
 targets = ["x86_64-linux", "x86_64-linux-kernel2", "x86_64-windows"]
 saas_bldr_url = "https://bldr.habitat.sh"
-license_validation_url = "http://licensing-acceptance.chef.co/License/download"
+license_server_url = "http://licensing-acceptance.chef.co/License/download"
 allowed_native_package_origins = []
 allowed_users_for_origin_create = []
 
