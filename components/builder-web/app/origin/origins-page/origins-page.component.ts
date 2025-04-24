@@ -42,10 +42,6 @@ export class OriginsPageComponent implements OnInit {
     }
   }
 
-  get originCreateDisabled() {
-    return config.disable_origin_create;
-  }
-
   get config() {
     return config;
   }

@@ -7,10 +7,6 @@ habitatConfig({
     // Cookie domain (optional; e.g., 'bldr.company.co')
     cookie_domain: "",
 
-    // Turn off the "Create Origin" button on the "my origins" page.
-    // This is true on publuc builder. False for on-prem
-    disable_origin_create: false,
-
     // The URL for documentation
     docs_url: "https://www.habitat.sh/docs",
 
@@ -25,9 +21,6 @@ habitatConfig({
     enable_publisher_azure: false,
     enable_publisher_docker: false,
 
-    // Enable StatusPage.io integration
-    enable_statuspage: false,
-
     // The environment in which we're running. If "production", enable production mode
     environment: "production",
 
@@ -39,6 +32,9 @@ habitatConfig({
 
     // The Habitat Builder GitHub app ID
     github_app_id: "5629",
+
+    // Are we running in a saas environment
+    is_saas: false,
 
     // OAuth properties
     oauth_authorize_url: "https://github.com/login/oauth/authorize",

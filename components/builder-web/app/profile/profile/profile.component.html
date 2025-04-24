@@ -88,8 +88,7 @@
         </ng-container>
       </section>
       <hr>
-      {{#if cfg.hosted}}
-      <section>
+      <section *ngIf="config.is_saas">
         <h3>License Key</h3>
         <p>
           A Valid license key is required for viewing and downloading packages on the Builder.
@@ -122,7 +121,6 @@
           </p>
         </ng-container>
       </section>
-      {{/if}}
       <hr>
     </div>
   </div>
