@@ -111,10 +111,11 @@ export class ProfileComponent implements OnInit, OnDestroy {
       },
       body: JSON.stringify(body)
     })
-      .then(res => {
+      .then(async res => {
         this.validatingLicenseKey = false;
         if (!res.ok) {
-          throw new Error('License validation failed.');
+          const errorText = (await res.text()).trim();
+          throw new Error(errorText || 'License validation failed.');
         }
         return res.json();
       })

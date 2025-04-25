@@ -273,21 +273,26 @@ async fn set_license(req: HttpRequest,
 
             let today = chrono::Utc::now().date_naive();
 
+            let entitlements = match json["entitlements"].as_array() {
+                Some(ents) if !ents.is_empty() => ents,
+                _ => {
+                    return HttpResponse::BadRequest().body("Invalid license key.");
+                }
+            };
+
             let expiration_date =
-                json["entitlements"].as_array().and_then(|entitlements| {
-                                                   entitlements.iter().find_map(|ent| {
-                        let end_str = ent.get("period")?.get("end")?.as_str()?;
-                        match NaiveDate::parse_from_str(end_str, "%Y-%m-%d") {
-                            Ok(end_date) if end_date >= today => Some(end_date),
-                            _ => None,
-                        }
-                    })
-                                               });
+                entitlements.iter().find_map(|ent| {
+                                       let end_str = ent.get("period")?.get("end")?.as_str()?;
+                                       match NaiveDate::parse_from_str(end_str, "%Y-%m-%d") {
+                                           Ok(end_date) if end_date >= today => Some(end_date),
+                                           _ => None,
+                                       }
+                                   });
 
             let expiration_date = match expiration_date {
                 Some(date) => date,
                 None => {
-                    return HttpResponse::BadRequest().body("All entitlements are expired.");
+                    return HttpResponse::BadRequest().body("License key has expired.");
                 }
             };
 
@@ -308,7 +313,6 @@ async fn set_license(req: HttpRequest,
                 }
             }
         }
-
         Err(err) => err.into(),
     }
 }
