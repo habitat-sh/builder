@@ -21,6 +21,7 @@ use actix_web::{body::BoxBody,
                 HttpResponse};
 use bldr_core::access_token::AccessToken as CoreAccessToken;
 use bytes::Bytes;
+use chrono::NaiveDate;
 use reqwest;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -230,7 +231,9 @@ async fn set_license(req: HttpRequest,
     match authorize_session(&req, None, None) {
         Ok(_session) => {
             let base_url = &state.config.api.license_server_url;
-            let license_url = format!("{}?licenseId={}&version=2", base_url, payload.license_key);
+            let license_url = format!("{}/License/download?licenseId={}&version=2",
+                                      base_url.trim_end_matches('/'),
+                                      payload.license_key);
 
             let response =
                 match reqwest::blocking::Client::new().get(license_url)
@@ -268,18 +271,18 @@ async fn set_license(req: HttpRequest,
                 }
             };
 
-            let expiration_str = json["entitlements"].as_array().and_then(|entitlements| {
-                                                                    entitlements
-                        .iter()
-                        .find_map(|ent| {
-                            if ent["name"] == "Habitat" {
-                                ent["period"]["end"].as_str()
-                            } else {
-                                None
-                            }
-                        })
-                        .or_else(|| entitlements.first()?.get("period")?.get("end")?.as_str())
-                                                                });
+            let today = chrono::Utc::now().date_naive();
+
+            let expiration_str =
+                json["entitlements"].as_array().and_then(|entitlements| {
+                                                   entitlements.iter().find_map(|ent| {
+                        let end_str = ent.get("period")?.get("end")?.as_str()?;
+                        match NaiveDate::parse_from_str(end_str, "%Y-%m-%d") {
+                            Ok(end_date) if end_date >= today => Some(end_str),
+                            _ => None
+                        }
+                    })
+                                               });
 
             let expiration_date = match expiration_str {
                 Some(date) => date,

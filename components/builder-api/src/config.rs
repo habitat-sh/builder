@@ -148,8 +148,7 @@ impl Default for ApiCfg {
                  features_enabled: vec!["jobsrv".to_string()],
                  private_max_age: 300,
                  saas_bldr_url: "https://bldr.habitat.sh".to_string(),
-                 license_server_url:
-                     "http://licensing-acceptance.chef.co/License/download".to_string(),
+                 license_server_url: "http://licensing-acceptance.chef.co".to_string(),
                  suppress_autobuild_origins: vec![],
                  allowed_users_for_origin_create: vec![] }
     }
