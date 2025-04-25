@@ -1,5 +1,6 @@
 use super::db_id_format;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDate,
+             NaiveDateTime};
 use diesel::{self,
              pg::PgConnection,
              result::QueryResult,
@@ -19,14 +20,14 @@ pub struct LicenseKey {
     #[serde(with = "db_id_format")]
     pub account_id:      i64,
     pub license_key:     String,
-    pub expiration_date: String,
+    pub expiration_date: NaiveDate,
     pub created_at:      Option<NaiveDateTime>,
 }
 
 pub struct NewLicenseKey<'a> {
     pub account_id:      i64,
     pub license_key:     &'a str,
-    pub expiration_date: &'a str,
+    pub expiration_date: NaiveDate,
 }
 
 impl LicenseKey {

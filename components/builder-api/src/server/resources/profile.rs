@@ -273,22 +273,21 @@ async fn set_license(req: HttpRequest,
 
             let today = chrono::Utc::now().date_naive();
 
-            let expiration_str =
+            let expiration_date =
                 json["entitlements"].as_array().and_then(|entitlements| {
                                                    entitlements.iter().find_map(|ent| {
                         let end_str = ent.get("period")?.get("end")?.as_str()?;
                         match NaiveDate::parse_from_str(end_str, "%Y-%m-%d") {
-                            Ok(end_date) if end_date >= today => Some(end_str),
-                            _ => None
+                            Ok(end_date) if end_date >= today => Some(end_date),
+                            _ => None,
                         }
                     })
                                                });
 
-            let expiration_date = match expiration_str {
+            let expiration_date = match expiration_date {
                 Some(date) => date,
                 None => {
-                    return HttpResponse::BadRequest().body("Unable to determine license \
-                                                            expiration date.");
+                    return HttpResponse::BadRequest().body("All entitlements are expired.");
                 }
             };
 
@@ -300,8 +299,8 @@ async fn set_license(req: HttpRequest,
             match LicenseKey::create(&new_license, &conn).map_err(Error::DieselError) {
                 Ok(license) => {
                     HttpResponse::Ok().json(json!({
-                                                "expiration_date": license.expiration_date
-                                            }))
+                              "expiration_date": license.expiration_date.to_string()
+                          }))
                 }
                 Err(err) => {
                     debug!("{}", err);
