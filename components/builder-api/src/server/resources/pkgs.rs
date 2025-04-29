@@ -1275,7 +1275,13 @@ async fn do_get_package(req: &HttpRequest,
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
     let channels = channels_for_package_ident(req, &pkg.ident, *pkg.target, &conn)?;
+    let manifest_without_plan = pkg.manifest
+                                   .lines()
+                                   .take_while(|line| !line.trim_start().starts_with("# Plan"))
+                                   .collect::<Vec<_>>()
+                                   .join("\n");
 
+    pkg_json["manifest"] = json!(manifest_without_plan);
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
     let size = match req_state(req).packages
