@@ -34,6 +34,7 @@ pub struct OriginPackageSettings {
     pub visibility: PackageVisibility,
     #[serde(with = "db_id_format")]
     pub owner_id:   i64,
+    pub hidden: bool,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }
