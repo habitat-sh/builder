@@ -1,8 +1,9 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release unreleased -->
-## Unreleased
+<!-- latest_release 20250403 -->
+## [20250403](https://github.com/habitat-sh/builder/tree/20250403) (2025-05-01)
 
 #### Merged Pull Requests
+- bump builder version [#1885](https://github.com/habitat-sh/builder/pull/1885) ([mwrock](https://github.com/mwrock))
 - Terraform Cleanup and Review [#1882](https://github.com/habitat-sh/builder/pull/1882) ([jasonheath](https://github.com/jasonheath))
 - Removal  jobsrv, graph, and worker and associated cleanup [#1875](https://github.com/habitat-sh/builder/pull/1875) ([jasonheath](https://github.com/jasonheath))
 - Support loading builder encryption key from env [#1880](https://github.com/habitat-sh/builder/pull/1880) ([sajjaphani](https://github.com/sajjaphani))
