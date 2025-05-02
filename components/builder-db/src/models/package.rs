@@ -1189,7 +1189,7 @@ impl FromArchive for NewPackage {
                         owner_id: 999_999_999_999,
                         visibility: PackageVisibility::Public,
                         package_type: BuilderPackageType(archive.package_type()?),
-                        hidden: false,})
+                        hidden: false })
     }
 }
 
