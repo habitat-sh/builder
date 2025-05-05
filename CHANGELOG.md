@@ -1,5 +1,11 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release 20250403 -->
+<!-- latest_release unreleased -->
+## Unreleased
+
+#### Merged Pull Requests
+- Removed Plan content from UI and API [#1884](https://github.com/habitat-sh/builder/pull/1884) ([sougata-progress](https://github.com/sougata-progress))
+<!-- latest_release -->
+
 ## [20250403](https://github.com/habitat-sh/builder/tree/20250403) (2025-05-01)
 
 #### Merged Pull Requests
@@ -25,7 +31,6 @@
 - minio migration via hooks [#1860](https://github.com/habitat-sh/builder/pull/1860) ([jasonheath](https://github.com/jasonheath))
 - Added conditional render for deprecated stable message [#1859](https://github.com/habitat-sh/builder/pull/1859) ([sougata-progress](https://github.com/sougata-progress))
 - remove worker related post habitat build steps and cleanup bootstrap seed list [#1858](https://github.com/habitat-sh/builder/pull/1858) ([mwrock](https://github.com/mwrock))
-<!-- latest_release -->
 
 ## [20241106](https://github.com/habitat-sh/builder/tree/20241106) (2024-11-04)
 
