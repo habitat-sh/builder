@@ -25,6 +25,11 @@ import config from '../../config';
 })
 export class ProfileComponent implements OnInit, OnDestroy {
 
+  licenseKey = '';
+  licenseValid = false;
+  licenseValidationMessage = '';
+  validatingLicenseKey = false;
+
   constructor(
     private confirmDialog: MatDialog,
     private store: AppStore,
@@ -35,6 +40,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.fetch();
+    this.fetchLicenseKey();
   }
 
   ngOnDestroy() {
@@ -85,6 +91,91 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   save(form) {
     this.store.dispatch(saveProfile({ email: form.email }, this.token));
+  }
+
+  saveLicenseKeyToBackend() {
+    this.validatingLicenseKey = true;
+    this.licenseValidationMessage = '';
+    this.licenseValid = false;
+
+    const body = {
+      account_id: this.profile.id,
+      license_key: this.licenseKey
+    };
+
+    fetch('/v1/profile/license', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
+      .then(async res => {
+        this.validatingLicenseKey = false;
+        if (!res.ok) {
+          const errorText = (await res.text()).trim();
+          throw new Error(errorText || 'License validation failed.');
+        }
+        return res.json();
+      })
+      .then(data => {
+        this.licenseValid = true;
+        this.licenseValidationMessage = `License valid till ${data.expiration_date}`;
+      })
+      .catch(err => {
+        this.licenseValid = false;
+        this.licenseValidationMessage = err.message || 'License validation failed.';
+      });
+  }
+
+  deleteLicenseKey() {
+    fetch('/v1/profile/license', {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${this.token}`
+      }
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to delete license key.');
+        }
+        return res.text();
+      })
+      .then(() => {
+        this.clearLicenseKey();
+        console.log('License key deleted successfully.');
+      })
+      .catch(err => {
+        this.licenseValidationMessage = err.message || 'License deletion failed.';
+        console.error('Error deleting license key:', err);
+      });
+  }
+
+  clearLicenseKey() {
+    this.licenseKey = '';
+    this.licenseValidationMessage = '';
+    this.licenseValid = false;
+  }
+
+  private fetchLicenseKey() {
+    fetch('/v1/profile/license', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.token}`
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.license_key) {
+          this.licenseKey = data.license_key;
+          this.licenseValid = true;
+          this.licenseValidationMessage = `License valid till ${data.expiration_date}`;
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching license key from backend:', err);
+      });
   }
 
   get accessToken() {
@@ -150,5 +241,17 @@ export class ProfileComponent implements OnInit, OnDestroy {
   private clearAccessTokens() {
     this.store.dispatch(clearAccessTokens());
     this.store.dispatch(clearNewAccessToken());
+  }
+
+  private handleUnauthorized(response: Response, reject: (reason?: any) => void): Response {
+    if (response.status === 401) {
+      reject(new Error('Unauthorized'));
+    }
+    return response;
+  }
+
+  private handleError(error: any, reject: (reason?: any) => void) {
+    console.error('API error:', error);
+    reject(error);
   }
 }

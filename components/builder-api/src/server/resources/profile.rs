@@ -1,5 +1,6 @@
 use crate::{bldr_core,
-            db::models::account::*,
+            db::models::{account::*,
+                         license_keys::*},
             protocol::originsrv,
             server::{authorize::authorize_session,
                      error::{Error,
@@ -20,11 +21,19 @@ use actix_web::{body::BoxBody,
                 HttpResponse};
 use bldr_core::access_token::AccessToken as CoreAccessToken;
 use bytes::Bytes;
+use chrono::NaiveDate;
+use reqwest;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserUpdateReq {
     #[serde(default)]
     pub email: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LicensePayload {
+    pub account_id:  String,
+    pub license_key: String,
 }
 
 pub struct Profile {}
@@ -39,7 +48,10 @@ impl Profile {
            .route("/profile/access-tokens",
                   web::post().to(generate_access_token))
            .route("/profile/access-tokens/{id}",
-                  web::delete().to(revoke_access_token));
+                  web::delete().to(revoke_access_token))
+           .route("/profile/license", web::put().to(set_license))
+           .route("/profile/license", web::delete().to(delete_license))
+           .route("/profile/license", web::get().to(get_license));
     }
 }
 
@@ -199,6 +211,153 @@ async fn revoke_access_token(req: HttpRequest,
             }
             HttpResponse::Ok().finish()
         }
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+async fn set_license(req: HttpRequest,
+                     state: Data<AppState>,
+                     Json(payload): Json<LicensePayload>)
+                     -> HttpResponse {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    match authorize_session(&req, None, None) {
+        Ok(_session) => {
+            let base_url = &state.config.api.license_server_url;
+            let license_url = format!("{}/License/download?licenseId={}&version=2",
+                                      base_url.trim_end_matches('/'),
+                                      payload.license_key);
+
+            let response =
+                match reqwest::blocking::Client::new().get(license_url)
+                                                      .header("Accept", "application/json")
+                                                      .send()
+                {
+                    Ok(resp) => resp,
+                    Err(err) => {
+                        return HttpResponse::InternalServerError().body(format!("License API \
+                                                                                 error: {}",
+                                                                                err));
+                    }
+                };
+
+            let status = response.status();
+            let body =
+                match response.text() {
+                    Ok(text) => text,
+                    Err(err) => {
+                        return HttpResponse::InternalServerError()
+                        .body(format!("Failed to read license server response: {}", err));
+                    }
+                };
+
+            if !status.is_success() {
+                return HttpResponse::build(status).body(body);
+            }
+
+            let json: serde_json::Value = match serde_json::from_str(&body) {
+                Ok(data) => data,
+                Err(err) => {
+                    return HttpResponse::InternalServerError().body(format!("JSON parse error: \
+                                                                             {}",
+                                                                            err));
+                }
+            };
+
+            let today = chrono::Utc::now().date_naive();
+
+            let entitlements = match json["entitlements"].as_array() {
+                Some(ents) if !ents.is_empty() => ents,
+                _ => {
+                    return HttpResponse::BadRequest().body("Invalid license key.");
+                }
+            };
+
+            let expiration_date =
+                entitlements.iter().find_map(|ent| {
+                                       let end_str = ent.get("period")?.get("end")?.as_str()?;
+                                       match NaiveDate::parse_from_str(end_str, "%Y-%m-%d") {
+                                           Ok(end_date) if end_date >= today => Some(end_date),
+                                           _ => None,
+                                       }
+                                   });
+
+            let expiration_date = match expiration_date {
+                Some(date) => date,
+                None => {
+                    return HttpResponse::BadRequest().body("License key has expired.");
+                }
+            };
+
+            let new_license =
+                NewLicenseKey { account_id: payload.account_id.trim().parse::<i64>().unwrap(),
+                                license_key: &payload.license_key,
+                                expiration_date };
+
+            match LicenseKey::create(&new_license, &conn).map_err(Error::DieselError) {
+                Ok(license) => {
+                    HttpResponse::Ok().json(json!({
+                              "expiration_date": license.expiration_date.to_string()
+                          }))
+                }
+                Err(err) => {
+                    debug!("{}", err);
+                    err.into()
+                }
+            }
+        }
+        Err(err) => err.into(),
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+async fn delete_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    let account_id = match authorize_session(&req, None, None) {
+        Ok(session) => session.get_id() as i64,
+        Err(err) => return err.into(),
+    };
+
+    match LicenseKey::delete_by_account_id(account_id, &conn).map_err(Error::DieselError) {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
+    let conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+
+    let account_id = match authorize_session(&req, None, None) {
+        Ok(session) => session.get_id() as i64,
+        Err(err) => return err.into(),
+    };
+
+    match LicenseKey::get_by_account_id(account_id, &conn).map_err(Error::DieselError) {
+        Ok(Some(license)) => {
+            HttpResponse::Ok().json(json!({
+                                        "license_key": license.license_key,
+                                        "expiration_date": license.expiration_date
+                                    }))
+        }
+        Ok(None) => HttpResponse::Ok().json(json!({})),
         Err(err) => {
             debug!("{}", err);
             err.into()

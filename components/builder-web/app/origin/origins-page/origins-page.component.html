@@ -7,10 +7,10 @@
       <section *ngIf="ui.loading">
         <hab-icon symbol="loading" class="spinning"></hab-icon>
       </section>
-      <section *ngIf="!originCreateDisabled">
+      <section *ngIf="!config.is_saas">
         <a mat-raised-button color="primary" [routerLink]="['/origins', 'create']">Create origin</a>
       </section>
-      <section *ngIf="originCreateDisabled">
+      <section *ngIf="config.is_saas">
         <p class="error"><b>Important Notice:</b> We would like to inform you that we have disabled the creation of origins in our hosted Chef Habitat Builder (bldr.habitat.sh). However, you can still continue to install an on-prem or self-hosted habitat builder by following these instructions (<a href="https://www.chef.io/blog/chef-habitat-product-announcement-builder-on-prem-enhancements-that-extend-support-to-airgap-environments-and-simplify-set-up" target="_blank">more info here</a>).  Please <a href="https://www.chef.io/contact-us" target="_blank">contact us</a> if you would like to know more</p>
       </section>
       <div *ngIf="!ui.loading">

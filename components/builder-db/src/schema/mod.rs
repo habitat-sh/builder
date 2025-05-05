@@ -8,6 +8,7 @@ pub mod channel;
 pub mod integration;
 pub mod invitation;
 pub mod key;
+pub mod license_keys;
 pub mod member;
 pub mod origin;
 pub mod package;

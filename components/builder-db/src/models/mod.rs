@@ -10,6 +10,7 @@ pub mod channel;
 pub mod integration;
 pub mod invitations;
 pub mod keys;
+pub mod license_keys;
 pub mod origin;
 pub mod package;
 pub mod pagination;

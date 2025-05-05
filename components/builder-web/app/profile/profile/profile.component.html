@@ -88,6 +88,40 @@
         </ng-container>
       </section>
       <hr>
+      <section *ngIf="config.is_saas">
+        <h3>License Key</h3>
+        <p>
+          A Valid license key is required for viewing and downloading packages on the Builder.
+        </p>
+        <ng-container *ngIf="validatingLicenseKey">
+          <div class="controls processing">
+            <div class="loading">
+              <input type="text" value="Validating license..." disabled="disabled">
+              <hab-icon symbol="loading" class="spinning"></hab-icon>
+            </div>
+          </div>
+        </ng-container>
+        <ng-container *ngIf="!validatingLicenseKey">
+          <div class="controls">
+            <input
+              type="text"
+              name="licenseKey"
+              [(ngModel)]="licenseKey"
+              placeholder="Enter your license key"
+              autocomplete="off"
+            />
+            <div class="actions">
+              <a class="generate" (click)="saveLicenseKeyToBackend()">Submit</a>
+              <a class="delete" (click)="deleteLicenseKey()">Delete</a>
+            </div>
+          </div> 
+          <p class="footnote notice" *ngIf="licenseValidationMessage">
+            <hab-icon symbol="{{ licenseValid ? 'check' : 'warning' }}"></hab-icon>
+            {{ licenseValidationMessage }}
+          </p>
+        </ng-container>
+      </section>
+      <hr>
     </div>
   </div>
 </div>
