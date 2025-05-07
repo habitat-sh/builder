@@ -1,0 +1,245 @@
+/* Base styles for elements */
+@use "../abstracts/variables" as vars;
+@use "../abstracts/mixins" as mix;
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: vars.$font-family-base;
+  font-size: vars.$font-size-base;
+  color: vars.$text-primary;
+  background-color: vars.$light-bg;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+// Headers
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 0;
+  margin-bottom: vars.$spacing-sm;
+  font-weight: vars.$font-weight-medium;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: vars.$font-size-xxlarge;
+}
+
+h2 {
+  font-size: vars.$font-size-xlarge;
+}
+
+h3 {
+  font-size: vars.$font-size-large;
+}
+
+h4 {
+  font-size: vars.$font-size-base;
+  font-weight: vars.$font-weight-bold;
+}
+
+h5 {
+  font-size: vars.$font-size-base;
+}
+
+h6 {
+  font-size: vars.$font-size-small;
+}
+
+// Links
+a {
+  color: vars.$primary-color;
+  text-decoration: none;
+  transition: color vars.$transition-speed ease;
+
+  &:hover, &:focus {
+    color: vars.$primary-dark;
+    text-decoration: underline;
+  }
+}
+
+// Lists
+ul, ol {
+  padding-left: 2rem;
+  margin-top: 0;
+  margin-bottom: vars.$spacing-sm;
+}
+
+// Paragraphs
+p {
+  margin-top: 0;
+  margin-bottom: vars.$spacing-sm;
+  line-height: 1.5;
+}
+
+// Code
+code, pre {
+  font-family: vars.$font-family-code;
+  font-size: vars.$font-size-small;
+  background-color: rgba(0, 0, 0, 0.04);
+  border-radius: vars.$border-radius-small;
+}
+
+pre {
+  padding: vars.$spacing-xs vars.$spacing-sm;
+  overflow-x: auto;
+}
+
+code {
+  padding: 2px 4px;
+}
+
+// Tables
+table {
+  width: 100%;
+  margin-bottom: vars.$spacing-sm;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-weight: vars.$font-weight-medium;
+}
+
+td, th {
+  padding: vars.$spacing-xs vars.$spacing-sm;
+  border-bottom: 1px solid vars.$border-color;
+}
+
+// Utility classes
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-primary {
+  color: vars.$primary-color;
+}
+
+.text-accent {
+  color: vars.$accent-color;
+}
+
+.text-success {
+  color: vars.$success-color;
+}
+
+.text-warning {
+  color: vars.$warning-color;
+}
+
+.text-error {
+  color: vars.$error-color;
+}
+
+.text-muted {
+  color: vars.$text-secondary;
+}
+
+.bg-light {
+  background-color: vars.$light-bg;
+}
+
+.bg-card {
+  background-color: vars.$card-bg;
+}
+
+.mb-0 {
+  margin-bottom: 0 !important;
+}
+
+.mb-1 {
+  margin-bottom: vars.$spacing-xs !important;
+}
+
+.mb-2 {
+  margin-bottom: vars.$spacing-sm !important;
+}
+
+.mb-3 {
+  margin-bottom: vars.$spacing-md !important;
+}
+
+.mt-0 {
+  margin-top: 0 !important;
+}
+
+.mt-1 {
+  margin-top: vars.$spacing-xs !important;
+}
+
+.mt-2 {
+  margin-top: vars.$spacing-sm !important;
+}
+
+.mt-3 {
+  margin-top: vars.$spacing-md !important;
+}
+
+.p-0 {
+  padding: 0 !important;
+}
+
+.p-1 {
+  padding: vars.$spacing-xs !important;
+}
+
+.p-2 {
+  padding: vars.$spacing-sm !important;
+}
+
+.p-3 {
+  padding: vars.$spacing-md !important;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.d-block {
+  display: block;
+}
+
+.d-inline-block {
+  display: inline-block;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.w-100 {
+  width: 100%;
+}
+
+.h-100 {
+  height: 100%;
+}
+
+.hidden {
+  display: none;
+}
+
+// Accessibility
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

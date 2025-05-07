@@ -1,0 +1,64 @@
+<div class="breadcrumbs">
+  <!-- Standard breadcrumbs from items input -->
+  <ng-container *ngIf="items && items.length > 0">
+    <ng-container *ngFor="let item of items; let i = index; let last = last">
+      <div class="item" [class.active]="last">
+        <ng-container *ngIf="item.icon">
+          <span class="icon">
+            <mat-icon>{{item.icon}}</mat-icon>
+          </span>
+        </ng-container>
+        
+        <ng-container *ngIf="item.routerLink && !last">
+          <a [routerLink]="item.routerLink">{{item.label}}</a>
+        </ng-container>
+        
+        <ng-container *ngIf="item.url && !last">
+          <a [href]="item.url">{{item.label}}</a>
+        </ng-container>
+        
+        <ng-container *ngIf="!item.routerLink && !item.url || last">
+          <span>{{item.label}}</span>
+        </ng-container>
+      </div>
+      
+      <span class="separator" *ngIf="!last">/</span>
+    </ng-container>
+  </ng-container>
+  
+  <!-- Package identifier breadcrumbs - For backward compatibility with legacy code -->
+  <ng-container *ngIf="(!items || items.length === 0) && packageIdent">
+    <div class="item">
+      <a [routerLink]="['/origins', packageIdent.origin]">
+        {{packageIdent.origin}}
+      </a>
+    </div>
+    
+    <ng-container *ngIf="packageIdent.name">
+      <span class="separator">/</span>
+      <div class="item">
+        <a [routerLink]="['/pkgs', packageIdent.origin, packageIdent.name]">
+          {{packageIdent.name}}
+        </a>
+      </div>
+    </ng-container>
+    
+    <ng-container *ngIf="packageIdent.version">
+      <span class="separator">/</span>
+      <div class="item">
+        <a [routerLink]="['/pkgs', packageIdent.origin, packageIdent.name, packageIdent.version]">
+          {{packageIdent.version}}
+        </a>
+      </div>
+    </ng-container>
+    
+    <ng-container *ngIf="packageIdent.release">
+      <span class="separator">/</span>
+      <div class="item">
+        <a [routerLink]="['/pkgs', packageIdent.origin, packageIdent.name, packageIdent.version, packageIdent.release]">
+          {{packageIdent.release}}
+        </a>
+      </div>
+    </ng-container>
+  </ng-container>
+</div>

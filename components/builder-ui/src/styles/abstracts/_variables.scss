@@ -1,16 +1,74 @@
-// Variables for colors, fonts, sizes, etc.
-$primary-color: #3f51b5; // Material indigo
-$accent-color: #ff4081; // Material pink
-$warn-color: #f44336; // Material red
+// Primary branding colors
+$primary-color: #4CAF50;         // Habitat green
+$primary-light: #7CCC7F;
+$primary-dark: #308732;
 
-$light-bg: #f5f5f5;
+$accent-color: #607D8B;          // Habitat blue-grey
+$accent-light: #8EACBB;
+$accent-dark: #34515E;
+
+$warn-color: #F44336;            // Material red
+
+// Status colors
+$success-color: #4CAF50;
+$warning-color: #FF9800;
+$error-color: #F44336;
+$info-color: #2196F3;
+
+// Background colors
+$light-bg: #F5F5F5;
 $dark-bg: #303030;
+$card-bg: #FFFFFF;
+$header-bg: $primary-dark;
 
+// Text colors
+$text-primary: rgba(0, 0, 0, 0.87);
+$text-secondary: rgba(0, 0, 0, 0.6);
+$text-disabled: rgba(0, 0, 0, 0.38);
+$text-hint: rgba(0, 0, 0, 0.38);
+
+$text-light: rgba(255, 255, 255, 0.87);
+$text-light-secondary: rgba(255, 255, 255, 0.7);
+$text-light-disabled: rgba(255, 255, 255, 0.5);
+
+// Border colors
+$border-color: rgba(0, 0, 0, 0.12);
+$divider-color: rgba(0, 0, 0, 0.07);
+
+// Typography
 $font-family-base: Roboto, "Helvetica Neue", sans-serif;
-$font-size-base: 16px;
+$font-family-code: "Source Code Pro", "Roboto Mono", monospace;
 
+$font-size-base: 16px;
+$font-size-small: 14px;
+$font-size-xsmall: 12px;
+$font-size-large: 18px;
+$font-size-xlarge: 24px;
+$font-size-xxlarge: 32px;
+
+$font-weight-light: 300;
+$font-weight-regular: 400;
+$font-weight-medium: 500;
+$font-weight-bold: 700;
+
+// Spacing
+$spacing-xxs: 4px;
+$spacing-xs: 8px;
+$spacing-sm: 16px;
+$spacing-md: 24px;
+$spacing-lg: 32px;
+$spacing-xl: 48px;
+$spacing-xxl: 64px;
+
+// Border radius
+$border-radius-small: 2px;
 $border-radius: 4px;
-$box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+$border-radius-large: 8px;
+
+// Shadows
+$box-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+$box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+$box-shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
 
 // Breakpoints
 $breakpoints: (
@@ -32,3 +90,6 @@ $z-index: (
   popover: 1060,
   tooltip: 1070
 );
+
+// Animation and transition
+$transition-speed: 0.3s;

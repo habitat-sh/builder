@@ -1,20 +1,14 @@
-/* You can add global styles to this file, and also import other style files */
+/* Main styles entry point for the Habitat Builder UI */
 
-// Material Theme basic overrides
-@import '@angular/material/prebuilt-themes/indigo-pink.css';
+// Import abstracts (variables, mixins, functions)
+@use 'styles/abstracts/variables';
+@use 'styles/abstracts/mixins';
 
-// Global styles
-html, body {
-  height: 100%;
-  margin: 0;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
-}
+// Import base styles
+@use 'styles/base/base';
 
-body {
-  margin: 0;
-  padding: 0;
-  background-color: #f5f5f5;
-}
+// Import Material theme customization
+@use 'styles/themes/material-theme';
 
 .container {
   padding: 20px;

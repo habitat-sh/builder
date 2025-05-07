@@ -1,11 +1,32 @@
-// Mixins for responsive design
+@use 'variables' as vars;
+
+// Responsive mixins
 @mixin respond-to($breakpoint) {
-  @if map-has-key($breakpoints, $breakpoint) {
-    @media (min-width: map-get($breakpoints, $breakpoint)) {
+  @if map-has-key(vars.$breakpoints, $breakpoint) {
+    @media (min-width: map-get(vars.$breakpoints, $breakpoint)) {
       @content;
     }
   } @else {
     @error "Unknown breakpoint: #{$breakpoint}";
+  }
+}
+
+// Individual breakpoint helpers
+@mixin mobile-only {
+  @media (max-width: #{map-get(vars.$breakpoints, sm) - 1}px) {
+    @content;
+  }
+}
+
+@mixin tablet-up {
+  @media (min-width: map-get(vars.$breakpoints, md)) {
+    @content;
+  }
+}
+
+@mixin desktop-up {
+  @media (min-width: map-get(vars.$breakpoints, lg)) {
+    @content;
   }
 }
 
@@ -25,6 +46,18 @@
 @mixin flex-column {
   display: flex;
   flex-direction: column;
+}
+
+@mixin flex-start {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+@mixin flex-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 // Typography mixins
