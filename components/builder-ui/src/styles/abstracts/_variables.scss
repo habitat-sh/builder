@@ -1,0 +1,34 @@
+// Variables for colors, fonts, sizes, etc.
+$primary-color: #3f51b5; // Material indigo
+$accent-color: #ff4081; // Material pink
+$warn-color: #f44336; // Material red
+
+$light-bg: #f5f5f5;
+$dark-bg: #303030;
+
+$font-family-base: Roboto, "Helvetica Neue", sans-serif;
+$font-size-base: 16px;
+
+$border-radius: 4px;
+$box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+// Breakpoints
+$breakpoints: (
+  xs: 0,
+  sm: 576px,
+  md: 768px,
+  lg: 992px,
+  xl: 1200px,
+  xxl: 1400px
+);
+
+// Z-index values
+$z-index: (
+  dropdown: 1000,
+  sticky: 1020,
+  fixed: 1030,
+  modal-backdrop: 1040,
+  modal: 1050,
+  popover: 1060,
+  tooltip: 1070
+);
