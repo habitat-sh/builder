@@ -1,0 +1,201 @@
+@use '../styles/mixins' as mix;
+@use '../styles/colors' as *;
+@use '../styles/typography' as *;
+@use 'sass:color';
+
+$menu-width: 224px;
+
+* {
+  box-sizing: border-box;
+}
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.app-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  min-height: 100vh;
+  
+  .wrapper {
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  
+  nav, main {
+    @include mix.transition(transform 0.3s ease, left 0.3s ease);
+  }
+  
+  nav.menu {
+    position: absolute;
+    width: $menu-width;
+    min-width: $menu-width;
+    left: -$menu-width;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    box-sizing: border-box;
+    overflow: hidden;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+    
+    @include mix.tablet-up {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      top: 0;
+      
+      & + main {
+        left: $menu-width;
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+      }
+    }
+    
+    &.open {
+      left: 0;
+      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+      
+      & + main {
+        @include mix.mobile-only {
+          left: $menu-width;
+          right: -$menu-width;
+          overflow-x: hidden;
+        }
+      }
+    }
+  }
+  
+  main {
+    position: absolute;
+    width: 100%;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    background-color: $off-white;
+    transition: left 0.3s ease, right 0.3s ease;
+    box-sizing: border-box;
+    padding-left: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    
+    .menu-toggle {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      z-index: 50;
+      background-color: rgba($white, 0.95);
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      &:before, &:after {
+        content: '';
+        display: block;
+        width: 16px;
+        height: 2px;
+        background: $hab-blue;
+        position: absolute;
+        left: 4px;
+        transition: all 0.2s ease;
+      }
+      
+      &:before {
+        top: 6px;
+        box-shadow: 0 5px 0 0 $hab-blue, 0 10px 0 0 $hab-blue;
+      }
+      
+      &:hover {
+        transform: scale(1.05);
+        background-color: $white;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+        
+        &:before, &:after {
+          background: color.scale($hab-blue, $lightness: -10%);
+          width: 18px;
+          left: 3px;
+        }
+        
+        &:before {
+          box-shadow: 0 5px 0 0 color.scale($hab-blue, $lightness: -10%), 
+                      0 10px 0 0 color.scale($hab-blue, $lightness: -10%);
+        }
+      }
+      
+      &:active {
+        transform: scale(0.95);
+      }
+      
+      @include mix.tablet-up {
+        display: none;
+      }
+    }
+    
+    .content-container {
+      flex: 1;
+      padding: 24px;
+      width: 100%;
+      box-sizing: border-box;
+      max-width: 1280px;
+      margin: 0 auto;
+      position: relative;
+      overflow-x: hidden;
+      padding-bottom: 60px; /* Make space for footer */
+      
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 5%;
+        right: 5%;
+        height: 1px;
+        background: linear-gradient(to right, 
+          transparent, 
+          rgba(66, 150, 180, 0.1), 
+          rgba(66, 150, 180, 0.2), 
+          rgba(66, 150, 180, 0.1), 
+          transparent);
+        pointer-events: none;
+      }
+      
+      @include mix.tablet-up {
+        padding: 28px 32px;
+      }
+      
+      @include mix.desktop-up {
+        padding: 36px 48px;
+      }
+    }
+  }
+}
+
+// Accessibility helper
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

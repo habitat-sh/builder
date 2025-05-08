@@ -1,0 +1,46 @@
+@import './colors';
+@import './typography';
+@import './mixins';
+
+// Global styles adapted from builder-web
+html {
+  height: 100%;
+  background-color: $dark-blue;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  font-family: $base-font-family;
+  font-size: $base-font-size;
+  line-height: $base-line-height;
+  color: $hab-text;
+  background: linear-gradient(to top, $medium-blue, $dark-blue);
+}
+
+a {
+  color: $hab-links;
+  text-decoration: none;
+  @include transition(color);
+  
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: $heading-font-family;
+  font-weight: $heading-font-weight;
+  line-height: $heading-line-height;
+  margin-top: 0;
+}
+
+button {
+  @include transition();
+  cursor: pointer;
+}
+
+input, select, textarea {
+  font-family: $base-font-family;
+  font-size: $base-font-size;
+}

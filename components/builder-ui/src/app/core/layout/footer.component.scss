@@ -1,0 +1,106 @@
+@use '../styles/mixins' as mix;
+@use '../styles/colors' as *;
+@use '../styles/typography' as *;
+
+.app-footer {
+  padding: 16px 24px;
+  background-color: $white;
+  border-top: 1px solid $very-light-gray;
+  font-size: $small-font-size;
+  color: $dark-gray;
+  margin-top: auto;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(to right,
+      rgba(255, 255, 255, 0),
+      rgba(66, 150, 180, 0.05),
+      rgba(66, 150, 180, 0.1),
+      rgba(66, 150, 180, 0.05),
+      rgba(255, 255, 255, 0)
+    );
+  }
+  
+  .copyright {
+    margin-bottom: 12px;
+    color: $medium-blue;
+    font-size: 12px;
+    flex: 1 1 100%;
+    
+    @include mix.tablet-up {
+      flex: 1;
+      margin-bottom: 0;
+      margin-right: 24px;
+    }
+  }
+  
+  .footer-links {
+    flex: 1 1 100%;
+    
+    @include mix.tablet-up {
+      flex: 0 0 auto;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 24px;
+    }
+    
+    .help {
+      margin-bottom: 12px;
+      text-align: center;
+      
+      @include mix.tablet-up {
+        margin-bottom: 0;
+      }
+      
+      a {
+        color: $hab-blue;
+        text-decoration: none;
+        transition: color 0.2s ease;
+        
+        &:hover {
+          color: #2376A3; /* Manually set darker blue instead of using darken */
+          text-decoration: underline;
+        }
+      }
+    }
+    
+    .legal-links {
+      @include mix.tablet-up {
+        float: right;
+      }
+      
+      a {
+        display: block;
+        margin-bottom: 6px;
+        color: $medium-blue;
+        text-decoration: none;
+        transition: color 0.2s ease;
+        text-align: center;
+        
+        &:hover {
+          color: $dark-blue;
+          text-decoration: underline;
+        }
+        
+        @include mix.tablet-up {
+          display: inline-block;
+          margin-left: 20px;
+          margin-bottom: 0;
+        }
+      }
+    }
+  }
+}

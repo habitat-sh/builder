@@ -98,11 +98,11 @@ export interface UserInfo {
         <mat-menu #userMenu="matMenu">
           <div class="user-info">
             <div class="user-avatar" *ngIf="user?.avatar">
-              <img [src]="user.avatar" [alt]="user.name">
+              <img [src]="user?.avatar || ''" [alt]="user?.name || 'User'">
             </div>
             <div class="user-details">
-              <div class="user-name">{{ user?.name }}</div>
-              <div class="user-email">{{ user?.email }}</div>
+              <div class="user-name">{{ user?.name || username }}</div>
+              <div class="user-email">{{ user?.email || '' }}</div>
             </div>
           </div>
           
@@ -222,12 +222,21 @@ export class HeaderComponent {
   @Input() title = 'Habitat Builder';
   @Input() showLogo = true;
   @Input() user: UserInfo | null = null;
+  @Input() isSignedIn = false;
+  @Input() username = '';
+  @Input() avatarUrl = '';
   
   @Output() toggleSideNav = new EventEmitter<void>();
   @Output() search = new EventEmitter<void>();
   @Output() logout = new EventEmitter<void>();
+  @Output() signOut = new EventEmitter<void>();
   
   onSearchClick(): void {
     this.search.emit();
+  }
+  
+  handleSignOut(): void {
+    this.signOut.emit();
+    this.logout.emit(); // For backward compatibility
   }
 }

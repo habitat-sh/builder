@@ -2,6 +2,7 @@ import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter, withRouterConfig } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
+import { Meta, Title, provideClientHydration } from '@angular/platform-browser';
 
 import { routes } from './app.routes';
 import { AuthInterceptor } from './core/interceptors/auth.interceptor';
@@ -31,12 +32,15 @@ export const appConfig: ApplicationConfig = {
       LoadingInterceptor
     ])),
     provideAnimations(),
+    provideClientHydration(),
     
     // Core services
     ApiService,
     AuthService,
     NotificationService,
     LoadingService,
-    DialogService
+    DialogService,
+    Title,
+    Meta
   ]
 };

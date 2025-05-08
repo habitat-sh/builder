@@ -1,7 +1,8 @@
 import { Routes } from '@angular/router';
-import { LayoutComponent } from './core/layout/layout-components/layout.component';
+import { AppShellComponent } from './core/layout';
 import { NotFoundComponent } from './core/layout/layout-components/not-found.component';
 import { DashboardComponent } from './features/dashboard/dashboard.component';
+import { ColorSwatchComponent } from './core/layout/color-swatch.component';
 
 // Guards
 import { authGuard } from './shared/guards/auth.guard';
@@ -13,7 +14,7 @@ export const routes: Routes = [
   // Public routes (with layout)
   {
     path: '',
-    component: LayoutComponent,
+    component: AppShellComponent,
     children: [
       {
         path: '',
@@ -22,6 +23,10 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         component: DashboardComponent
+      },
+      {
+        path: 'theme',
+        component: ColorSwatchComponent
       },
       
       // Package routes - to be implemented in later phases

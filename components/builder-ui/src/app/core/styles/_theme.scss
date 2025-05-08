@@ -1,0 +1,131 @@
+// Angular Material theme configuration adapted from builder-web
+@use '@angular/material' as mat;
+@use 'sass:color';
+@use 'sass:map';
+@use './colors' as *;
+@use './typography' as *;
+
+// Define custom palettes that match the Habitat color scheme
+$habitat-blue-palette: (
+  50: color.adjust($hab-blue, $lightness: 40%),
+  100: color.adjust($hab-blue, $lightness: 30%),
+  200: color.adjust($hab-blue, $lightness: 20%),
+  300: color.adjust($hab-blue, $lightness: 10%),
+  400: color.adjust($hab-blue, $lightness: 5%),
+  500: $hab-blue,
+  600: color.adjust($hab-blue, $lightness: -5%),
+  700: color.adjust($hab-blue, $lightness: -10%),
+  800: color.adjust($hab-blue, $lightness: -20%),
+  900: color.adjust($hab-blue, $lightness: -30%),
+  contrast: (
+    50: $black,
+    100: $black,
+    200: $black,
+    300: $black, 
+    400: $black,
+    500: $white,
+    600: $white,
+    700: $white,
+    800: $white,
+    900: $white,
+  )
+);
+
+$habitat-orange-palette: (
+  50: color.adjust($hab-orange, $lightness: 40%),
+  100: color.adjust($hab-orange, $lightness: 30%),
+  200: color.adjust($hab-orange, $lightness: 20%),
+  300: color.adjust($hab-orange, $lightness: 10%),
+  400: color.adjust($hab-orange, $lightness: 5%),
+  500: $hab-orange,
+  600: color.adjust($hab-orange, $lightness: -5%),
+  700: color.adjust($hab-orange, $lightness: -10%),
+  800: color.adjust($hab-orange, $lightness: -20%),
+  900: color.adjust($hab-orange, $lightness: -30%),
+  contrast: (
+    50: $black,
+    100: $black,
+    200: $black,
+    300: $black,
+    400: $black,
+    500: $white,
+    600: $white,
+    700: $white,
+    800: $white,
+    900: $white,
+  )
+);
+
+$habitat-red-palette: (
+  50: color.adjust($hab-red, $lightness: 40%),
+  100: color.adjust($hab-red, $lightness: 30%),
+  200: color.adjust($hab-red, $lightness: 20%),
+  300: color.adjust($hab-red, $lightness: 10%),
+  400: color.adjust($hab-red, $lightness: 5%),
+  500: $hab-red,
+  600: color.adjust($hab-red, $lightness: -5%),
+  700: color.adjust($hab-red, $lightness: -10%),
+  800: color.adjust($hab-red, $lightness: -20%),
+  900: color.adjust($hab-red, $lightness: -30%),
+  contrast: (
+    50: $black,
+    100: $black,
+    200: $black,
+    300: $black,
+    400: $white,
+    500: $white,
+    600: $white,
+    700: $white,
+    800: $white,
+    900: $white,
+  )
+);
+
+// Create habitat theme palettes
+$habitat-primary: mat.define-palette($habitat-blue-palette);
+$habitat-accent: mat.define-palette($habitat-orange-palette);
+$habitat-warn: mat.define-palette($habitat-red-palette);
+
+// Create the theme object
+$habitat-theme: mat.define-light-theme((
+  color: (
+    primary: $habitat-primary,
+    accent: $habitat-accent,
+    warn: $habitat-warn,
+  ),
+  typography: mat.define-typography-config(
+    $font-family: $base-font-family,
+    $headline-1: mat.define-typography-level(32px, 40px, 500, $heading-font-family),
+    $headline-2: mat.define-typography-level(28px, 36px, 500, $heading-font-family),
+    $headline-3: mat.define-typography-level(24px, 32px, 500, $heading-font-family),
+    $headline-4: mat.define-typography-level(20px, 28px, 500, $heading-font-family),
+    $headline-5: mat.define-typography-level(18px, 26px, 500, $heading-font-family),
+    $headline-6: mat.define-typography-level(16px, 24px, 500, $heading-font-family),
+    $body-1: mat.define-typography-level($base-font-size, $base-line-height, 400),
+    $body-2: mat.define-typography-level(14px, 20px, 400),
+    $button: mat.define-typography-level(14px, 14px, 500)
+  )
+));
+
+// Custom overrides for Angular Material components
+@mixin habitat-material-overrides {
+  body {
+    font-family: $base-font-family;
+    font-size: $base-font-size;
+    line-height: $base-line-height;
+  }
+  
+  .mat-mdc-raised-button:not([class*=mat-elevation-z]) {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
+    border-radius: 3px;
+  }
+  
+  .mat-mdc-dialog-container {
+    margin: 0 auto;
+    border-radius: 4px !important;
+  }
+  
+  .mat-mdc-card {
+    border-radius: 4px !important;
+  }
+}

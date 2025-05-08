@@ -1,30 +1,225 @@
 /* Main styles entry point for the Habitat Builder UI */
+/* For detailed styling guidelines, refer to the Habitat Builder UI Style Guide:
+   /components/builder-web/STYLE_GUIDE.md */
 
-// Import abstracts (variables, mixins, functions)
-@use 'styles/abstracts/variables';
-@use 'styles/abstracts/mixins';
+@use 'sass:color';
 
-// Import base styles
-@use 'styles/base/base';
+// Import core styles using @use
+@use 'app/core/styles/colors' as colors;
+@use 'app/core/styles/typography' as typography;
+@use 'app/core/styles/mixins' as mixins;
 
-// Import Material theme customization
-@use 'styles/themes/material-theme';
+// Import our custom Angular Material theme
+@use 'theme';
 
+// Global styles
+html {
+  height: 100%;
+  background-color: colors.$dark-blue;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  font-family: typography.$base-font-family;
+  font-size: typography.$base-font-size;
+  line-height: typography.$base-line-height;
+  color: colors.$hab-text;
+  background: linear-gradient(135deg, 
+    color.adjust(colors.$dark-blue, $lightness: 3%), 
+    colors.$dark-blue,
+    color.adjust(colors.$dark-blue, $lightness: -5%)
+  );
+  
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(
+      circle at top right,
+      rgba(66, 150, 180, 0.1),
+      transparent 70%
+    );
+    pointer-events: none;
+    z-index: -1;
+  }
+}
+
+// Helper class for main content containers
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  position: relative;
+  
+  @include mixins.tablet-up {
+    padding: 24px 32px;
+  }
+  
+  @include mixins.desktop-up {
+    padding: 32px 48px;
+  }
+  
+  &.has-background {
+    background-color: colors.$white;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+}
+
+// Material overrides to match builder-web styling
+// These will be refactored into a proper theme later
+
+// Button styles
+.mat-mdc-raised-button {
+  font-weight: 500 !important;
+  letter-spacing: 0.3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+  transition: all 0.2s ease !important;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  &:active {
+    transform: translateY(0px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  &.mat-primary {
+    background-color: colors.$hab-blue !important;
+    
+    &:hover {
+      background-color: color.adjust(colors.$hab-blue, $lightness: -5%) !important;
+    }
+  }
+  
+  &.mat-accent {
+    background-color: colors.$hab-orange !important;
+    color: colors.$white !important;
+    
+    &:hover {
+      background-color: color.adjust(colors.$hab-orange, $lightness: -5%) !important;
+    }
+  }
+}
+
+.mat-mdc-outlined-button {
+  border-color: colors.$light-gray !important;
+  border-width: 1px !important;
+  transition: all 0.2s ease !important;
+  
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.04) !important;
+    border-color: colors.$medium-gray !important;
+  }
+}
+
+// Card styles
+.mat-mdc-card {
+  border-radius: 6px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  transition: all 0.2s ease;
+  overflow: hidden;
+  
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+  }
+  
+  .mat-mdc-card-header {
+    padding: 16px !important;
+    
+    .mat-mdc-card-title {
+      font-family: typography.$heading-font-family;
+      font-size: 18px !important;
+      font-weight: 600 !important;
+      color: colors.$hab-text;
+      margin-bottom: 4px !important;
+    }
+    
+    .mat-mdc-card-subtitle {
+      color: colors.$medium-blue;
+      font-size: typography.$small-font-size !important;
+      margin-bottom: 0 !important;
+    }
+  }
+  
+  .mat-mdc-card-content {
+    padding: 0 16px 16px !important;
+    font-size: 14px;
+  }
+  
+  .mat-mdc-card-actions {
+    padding: 8px 16px 16px !important;
+    margin: 0 !important;
+  }
+  
+  // Featured card style with accent border
+  &.feature-card {
+    position: relative;
+    overflow: hidden;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(to right, colors.$hab-orange, colors.$hab-blue);
+    }
+  }
+}
+
+// Form field styles
+.mat-mdc-form-field {
+  font-family: typography.$base-font-family;
+}
+
+// Progress spinner
+.mat-mdc-progress-spinner circle {
+  stroke: colors.$hab-blue;
+}
+
+// Tables
+.mat-mdc-table {
+  background-color: transparent;
+  font-family: typography.$base-font-family;
+  
+  .mat-mdc-header-cell {
+    color: colors.$dark-blue;
+    font-weight: 600;
+  }
+}
+
+// Tabs
+.mat-mdc-tab-group {
+  font-family: typography.$tabs-font-family;
+  
+  .mat-mdc-tab-header {
+    border-bottom: 1px solid colors.$very-light-gray;
+  }
+  
+  .mat-mdc-tab-label {
+    font-weight: 500;
+    opacity: 0.7;
+    
+    &.mat-mdc-tab-label-active {
+      opacity: 1;
+      color: colors.$hab-blue;
+    }
+  }
+}
+
+// Shared container styles
 .container {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-}
-
-// Color variables
-:root {
-  --primary-color: #3f51b5;
-  --accent-color: #ff4081;
-  --warn-color: #f44336;
-  --background-color: #f5f5f5;
-  --text-color: rgba(0, 0, 0, 0.87);
-  --text-light-color: rgba(0, 0, 0, 0.54);
-  --white-color: #ffffff;
 }
 
 // Utility classes

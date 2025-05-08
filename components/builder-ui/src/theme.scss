@@ -1,0 +1,7 @@
+/**
+ * Custom Angular Material theme for Habitat Builder
+ * Using default prebuilt theme as a simpler solution
+ */
+
+// Import the prebuilt theme directly to avoid SCSS compilation issues
+@import '@angular/material/prebuilt-themes/indigo-pink.css';

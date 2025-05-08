@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
 import { MatChipsModule } from '@angular/material/chips';
+import { NgClass } from '@angular/common';
 
 import { AuthService } from '../../core/services/auth.service';
 import { DashboardFeatureCard } from './dashboard.model';
@@ -17,7 +18,8 @@ import { DashboardFeatureCard } from './dashboard.model';
     MatIconModule, 
     MatButtonModule, 
     RouterLink, 
-    MatChipsModule
+    MatChipsModule,
+    NgClass
   ],
   template: `
     <div class="container dashboard-container">

@@ -1,0 +1,156 @@
+@use '../styles/mixins' as mix;
+@use '../styles/colors' as *;
+@use '../styles/typography' as *;
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: $white;
+  padding: 24px 16px;
+  width: 100%;
+  box-sizing: border-box;
+  
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 36px;
+    
+    h1 {
+      font-family: $heading-font-family;
+      font-size: 24px;
+      margin: 0;
+      letter-spacing: 0.5px;
+      font-weight: 500;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      background: linear-gradient(135deg, $white, rgba(255, 255, 255, 0.8));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .close-button {
+      background: none;
+      border: none;
+      color: $white;
+      cursor: pointer;
+      padding: 8px;
+      margin-right: -8px;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        color: $light-gray;
+        background-color: rgba(255, 255, 255, 0.1);
+        transform: rotate(90deg);
+      }
+      
+      &:active {
+        transform: rotate(90deg) scale(0.9);
+      }
+    }
+  }
+  
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    
+    .nav-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      color: rgba(255, 255, 255, 0.85);
+      text-decoration: none;
+      font-size: 15px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      margin-left: -8px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+      
+      &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 0;
+        background: linear-gradient(to right, $hab-orange, transparent);
+        transition: all 0.3s ease;
+        opacity: 0;
+      }
+      
+      mat-icon {
+        margin-right: 14px;
+        opacity: 0.9;
+        font-size: 20px;
+        height: 20px;
+        width: 20px;
+        transition: all 0.2s ease;
+      }
+      
+      span {
+        position: relative;
+        z-index: 1;
+      }
+      
+      &:hover {
+        color: $white;
+        background-color: rgba(255, 255, 255, 0.08);
+        
+        mat-icon {
+          transform: translateX(2px);
+        }
+      }
+      
+      &.active {
+        color: $white;
+        font-weight: 600;
+        position: relative;
+        background-color: rgba(255, 255, 255, 0.12);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        
+        &::before {
+          content: '';
+          position: absolute;
+          left: -24px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 4px;
+          height: 24px;
+          background-color: $hab-orange;
+          border-radius: 0 2px 2px 0;
+        }
+        
+        &::after {
+          height: 2px;
+          opacity: 1;
+        }
+        
+        mat-icon {
+          opacity: 1;
+          color: $hab-orange;
+        }
+      }
+    }
+    
+    mat-divider {
+      margin: 24px 0;
+      border-color: rgba($white, 0.15);
+      width: 100%;
+      position: relative;
+      
+      &::after {
+        content: '';
+        display: block;
+        position: absolute;
+        width: 15%;
+        height: 2px;
+        background: linear-gradient(to right, $hab-orange, transparent);
+        top: -1px;
+      }
+    }
+  }
+}

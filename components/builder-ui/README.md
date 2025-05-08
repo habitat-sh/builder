@@ -54,6 +54,23 @@ ng e2e
 
 Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
 
+## Style Guide and Design Standards
+
+This project follows the centralized style guide located at:
+```
+/components/builder-web/STYLE_GUIDE.md
+```
+
+The style guide contains comprehensive information on:
+- Color palette
+- Typography
+- Layout guidelines
+- Component styling
+- Responsive design principles
+- Accessibility standards
+
+When making UI changes, please refer to this central document to ensure consistency across the application.
+
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.

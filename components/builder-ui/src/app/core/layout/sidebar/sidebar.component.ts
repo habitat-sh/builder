@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatListModule } from '@angular/material/list';
@@ -98,62 +98,96 @@ export interface NavigationItem {
       display: flex;
       flex-direction: column;
       height: 100%;
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
+      box-sizing: border-box;
+      width: 100%;
+      background: linear-gradient(to top, #556F84, #283C4C);
+      color: #ffffff;
+      padding: 0;
     }
     
     .logo-container {
       display: flex;
       align-items: center;
-      padding: 16px;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+      padding: 24px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      margin-bottom: 16px;
     }
     
     .logo {
-      height: 32px;
+      height: 36px;
       width: auto;
     }
     
     .app-name {
-      margin: 0 0 0 8px;
-      font-weight: 400;
-      font-size: 16px;
+      margin: 0 0 0 12px;
+      font-weight: 600;
+      font-size: 20px;
+      color: #ffffff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      letter-spacing: 0.5px;
     }
     
     .nav-items {
       flex: 1;
       overflow-y: auto;
-      padding: 8px 0;
+      padding: 0;
     }
     
     .nav-item {
-      height: 48px;
-      padding: 0 16px;
+      height: 44px;
+      padding: 0 16px 0 24px;
+      margin: 4px 0;
       display: flex;
       align-items: center;
-      transition: background-color 0.3s;
+      transition: all 0.2s ease;
+      border-left: 3px solid transparent;
+      color: rgba(255, 255, 255, 0.85);
+      text-decoration: none;
+      font-weight: 400;
+    }
+    
+    .nav-item:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-left-color: rgba(255, 255, 255, 0.5);
+      color: #ffffff;
     }
     
     .active-link {
-      background-color: rgba(33, 150, 243, 0.1);
-      color: #1976d2;
-      border-left: 4px solid #1976d2;
+      background-color: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      border-left: 3px solid #FF9012;
+      font-weight: 500;
+    }
+    
+    h3 {
+      font-size: 14px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.6);
+      margin: 24px 0 8px 24px;
+      font-weight: 600;
+      letter-spacing: 1px;
     }
     
     .nav-group {
-      margin: 8px 0;
+      margin: 12px 0;
     }
     
     .nav-group-header {
       display: flex;
       align-items: center;
-      padding: 0 16px;
-      height: 48px;
+      padding: 0 16px 0 24px;
+      height: 44px;
       cursor: pointer;
-      transition: background-color 0.3s;
+      transition: all 0.2s ease;
+      color: rgba(255, 255, 255, 0.85);
+      font-weight: 500;
     }
     
     .nav-group-header:hover {
-      background-color: rgba(0, 0, 0, 0.04);
+      background-color: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
     }
     
     .nav-group-header.active {
@@ -171,6 +205,32 @@ export interface NavigationItem {
     .nav-child-item {
       height: 40px;
       font-size: 14px;
+    }
+    
+    .close-button {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+      }
+      
+      @media (min-width: 768px) {
+        display: none;
+      }
     }
     
     .active-child {
@@ -201,10 +261,17 @@ export class SidebarComponent {
   @Input() collapsed = false;
   @Input() showLogo = true;
   @Input() navigationItems: NavigationItem[] = [];
+  @Input() isSignedIn = false;
+  
+  @Output() closeMobileSidebar = new EventEmitter<void>();
   
   toggleGroup(item: NavigationItem): void {
     if (!this.collapsed) {
       item.expanded = !item.expanded;
     }
+  }
+  
+  closeMenu(): void {
+    this.closeMobileSidebar.emit();
   }
 }
