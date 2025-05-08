@@ -128,6 +128,23 @@ export class ApiService {
     endpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
     return `${this.apiUrl}/${endpoint}`;
   }
+  
+  /**
+   * Get a fully qualified URL for an API endpoint
+   * 
+   * @param endpoint API endpoint path
+   * @param params Optional query parameters
+   * @returns The fully qualified URL as a string
+   */
+  getUrl(endpoint: string, params?: HttpParams): string {
+    const url = this.buildUrl(endpoint);
+    
+    if (params && params.keys().length > 0) {
+      return `${url}?${params.toString()}`;
+    }
+    
+    return url;
+  }
 
   /**
    * Convert a params object to HttpParams
