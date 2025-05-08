@@ -10,8 +10,7 @@ import { NotificationService } from './services/notification.service';
 import { LoadingService } from './services/loading.service';
 import { DialogService } from './services/dialog.service';
 
-// Interceptors
-import { httpInterceptorProviders } from './interceptors';
+// HTTP interceptors now provided via app.config.ts
 
 @NgModule({
   declarations: [],
@@ -26,8 +25,8 @@ import { httpInterceptorProviders } from './interceptors';
     AuthService,
     NotificationService,
     LoadingService,
-    DialogService,
-    httpInterceptorProviders
+    DialogService
+    // HTTP interceptors now provided in app.config.ts with functional approach
   ]
 })
 export class CoreModule {
