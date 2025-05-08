@@ -29,3 +29,6 @@ components/builder-protocol/src/message
 
 #### Vendored test helpers
 test/test_helper
+
+#### For copilot
+builder.code-workspace

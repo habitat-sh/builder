@@ -305,6 +305,7 @@ pub struct NewPackage {
     pub exposes:      Vec<i32>,
     pub visibility:   PackageVisibility,
     pub package_type: BuilderPackageType,
+    pub hidden:       bool,
 }
 
 #[derive(Debug)]
@@ -438,6 +439,7 @@ impl Package {
 
         let result = Self::all().filter(origin_packages::ident.eq(ident))
                                 .filter(origin_packages::visibility.eq(any(visibility)))
+                                .filter(origin_packages::hidden.eq(false))
                                 .get_result(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
@@ -455,6 +457,7 @@ impl Package {
         let result = Self::all().filter(origin_packages::ident.eq(req.ident))
                                 .filter(origin_packages::visibility.eq(any(req.visibility)))
                                 .filter(origin_packages::target.eq(req.target))
+                                .filter(origin_packages::hidden.eq(false))
                                 .get_result(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
@@ -480,6 +483,7 @@ impl Package {
 
         let result = Self::all().filter(origin_packages::ident.eq(any(req.pkgs)))
                                 .filter(origin_packages::visibility.eq(any(req.visibility)))
+                                .filter(origin_packages::hidden.eq(false))
                                 .get_results(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
@@ -499,6 +503,7 @@ impl Package {
             Self::all().filter(origin_packages::origin.eq(&req_ident.origin))
                        .filter(origin_packages::name.eq(&req_ident.name))
                        .filter(origin_packages::ident_array.contains(req_ident.clone().parts()))
+                       .filter(origin_packages::hidden.eq(false))
                        .get_results(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
@@ -693,6 +698,7 @@ impl Package {
         let query = query
             .filter(origin_packages::ident_array.contains(pl.ident.clone().parts()))
             .filter(origin_packages::visibility.eq(any(pl.visibility)))
+            .filter(origin_packages::hidden.eq(false))
             // This is because diesel doesn't yet support group_by
             // see: https://github.com/diesel-rs/diesel/issues/210
             .filter(sql("TRUE GROUP BY ident_array[2], ident_array[1]"))
@@ -730,6 +736,7 @@ impl Package {
             .select(origin_package_settings::all_columns)
             .filter(origin_package_settings::origin.eq(&pl.ident.origin))
             .filter(origin_package_settings::visibility.eq(any(pl.visibility)))
+            .filter(origin_package_settings::hidden.eq(false))
             .order(origin_package_settings::origin.asc())
             .order(origin_package_settings::name.asc())
             .paginate(pl.page)
@@ -765,6 +772,7 @@ impl Package {
             .filter(origin_packages::ident.eq(ident))
             .filter(origin_packages::target.eq(target.to_string()))
             .filter(origin_packages::visibility.eq(any(visibility)))
+            .filter(origin_packages::hidden.eq(false))
             .order(origin_channels::name.desc())
             .get_results(conn);
 
@@ -806,6 +814,7 @@ impl Package {
 
         let result = origin_packages::table.select(count(origin_packages::id))
                                            .filter(origin_packages::origin.eq(&origin))
+                                           .filter(origin_packages::hidden.eq(false))
                                            .first(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
@@ -825,6 +834,7 @@ impl Package {
         let mut query = origin_packages::table
             .select(origin_packages::ident)
             .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+            .filter(origin_packages::hidden.eq(false))
             .order(origin_packages::ident.asc())
             .into_boxed();
 
@@ -863,6 +873,7 @@ impl Package {
             .inner_join(origins::table)
             .select(sql("concat_ws('/', origins.name, origin_packages.name)"))
             .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+            .filter(origin_packages::hidden.eq(false))
             .order(origin_packages::name.asc())
             .into_boxed();
 
@@ -906,6 +917,7 @@ impl Package {
             .filter(origin_packages::name.eq(&ident.name))
             .filter(origin_packages::ident_array.contains(&searchable_ident(ident)))
             .filter(origin_packages::visibility.eq(any(visibilities)))
+            .filter(origin_packages::hidden.eq(false))
             .get_results(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
@@ -1176,7 +1188,8 @@ impl FromArchive for NewPackage {
                         name: ident.name.to_string(),
                         owner_id: 999_999_999_999,
                         visibility: PackageVisibility::Public,
-                        package_type: BuilderPackageType(archive.package_type()?) })
+                        package_type: BuilderPackageType(archive.package_type()?),
+                        hidden: false })
     }
 }
 
