@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- soft delete origins [#1886](https://github.com/habitat-sh/builder/pull/1886) ([mwrock](https://github.com/mwrock))
 - license key [#1883](https://github.com/habitat-sh/builder/pull/1883) ([sougata-progress](https://github.com/sougata-progress))
 - Removed Plan content from UI and API [#1884](https://github.com/habitat-sh/builder/pull/1884) ([sougata-progress](https://github.com/sougata-progress))
 <!-- latest_release -->
