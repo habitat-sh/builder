@@ -15,6 +15,7 @@
 use crate::{bldr_core::metrics::CounterMetric,
             db::models::{channel::{Channel,
                                    ChannelWithPromotion},
+                         license_keys::*,
                          origin::*,
                          package::{BuilderPackageIdent,
                                    BuilderPackageTarget,
@@ -63,11 +64,13 @@ use actix_web::{body::BoxBody,
                 HttpRequest,
                 HttpResponse};
 use bytes::Bytes;
+use chrono::NaiveDate;
 use diesel::result::Error::NotFound;
 use futures::{channel::mpsc,
               StreamExt};
 use serde::ser::Serialize;
-use std::{convert::Infallible,
+use std::{convert::{Infallible,
+                    TryInto},
           fs::{self,
                remove_file,
                File},
@@ -420,6 +423,126 @@ async fn download_package(req: HttpRequest,
                        &conn)
     {
         Ok(package) => {
+            let channels = match channels_for_package_ident(&req, &package.ident, target, &conn) {
+                Ok(channels) => channels,
+                Err(err) => {
+                    return HttpResponse::InternalServerError().body("Failed to determine \
+                                                                     package channels.");
+                }
+            };
+
+            if channels.as_ref().map_or(false, |chs| {
+                                    chs.contains(&"base-2025".to_string())/// make this a list in default.toml
+                                    && !chs.contains(&"LTS-2024".to_string()) // rermove this
+                                })
+            {
+                match opt_session_id {
+                    Some(account_id) => {
+                        match LicenseKey::get_by_account_id(account_id as i64, &conn) {
+                            Ok(Some(license)) => {
+                                let today = chrono::Utc::now().date_naive();
+                                if license.expiration_date < today {
+                                    let base_url = &state.config.api.license_server_url;
+                                    let license_url = format!("{}/License/download?licenseId={}&\
+                                                               version=2",
+                                                              base_url.trim_end_matches('/'),
+                                                              license.license_key);
+
+                                    let response = match reqwest::blocking::Client::new()
+                                        .get(license_url)
+                                        .header("Accept", "application/json")
+                                        .send()
+                                    {
+                                        Ok(resp) => resp,
+                                        Err(err) => {
+                                            debug!("License API request failed: {}", err);
+                                            return HttpResponse::InternalServerError().body("License validation error.");
+                                        }
+                                    };
+
+                                    let status = response.status();
+                                    let body = match response.text() {
+                                        Ok(text) => text,
+                                        Err(err) => {
+                                            return HttpResponse::InternalServerError().body(format!(
+                                                "Failed to read license server response: {}",
+                                                err
+                                            ));
+                                        }
+                                    };
+
+                                    if !status.is_success() {
+                                        return HttpResponse::build(status).body(body);
+                                    }
+
+                                    let json: serde_json::Value = match serde_json::from_str(&body)
+                                    {
+                                        Ok(data) => data,
+                                        Err(err) => {
+                                            return HttpResponse::InternalServerError().body(format!(
+                                                "JSON parse error: {}",
+                                                err
+                                            ));
+                                        }
+                                    };
+
+                                    let entitlements = match json["entitlements"].as_array() {
+                                        Some(ents) if !ents.is_empty() => ents,
+                                        _ => {
+                                            return HttpResponse::Forbidden().body("Invalid license key.");
+                                        }
+                                    };
+
+                                    let refreshed_expiration = entitlements.iter().find_map(|ent| {
+                                        let end_str = ent.get("period")?.get("end")?.as_str()?;
+                                        match NaiveDate::parse_from_str(end_str, "%Y-%m-%d") {
+                                            Ok(end_date) if end_date >= today => Some(end_date),
+                                            _ => None,
+                                        }
+                                    });
+
+                                    match refreshed_expiration {
+                                        Some(new_expiration) => {
+                                            if new_expiration >= today {
+                                                let update =
+                                                    NewLicenseKey { account_id:
+                                                                        account_id.try_into()
+                                                                                  .unwrap(),
+                                                                    license_key:
+                                                                        &license.license_key,
+                                                                    expiration_date: new_expiration, };
+
+                                                if let Err(err) = LicenseKey::create(&update, &conn)
+                                                {
+                                                    debug!("Failed to update license in DB: {}",
+                                                           err);
+                                                    return HttpResponse::InternalServerError().body("License update failed.");
+                                                }
+                                            }
+                                        }
+                                        None => {
+                                            return HttpResponse::Forbidden().body("Your license \
+                                                                                   has expired.");
+                                        }
+                                    }
+                                }
+                            }
+                            Ok(None) => {
+                                return HttpResponse::Forbidden().body("No valid license key \
+                                                                       found.");
+                            }
+                            Err(err) => {
+                                debug!("License DB error: {}", err);
+                                return HttpResponse::InternalServerError().body("License validation error.");
+                            }
+                        }
+                    }
+                    None => {
+                        return HttpResponse::Unauthorized().body("Authentication required.");
+                    }
+                }
+            }
+
             let dir = tempdir_in(&state.config.api.data_path).expect("Unable to create a tempdir!");
             let file_path = dir.path().join(archive_name(&package.ident, target));
             let temp_ident = ident;
