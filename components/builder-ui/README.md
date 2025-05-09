@@ -48,6 +48,14 @@ ng test
 
 This application implements a comprehensive strategy for reliable image loading with proper fallbacks. See [Image Loading Documentation](src/docs/image-loading.md) for details on how images are managed and how to implement proper fallbacks.
 
+## Typography and Font System
+
+The application uses a consistent typography system that matches the original builder-web implementation. See [Font Documentation](src/docs/fonts.md) for details on the font families and their implementation.
+
+## Responsive Design
+
+The application implements responsive design patterns to ensure proper display across different device sizes. See [Responsive Design Documentation](src/docs/responsive-design.md) for details on our approach to responsive layouts, including the footer component.
+
 ## Running end-to-end tests
 
 For end-to-end (e2e) testing, run:
@@ -74,6 +82,14 @@ The style guide contains comprehensive information on:
 - Accessibility standards
 
 When making UI changes, please refer to this central document to ensure consistency across the application.
+
+## Component Documentation
+
+Additional documentation for specific components and layout implementations:
+
+- [Fonts Implementation](/src/docs/fonts.md)
+- [Responsive Design Guidelines](/src/docs/responsive-design.md)
+- [Footer Layout](/src/docs/footer-layout.md)
 
 ## Additional Resources
 

@@ -17,7 +17,7 @@ export interface UserInfo {
 }
 
 @Component({
-  selector: 'app-header',
+  selector: 'app-header, header',
   standalone: true,
   imports: [
     CommonModule,
@@ -30,6 +30,7 @@ export interface UserInfo {
     MatTooltipModule,
     FallbackImageDirective
   ],
+  styleUrls: ['./header.component.scss'],
   template: `
     <mat-toolbar color="primary" class="header">
       <div class="header-left">
@@ -147,123 +148,7 @@ export interface UserInfo {
       </div>
     </mat-toolbar>
   `,
-  styles: [`
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 16px;
-      height: 64px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
-    
-    .header-left {
-      display: flex;
-      align-items: center;
-    }
-    
-    .header-right {
-      display: flex;
-      align-items: center;
-    }
-    
-    .logo-container {
-      height: 40px;
-      margin-right: 16px;
-      cursor: pointer;
-    }
-    
-    .logo {
-      height: 100%;
-      filter: brightness(0) invert(1); /* Make the logo white */
-    }
-    
-    .title {
-      font-size: 20px;
-      font-weight: 500;
-      margin: 0;
-    }
-    
-    .spacer {
-      flex: 1 1 auto;
-    }
-    
-    .action-button {
-      margin-left: 8px;
-    }
-    
-    .user-info {
-      display: flex;
-      padding: 16px;
-      min-width: 200px;
-      align-items: center;
-    }
-    
-    .user-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      overflow: hidden;
-      margin-right: 12px;
-    }
-    
-    .user-avatar img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    .avatar-container {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .avatar-container img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    .default-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background-color: #607D8B;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-    }
-    
-    .user-name {
-      font-weight: 500;
-      margin-bottom: 4px;
-    }
-    
-    .user-email {
-      font-size: 12px;
-      color: rgba(0, 0, 0, 0.6);
-    }
-    
-    @media (max-width: 768px) {
-      .header {
-        height: 56px;
-      }
-      
-      .title {
-        font-size: 18px;
-      }
-      
-      .logo-container {
-        height: 32px;
-      }
-    }
-  `]
+  styles: []
 })
 export class HeaderComponent implements OnInit {
   @Input() title = 'Habitat Builder';

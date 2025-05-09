@@ -13,6 +13,8 @@
 @use 'theme';
 
 // Global styles
+// Using Titillium Web as the base font and Montserrat for headings
+// to match the original builder-web application
 html {
   height: 100%;
   background-color: colors.$dark-blue;

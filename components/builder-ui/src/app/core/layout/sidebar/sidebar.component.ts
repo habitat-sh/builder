@@ -54,56 +54,59 @@ export interface NavigationItem {
       
       <!-- Navigation items -->
       <div class="nav-items">
-        <ng-container *ngFor="let item of navigationItems">
-          <!-- Divider with title -->
-          <ng-container *ngIf="item.divider">
-            <mat-divider *ngIf="item.label !== 'Builder'"></mat-divider>
-            <h3 *ngIf="item.label && !collapsed" [class.first]="item.label === 'Builder'">{{ item.label }}</h3>
-          </ng-container>
+        <ng-container *ngFor="let section of sectionsCache">
+          <!-- Section title -->
+          <h3 *ngIf="section.title && !collapsed" [class.first]="section.title === 'Builder'">{{ section.title }}</h3>
           
-          <!-- Regular navigation item with link -->
-          <a 
-            *ngIf="!item.divider && item.route && !item.children?.length && (!item.permissions || (item.permissions.includes('isSignedIn') && isSignedIn))"
-            mat-list-item
-            [routerLink]="isExternalLink(item.route) ? undefined : item.route"
-            [attr.href]="isExternalLink(item.route) ? item.route : undefined"
-            [attr.target]="isExternalLink(item.route) ? '_blank' : undefined"
-            routerLinkActive="active-link"
-            class="nav-item"
-            [matTooltip]="collapsed ? item.label : ''"
-            [matTooltipPosition]="'right'">
-            <mat-icon *ngIf="item.icon" matListItemIcon>{{ item.icon }}</mat-icon>
-            <span matListItemTitle *ngIf="!collapsed">{{ item.label }}</span>
-          </a>
-          
-          <!-- Group with children -->
-          <div *ngIf="!item.divider && item.children?.length" class="nav-group">
-            <div 
-              class="nav-group-header"
-              [class.active]="item.expanded"
-              (click)="toggleGroup(item)">
-              <mat-icon *ngIf="item.icon">{{ item.icon }}</mat-icon>
-              <span *ngIf="!collapsed">{{ item.label }}</span>
-              <span class="spacer"></span>
-              <mat-icon *ngIf="!collapsed" class="expand-icon">
-                {{ item.expanded ? 'expand_less' : 'expand_more' }}
-              </mat-icon>
-            </div>
-            
-            <div class="nav-group-items" *ngIf="item.expanded && !collapsed">
-              <a 
-                *ngFor="let child of item.children"
-                mat-list-item
-                [routerLink]="isExternalLink(child.route) ? undefined : child.route"
-                [attr.href]="isExternalLink(child.route) ? child.route : undefined" 
-                [attr.target]="isExternalLink(child.route) ? '_blank' : undefined"
-                routerLinkActive="active-child"
-                class="nav-child-item">
-                <mat-icon *ngIf="child.icon" matListItemIcon>{{ child.icon }}</mat-icon>
-                <span matListItemTitle>{{ child.label }}</span>
-              </a>
-            </div>
-          </div>
+          <!-- Section items -->
+          <ul *ngIf="section.items.length > 0">
+            <li *ngFor="let item of section.items">
+              <!-- Regular navigation item -->
+              <ng-container *ngIf="!item.children?.length">
+                <a 
+                  [routerLink]="isExternalLink(item.route) ? undefined : item.route"
+                  [attr.href]="isExternalLink(item.route) ? item.route : undefined"
+                  [attr.target]="isExternalLink(item.route) ? '_blank' : undefined"
+                  routerLinkActive="active-link"
+                  [matTooltip]="collapsed ? item.label : ''"
+                  [matTooltipPosition]="'right'">
+                  <mat-icon *ngIf="item.icon">{{ item.icon }}</mat-icon>
+                  <span *ngIf="!collapsed">{{ item.label }}</span>
+                </a>
+              </ng-container>
+              
+              <!-- Group with children -->
+              <ng-container *ngIf="item.children?.length">
+                <div class="nav-group">
+                  <div 
+                    class="nav-group-header"
+                    [class.active]="item.expanded"
+                    (click)="toggleGroup(item)">
+                    <mat-icon *ngIf="item.icon">{{ item.icon }}</mat-icon>
+                    <span *ngIf="!collapsed">{{ item.label }}</span>
+                    <span class="spacer"></span>
+                    <mat-icon *ngIf="!collapsed" class="expand-icon">
+                      {{ item.expanded ? 'expand_less' : 'expand_more' }}
+                    </mat-icon>
+                  </div>
+                  
+                  <div class="nav-group-items" *ngIf="item.expanded && !collapsed">
+                    <ng-container *ngFor="let child of item.children">
+                      <a 
+                        [routerLink]="isExternalLink(child.route) ? undefined : child.route"
+                        [attr.href]="isExternalLink(child.route) ? child.route : undefined" 
+                        [attr.target]="isExternalLink(child.route) ? '_blank' : undefined"
+                        routerLinkActive="active-child"
+                        class="nav-child-item">
+                        <mat-icon *ngIf="child.icon">{{ child.icon }}</mat-icon>
+                        <span>{{ child.label }}</span>
+                      </a>
+                    </ng-container>
+                  </div>
+                </div>
+              </ng-container>
+            </li>
+          </ul>
         </ng-container>
       </div>
       
@@ -125,14 +128,14 @@ export interface NavigationItem {
       background: linear-gradient(to top, #556F84, #283C4C);
       color: #ffffff;
       padding: 16px 32px;
+      font-family: 'Titillium Web', 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;
     }
     
     .logo-container {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 16px 16px 24px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 0 0 24px;
       margin-bottom: 16px;
     }
     
@@ -177,25 +180,43 @@ export interface NavigationItem {
       padding: 0;
     }
     
-    .nav-item {
-      height: 40px;
-      padding: 0 16px 0 24px;
-      margin: 2px 0;
+    ul {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+    }
+    
+    li {
+      margin: 0;
+      padding: 0;
+    }
+    
+    li a {
       display: flex;
       align-items: center;
-      transition: all 0.2s ease;
-      border-left: 3px solid transparent;
       color: #D8D8D8;
       text-decoration: none;
       font-weight: 600;
       font-size: 16px;
       line-height: 32px;
-    }
-    
-    .nav-item:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-      border-left-color: rgba(255, 255, 255, 0.5);
-      color: #ffffff;
+      margin: 0;
+      padding: 0;
+      
+      mat-icon {
+        margin-right: 8px;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+      
+      &:hover {
+        background-color: transparent;
+        color: #ffffff;
+      }
+      
+      &.active-link {
+        color: #ffffff;
+      }
     }
     
     .active-link {
@@ -206,10 +227,12 @@ export interface NavigationItem {
     }
     
     h3 {
+      font-family: Montserrat, Verdana;
       font-size: 14px;
       text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.6);
-      margin: 24px 0 8px 24px;
+      color: #ffffff;
+      opacity: 0.4;
+      margin: 24px 0 8px 0;
       font-weight: 600;
       letter-spacing: 1px;
       
@@ -225,7 +248,7 @@ export interface NavigationItem {
     .nav-group-header {
       display: flex;
       align-items: center;
-      padding: 0 16px 0 24px;
+      padding: 0;
       height: 44px;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -243,16 +266,36 @@ export interface NavigationItem {
     }
     
     .nav-group-header mat-icon {
-      margin-right: 16px;
+      margin-right: 8px;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
     }
     
     .nav-group-items {
-      padding-left: 16px;
+      padding-left: 8px;
     }
     
     .nav-child-item {
       height: 40px;
       font-size: 14px;
+      display: flex;
+      align-items: center;
+      color: #D8D8D8;
+      text-decoration: none;
+      font-weight: 600;
+      line-height: 32px;
+      margin: 0;
+      padding: 0;
+      
+      mat-icon {
+        margin-right: 8px;
+      }
+      
+      &:hover {
+        background-color: transparent;
+        color: #ffffff;
+      }
     }
     
     .close-button {
@@ -308,7 +351,20 @@ export class SidebarComponent implements OnInit {
   @Input() logoUrl = 'assets/images/builder-habitat-logo.svg';
   @Input() collapsed = false;
   @Input() showLogo = true;
-  @Input() navigationItems: NavigationItem[] = [];
+  
+  private _navigationItems: NavigationItem[] = [];
+  
+  @Input()
+  set navigationItems(items: NavigationItem[]) {
+    this._navigationItems = items;
+    // Update cache when navigation items change
+    this.updateSectionsCache();
+  }
+  
+  get navigationItems(): NavigationItem[] {
+    return this._navigationItems;
+  }
+  
   @Input() isSignedIn = false;
   @Input() enabledEvents: boolean = true;
   @Input() enabledSaasEvents: boolean = false;
@@ -317,19 +373,20 @@ export class SidebarComponent implements OnInit {
   // Track if logo loaded successfully
   logoLoaded: boolean = true;
   
+  // Cache for grouped navigation items to prevent recalculation on every change detection
+  sectionsCache: { title: string; items: NavigationItem[] }[] = [];
+  
   @Output() closeMobileSidebar = new EventEmitter<void>();
 
   ngOnInit() {
-    // Initialize default navigation items if none provided
-    if (this.navigationItems.length === 0) {
-      this.initDefaultNavItems();
-    }
-    
     // Report that we're loading the logo
     this.assetLoader.reportAssetLoading(this.logoUrl);
     
     // Try additional logo sources if the default one fails
     this.tryAdditionalLogoSources();
+    
+    // Initialize sections cache
+    this.updateSectionsCache();
   }
   
   /**
@@ -387,98 +444,44 @@ export class SidebarComponent implements OnInit {
     return route.startsWith('http://') || route.startsWith('https://');
   }
 
-  private initDefaultNavItems() {
-    const mainNavItems: NavigationItem[] = [];
+  /**
+   * Update the sections cache when navigation items change
+   */
+  updateSectionsCache(): void {
+    this.sectionsCache = this.groupNavigationBySection(this.navigationItems);
+  }
+  
+  /**
+   * Groups navigation items by section
+   * @param items The navigation items to group
+   * @returns An array of sections with their items
+   */
+  groupNavigationBySection(items: NavigationItem[]) {
+    const sections: {title: string; items: NavigationItem[]}[] = [];
+    let currentSection: {title: string; items: NavigationItem[]} | null = null;
     
-    // Add Builder section header
-    mainNavItems.push({ divider: true, label: 'Builder' });
-    
-    // Only show My Origins if signed in
-    if (this.isSignedIn) {
-      mainNavItems.push({
-        label: 'My Origins',
-        icon: 'group',
-        route: '/origins'
-      });
-    }
-    
-    // Always show Search Packages
-    mainNavItems.push({
-      label: 'Search Packages',
-      icon: 'search',
-      route: '/pkgs'
-    });
-
-    // Add Events navigation if enabled
-    if (this.enabledEvents) {
-      mainNavItems.push({
-        label: 'Events',
-        icon: 'event',
-        route: '/events'
-      });
-    }
-
-    // Add SaaS Events navigation if both flags are enabled
-    if (this.enabledEvents && this.enabledSaasEvents) {
-      mainNavItems.push({
-        label: 'Events (SaaS)',
-        icon: 'cloud',
-        route: '/events/saas'
-      });
-    }
-
-    // Add section title for quick links
-    mainNavItems.push({ divider: true, label: 'Quick Links' });
-
-    // Quick links section - exactly matching the original side-nav.component.html
-    const quickLinks: NavigationItem[] = [
-      {
-        label: 'Download Habitat',
-        icon: 'file_download',
-        route: this.config['docs_url'] ? `${this.config['docs_url']}/install-habitat/` : 'https://www.habitat.sh/docs/install-habitat/'
-      },
-      {
-        label: 'Docs',
-        icon: 'description',
-        route: this.config['docs_url'] || 'https://docs.chef.io/habitat/'
-      },
-      {
-        label: 'Tutorials',
-        icon: 'explore',
-        route: this.config['tutorials_url'] || 'https://learn.chef.io/habitat/'
-      },
-      {
-        label: 'Blog',
-        icon: 'rss_feed',
-        route: this.config['www_url'] ? `${this.config['www_url']}/blog` : 'https://www.habitat.sh/blog'
-      },
-      {
-        label: 'Website',
-        icon: 'language',
-        route: this.config['www_url'] || 'https://www.habitat.sh'
-      },
-      {
-        label: 'GitHub',
-        icon: 'code',
-        route: this.config['source_code_url'] || 'https://github.com/habitat-sh/habitat'
+    for (const item of items) {
+      if (item.divider) {
+        // Start a new section
+        if (currentSection) {
+          sections.push(currentSection);
+        }
+        currentSection = {
+          title: item.label || '',
+          items: []
+        };
+      } else if (currentSection) {
+        // Add item to current section
+        currentSection.items.push(item);
       }
-    ];
-    
-    // Add Service Status section if config is SaaS
-    if (this.config && this.config.is_saas) {
-      mainNavItems.push({ divider: true, label: 'Service Status' });
-      // We'll need to implement the statuspage component separately
-      // For now, add a placeholder
-      mainNavItems.push({
-        label: 'Status',
-        icon: 'info',
-        route: 'https://status.chef.io/'
-      });
     }
     
-    // Append quick links to mainNavItems rather than combining them separately
-    mainNavItems.push(...quickLinks);
-    this.navigationItems = mainNavItems;
+    // Add the last section if it exists
+    if (currentSection) {
+      sections.push(currentSection);
+    }
+    
+    return sections;
   }
   
   // Service for asset loading diagnostics

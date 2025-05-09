@@ -1,7 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { filter, map } from 'rxjs/operators';
 
 // Import header, sidebar and footer components with proper relative paths
 import { HeaderComponent } from './header/header.component';
@@ -39,13 +40,15 @@ import { ConfigService } from '../services/config.service';
             <span class="sr-only">Toggle menu</span>
             <mat-icon>menu</mat-icon>
           </div>
-          <app-header 
-            [isSignedIn]="isSignedIn()" 
-            [username]="username()"
-            [avatarUrl]="avatarUrl()"
-            [user]="{ name: username(), email: '', avatar: avatarUrl() }"
-            (signOut)="handleSignOut()">
-          </app-header>
+          @if (showHeader()) {
+            <app-header 
+              [isSignedIn]="isSignedIn()" 
+              [username]="username()"
+              [avatarUrl]="avatarUrl()"
+              [user]="{ name: username(), email: '', avatar: avatarUrl() }"
+              (signOut)="handleSignOut()">
+            </app-header>
+          }
           <div class="content-container">
             <router-outlet></router-outlet>
           </div>
@@ -58,22 +61,27 @@ import { ConfigService } from '../services/config.service';
 })
 export class AppShellComponent implements OnInit {
   private authService = inject(AuthService);
+  private router = inject(Router);
   public configService = inject(ConfigService);
   
   menuOpen = signal<boolean>(false);
   isSignedIn = signal<boolean>(false);
   username = signal<string>('');
   avatarUrl = signal<string>('');
+  showHeader = signal<boolean>(true);
   
   // Navigation items to match the builder-web side-nav
   navigationItems: NavigationItem[] = [];
   
   private initNavigationItems() {
-    this.navigationItems = [];
+    const mainNavItems: NavigationItem[] = [];
+    
+    // Add Builder section header
+    mainNavItems.push({ divider: true, label: 'Builder' });
     
     // Core navigation - only show My Origins if signed in
     if (this.isSignedIn()) {
-      this.navigationItems.push({
+      mainNavItems.push({
         label: 'My Origins',
         icon: 'group',
         route: '/origins'
@@ -81,7 +89,7 @@ export class AppShellComponent implements OnInit {
     }
     
     // Always show Search Packages
-    this.navigationItems.push({
+    mainNavItems.push({
       label: 'Search Packages',
       icon: 'search',
       route: '/pkgs'
@@ -89,7 +97,7 @@ export class AppShellComponent implements OnInit {
     
     // Add Events if enabled
     if (this.configService.isFeatureEnabled('enableEvents')) {
-      this.navigationItems.push({
+      mainNavItems.push({
         label: 'Events',
         icon: 'event',
         route: '/events'
@@ -97,7 +105,7 @@ export class AppShellComponent implements OnInit {
       
       // Add SaaS Events if both flags enabled
       if (this.configService.isFeatureEnabled('enableSaasEvents')) {
-        this.navigationItems.push({
+        mainNavItems.push({
           label: 'Events (SaaS)',
           icon: 'cloud',
           route: '/events/saas'
@@ -105,30 +113,56 @@ export class AppShellComponent implements OnInit {
       }
     }
     
-    // Add section divider
-    this.navigationItems.push({
-      divider: true,
-      label: 'Quick Links'
-    });
+    // Add section divider for quick links
+    mainNavItems.push({ divider: true, label: 'Quick Links' });
     
-    // Quick links from configuration
-    this.navigationItems.push({
-      label: 'Download Habitat',
-      icon: 'file_download',
-      route: this.configService.getUrl('download')
-    });
+    // Quick links section - exactly matching the original side-nav.component.html
+    const quickLinks: NavigationItem[] = [
+      {
+        label: 'Download Habitat',
+        icon: 'file_download',
+        route: this.configService.getUrl('download') || 'https://www.habitat.sh/docs/install-habitat/'
+      },
+      {
+        label: 'Docs',
+        icon: 'description',
+        route: this.configService.getUrl('docs') || 'https://docs.chef.io/habitat/'
+      },
+      {
+        label: 'Tutorials',
+        icon: 'explore',
+        route: this.configService.getUrl('tutorials') || 'https://learn.chef.io/habitat/'
+      },
+      {
+        label: 'Blog',
+        icon: 'rss_feed',
+        route: this.configService.getUrl('blog') || 'https://www.habitat.sh/blog'
+      },
+      {
+        label: 'Website',
+        icon: 'language',
+        route: this.configService.getUrl('website') || 'https://www.habitat.sh'
+      },
+      {
+        label: 'GitHub',
+        icon: 'code',
+        route: this.configService.getUrl('sourceCode') || 'https://github.com/habitat-sh/habitat'
+      }
+    ];
     
-    this.navigationItems.push({
-      label: 'Documentation',
-      icon: 'description',
-      route: this.configService.getUrl('docs')
-    });
+    // Add Service Status section if config is SaaS
+    if (this.configService.isFeatureEnabled('saas')) {
+      mainNavItems.push({ divider: true, label: 'Service Status' });
+      mainNavItems.push({
+        label: 'Status',
+        icon: 'info',
+        route: 'https://status.chef.io/'
+      });
+    }
     
-    this.navigationItems.push({
-      label: 'Tutorials',
-      icon: 'school',
-      route: this.configService.getUrl('tutorials')
-    });
+    // Append quick links to mainNavItems
+    mainNavItems.push(...quickLinks);
+    this.navigationItems = mainNavItems;
   }
   
   ngOnInit() {
@@ -137,6 +171,9 @@ export class AppShellComponent implements OnInit {
     
     // Update navigation items with URLs from config
     this.updateNavigationUrls();
+    
+    // Initialize route listeners to hide header on landing page
+    this.setupRouteListeners();
     
     if (this.authService.isAuthenticated()) {
       const user = this.authService.currentUser();
@@ -193,5 +230,21 @@ export class AppShellComponent implements OnInit {
   
   saasEventsEnabled(): boolean {
     return this.configService.isFeatureEnabled('enableSaasEvents');
+  }
+  
+  // Setup route listeners to hide header on landing page
+  private setupRouteListeners() {
+    // Check the initial route
+    const currentUrl = this.router.url;
+    this.showHeader.set(!(currentUrl === '/' || currentUrl === '' || currentUrl === '/dashboard'));
+    
+    // Listen for route changes
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd),
+      map((event: NavigationEnd) => event.url)
+    ).subscribe(url => {
+      // Hide header on home/landing page (empty path or root path or /dashboard)
+      this.showHeader.set(!(url === '/' || url === '' || url === '/dashboard'));
+    });
   }
 }

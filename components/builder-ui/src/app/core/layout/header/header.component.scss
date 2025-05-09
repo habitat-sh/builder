@@ -1,0 +1,165 @@
+// This matches the original builder-web header styling in app.scss
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+/* Match the original builder-web header styles exactly */
+.header {
+  position: relative;
+  padding: 16px;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(205deg, #e9f1f7 5%, #dce6ed 100%);
+  font-family: Montserrat, Verdana;
+  min-height: 74px;
+  
+  // Override Angular Material toolbar defaults
+  &.mat-toolbar {
+    background: linear-gradient(205deg, #e9f1f7 5%, #dce6ed 100%);
+    box-shadow: none;
+    font-family: Montserrat, Verdana;
+  }
+  
+  h1, h2 {
+    margin: 0;
+    font-weight: normal;
+  }
+  
+  h2 {
+    font-size: 16px; /* Replace $base-font-size with actual value */
+  }
+  
+  .title {
+    font-size: 20px; /* Replace $large-font-size with actual value */
+    font-weight: normal;
+    margin: 0;
+    color: #222;
+  }
+}
+
+// Fix padding when sidebar is present
+:host-context(app-shell) .header {
+  @media (min-width: 768px) {
+    padding-left: 16px; /* Replace $default-padding with actual value */
+  }
+}
+
+/* Component-specific layout styles */
+.header-left {
+  display: flex;
+  align-items: center;
+  
+  .toggle-button {
+    margin-right: 16px;
+    color: #444;
+  }
+  
+  .logo-container {
+    display: flex;
+    align-items: center;
+    margin-right: 16px;
+    
+    img.logo {
+      height: 32px;
+      width: auto;
+    }
+  }
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  
+  .action-button {
+    margin-left: 8px;
+    color: #444;
+  }
+}
+
+/* User menu styling */
+.user-info {
+  display: flex;
+  padding: 16px;
+  min-width: 200px;
+  align-items: center;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-right: 12px;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.avatar-container {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.default-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #999; /* Replace $medium-gray with actual color */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff; /* Replace $white with actual color */
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.user-email {
+  font-size: 12px;
+  color: #555; /* Replace $dark-gray with actual color */
+}
+
+/* Mobile adjustments */
+@media (max-width: 767px) {
+  .header {
+    padding: 8px; /* Replace $default-padding/2 with actual value */
+    
+    .logo-container img.logo {
+      height: 28px;
+    }
+  }
+}
+
+/* Material design overrides */
+::ng-deep .mat-toolbar-row, 
+::ng-deep .mat-toolbar-single-row {
+  height: auto !important;
+  min-height: 74px;
+  padding: 0;
+}
