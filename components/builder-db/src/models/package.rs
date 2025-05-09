@@ -47,7 +47,8 @@ use diesel::{self,
              serialize::{self,
                          IsNull,
                          Output,
-                         ToSql},
+                         ToSql,
+                         Result},
              sql_types::Text,
              PgArrayExpressionMethods,
              RunQueryDsl};
@@ -956,7 +957,7 @@ fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
          PartialEq,
          Eq,
          Hash)]
-#[sql_type = "Text"]
+#[diesel(sql_type = Text)]
 pub struct BuilderPackageType(pub PackageType);
 
 impl FromStr for BuilderPackageType {
@@ -982,7 +983,7 @@ impl FromSql<Text, Pg> for BuilderPackageType {
 }
 
 impl ToSql<Text, Pg> for BuilderPackageType {
-    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> Result {
         out.write_all(self.to_string().as_bytes())
            .map(|_| IsNull::No)
            .map_err(Into::into)
@@ -1008,7 +1009,7 @@ impl Deref for BuilderPackageType {
          PartialEq,
          Eq,
          Hash)]
-#[sql_type = "Text"]
+#[diesel(sql_type = Text)]
 pub struct BuilderPackageIdent(pub PackageIdent);
 
 impl FromStr for BuilderPackageIdent {
@@ -1037,7 +1038,7 @@ impl FromSql<Text, Pg> for BuilderPackageIdent {
 }
 
 impl ToSql<Text, Pg> for BuilderPackageIdent {
-    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> Result {
         out.write_all(self.to_string().as_bytes())
            .map(|_| IsNull::No)
            .map_err(Into::into)
@@ -1077,7 +1078,7 @@ impl Deref for BuilderPackageIdent {
          Hash,
          Eq,
          Copy)]
-#[sql_type = "Text"]
+#[diesel(sql_type = Text)]
 pub struct BuilderPackageTarget(pub PackageTarget);
 
 impl FromStr for BuilderPackageTarget {
@@ -1107,7 +1108,7 @@ impl FromSql<Text, Pg> for BuilderPackageTarget {
 }
 
 impl ToSql<Text, Pg> for BuilderPackageTarget {
-    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> Result {
         out.write_all(self.to_string().as_bytes())
            .map(|_| IsNull::No)
            .map_err(Into::into)
