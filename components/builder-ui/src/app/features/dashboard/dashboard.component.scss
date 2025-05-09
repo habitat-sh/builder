@@ -69,6 +69,19 @@
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
     border: 1px solid $very-light-gray;
     
+    &.restricted {
+      opacity: 0.9;
+      border-color: rgba($light-gray, 0.7);
+      
+      &::before {
+        background: rgba($hab-orange, 0.3);
+      }
+      
+      &:hover {
+        transform: translateY(-2px);
+      }
+    }
+    
     &::before {
       content: '';
       position: absolute;
@@ -146,24 +159,88 @@
   }
 }
 
-
-
-@media (max-width: 768px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
+.resources-section {
+  margin-top: 40px;
+  padding-top: 30px;
+  border-top: 1px solid $very-light-gray;
+  
+  h2 {
+    font-family: $heading-font-family;
+    font-weight: 500;
+    font-size: 24px;
+    color: $dark-blue;
+    margin-bottom: 20px;
+    position: relative;
+    display: inline-block;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 0;
+      width: 30px;
+      height: 2px;
+      background-color: $hab-blue;
+      border-radius: 2px;
+    }
   }
   
+  .resources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    
+    .resource-link {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      padding: 20px;
+      border-radius: 6px;
+      border: 1px solid $very-light-gray;
+      transition: all 0.25s ease;
+      background-color: $white;
+      
+      &:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        border-color: $light-gray;
+      }
+      
+      mat-icon {
+        color: $hab-blue;
+        font-size: 32px;
+        width: 32px;
+        height: 32px;
+        margin-bottom: 12px;
+      }
+      
+      span {
+        color: $dark-blue;
+        font-weight: 500;
+        font-size: 16px;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
   .dashboard-container {
-    padding: 24px 20px;
+    padding: 20px;
     
     .page-title {
-      font-size: 28px;
+      font-size: 26px;
     }
     
     .intro-text {
-      font-size: 16px;
-      margin-bottom: 32px;
+      font-size: 15px;
+      margin-bottom: 30px;
     }
+  }
+  
+  .resources-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 }
 
@@ -179,5 +256,9 @@
         height: 2px;
       }
     }
+  }
+  
+  .resources-grid {
+    grid-template-columns: 1fr !important;
   }
 }

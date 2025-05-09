@@ -35,7 +35,7 @@ $menu-width: 224px;
     @include mix.transition(transform 0.3s ease, left 0.3s ease);
   }
   
-  nav.menu {
+  app-sidebar.menu {
     position: absolute;
     width: $menu-width;
     min-width: $menu-width;
@@ -45,29 +45,26 @@ $menu-width: 224px;
     z-index: 100;
     box-sizing: border-box;
     overflow: hidden;
-    box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
     
     @include mix.tablet-up {
-      position: absolute;
       left: 0;
-      bottom: 0;
-      top: 0;
       
       & + main {
         left: $menu-width;
-        position: absolute;
-        right: 0;
-        top: 0;
-        bottom: 0;
+        width: calc(100% - #{$menu-width});
       }
     }
     
     &.open {
       left: 0;
-      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
       
       & + main {
         @include mix.mobile-only {
+          transform: translateX($menu-width);
+          overflow-x: hidden;
+        }
+        
+        @include mix.tablet-up {
           left: $menu-width;
           right: -$menu-width;
           overflow-x: hidden;
@@ -78,14 +75,14 @@ $menu-width: 224px;
   
   main {
     position: absolute;
-    width: 100%;
     top: 0;
-    bottom: 0;
     right: 0;
+    bottom: 0;
+    left: 0;
     display: flex;
     flex-direction: column;
-    background-color: $off-white;
-    transition: left 0.3s ease, right 0.3s ease;
+    background-color: $white;
+    transition: transform 0.3s ease, left 0.3s ease;
     box-sizing: border-box;
     padding-left: 0;
     overflow-y: auto;
@@ -95,8 +92,8 @@ $menu-width: 224px;
       position: absolute;
       top: 18px;
       left: 18px;
-      width: 32px;
-      height: 32px;
+      width: 40px;
+      height: 40px;
       cursor: pointer;
       z-index: 50;
       background-color: rgba($white, 0.95);
@@ -107,20 +104,9 @@ $menu-width: 224px;
       align-items: center;
       justify-content: center;
       
-      &:before, &:after {
-        content: '';
-        display: block;
-        width: 16px;
-        height: 2px;
-        background: $hab-blue;
-        position: absolute;
-        left: 4px;
-        transition: all 0.2s ease;
-      }
-      
-      &:before {
-        top: 6px;
-        box-shadow: 0 5px 0 0 $hab-blue, 0 10px 0 0 $hab-blue;
+      mat-icon {
+        color: $hab-blue;
+        font-size: 24px;
       }
       
       &:hover {
@@ -158,7 +144,7 @@ $menu-width: 224px;
       margin: 0 auto;
       position: relative;
       overflow-x: hidden;
-      padding-bottom: 60px; /* Make space for footer */
+      min-height: calc(100vh - 60px - 60px); /* Viewport height minus header and footer */
       
       &::before {
         content: '';

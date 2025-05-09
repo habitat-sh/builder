@@ -44,6 +44,10 @@ To execute unit tests with the [Karma](https://karma-runner.github.io) test runn
 ng test
 ```
 
+## Image Loading Strategy
+
+This application implements a comprehensive strategy for reliable image loading with proper fallbacks. See [Image Loading Documentation](src/docs/image-loading.md) for details on how images are managed and how to implement proper fallbacks.
+
 ## Running end-to-end tests
 
 For end-to-end (e2e) testing, run:

@@ -11,11 +11,13 @@
   margin-top: auto;
   position: relative;
   width: 100%;
+  min-height: 60px;
   box-sizing: border-box;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  z-index: 10;
   
   &::before {
     content: '';

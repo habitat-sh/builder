@@ -10,4 +10,6 @@ export interface DashboardFeatureCard {
   routerLink: string;
   buttonText: string;
   requiresAuthentication: boolean;
+  hidden?: boolean;
+  featureFlag?: string;
 }

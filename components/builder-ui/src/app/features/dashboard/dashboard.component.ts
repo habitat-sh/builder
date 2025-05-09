@@ -5,8 +5,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
 import { MatChipsModule } from '@angular/material/chips';
+import { NgClass } from '@angular/common';
 
 import { AuthService } from '../../core/services/auth.service';
+import { ConfigService } from '../../core/services/config.service';
 import { DashboardFeatureCard } from './dashboard.model';
 
 @Component({
@@ -17,7 +19,8 @@ import { DashboardFeatureCard } from './dashboard.model';
     MatIconModule, 
     MatButtonModule, 
     RouterLink, 
-    MatChipsModule
+    MatChipsModule,
+    NgClass
   ],
   template: `
     <div class="container dashboard-container">
@@ -27,7 +30,7 @@ import { DashboardFeatureCard } from './dashboard.model';
       <div class="dashboard-grid">
         <!-- Feature cards using @for and @if for conditional rendering -->
         @for (card of featureCards(); track card.title) {
-          <mat-card class="dashboard-card">
+          <mat-card class="dashboard-card" [ngClass]="{'restricted': card.requiresAuthentication && !isAuthenticated()}">
             <mat-card-header>
               <mat-icon mat-card-avatar>{{card.icon}}</mat-icon>
               <mat-card-title>{{card.title}}</mat-card-title>
@@ -43,12 +46,34 @@ import { DashboardFeatureCard } from './dashboard.model';
               }
             </mat-card-content>
             <mat-card-actions>
-              <button mat-button color="primary" [routerLink]="card.routerLink">
+              <button mat-button color="primary" [routerLink]="card.routerLink" [disabled]="card.requiresAuthentication && !isAuthenticated()">
                 {{card.buttonText}}
               </button>
             </mat-card-actions>
           </mat-card>
         }
+      </div>
+      
+      <div class="resources-section">
+        <h2>Additional Resources</h2>
+        <div class="resources-grid">
+          <a [href]="getUrl('docs')" target="_blank" class="resource-link">
+            <mat-icon>library_books</mat-icon>
+            <span>Documentation</span>
+          </a>
+          <a [href]="getUrl('tutorials')" target="_blank" class="resource-link">
+            <mat-icon>school</mat-icon>
+            <span>Tutorials</span>
+          </a>
+          <a [href]="getUrl('source')" target="_blank" class="resource-link">
+            <mat-icon>code</mat-icon>
+            <span>GitHub Repository</span>
+          </a>
+          <a [href]="getUrl('slack')" target="_blank" class="resource-link">
+            <mat-icon>chat</mat-icon>
+            <span>Community Slack</span>
+          </a>
+        </div>
       </div>
     </div>
   `,
@@ -56,6 +81,7 @@ import { DashboardFeatureCard } from './dashboard.model';
 })
 export class DashboardComponent {
   private authService = inject(AuthService);
+  private configService = inject(ConfigService);
   
   private _featureCards = signal<DashboardFeatureCard[]>([
     {
@@ -93,12 +119,34 @@ export class DashboardComponent {
       routerLink: '/profile',
       buttonText: 'MY PROFILE',
       requiresAuthentication: true
+    },
+    {
+      title: 'Events',
+      subtitle: 'View system events',
+      description: 'View and monitor system events and notifications.',
+      icon: 'event',
+      routerLink: '/events',
+      buttonText: 'VIEW EVENTS',
+      requiresAuthentication: true
     }
   ]);
   
-  // Public read-only signals
-  public featureCards = this._featureCards.asReadonly();
+  // Computed signal that filters feature cards based on feature flags
+  public featureCards = computed(() => {
+    return this._featureCards().filter(card => {
+      // Filter out Events card if events feature is disabled
+      if (card.title === 'Events' && !this.configService.isFeatureEnabled('enableEvents')) {
+        return false;
+      }
+      return true;
+    });
+  });
   
   // Computed signal that depends on the authService
   public isAuthenticated = computed(() => this.authService.isAuthenticated());
+
+  // Helper method to get URLs from config service
+  getUrl(key: string): string {
+    return this.configService.getUrl(key);
+  }
 }

@@ -25,11 +25,7 @@ body {
   font-size: typography.$base-font-size;
   line-height: typography.$base-line-height;
   color: colors.$hab-text;
-  background: linear-gradient(135deg, 
-    color.adjust(colors.$dark-blue, $lightness: 3%), 
-    colors.$dark-blue,
-    color.adjust(colors.$dark-blue, $lightness: -5%)
-  );
+  background: linear-gradient(to top, colors.$medium-blue, colors.$dark-blue);
   
   &::before {
     content: '';

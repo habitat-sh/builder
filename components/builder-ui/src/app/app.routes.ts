@@ -3,6 +3,7 @@ import { AppShellComponent } from './core/layout';
 import { NotFoundComponent } from './core/layout/layout-components/not-found.component';
 import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { ColorSwatchComponent } from './core/layout/color-swatch.component';
+import { DebugAssetsComponent } from './debug/debug-assets.component';
 
 // Guards
 import { authGuard } from './shared/guards/auth.guard';
@@ -27,6 +28,10 @@ export const routes: Routes = [
       {
         path: 'theme',
         component: ColorSwatchComponent
+      },
+      {
+        path: 'debug/assets',
+        component: DebugAssetsComponent
       },
       
       // Package routes - to be implemented in later phases
@@ -54,6 +59,14 @@ export const routes: Routes = [
       {
         path: 'settings',
         canActivate: [authGuard],
+        component: DashboardComponent // Placeholder - will be replaced with actual component
+      },
+      {
+        path: 'events',
+        component: DashboardComponent // Placeholder - will be replaced with actual component
+      },
+      {
+        path: 'events/saas',
         component: DashboardComponent // Placeholder - will be replaced with actual component
       }
     ]
