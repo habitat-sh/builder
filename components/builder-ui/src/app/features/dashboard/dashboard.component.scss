@@ -52,11 +52,151 @@
   }
 }
 
+.login-section {
+  margin-bottom: 40px;
+  
+
+  .login-card {
+    max-width: 600px;
+    background: linear-gradient(145deg, rgba(255,255,255,0.98), rgba(236,244,249,0.95));
+    border: 1px solid $very-light-gray;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(to right, $hab-blue, $hab-orange);
+      z-index: 1;
+    }
+    
+    .login-card-accent {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 6px;
+      background: linear-gradient(to bottom, $hab-blue, $hab-orange);
+    }
+    
+    mat-card-header {
+      padding-top: 20px;
+      
+      mat-icon {
+        color: $hab-blue;
+        background-color: rgba(66, 150, 180, 0.1);
+        border-radius: 50%;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+      }
+      
+      mat-card-title {
+        font-family: $heading-font-family;
+        font-weight: 500;
+        font-size: 22px;
+        color: $dark-blue;
+      }
+      
+      mat-card-subtitle {
+        color: $medium-blue;
+        font-size: 15px;
+        margin-top: 4px;
+      }
+    }
+    
+    mat-card-content {
+      padding: 20px;
+      
+      p {
+        color: $hab-text;
+        font-size: 16px;
+        line-height: 1.5;
+        margin-bottom: 20px;
+      }
+      
+      .feature-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 16px 0;
+        
+        li {
+          display: flex;
+          align-items: center;
+          margin-bottom: 12px;
+          color: $dark-gray;
+          font-size: 15px;
+          
+          .feature-icon {
+            color: $hab-green;
+            margin-right: 8px;
+            font-size: 18px;
+            height: 18px;
+            width: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+          }
+        }
+      }
+    }
+    
+    mat-card-actions {
+      padding: 8px 20px 24px;
+      display: flex;
+      justify-content: center;
+      
+      .github-signin-button {
+        font-weight: 400;
+        line-height: 36px;
+        padding: 0 16px;
+        font-size: 16px;
+        height: auto;
+        background-color: #007fab; // From the Builder palette primary color
+        
+        mat-icon {
+          margin-right: 8px;
+          font-size: 22px;
+          height: 22px;
+          width: 22px;
+          vertical-align: middle;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        span {
+          vertical-align: middle;
+        }
+        
+        &:hover {
+          background-color: #006c9a; // Darker shade from the palette
+        }
+      }
+    }
+  }
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 24px;
   margin-bottom: 40px;
+  
+  // When there's only one card (likely just packages for non-authenticated users)
+  &:has(> .dashboard-card:only-child) {
+    grid-template-columns: minmax(300px, 600px);
+  }
   
   .dashboard-card {
     position: relative;
@@ -112,6 +252,11 @@
         background-color: rgba(66, 150, 180, 0.1);
         border-radius: 50%;
         padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
       }
       
       mat-card-title {
@@ -214,6 +359,9 @@
         width: 32px;
         height: 32px;
         margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       
       span {

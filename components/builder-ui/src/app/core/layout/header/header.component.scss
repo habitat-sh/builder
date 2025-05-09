@@ -53,6 +53,12 @@
   .toggle-button {
     margin-right: 16px;
     color: #444;
+    
+    mat-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
   
   .logo-container {
@@ -78,6 +84,12 @@
   .action-button {
     margin-left: 8px;
     color: #444;
+    
+    mat-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
 }
 
