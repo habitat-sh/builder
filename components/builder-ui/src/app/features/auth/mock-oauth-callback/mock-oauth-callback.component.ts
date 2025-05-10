@@ -1,0 +1,117 @@
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+
+import { MockAuthService } from '../../../core/mocks/mock-auth.service';
+import { environment } from '../../../../environments/environment';
+
+@Component({
+  selector: 'app-mock-oauth-callback',
+  standalone: true,
+  imports: [CommonModule, MatProgressSpinnerModule],
+  template: `
+    <div class="mock-callback-container">
+      <mat-spinner diameter="40"></mat-spinner>
+      <h2>Processing mock authentication...</h2>
+      <p class="info">This is a simulated OAuth callback for development.</p>
+      <p class="progress" *ngIf="isProcessing">Processing authentication code...</p>
+      <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+    </div>
+  `,
+  styles: [`
+    .mock-callback-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      padding: 0 20px;
+      background-color: #f5f8fa;
+    }
+    
+    h2 {
+      margin-top: 20px;
+      color: #333;
+    }
+    
+    .info {
+      color: #666;
+      margin-top: 10px;
+    }
+    
+    .progress {
+      color: #4296b4;
+      margin-top: 10px;
+    }
+    
+    .error {
+      color: #e85600;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  `]
+})
+export class MockOAuthCallbackComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private mockAuthService = inject(MockAuthService);
+  
+  isProcessing = true;
+  errorMessage = '';
+  
+  ngOnInit(): void {
+    // Only use this component in non-production environments
+    if (environment.production) {
+      this.router.navigate(['/sign-in']);
+      return;
+    }
+    
+    // Extract state and mock code from query parameters
+    this.route.queryParams.subscribe(params => {
+      const state = params['state'];
+      
+      // Generate a mock code
+      const code = 'mock_code_' + Math.random().toString(36).substring(2);
+      
+      // Handle the mock callback
+      this.mockAuthService.handleCallback(state, code).subscribe({
+        next: (response: any) => {
+          if (response.error) {
+            this.isProcessing = false;
+            this.errorMessage = 'Authentication failed: ' + response.error;
+            
+            // Redirect back to sign-in after error
+            setTimeout(() => {
+              this.router.navigate(['/sign-in'], { 
+                queryParams: { error: this.errorMessage } 
+              });
+            }, 2000);
+            
+            return;
+          }
+          
+          // Successful authentication
+          this.isProcessing = false;
+          
+          // Redirect to home page
+          setTimeout(() => {
+            this.router.navigate(['/']);
+          }, 1000);
+        },
+        error: (error) => {
+          this.isProcessing = false;
+          this.errorMessage = 'Authentication failed: ' + (error.message || 'Unknown error');
+          
+          // Redirect back to sign-in after error
+          setTimeout(() => {
+            this.router.navigate(['/sign-in'], { 
+              queryParams: { error: this.errorMessage } 
+            });
+          }, 2000);
+        }
+      });
+    });
+  }
+}

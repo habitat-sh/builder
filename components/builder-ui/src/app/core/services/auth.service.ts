@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Observable, throwError, of, BehaviorSubject } from 'rxjs';
@@ -6,6 +6,7 @@ import { catchError, map, tap, switchMap } from 'rxjs/operators';
 import { jwtDecode } from 'jwt-decode';
 import { environment } from '../../../environments/environment';
 import { ApiService } from './api.service';
+import { ConfigService } from './config.service';
 
 export interface User {
   id: string;
@@ -31,6 +32,9 @@ export class AuthService {
   // Storage keys
   private readonly AUTH_TOKEN_KEY = 'auth_token';
   private readonly USER_DATA_KEY = 'user_data';
+
+  // Config service for OAuth settings
+  private configService = inject(ConfigService);
   
   // State signals
   private _authState = signal<AuthState>({
@@ -52,6 +56,9 @@ export class AuthService {
   
   // For redirect after login
   private redirectUrl: string | null = null;
+
+  // OAuth state for security
+  private oauthState = '';
   
   constructor(
     private http: HttpClient,
@@ -59,6 +66,43 @@ export class AuthService {
     private router: Router
   ) {
     this.loadAuthStateFromStorage();
+    // Generate random state value for OAuth security
+    this.oauthState = this.generateRandomState();
+  }
+
+  /**
+   * Generate a URL for OAuth authorization
+   * @returns The full authorization URL to redirect to
+   */
+  getAuthorizationUrl(): string {
+    // Generate a random state value for CSRF protection
+    const state = this.generateRandomState();
+    localStorage.setItem('oauth_state', state);
+    
+    // Get OAuth parameters from environment
+    const clientId = environment.oauthClientId || '';
+    const redirectUri = `${window.location.origin}/auth/callback`;
+    const scope = 'user:email,read:org';
+    
+    // Construct the authorization URL
+    const authUrl = new URL('https://github.com/login/oauth/authorize');
+    authUrl.searchParams.set('client_id', clientId);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('scope', scope);
+    authUrl.searchParams.set('state', state);
+    
+    return authUrl.toString();
+  }
+  
+  /**
+   * Generate a random state string for CSRF protection
+   */
+  private generateRandomState(): string {
+    const randomArray = new Uint8Array(16);
+    window.crypto.getRandomValues(randomArray);
+    return Array.from(randomArray)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
   }
   
   /**
@@ -80,7 +124,7 @@ export class AuthService {
   /**
    * Log out the current user
    */
-  logout(): void {
+  logout(redirect = true): void {
     // Clear the auth state
     this._authState.set({
       isAuthenticated: false,
@@ -96,8 +140,10 @@ export class AuthService {
     localStorage.removeItem(this.AUTH_TOKEN_KEY);
     localStorage.removeItem(this.USER_DATA_KEY);
     
-    // Redirect to login
-    this.router.navigate(['/auth/login']);
+    // Redirect to login if specified
+    if (redirect) {
+      this.router.navigate(['/sign-in']);
+    }
   }
   
   /**
@@ -115,6 +161,51 @@ export class AuthService {
         return throwError(() => new Error('Failed to authenticate with OAuth provider'));
       })
     );
+  }
+  
+  /**
+   * Exchange OAuth code for access token
+   * @param code Authorization code from OAuth provider
+   * @returns Observable with user data
+   */
+  exchangeCodeForToken(code: string): Observable<User> {
+    // In production, this would call the backend API to exchange the code
+    // For development/testing with mocks, we'll simulate the exchange
+    if (environment.useMocks) {
+      console.log('Mock: Exchanging authorization code for token');
+      
+      // Create a mock token (for development only)
+      const mockToken = 'mock_' + Math.random().toString(36).substring(2);
+      
+      // Create a mock user
+      const mockUser: User = {
+        id: '12345',
+        name: 'Demo User',
+        email: 'demo@example.com',
+        avatar: 'https://avatars.githubusercontent.com/u/12345?v=4',
+        role: 'contributor',
+        permissions: ['read:packages', 'write:packages']
+      };
+      
+      // Set authentication state
+      this.setAuthState(mockToken, mockUser);
+      
+      return of(mockUser);
+    } else {
+      // In production, call the backend API to exchange the code for a token
+      return this.apiService.post<{ token: string, user: User }>('auth/github/callback', {
+        code: code
+      }).pipe(
+        tap(response => {
+          this.setAuthState(response.token, response.user);
+        }),
+        map(response => response.user),
+        catchError(error => {
+          console.error('Token exchange error', error);
+          return throwError(() => new Error('Failed to authenticate with OAuth provider'));
+        })
+      );
+    }
   }
   
   /**

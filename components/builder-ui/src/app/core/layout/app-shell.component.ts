@@ -42,11 +42,11 @@ import { ConfigService } from '../services/config.service';
           </div>
           @if (showHeader()) {
             <app-header 
-              [isSignedIn]="isSignedIn()" 
               [username]="username()"
               [avatarUrl]="avatarUrl()"
               [user]="{ name: username(), email: '', avatar: avatarUrl() }"
-              (signOut)="handleSignOut()">
+              (signOut)="handleSignOut()"
+              (logout)="handleSignOut()">
             </app-header>
           }
           <div class="content-container">

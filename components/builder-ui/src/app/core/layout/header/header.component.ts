@@ -9,6 +9,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AssetLoaderService } from '../../../shared/services/asset-loader.service';
 import { FallbackImageDirective } from '../../../shared/directives/fallback-image.directive';
+import { AuthService } from '../../services/auth.service';
 
 export interface UserInfo {
   name: string;
@@ -61,6 +62,16 @@ export interface UserInfo {
       
       <div class="header-right">
         <ng-content select="[header-actions]"></ng-content>
+        
+        <!-- Sign In button (shown when user is not signed in) -->
+        <button 
+          *ngIf="!isSignedIn"
+          mat-flat-button
+          color="accent"
+          class="sign-in-button"
+          routerLink="/sign-in">
+          Sign In
+        </button>
         
         <!-- Search button -->
         <button 
@@ -154,7 +165,6 @@ export class HeaderComponent implements OnInit {
   @Input() title = 'Habitat Builder';
   @Input() showLogo = true;
   @Input() user: UserInfo | null = null;
-  @Input() isSignedIn = false;
   @Input() username = '';
   @Input() avatarUrl = '';
   
@@ -175,6 +185,12 @@ export class HeaderComponent implements OnInit {
   }
   
   private assetLoader = inject(AssetLoaderService);
+  private authService = inject(AuthService);
+  
+  // Use the AuthService to determine if user is signed in
+  get isSignedIn(): boolean {
+    return this.authService.isAuthenticated();
+  }
   
   @Output() toggleSideNav = new EventEmitter<void>();
   @Output() search = new EventEmitter<void>();

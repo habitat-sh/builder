@@ -6,7 +6,7 @@ import { ColorSwatchComponent } from './core/layout/color-swatch.component';
 import { DebugAssetsComponent } from './debug/debug-assets.component';
 
 // Guards
-import { authGuard } from './shared/guards/auth.guard';
+import { authGuard, roleGuard, permissionGuard } from './core/guards/auth.guard';
 import { originMemberGuard } from './shared/guards/origin-member.guard';
 import { guestGuard } from './shared/guards/guest.guard';
 import { adminGuard } from './shared/guards/admin.guard';
@@ -72,17 +72,22 @@ export const routes: Routes = [
     ]
   },
   
-  // Auth routes (without layout) - to be implemented in later phases
+  // Auth routes (without layout)
+  {
+    path: 'auth',
+    loadChildren: () => import('./features/auth/auth.module').then(m => m.AuthModule)
+  },
+  
+  // Direct sign-in route (without auth path)
   {
     path: 'sign-in',
-    canActivate: [guestGuard],
-    component: DashboardComponent // Placeholder - will be replaced with actual component
+    loadComponent: () => import('./features/auth/sign-in/sign-in.component').then(c => c.SignInComponent)
   },
   
   // Admin routes - to be implemented in later phases
   {
     path: 'admin',
-    canActivate: [authGuard, adminGuard],
+    canActivate: [authGuard, roleGuard('admin')],
     component: DashboardComponent // Placeholder - will be replaced with actual component
   },
   

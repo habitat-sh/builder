@@ -35,6 +35,8 @@ $menu-width: 224px;
   
   nav, main {
     @include mix.transition(transform 0.3s ease, left 0.3s ease);
+    transition-property: all;
+    transition-duration: .2s;
   }
   
   app-sidebar.menu {
@@ -188,4 +190,30 @@ $menu-width: 224px;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+// Sign-in page specific styles
+:host-context(.app.sign-in) {
+  .wrapper {
+    main {
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 0; // Remove padding
+      
+      // Make sure the app-shell doesn't add its own margins/paddings
+      // that would interfere with the sign-in component's layout
+      @media (min-width: 768px) {
+        left: 0;
+        padding: 0;
+        overflow: visible;
+      }
+      
+      // Hide unnecessary elements on sign-in page
+      .menu-toggle {
+        display: none;
+      }
+    }
+  }
 }

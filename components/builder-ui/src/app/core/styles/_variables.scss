@@ -1,0 +1,71 @@
+// Based on the original builder-web variables
+// Spacing
+$default-margin: 16px;
+$default-padding: 16px;
+$small-margin: 8px;
+$tiny-margin: 4px;
+$huge-margin: 64px;
+
+// Borders
+$default-border-radius: 4px;
+$default-border: 1px solid $light-gray;
+
+// Typography
+$base-font-size: 16px;
+$small-font-size: 14px;
+$medium-font-size: 18px;
+$large-font-size: 20px;
+$h1-font-size: 24px;
+$h2-font-size: 20px;
+$h3-font-size: 18px;
+$h4-font-size: 16px;
+
+// Layout
+$sidebar-width: 280px;
+$sidebar-width-mobile: 80px;
+$top-nav-height: 76px;
+$content-max-width: 1200px;
+
+// Breakpoints
+$small-screen: 768px;
+$medium-screen: 992px;
+$large-screen: 1200px;
+$extra-small-screen: 480px;
+
+// Z-indexes
+$zindex-dropdown: 1000;
+$zindex-fixed: 1030;
+$zindex-modal-backdrop: 1040;
+$zindex-modal: 1050;
+$zindex-popover: 1060;
+$zindex-tooltip: 1070;
+
+// Inputs
+$input-height: 44px;
+$input-font-size: 16px;
+$input-line-height: 1.5;
+$input-border-radius: 4px;
+$input-border: 1px solid $light-gray;
+$input-padding: 12px;
+$input-focus-color: $hab-blue;
+
+// Buttons
+$button-border-radius: 4px;
+$button-height: 44px;
+$button-padding: 0 16px;
+$button-font-size: 16px;
+$button-font-weight: 500;
+
+// Tables
+$table-row-height: 48px;
+$table-header-bg: $light-blue;
+$table-border: 1px solid $light-gray;
+
+// Cards
+$card-border-radius: 4px;
+$card-padding: 24px;
+$card-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+
+// Animation
+$default-transition: all 0.3s ease;
+$fast-transition: all 0.15s ease;

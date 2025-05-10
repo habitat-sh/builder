@@ -1,0 +1,38 @@
+<div class="sign-in-page-component" id="sign-in-page-component">
+  <a class="logo" [href]="wwwUrl" title="Habitat">
+    <img src="assets/images/builder-habitat-logo.svg" alt="Habitat Builder">
+  </a>
+  <div class="body">
+    <div class="content">
+      <section class="upper">
+        <div class="error-message" *ngIf="errorMessage">
+          <mat-icon>error</mat-icon>
+          <span>{{ errorMessage }}</span>
+        </div>
+        <div class="button-container">
+          <a mat-button class="button" (click)="showEulaPopup()">
+            <mat-icon svgIcon="github"></mat-icon>
+            <span>Sign In with {{ providerName }}</span>
+          </a>
+        </div>
+      </section>
+      <section class="lower">
+        <p *ngIf="signupUrl">
+          Don't have a {{ providerName }} account?
+          <a [href]="signupUrl" target="_blank">Sign up here</a>.
+        </p>
+        <p>
+          New to Habitat? Signing in will also create a new account.
+        </p>
+      </section>
+    </div>
+  </div>
+  <p class="footnote">
+    By clicking on "Sign in with {{ providerName }}", you are agreeing to the
+    <a href="https://www.chef.io/end-user-license-agreement" target="_blank">Terms of Service</a>,
+    <a href="https://www.progress.com/legal/privacy-policy" target="_blank">Privacy Policy</a> and
+    <a href="https://www.progress.com/legal/cookie-policy" target="_blank">Cookie Policy</a>.
+    Know more about <a href="https://www.chef.io/patents" target="_blank">Chef Patents</a>
+  </p>
+  <img class="habicat" src="assets/images/habicat.svg">
+</div>

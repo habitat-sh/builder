@@ -1,5 +1,19 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../../environments/environment';
+import { Observable, of } from 'rxjs';
+
+/**
+ * Configuration interface for the application
+ */
+export interface AppConfig {
+  oauthProvider?: string;
+  oauthSignupUrl?: string;
+  oauthClientId?: string;
+  oauthAuthorizationUrl?: string;
+  oauthRedirectUrl?: string;
+  wwwUrl?: string;
+  [key: string]: any;
+}
 
 /**
  * Service for accessing application configuration values.
@@ -9,6 +23,24 @@ import { environment } from '../../../environments/environment';
   providedIn: 'root'
 })
 export class ConfigService {
+  
+  /**
+   * Get the application configuration
+   * @returns An observable with the application config
+   */
+  getConfig(): Observable<AppConfig> {
+    // Create config object with values from environment
+    const config: AppConfig = {
+      oauthProvider: 'GitHub', // Default OAuth provider
+      oauthSignupUrl: 'https://github.com/join',
+      oauthClientId: environment.oauthClientId || '{{developerClientId}}', // Will be replaced in production
+      oauthAuthorizationUrl: 'https://github.com/login/oauth/authorize',
+      oauthRedirectUrl: `${window.location.origin}/auth/callback`,
+      wwwUrl: 'https://www.habitat.sh'
+    };
+    
+    return of(config);
+  }
   
   /**
    * Check if a feature flag is enabled

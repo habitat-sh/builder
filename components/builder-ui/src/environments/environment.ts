@@ -5,6 +5,7 @@ export const environment = {
   production: false,
   apiUrl: 'http://localhost:9636',
   useMocks: true,
+  oauthClientId: 'e058b7c2a5907b8c11e6', // Development GitHub OAuth client ID
   featureFlags: {
     enableNewFeatures: true,
     enableEvents: true,
