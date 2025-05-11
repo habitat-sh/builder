@@ -52,6 +52,8 @@
   }
 }
 
+// Welcome banner removed as per requirements
+
 .stats-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -522,3 +524,6 @@
     grid-template-columns: 1fr !important;
   }
 }
+
+// Auth status bar styling
+// Auth status bar removed as per requirements

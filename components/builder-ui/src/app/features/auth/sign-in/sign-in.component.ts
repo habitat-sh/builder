@@ -10,6 +10,7 @@ import { environment } from '../../../../environments/environment';
 
 import { AuthService } from '../../../core/services/auth.service';
 import { ConfigService } from '../../../core/services/config.service';
+import { MockAuthService } from '../../../core/mocks/mock-auth.service';
 import { EulaConfirmDialogComponent } from '../../../shared/dialogs/eula-confirm-dialog/eula-confirm-dialog.component';
 
 @Component({
@@ -20,13 +21,19 @@ import { EulaConfirmDialogComponent } from '../../../shared/dialogs/eula-confirm
   styleUrls: ['./sign-in.component.scss']
 })
 export class SignInComponent implements OnInit, OnDestroy {
-  private authService = inject(AuthService);
+  private realAuthService = inject(AuthService);
+  private mockAuthService = inject(MockAuthService);
   private configService = inject(ConfigService);
   private titleService = inject(Title);
   private dialog = inject(MatDialog);
   private route = inject(ActivatedRoute);
   private iconRegistry = inject(MatIconRegistry);
   private domSanitizer = inject(DomSanitizer);
+  
+  // Use the appropriate auth service based on environment
+  private get authService() {
+    return environment.useMocks ? this.mockAuthService : this.realAuthService;
+  }
   
   // Provider information
   providerName = 'GitHub';  // Default to GitHub
@@ -59,7 +66,7 @@ export class SignInComponent implements OnInit, OnDestroy {
       this.domSanitizer.bypassSecurityTrustResourceUrl('assets/images/icons/github.svg')
     );
     
-    // Sign out any existing session
+    // Sign out any existing session - use the appropriate service based on environment
     this.authService.logout(false);
     
     // Check for error message from OAuth callback
@@ -76,8 +83,12 @@ export class SignInComponent implements OnInit, OnDestroy {
         this.signupUrl = config.oauthSignupUrl || this.signupUrl;
         this.wwwUrl = config.wwwUrl as string || this.wwwUrl;
         
-        // Construct OAuth login URL
+        // Construct OAuth login URL - authService getter will return the appropriate service
         this.loginUrl = this.authService.getAuthorizationUrl();
+        
+        if (environment.useMocks) {
+          console.log('Using mock authentication service');
+        }
       }
     });
   }
@@ -113,28 +124,19 @@ export class SignInComponent implements OnInit, OnDestroy {
    */
   private redirectToOAuthProvider() {
     if (this.loginUrl) {
-      // Use normal navigation instead of direct window location change
-      // This allows our mock callback to work properly in development
-      if (environment.useMocks && this.loginUrl.includes('localhost')) {
-        console.log('Mock auth: Redirecting to mock OAuth provider');
-        try {
-          // Store the current time to track auth flow timing
-          localStorage.setItem('auth_start_time', Date.now().toString());
-          window.location.href = this.loginUrl;
-        } catch (error) {
-          console.error('Failed to redirect to mock OAuth provider:', error);
-          this.errorMessage = 'Failed to start authentication process. Please try again.';
+      try {
+        // Store the current time to track auth flow timing
+        localStorage.setItem('auth_start_time', Date.now().toString());
+        
+        // Use the login URL (which will be from the appropriate service based on environment)
+        if (environment.useMocks) {
+          console.log('Mock auth: Redirecting to mock OAuth provider');
         }
-      } else {
-        // In production, redirect to the actual provider
-        try {
-          // Store the current time to track auth flow timing
-          localStorage.setItem('auth_start_time', Date.now().toString());
-          window.location.href = this.loginUrl;
-        } catch (error) {
-          console.error('Failed to redirect to OAuth provider:', error);
-          this.errorMessage = 'Failed to start authentication process. Please try again.';
-        }
+        
+        window.location.href = this.loginUrl;
+      } catch (error) {
+        console.error('Failed to redirect to OAuth provider:', error);
+        this.errorMessage = 'Failed to start authentication process. Please try again.';
       }
     } else {
       console.error('No login URL available for OAuth provider');

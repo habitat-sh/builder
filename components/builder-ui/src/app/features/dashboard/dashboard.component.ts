@@ -40,59 +40,9 @@ import { DashboardFeatureCard, DashboardStatsSummary } from './dashboard.model';
         }
       </p>
       
-      <!-- Stats summary section - shown only when user is authenticated -->
-      @if (isAuthenticated() && showStats()) {
-        <div class="stats-summary">
-          <div class="stats-card origins">
-            <div class="stats-icon">
-              <mat-icon>business</mat-icon>
-            </div>
-            <div class="stats-content">
-              <h3>My Origins</h3>
-              @if (isLoading()) {
-                <mat-spinner diameter="24"></mat-spinner>
-              } @else {
-                <div class="stats-value">{{ stats().origins }}</div>
-              }
-            </div>
-          </div>
-          
-          <div class="stats-card packages">
-            <div class="stats-icon">
-              <mat-icon>inventory_2</mat-icon>
-            </div>
-            <div class="stats-content">
-              <h3>My Packages</h3>
-              @if (isLoading()) {
-                <mat-spinner diameter="24"></mat-spinner>
-              } @else {
-                <div class="stats-value">{{ stats().packages }}</div>
-              }
-            </div>
-          </div>
-          
-          <div class="stats-card builds">
-            <div class="stats-icon">
-              <mat-icon>build</mat-icon>
-            </div>
-            <div class="stats-content">
-              <h3>Recent Builds</h3>
-              @if (isLoading()) {
-                <mat-spinner diameter="24"></mat-spinner>
-              } @else {
-                <div class="stats-build-summary">
-                  <span class="success">{{ stats().successfulBuilds }}</span> /
-                  <span class="total">{{ stats().totalBuilds }}</span>
-                </div>
-                <mat-progress-bar 
-                  mode="determinate" 
-                  [value]="stats().buildSuccessRate">
-                </mat-progress-bar>
-              }
-            </div>
-          </div>
-        </div>
-      }
+      <!-- User profile section removed as per requirements -->
+      
+      <!-- Stats summary section removed as per requirements -->
       
       <!-- Login card shown only when user is not authenticated -->
       @if (!isAuthenticated()) {
@@ -150,6 +100,8 @@ import { DashboardFeatureCard, DashboardStatsSummary } from './dashboard.model';
         }
       </div>
       
+      <!-- Authentication status bar removed as per requirements -->
+      
       <div class="resources-section">
         <h2>Additional Resources</h2>
         <div class="resources-grid">
@@ -194,9 +146,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     successfulBuilds: 0,
     buildSuccessRate: 0
   });
+  
+  // User data signal
+  private _userData = signal<any>(null);
 
   isLoading = computed(() => this._loading());
   stats = computed(() => this._stats());
+  userData = computed(() => this._userData());
   
   ngOnInit() {
     // Register GitHub icon for the sign-in button
@@ -205,9 +161,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.domSanitizer.bypassSecurityTrustResourceUrl('assets/images/icons/github.svg')
     );
     
-    // Load user stats if authenticated
+    // Load user stats and data if authenticated
     if (this.isAuthenticated()) {
       this.loadUserStats();
+      this.loadUserData();
     }
   }
   
@@ -215,6 +172,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Cleanup any subscriptions if needed
   }
   
+  /**
+   * Load user data from the auth service
+   */
+  private loadUserData() {
+    const user = this.authService.currentUser();
+    if (user) {
+      this._userData.set(user);
+    }
+  }
+
   /**
    * Simulate loading user stats (in a real implementation, this would call an API)
    */
@@ -305,5 +272,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Helper method to get URLs from config service
   getUrl(key: string): string {
     return this.configService.getUrl(key);
+  }
+  
+  /**
+   * Log the user out
+   */
+  logout() {
+    this.authService.logout();
   }
 }

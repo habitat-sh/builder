@@ -149,6 +149,12 @@ export interface UserInfo {
             <span>Settings</span>
           </button>
           
+          <a mat-menu-item href="https://www.chef.io/patents" target="_blank">
+            <mat-icon>gavel</mat-icon>
+            <span>Chef Patents</span>
+            <mat-icon class="external-link-icon">open_in_new</mat-icon>
+          </a>
+          
           <mat-divider></mat-divider>
           
           <button mat-menu-item (click)="logout.emit()">
@@ -167,6 +173,7 @@ export class HeaderComponent implements OnInit {
   @Input() user: UserInfo | null = null;
   @Input() username = '';
   @Input() avatarUrl = '';
+  @Input() isSignedIn = false; // Accept isSignedIn as input property
   
   // Track avatar image loading errors
   hasAvatarError = false;
@@ -186,11 +193,6 @@ export class HeaderComponent implements OnInit {
   
   private assetLoader = inject(AssetLoaderService);
   private authService = inject(AuthService);
-  
-  // Use the AuthService to determine if user is signed in
-  get isSignedIn(): boolean {
-    return this.authService.isAuthenticated();
-  }
   
   @Output() toggleSideNav = new EventEmitter<void>();
   @Output() search = new EventEmitter<void>();

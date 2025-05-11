@@ -4,6 +4,8 @@ import { environment } from '../../../environments/environment';
 
 import { MockAuthInterceptor } from './mock-auth.interceptor';
 import { MockPackageApiInterceptor } from './mock-package-api.interceptor';
+import { MockAuthService } from './mock-auth.service';
+import { AuthService } from '../services/auth.service';
 
 /**
  * This module provides mock services for development/testing.
@@ -22,6 +24,11 @@ import { MockPackageApiInterceptor } from './mock-package-api.interceptor';
         provide: HTTP_INTERCEPTORS,
         useClass: MockPackageApiInterceptor,
         multi: true
+      },
+      // Replace the real AuthService with the mock implementation
+      {
+        provide: AuthService,
+        useClass: MockAuthService
       }
     ] : [])
   ]

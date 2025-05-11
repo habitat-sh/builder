@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [RouterOutlet, CommonModule],
   template: `
-    <div [ngClass]="{'app': true, 'sign-in': isSignInRoute, 'full': !isSignInRoute}" [style.height]="isSignInRoute ? '100vh' : 'auto'" [style.overflow]="isSignInRoute ? 'hidden' : 'auto'">
+    <div [ngClass]="{'app': true, 'sign-in': isSignInRoute, 'full': !isSignInRoute}" [style.height]="isSignInRoute ? '100vh' : '100vh'" [style.overflow]="isSignInRoute ? 'hidden' : 'auto'">
       <router-outlet></router-outlet>
     </div>
   `,

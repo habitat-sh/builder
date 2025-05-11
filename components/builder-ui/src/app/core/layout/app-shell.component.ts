@@ -44,6 +44,7 @@ import { ConfigService } from '../services/config.service';
             <app-header 
               [username]="username()"
               [avatarUrl]="avatarUrl()"
+              [isSignedIn]="isSignedIn()"
               [user]="{ name: username(), email: '', avatar: avatarUrl() }"
               (signOut)="handleSignOut()"
               (logout)="handleSignOut()">
@@ -166,16 +167,35 @@ export class AppShellComponent implements OnInit {
   }
   
   ngOnInit() {
-    // Set initial state based on authService
-    this.isSignedIn.set(this.authService.isAuthenticated());
+    // Check for auth state during initialization
+    this.checkAndUpdateAuthState();
     
     // Update navigation items with URLs from config
     this.updateNavigationUrls();
     
     // Initialize route listeners to hide header on landing page
     this.setupRouteListeners();
+  }
+
+  /**
+   * Check current auth state and update UI accordingly
+   * This ensures proper state when app loads or refreshes
+   */
+  private checkAndUpdateAuthState() {
+    // Get the current authenticated state from service
+    const isAuthenticated = this.authService.isAuthenticated();
     
-    if (this.authService.isAuthenticated()) {
+    console.log('AppShell: Checking auth state on init:', { 
+      isAuthenticated: isAuthenticated,
+      userExists: this.authService.currentUser() !== null,
+      user: this.authService.currentUser()
+    });
+    
+    // Update our local state
+    this.isSignedIn.set(isAuthenticated);
+    
+    // Update user information if authenticated
+    if (isAuthenticated) {
       const user = this.authService.currentUser();
       if (user) {
         this.username.set(user.name);
@@ -185,18 +205,38 @@ export class AppShellComponent implements OnInit {
     
     // Subscribe to auth state changes using the legacy observable
     this.authService.authStatus$.subscribe(isAuth => {
-      this.isSignedIn.set(isAuth);
+      // Always check the signal value for the most accurate state
+      const signalAuthenticated = this.authService.isAuthenticated();
+      const currentUser = this.authService.currentUser();
       
-      if (isAuth) {
-        const user = this.authService.currentUser();
-        if (user) {
-          this.username.set(user.name);
+      console.log('AppShell: Auth state changed:', { 
+        eventIsAuth: isAuth,
+        signalAuthenticated: signalAuthenticated,
+        user: currentUser,
+        username: currentUser?.name || null
+      });
+      
+      // Use the more reliable signal value if available, otherwise use the event value
+      const effectiveAuthState = signalAuthenticated;
+      this.isSignedIn.set(effectiveAuthState);
+      
+      if (effectiveAuthState) {
+        // If authenticated, set up user data in the UI
+        if (currentUser) {
+          this.username.set(currentUser.name);
           // Set user avatar with fallback
-          this.avatarUrl.set(user.avatar || 'assets/images/avatar.svg');
+          this.avatarUrl.set(currentUser.avatar || 'assets/images/avatar.svg');
         }
+        
+        // Always show header when authenticated, regardless of route
+        this.showHeader.set(true);
       } else {
         this.username.set('');
         this.avatarUrl.set('');
+        
+        // Always show header even when not authenticated
+        // This provides consistent UI and ensures the sign-in button is accessible
+        this.showHeader.set(true);
       }
       
       // Make sure navigation items are updated after auth state changes
@@ -232,19 +272,24 @@ export class AppShellComponent implements OnInit {
     return this.configService.isFeatureEnabled('enableSaasEvents');
   }
   
-  // Setup route listeners to hide header on landing page
+  // Setup route listeners to hide header on landing page when not logged in
   private setupRouteListeners() {
     // Check the initial route
     const currentUrl = this.router.url;
-    this.showHeader.set(!(currentUrl === '/' || currentUrl === '' || currentUrl === '/dashboard'));
+    const isHomePage = currentUrl === '/' || currentUrl === '' || currentUrl === '/dashboard';
+    
+    // Always show header if authenticated, or hide on homepage/dashboard when not authenticated
+    // Initially set the header visibility
+    this.showHeader.set(true);
     
     // Listen for route changes
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd),
       map((event: NavigationEnd) => event.url)
     ).subscribe(url => {
-      // Hide header on home/landing page (empty path or root path or /dashboard)
-      this.showHeader.set(!(url === '/' || url === '' || url === '/dashboard'));
+      // Always show header after authentication
+      // The header contains the user profile dropdown needed for logout
+      this.showHeader.set(true);
     });
   }
 }

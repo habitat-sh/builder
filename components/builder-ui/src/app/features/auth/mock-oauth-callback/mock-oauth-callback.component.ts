@@ -75,12 +75,15 @@ export class MockOAuthCallbackComponent implements OnInit {
       // Generate a mock code
       const code = 'mock_code_' + Math.random().toString(36).substring(2);
       
+      console.log('MockOAuthCallbackComponent: Starting authentication with state:', state);
+      
       // Handle the mock callback
       this.mockAuthService.handleCallback(state, code).subscribe({
         next: (response: any) => {
           if (response.error) {
             this.isProcessing = false;
             this.errorMessage = 'Authentication failed: ' + response.error;
+            console.error('MockOAuthCallbackComponent: Authentication error:', response.error);
             
             // Redirect back to sign-in after error
             setTimeout(() => {
@@ -94,10 +97,31 @@ export class MockOAuthCallbackComponent implements OnInit {
           
           // Successful authentication
           this.isProcessing = false;
+          console.log('MockOAuthCallbackComponent: Authentication successful', {
+            authState: {
+              isAuthenticated: this.mockAuthService.isAuthenticated(),
+              user: this.mockAuthService.currentUser()
+            },
+            response
+          });
           
-          // Redirect to home page
+          // Get the redirect URL from auth service or default to dashboard
+          const redirectUrl = this.mockAuthService.getAndClearRedirectUrl() || '/dashboard';
+          console.log('MockOAuthCallbackComponent: Redirecting to', redirectUrl);
+          
+          // Redirect to the stored URL or dashboard
+          console.log('MockOAuthCallbackComponent: Preparing to navigate to', redirectUrl);
+          
+          // Make sure the authentication state is fully updated before redirecting
+          // This ensures any components that depend on the auth state will be properly updated
           setTimeout(() => {
-            this.router.navigate(['/']);
+            console.log('MockOAuthCallbackComponent: Navigating to', redirectUrl, 
+              'AuthState:', {
+                isAuthenticated: this.mockAuthService.isAuthenticated(),
+                user: this.mockAuthService.currentUser()
+              }
+            );
+            this.router.navigateByUrl(redirectUrl);
           }, 1000);
         },
         error: (error) => {
