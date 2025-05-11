@@ -8,8 +8,9 @@ export const environment = {
   oauthClientId: 'e058b7c2a5907b8c11e6', // Development GitHub OAuth client ID
   featureFlags: {
     enableNewFeatures: true,
-    enableEvents: true,
-    enableSaasEvents: false,
+    // Updated feature flags for events
+    enable_builder_events: true,
+    enable_builder_events_saas: true,
     enableVisibility: true
   },
   urls: {

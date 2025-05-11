@@ -4,8 +4,8 @@ export const environment = {
   useMocks: false,
   featureFlags: {
     enableNewFeatures: false,
-    enableEvents: true,
-    enableSaasEvents: false,
+    enable_builder_events: true,
+    enable_builder_events_saas: false,
     enableVisibility: true
   },
   urls: {

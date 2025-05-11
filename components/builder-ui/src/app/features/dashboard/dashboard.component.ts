@@ -13,7 +13,7 @@ import { DomSanitizer } from '@angular/platform-browser';
 
 import { AuthService } from '../../core/services/auth.service';
 import { ConfigService } from '../../core/services/config.service';
-import { DashboardFeatureCard, DashboardStatsSummary } from './dashboard.model';
+import { DashboardFeatureCard } from './dashboard.model';
 
 @Component({
   selector: 'app-dashboard',
@@ -138,20 +138,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private domSanitizer = inject(DomSanitizer);
   
   // State signals
-  private _loading = signal(true);
-  private _stats = signal<DashboardStatsSummary>({
-    origins: 0,
-    packages: 0,
-    totalBuilds: 0,
-    successfulBuilds: 0,
-    buildSuccessRate: 0
-  });
+  private _loading = signal(false);
   
   // User data signal
   private _userData = signal<any>(null);
 
   isLoading = computed(() => this._loading());
-  stats = computed(() => this._stats());
   userData = computed(() => this._userData());
   
   ngOnInit() {
@@ -161,10 +153,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.domSanitizer.bypassSecurityTrustResourceUrl('assets/images/icons/github.svg')
     );
     
-    // Load user stats and data if authenticated
+    // Load user data if authenticated (stats loading removed)
     if (this.isAuthenticated()) {
-      this.loadUserStats();
       this.loadUserData();
+    } else {
+      // Set loading to false since we won't load stats
+      this._loading.set(false);
     }
   }
   
@@ -179,25 +173,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const user = this.authService.currentUser();
     if (user) {
       this._userData.set(user);
-    }
-  }
-
-  /**
-   * Simulate loading user stats (in a real implementation, this would call an API)
-   */
-  private loadUserStats() {
-    // In a real implementation, this would be an API call to get user stats
-    setTimeout(() => {
-      // Mock data - would be replaced with actual API response
-      this._stats.set({
-        origins: 3,
-        packages: 42,
-        totalBuilds: 68,
-        successfulBuilds: 61,
-        buildSuccessRate: 89.7
-      });
       this._loading.set(false);
-    }, 1500);
+    }
   }
   
   private _featureCards = signal<DashboardFeatureCard[]>([
@@ -220,15 +197,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       requiresAuthentication: true
     },
     {
-      title: 'Builds',
-      subtitle: 'View and manage builds',
-      description: 'Monitor build status and manage your build processes.',
-      icon: 'build',
-      routerLink: '/builds',
-      buttonText: 'VIEW BUILDS',
-      requiresAuthentication: true
-    },
-    {
       title: 'Profile',
       subtitle: 'Manage your account',
       description: 'Update your profile and manage your personal access tokens.',
@@ -236,17 +204,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       routerLink: '/profile',
       buttonText: 'MY PROFILE',
       requiresAuthentication: true
-    },
-    {
-      title: 'Events',
-      subtitle: 'View system events',
-      description: 'View and monitor system events and notifications.',
-      icon: 'event',
-      routerLink: '/events',
-      buttonText: 'VIEW EVENTS',
-      requiresAuthentication: true,
-      featureFlag: 'enableEvents'
     }
+    // Events tiles removed from dashboard but still accessible via nav bar with feature flags
   ]);
   
   // Computed signal that filters feature cards based on authentication status and feature flags
@@ -263,11 +222,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   
   // Computed signal that depends on the authService
   public isAuthenticated = computed(() => this.authService.isAuthenticated());
-  
-  // Determine if stats should be shown
-  public showStats = computed(() => 
-    this.configService.isFeatureEnabled('enableNewFeatures') && this.isAuthenticated()
-  );
 
   // Helper method to get URLs from config service
   getUrl(key: string): string {

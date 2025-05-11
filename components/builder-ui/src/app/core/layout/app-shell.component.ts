@@ -96,8 +96,8 @@ export class AppShellComponent implements OnInit {
       route: '/pkgs'
     });
     
-    // Add Events if enabled
-    if (this.configService.isFeatureEnabled('enableEvents')) {
+    // Add Events if enabled with new feature flag name
+    if (this.configService.isFeatureEnabled('enable_builder_events')) {
       mainNavItems.push({
         label: 'Events',
         icon: 'event',
@@ -105,11 +105,11 @@ export class AppShellComponent implements OnInit {
       });
       
       // Add SaaS Events if both flags enabled
-      if (this.configService.isFeatureEnabled('enableSaasEvents')) {
+      if (this.configService.isFeatureEnabled('enable_builder_events_saas')) {
         mainNavItems.push({
           label: 'Events (SaaS)',
           icon: 'cloud',
-          route: '/events/saas'
+          route: '/events-saas'
         });
       }
     }
@@ -263,13 +263,13 @@ export class AppShellComponent implements OnInit {
     this.avatarUrl.set('');
   }
   
-  // Helper methods for feature flags
+  // Helper methods for feature flags with updated flag names
   eventsEnabled(): boolean {
-    return this.configService.isFeatureEnabled('enableEvents');
+    return this.configService.isFeatureEnabled('enable_builder_events');
   }
   
   saasEventsEnabled(): boolean {
-    return this.configService.isFeatureEnabled('enableSaasEvents');
+    return this.configService.isFeatureEnabled('enable_builder_events_saas');
   }
   
   // Setup route listeners to hide header on landing page when not logged in
