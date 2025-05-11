@@ -52,6 +52,118 @@
   }
 }
 
+.stats-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  margin-bottom: 40px;
+  
+  .stats-card {
+    background-color: $white;
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    position: relative;
+    
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+    }
+    
+    &.origins {
+      border-left: 4px solid $hab-blue;
+      .stats-icon {
+        background-color: rgba($hab-blue, 0.1);
+        mat-icon {
+          color: $hab-blue;
+        }
+      }
+    }
+    
+    &.packages {
+      border-left: 4px solid $hab-green;
+      .stats-icon {
+        background-color: rgba($hab-green, 0.1);
+        mat-icon {
+          color: $hab-green;
+        }
+      }
+    }
+    
+    &.builds {
+      border-left: 4px solid $hab-orange;
+      .stats-icon {
+        background-color: rgba($hab-orange, 0.1);
+        mat-icon {
+          color: $hab-orange;
+        }
+      }
+    }
+    
+    .stats-icon {
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      margin-right: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      
+      mat-icon {
+        font-size: 26px;
+        width: 26px;
+        height: 26px;
+      }
+    }
+    
+    .stats-content {
+      flex-grow: 1;
+      
+      h3 {
+        color: $medium-blue;
+        font-size: 14px;
+        margin-bottom: 8px;
+        font-weight: 500;
+      }
+      
+      .stats-value {
+        font-size: 28px;
+        font-weight: 600;
+        color: $dark-blue;
+      }
+      
+      .stats-build-summary {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 5px;
+        
+        .success {
+          color: $hab-green;
+        }
+        
+        .total {
+          color: $dark-gray;
+        }
+      }
+      
+      mat-progress-bar {
+        height: 5px;
+        border-radius: 3px;
+        overflow: hidden;
+        
+        ::ng-deep .mdc-linear-progress__bar-inner {
+          border-color: $hab-green !important;
+        }
+      }
+    }
+  }
+}
+
 .login-section {
   margin-bottom: 40px;
   

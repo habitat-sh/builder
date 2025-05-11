@@ -4,6 +4,8 @@ import { NotFoundComponent } from './core/layout/layout-components/not-found.com
 import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { ColorSwatchComponent } from './core/layout/color-swatch.component';
 import { DebugAssetsComponent } from './debug/debug-assets.component';
+import { PackageListComponent } from './features/packages/list/package-list.component';
+import { PackageDetailComponent } from './features/packages/detail/package-detail.component';
 
 // Guards
 import { authGuard, roleGuard, permissionGuard } from './core/guards/auth.guard';
@@ -34,10 +36,22 @@ export const routes: Routes = [
         component: DebugAssetsComponent
       },
       
-      // Package routes - to be implemented in later phases
+      // Package routes
       {
         path: 'pkgs',
-        component: DashboardComponent // Placeholder - will be replaced with actual component
+        component: PackageListComponent
+      },
+      {
+        path: 'pkgs/:origin/:name',
+        component: PackageDetailComponent
+      },
+      {
+        path: 'pkgs/:origin/:name/:version',
+        component: PackageDetailComponent
+      },
+      {
+        path: 'pkgs/:origin/:name/:version/:release',
+        component: PackageDetailComponent
       },
       
       // Protected routes - to be implemented in later phases

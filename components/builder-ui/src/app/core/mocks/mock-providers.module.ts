@@ -3,6 +3,7 @@ import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 
 import { MockAuthInterceptor } from './mock-auth.interceptor';
+import { MockPackageApiInterceptor } from './mock-package-api.interceptor';
 
 /**
  * This module provides mock services for development/testing.
@@ -15,6 +16,11 @@ import { MockAuthInterceptor } from './mock-auth.interceptor';
       {
         provide: HTTP_INTERCEPTORS,
         useClass: MockAuthInterceptor,
+        multi: true
+      },
+      {
+        provide: HTTP_INTERCEPTORS,
+        useClass: MockPackageApiInterceptor,
         multi: true
       }
     ] : [])
