@@ -1,7 +1,8 @@
-import { Component, OnInit, Renderer2 } from '@angular/core';
+import { Component, OnInit, Renderer2, inject } from '@angular/core';
 import { RouterOutlet, Router, Event, NavigationEnd } from '@angular/router';
 import { Meta, Title } from '@angular/platform-browser';
 import { IconService } from './core/services/icon.service';
+import { AuthService } from './core/services/auth.service';
 import { filter } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 
@@ -19,6 +20,7 @@ import { CommonModule } from '@angular/common';
 export class AppComponent implements OnInit {
   title = 'Habitat Builder';
   isSignInRoute = false;
+  private authService = inject(AuthService);
 
   constructor(
     private meta: Meta,
@@ -29,6 +31,11 @@ export class AppComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    // Ensure authentication state is loaded and validated
+    console.log('App: Initializing and validating authentication state');
+    this.authService.validateAuthState();
+    console.log('App: Authentication status:', this.authService.isAuthenticated());
+
     // Set document title
     this.titleService.setTitle(this.title);
     

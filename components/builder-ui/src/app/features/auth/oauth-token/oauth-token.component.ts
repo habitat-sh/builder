@@ -99,8 +99,21 @@ export class OAuthTokenComponent implements OnInit {
       next: () => {
         this.isLoading = false;
         this.success = true;
+        
+        // Clear any URL fragments or params that contain auth tokens to prevent security issues
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        
+        // Store authentication timestamp in sessionStorage for better refresh handling
+        sessionStorage.setItem('auth_timestamp', Date.now().toString());
+        
+        // Verify authentication is reflected in the app state
+        console.log('OAuth token: Authentication successful, verifying app state');
+        
         setTimeout(() => {
           const redirectUrl = this.authService.getAndClearRedirectUrl() || '/';
+          console.log(`OAuth token: Redirecting to ${redirectUrl}`);
           this.router.navigateByUrl(redirectUrl);
         }, 1000);
       },
@@ -108,6 +121,18 @@ export class OAuthTokenComponent implements OnInit {
         this.isLoading = false;
         this.error = 'Authentication failed: ' + (error.message || 'Unknown error');
         console.error('Token processing error', error);
+        
+        // Store error information for diagnostics
+        sessionStorage.setItem('auth_error', JSON.stringify({
+          message: error.message || 'Unknown error',
+          timestamp: new Date().toISOString(),
+          location: 'oauth_token_component'
+        }));
+        
+        // Clear any partial authentication state to prevent UI breaking
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+        sessionStorage.removeItem('auth_success');
       }
     });
   }

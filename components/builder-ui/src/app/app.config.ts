@@ -54,14 +54,38 @@ export const appConfig: ApplicationConfig = {
       useFactory: (authService: AuthService) => {
         return () => {
           console.log('App Initializer: Checking authentication state');
-          // If authenticated but token near expiration, refresh it
-          if (authService.isAuthenticated() && authService.isTokenExpired()) {
-            return new Promise<boolean>((resolve) => {
-              authService.refreshToken().subscribe({
-                next: (result) => resolve(result),
-                error: () => resolve(false)
-              });
+          try {
+            console.log('App Initializer: AuthService methods available:', {
+              validateAuthState: typeof authService.validateAuthState === 'function',
+              isAuthenticated: typeof authService.isAuthenticated === 'function',
+              isTokenExpired: typeof authService.isTokenExpired === 'function',
+              refreshToken: typeof authService.refreshToken === 'function'
             });
+            
+            // First ensure the auth state is properly loaded
+            authService.validateAuthState();
+            
+            // Use safe checks for authentication and token expiration
+            const isAuthenticated = typeof authService.isAuthenticated === 'function' 
+              ? authService.isAuthenticated() 
+              : false;
+              
+            const isExpired = typeof authService.isTokenExpired === 'function' 
+              ? authService.isTokenExpired() 
+              : false;
+            
+            // If authenticated but token near expiration, refresh it
+            if (isAuthenticated && isExpired) {
+              console.log('App Initializer: Token needs refresh');
+              return new Promise<boolean>((resolve) => {
+                authService.refreshToken().subscribe({
+                  next: (result) => resolve(result),
+                  error: () => resolve(false)
+                });
+              });
+            }
+          } catch (error) {
+            console.error('App Initializer: Error checking auth state', error);
           }
           return Promise.resolve(true);
         };

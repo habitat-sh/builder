@@ -6,6 +6,7 @@ import { ColorSwatchComponent } from './core/layout/color-swatch.component';
 import { DebugAssetsComponent } from './debug/debug-assets.component';
 import { PackageListComponent } from './features/packages/list/package-list.component';
 import { PackageDetailComponent } from './features/packages/detail/package-detail.component';
+import { PackageSettingsComponent } from './features/packages/settings/package-settings.component';
 
 // Guards
 import { authGuard, roleGuard, permissionGuard } from './core/guards/auth.guard';
@@ -52,6 +53,22 @@ export const routes: Routes = [
       {
         path: 'pkgs/:origin/:name/:version/:release',
         component: PackageDetailComponent
+      },
+      {
+        path: 'pkgs/:origin/:name/:version/:release/settings',
+        component: PackageSettingsComponent,
+        canActivate: [authGuard, permissionGuard],
+        data: { 
+          permissions: ['package:update', 'package:promote'] 
+        }
+      },
+      {
+        path: 'pkgs/:origin/:name/:version/:release/settings',
+        component: PackageSettingsComponent,
+        canActivate: [authGuard, permissionGuard],
+        data: { 
+          permissions: ['package:update', 'package:promote'] 
+        }
       },
       
       // Protected routes - to be implemented in later phases

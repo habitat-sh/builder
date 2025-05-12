@@ -65,12 +65,67 @@ export class AuthService {
     private apiService: ApiService,
     private router: Router
   ) {
+    console.log('AuthService: Initializing');
+    
+    // First load auth state from storage before anything else
     this.loadAuthStateFromStorage();
+    
     // Generate random state value for OAuth security
     this.oauthState = this.generateRandomState();
     
     // Initialize cross-tab authentication sync
     this.initCrossTabSync();
+    
+    // Run a sanity check on the auth state after a slight delay
+    // This helps catch edge cases where the initialization sequence didn't fully complete
+    setTimeout(() => {
+      this.validateAuthState();
+    }, 500);
+  }
+  
+  /**
+   * Validate auth state and fix any inconsistencies
+   */
+  validateAuthState(): void {
+    const token = localStorage.getItem(this.AUTH_TOKEN_KEY);
+    const userJson = localStorage.getItem(this.USER_DATA_KEY);
+    const isAuthenticated = this._authState().isAuthenticated;
+    const sessionAuthSuccess = sessionStorage.getItem('auth_success');
+    
+    console.log(`AuthService: Validating auth state - storage has token: ${!!token}, user data: ${!!userJson}, isAuthenticated: ${isAuthenticated}, sessionAuthSuccess: ${!!sessionAuthSuccess}`);
+    
+    // Special case: We just completed authentication and are in a page transition/reload
+    if (!isAuthenticated && token && userJson && sessionAuthSuccess === 'true') {
+      console.log('AuthService: Detected successful auth session but state is not authenticated, restoring session');
+      this.loadAuthStateFromStorage();
+      return;
+    }
+    
+    // Check for inconsistent state
+    if ((token && userJson && !isAuthenticated) || (!token && !userJson && isAuthenticated)) {
+      console.warn('AuthService: Inconsistent auth state detected, reloading from storage');
+      
+      if (token && userJson) {
+        // We have storage data but state is not authenticated
+        this.loadAuthStateFromStorage();
+      } else {
+        // We don't have storage data but state is authenticated
+        this._authState.set({
+          isAuthenticated: false,
+          user: null,
+          token: null,
+          tokenExpiration: null
+        });
+        this.authStatusSource.next(false);
+      }
+    }
+    
+    // If we have authenticated successfully, record the authentication in sessionStorage
+    // to help maintain state across refreshes within the same browser session
+    if (isAuthenticated && !sessionStorage.getItem('auth_success')) {
+      console.log('AuthService: Recording authentication success in session storage');
+      sessionStorage.setItem('auth_success', 'true');
+    }
   }
   
   /**
@@ -78,6 +133,8 @@ export class AuthService {
    * This ensures all tabs have consistent auth state
    */
   private initCrossTabSync(): void {
+    console.log('AuthService: Initializing cross-tab sync and session monitoring');
+    
     // Listen for storage events to detect auth changes in other tabs
     window.addEventListener('storage', (event) => {
       if (event.key === this.AUTH_TOKEN_KEY) {
@@ -94,6 +151,29 @@ export class AuthService {
             this.logout(false);
           }
         }
+      } else if (event.key === this.USER_DATA_KEY && event.newValue) {
+        console.log('AuthService: User data changed in another tab');
+        this.loadAuthStateFromStorage();
+      } else if (event.key === 'auth_timestamp') {
+        console.log('AuthService: Authentication timestamp updated in another tab');
+        this.validateAuthState();
+      }
+    });
+    
+    // Handle page visibility changes to refresh auth state when tab becomes visible
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        console.log('AuthService: Tab became visible, validating auth state');
+        this.validateAuthState();
+      }
+    });
+    
+    // Handle page reloads to ensure auth state is maintained
+    window.addEventListener('pageshow', (event) => {
+      // bfcache navigation event
+      if (event.persisted) {
+        console.log('AuthService: Page restored from back/forward cache, validating auth state');
+        this.validateAuthState();
       }
     });
     
@@ -222,11 +302,16 @@ export class AuthService {
    * Process OAuth callback
    */
   handleOAuthCallback(token: string): Observable<User> {
+    console.log('AuthService: Handling OAuth callback');
     return this.apiService.get<User>('auth/me', {}, {
       headers: { Authorization: `Bearer ${token}` }
     }).pipe(
       tap(user => {
+        console.log('AuthService: OAuth callback successful, setting auth state');
         this.setAuthState(token, user);
+        
+        // Force the auth state to be loaded properly
+        setTimeout(() => this.validateAuthState(), 100);
       }),
       catchError(error => {
         console.error('OAuth callback error', error);
@@ -349,14 +434,20 @@ export class AuthService {
   }
   
   /**
-   * Check if current token is expired
+   * Check if current token is expired or will expire soon
+   * Public method that can be accessed by guards and initializers
    */
   isTokenExpired(): boolean {
-    const expiration = this._authState().tokenExpiration;
-    if (!expiration) return true;
-    
-    // Add buffer of 60 seconds
-    return expiration.getTime() <= (Date.now() + (60 * 1000));
+    try {
+      const expiration = this._authState().tokenExpiration;
+      if (!expiration) return true;
+      
+      // Add buffer of 60 seconds
+      return expiration.getTime() <= (Date.now() + (60 * 1000));
+    } catch (error) {
+      console.error('AuthService: Error checking token expiration', error);
+      return false;
+    }
   }
   
   /**
@@ -408,8 +499,12 @@ export class AuthService {
    * Load authentication state from local storage
    */
   private loadAuthStateFromStorage(): void {
+    console.log('AuthService: Loading auth state from storage');
     const token = localStorage.getItem(this.AUTH_TOKEN_KEY);
-    if (!token) return;
+    if (!token) {
+      console.log('AuthService: No token found in local storage');
+      return;
+    }
     
     // Check if token is expired
     let tokenExpiration: Date | null = null;
@@ -426,12 +521,14 @@ export class AuthService {
       const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
       tokenNeedsRefresh = tokenExpiration < fiveMinutesFromNow;
       
+      console.log(`AuthService: Token expiration: ${tokenExpiration.toISOString()}, isExpired: ${isExpired}`);
     } catch (error) {
-      console.error('Failed to decode token', error);
+      console.error('AuthService: Failed to decode token', error);
     }
     
     // If token is expired, don't restore the session
     if (isExpired) {
+      console.log('AuthService: Token is expired, clearing storage');
       localStorage.removeItem(this.AUTH_TOKEN_KEY);
       localStorage.removeItem(this.USER_DATA_KEY);
       return;
@@ -439,16 +536,19 @@ export class AuthService {
     
     // If token needs refresh soon, trigger a refresh in the background
     if (tokenNeedsRefresh) {
-      console.log('Token expires soon, triggering refresh');
+      console.log('AuthService: Token expires soon, triggering refresh');
       this.refreshToken().subscribe({
-        next: () => console.log('Token refreshed successfully'),
-        error: (error) => console.error('Failed to refresh token', error)
+        next: () => console.log('AuthService: Token refreshed successfully'),
+        error: (error) => console.error('AuthService: Failed to refresh token', error)
       });
     }
     
     // Get user data from storage
     const userJson = localStorage.getItem(this.USER_DATA_KEY);
-    if (!userJson) return;
+    if (!userJson) {
+      console.log('AuthService: No user data found in storage');
+      return;
+    }
     
     try {
       const user = JSON.parse(userJson) as User;
@@ -463,8 +563,18 @@ export class AuthService {
       
       // Update legacy status
       this.authStatusSource.next(true);
+      
+      console.log(`AuthService: Successfully restored auth state for user ${user.name}`);
+      
+      // Set auth start time for session tracking if not already set
+      if (!localStorage.getItem('auth_start_time')) {
+        localStorage.setItem('auth_start_time', Date.now().toString());
+      }
     } catch (error) {
-      console.error('Failed to parse user data', error);
+      console.error('AuthService: Failed to parse user data', error);
+      // Clear data to prevent persistent errors
+      localStorage.removeItem(this.AUTH_TOKEN_KEY);
+      localStorage.removeItem(this.USER_DATA_KEY);
     }
   }
 }

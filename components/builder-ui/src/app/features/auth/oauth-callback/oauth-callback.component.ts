@@ -186,12 +186,19 @@ export class OAuthCallbackComponent implements OnInit, OnDestroy {
               localStorage.removeItem('auth_start_time');
             }
             
+            // Store authentication timestamp to keep track of the session
+            localStorage.setItem('auth_timestamp', Date.now().toString());
+            sessionStorage.setItem('auth_timestamp', Date.now().toString());
+            
+            // Set flag for successful auth to help with UI state on refresh 
+            sessionStorage.setItem('auth_success', 'true');
+            
             // Add a small delay to ensure auth state is properly updated
             setTimeout(() => {
               // Navigate to the target URL
               console.log('OAuthCallbackComponent: Navigating to', redirectUrl);
               this.router.navigateByUrl(redirectUrl);
-            }, 100);
+            }, 300);
           },
           error: (error) => {
             console.error('Token exchange error', error);
