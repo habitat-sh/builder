@@ -49,28 +49,6 @@
 .header-left {
   display: flex;
   align-items: center;
-  
-  .toggle-button {
-    margin-right: 16px;
-    color: #444;
-    
-    mat-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-  }
-  
-  .logo-container {
-    display: flex;
-    align-items: center;
-    margin-right: 16px;
-    
-    img.logo {
-      height: 32px;
-      width: auto;
-    }
-  }
 }
 
 .spacer {

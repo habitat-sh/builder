@@ -15,6 +15,6 @@ export const guestGuard: CanActivateFn =
       return true;
     }
     
-    // If user is already authenticated, redirect to dashboard
+    // If user is already authenticated, redirect to home
     return router.createUrlTree(['/']);
   };

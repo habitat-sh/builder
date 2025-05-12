@@ -1,4 +1,3 @@
-// filepath: /Users/psajja/Workspace/habitat-sh/builder/components/builder-ui/src/app/features/dashboard/dashboard.component.ts
 import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -8,7 +7,6 @@ import { RouterLink } from '@angular/router';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { NgClass } from '@angular/common';
 import { DomSanitizer } from '@angular/platform-browser';
 
 import { AuthService } from '../../core/services/auth.service';
@@ -25,7 +23,6 @@ import { HomeFeatureCard } from './home.model';
     MatButtonModule, 
     RouterLink, 
     MatChipsModule,
-    NgClass,
     MatProgressBarModule,
     MatProgressSpinnerModule
   ],
@@ -210,7 +207,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     if (!this.isAuthenticated()) {
       return [];
     }
-    
+
     return this._featureCards().filter(card => {
       // Filter by feature flag if present
       if (card.featureFlag && !this.configService.isFeatureEnabled(card.featureFlag)) {

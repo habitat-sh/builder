@@ -276,9 +276,9 @@ export class AppShellComponent implements OnInit {
   private setupRouteListeners() {
     // Check the initial route
     const currentUrl = this.router.url;
-    const isHomePage = currentUrl === '/' || currentUrl === '' || currentUrl === '/dashboard';
+    const isHomePage = currentUrl === '/' || currentUrl === '' || currentUrl === '/home';
     
-    // Always show header if authenticated, or hide on homepage/dashboard when not authenticated
+    // Always show header if authenticated, or hide on homepage when not authenticated
     // Initially set the header visibility
     this.showHeader.set(true);
     

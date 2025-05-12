@@ -30,7 +30,7 @@ import { environment } from '../../../../environments/environment';
             <li>User is redirected to GitHub (or mock auth in development)</li>
             <li>GitHub redirects back to callback URL with auth code</li>
             <li>Backend exchanges code for token</li>
-            <li>User is logged in and redirected to the dashboard</li>
+            <li>User is logged in and redirected to the home page</li>
           </ol>
         </mat-card-content>
         

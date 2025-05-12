@@ -105,11 +105,11 @@ export class MockOAuthCallbackComponent implements OnInit {
             response
           });
           
-          // Get the redirect URL from auth service or default to dashboard
-          const redirectUrl = this.mockAuthService.getAndClearRedirectUrl() || '/dashboard';
+          // Get the redirect URL from auth service or default to home
+          const redirectUrl = this.mockAuthService.getAndClearRedirectUrl() || '/home';
           console.log('MockOAuthCallbackComponent: Redirecting to', redirectUrl);
           
-          // Redirect to the stored URL or dashboard
+          // Redirect to the stored URL or home
           console.log('MockOAuthCallbackComponent: Preparing to navigate to', redirectUrl);
           
           // Make sure the authentication state is fully updated before redirecting

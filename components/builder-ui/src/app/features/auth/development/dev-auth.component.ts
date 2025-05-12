@@ -112,7 +112,7 @@ import { AuthService } from '../../../core/services/auth.service';
         
         <mat-card-actions>
           <button mat-button routerLink="/sign-in">Go to Sign In</button>
-          <button mat-button routerLink="/">Go to Dashboard</button>
+          <button mat-button routerLink="/">Go to Home</button>
         </mat-card-actions>
       </mat-card>
     </div>

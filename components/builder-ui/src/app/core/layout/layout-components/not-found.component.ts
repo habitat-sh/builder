@@ -13,7 +13,7 @@ import { MatIconModule } from '@angular/material/icon';
       <h1>404 - Page Not Found</h1>
       <p>The page you are looking for doesn't exist or has been moved.</p>
       <button mat-raised-button color="primary" routerLink="/">
-        <mat-icon>home</mat-icon> Go to Dashboard
+        <mat-icon>home</mat-icon> Go to Home
       </button>
     </div>
   `,

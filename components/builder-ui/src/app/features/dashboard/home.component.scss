@@ -1,0 +1,327 @@
+@use 'sass:color';
+@use '../../core/styles/mixins' as mix;
+@use '../../core/styles/colors' as *;
+@use '../../core/styles/typography' as *;
+
+.home-container {
+  background-color: $white;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 32px;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(to right, $hab-blue, $hab-orange);
+    z-index: 1;
+  }
+  
+  .page-title {
+    margin-bottom: 12px;
+    font-weight: 600;
+    font-size: 32px;
+    color: $dark-blue;
+    font-family: $heading-font-family;
+    position: relative;
+    display: inline-block;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 0;
+      width: 40px;
+      height: 3px;
+      background-color: $hab-orange;
+      border-radius: 2px;
+    }
+  }
+  
+  .intro-text {
+    color: $medium-blue;
+    margin-bottom: 40px;
+    font-size: 17px;
+    max-width: 700px;
+    line-height: 1.6;
+  }
+}
+
+// Login card styles
+.login-section {
+  margin-bottom: 40px;
+  
+  .login-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    
+    .login-card-accent {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 4px;
+      background: linear-gradient(to bottom, $hab-blue, $hab-orange);
+    }
+    
+    mat-card-header {
+      padding: 20px 20px 0 24px;
+      
+      mat-card-title {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: $dark-blue;
+      }
+      
+      mat-card-subtitle {
+        color: $medium-blue;
+        font-size: 14px;
+      }
+    }
+    
+    mat-card-content {
+      padding: 20px 24px;
+      
+      p {
+        color: $medium-blue;
+        margin-bottom: 20px;
+        line-height: 1.6;
+      }
+      
+      .feature-list {
+        list-style-type: none;
+        padding: 0;
+        margin: 20px 0;
+        
+        li {
+          display: flex;
+          align-items: center;
+          margin-bottom: 12px;
+          color: $dark-blue;
+          
+          .feature-icon {
+            color: $hab-green;
+            margin-right: 12px;
+            font-size: 18px;
+            height: 18px;
+            width: 18px;
+          }
+        }
+      }
+    }
+    
+    mat-card-actions {
+      padding: 0 24px 24px 24px;
+      display: flex;
+      justify-content: flex-start;
+      
+      .github-signin-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #007fab !important; // Updated to the correct blue color
+        color: white !important;
+        padding: 0 16px !important;
+        height: 36px !important;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.24) !important;
+        
+        mat-icon {
+          height: 18px;
+          width: 18px;
+          margin-right: 8px;
+        }
+        
+        &:hover {
+          background-color: #006d96 !important;
+        }
+      }
+    }
+  }
+}
+
+// Feature cards grid
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 40px;
+  
+  &:has(> .home-card:only-child) {
+    grid-template-columns: 1fr;
+  }
+  
+  .home-card {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background-color: $hab-blue;
+      z-index: 1;
+    }
+    
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+    }
+    
+    mat-card-header {
+      padding: 16px 16px 0 16px;
+      
+      mat-icon {
+        color: $hab-blue;
+        background-color: rgba($hab-blue, 0.1);
+        border-radius: 50%;
+        padding: 8px;
+      }
+      
+      mat-card-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: $dark-blue;
+        margin-bottom: 4px;
+      }
+      
+      mat-card-subtitle {
+        color: $medium-blue;
+      }
+    }
+    
+    mat-card-content {
+      padding: 16px;
+      flex-grow: 1;
+      
+      p {
+        color: $medium-blue;
+        margin-bottom: 16px;
+        line-height: 1.6;
+      }
+      
+      mat-chip-set {
+        margin-top: 12px;
+      }
+    }
+    
+    mat-card-actions {
+      padding: 0 16px 16px 16px;
+      display: flex;
+      justify-content: flex-start;
+    }
+  }
+}
+
+// Resources section
+.resources-section {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid $light-gray;
+  
+  h2 {
+    color: $dark-blue;
+    font-weight: 600;
+    font-size: 24px;
+    margin-bottom: 24px;
+    font-family: $heading-font-family;
+  }
+  
+  .resources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    
+    .resource-link {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      text-decoration: none;
+      padding: 16px;
+      border-radius: 8px;
+      background-color: rgba($light-blue, 0.05);
+      transition: all 0.3s ease;
+      
+      &:hover {
+        background-color: rgba($light-blue, 0.1);
+        transform: translateY(-2px);
+      }
+      
+      mat-icon {
+        color: $hab-blue;
+        font-size: 28px;
+        height: 28px;
+        width: 28px;
+        margin-bottom: 8px;
+      }
+      
+      span {
+        color: $dark-blue;
+        font-weight: 500;
+      }
+    }
+  }
+}
+
+// Authentication status bar styles removed as per requirements
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .home-container {
+    padding: 24px;
+    
+    .page-title {
+      font-size: 28px;
+    }
+    
+    .intro-text {
+      font-size: 16px;
+      margin-bottom: 32px;
+    }
+  }
+  
+  .home-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .resources-section {
+    .resources-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .home-container {
+    padding: 20px;
+    
+    .page-title {
+      font-size: 24px;
+    }
+  }
+  
+  .resources-section {
+    .resources-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}

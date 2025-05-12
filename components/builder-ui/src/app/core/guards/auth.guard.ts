@@ -32,8 +32,8 @@ export const noAuthGuard: CanActivateFn = () => {
     return true;
   }
   
-  // Redirect to dashboard if already logged in
-  return router.createUrlTree(['/dashboard']);
+  // Redirect to home if already logged in
+  return router.createUrlTree(['/home']);
 };
 
 /**

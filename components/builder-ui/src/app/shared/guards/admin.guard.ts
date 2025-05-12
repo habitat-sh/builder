@@ -20,6 +20,6 @@ export const adminGuard: CanActivateFn =
       return true;
     }
     
-    // If user is not an admin, redirect to dashboard
+    // If user is not an admin, redirect to home
     return router.createUrlTree(['/']);
   };

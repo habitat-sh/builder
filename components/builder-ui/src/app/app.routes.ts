@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { AppShellComponent } from './core/layout';
 import { NotFoundComponent } from './core/layout/layout-components/not-found.component';
-import { DashboardComponent } from './features/dashboard/dashboard.component';
+import { HomeComponent } from './features/dashboard/home.component';
 import { ColorSwatchComponent } from './core/layout/color-swatch.component';
 import { DebugAssetsComponent } from './debug/debug-assets.component';
 import { PackageListComponent } from './features/packages/list/package-list.component';
@@ -21,11 +21,11 @@ export const routes: Routes = [
     children: [
       {
         path: '',
-        component: DashboardComponent
+        component: HomeComponent
       },
       {
-        path: 'dashboard',
-        component: DashboardComponent
+        path: 'home',
+        component: HomeComponent
       },
       {
         path: 'theme',
@@ -58,30 +58,30 @@ export const routes: Routes = [
       {
         path: 'origins',
         canActivate: [authGuard],
-        component: DashboardComponent // Placeholder - will be replaced with actual component
+        component: HomeComponent // Placeholder - will be replaced with actual component
       },
       {
         path: 'builds',
         canActivate: [authGuard],
-        component: DashboardComponent // Placeholder - will be replaced with actual component
+        component: HomeComponent // Placeholder - will be replaced with actual component
       },
       {
         path: 'profile',
         canActivate: [authGuard],
-        component: DashboardComponent // Placeholder - will be replaced with actual component
+        component: HomeComponent // Placeholder - will be replaced with actual component
       },
       {
         path: 'settings',
         canActivate: [authGuard],
-        component: DashboardComponent // Placeholder - will be replaced with actual component
+        component: HomeComponent // Placeholder - will be replaced with actual component
       },
       {
         path: 'events',
-        component: DashboardComponent // Placeholder - will be replaced with actual component
+        component: HomeComponent // Placeholder - will be replaced with actual component
       },
       {
         path: 'events/saas',
-        component: DashboardComponent // Placeholder - will be replaced with actual component
+        component: HomeComponent // Placeholder - will be replaced with actual component
       }
     ]
   },
@@ -102,7 +102,7 @@ export const routes: Routes = [
   {
     path: 'admin',
     canActivate: [authGuard, roleGuard('admin')],
-    component: DashboardComponent // Placeholder - will be replaced with actual component
+    component: HomeComponent // Placeholder - will be replaced with actual component
   },
   
   // Error routes

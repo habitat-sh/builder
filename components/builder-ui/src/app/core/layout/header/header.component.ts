@@ -35,26 +35,6 @@ export interface UserInfo {
   template: `
     <mat-toolbar color="primary" class="header">
       <div class="header-left">
-        <button 
-          mat-icon-button 
-          (click)="toggleSideNav.emit()" 
-          matTooltip="Toggle navigation"
-          class="toggle-button">
-          <mat-icon>menu</mat-icon>
-        </button>
-        
-        <div class="logo-container" *ngIf="showLogo">
-          <img 
-            [src]="logoPath"
-            alt="Habitat Logo" 
-            class="logo"
-            habFallbackImage
-            fallbackType="logo"
-            (error)="onLogoError($event)"
-            (load)="onLogoLoad()"
-            routerLink="/">
-        </div>
-        
         <h1 class="title">{{ title }}</h1>
       </div>
       
@@ -72,38 +52,6 @@ export interface UserInfo {
           routerLink="/sign-in">
           Sign In
         </button>
-        
-        <!-- Search button -->
-        <button 
-          mat-icon-button 
-          matTooltip="Search" 
-          (click)="onSearchClick()"
-          class="action-button">
-          <mat-icon>search</mat-icon>
-        </button>
-        
-        <!-- Help menu -->
-        <button 
-          mat-icon-button 
-          [matMenuTriggerFor]="helpMenu" 
-          matTooltip="Help"
-          class="action-button">
-          <mat-icon>help</mat-icon>
-        </button>
-        <mat-menu #helpMenu="matMenu">
-          <a mat-menu-item href="https://www.habitat.sh/docs" target="_blank">
-            <mat-icon>library_books</mat-icon>
-            <span>Documentation</span>
-          </a>
-          <a mat-menu-item href="https://www.habitat.sh/tutorials" target="_blank">
-            <mat-icon>school</mat-icon>
-            <span>Tutorials</span>
-          </a>
-          <a mat-menu-item href="https://github.com/habitat-sh/habitat/issues" target="_blank">
-            <mat-icon>bug_report</mat-icon>
-            <span>Report an Issue</span>
-          </a>
-        </mat-menu>
         
         <!-- User menu -->
         <button 
@@ -169,7 +117,6 @@ export interface UserInfo {
 })
 export class HeaderComponent implements OnInit {
   @Input() title = 'Habitat Builder';
-  @Input() showLogo = true;
   @Input() user: UserInfo | null = null;
   @Input() username = '';
   @Input() avatarUrl = '';
@@ -177,25 +124,10 @@ export class HeaderComponent implements OnInit {
   
   // Track avatar image loading errors
   hasAvatarError = false;
-  logoLoaded = false;
-  
-  // List of logo paths to try
-  private logoPaths = [
-    'assets/images/habitat-logo.svg',
-    '/assets/images/habitat-logo.svg'
-  ];
-  
-  private currentLogoIndex = 0;
-  
-  get logoPath(): string {
-    return this.logoPaths[this.currentLogoIndex];
-  }
   
   private assetLoader = inject(AssetLoaderService);
   private authService = inject(AuthService);
   
-  @Output() toggleSideNav = new EventEmitter<void>();
-  @Output() search = new EventEmitter<void>();
   @Output() logout = new EventEmitter<void>();
   @Output() signOut = new EventEmitter<void>();
   
@@ -204,13 +136,6 @@ export class HeaderComponent implements OnInit {
     if (this.isSignedIn && !this.avatarUrl) {
       this.avatarUrl = 'assets/images/avatar.svg';
     }
-    
-    // Report that we're loading the logo
-    this.assetLoader.reportAssetLoading(this.logoPath);
-  }
-  
-  onSearchClick(): void {
-    this.search.emit();
   }
   
   handleSignOut(): void {
@@ -235,53 +160,5 @@ export class HeaderComponent implements OnInit {
       // Reset error flag to try the new URL
       this.hasAvatarError = false;
     }
-  }
-  
-  /**
-   * Handle logo image loading errors
-   * @param event The error event
-   */
-  onLogoError(event: Event): void {
-    console.error('Logo failed to load:', this.logoPath);
-    this.assetLoader.reportAssetError(this.logoPath);
-    
-    // Try next logo in the path list
-    if (this.currentLogoIndex < this.logoPaths.length - 1) {
-      this.currentLogoIndex++;
-      this.assetLoader.reportAssetLoading(this.logoPath);
-      return;
-    }
-    
-    // If all paths failed, apply CSS fallback for logo
-    const imgElement = event.target as HTMLImageElement;
-    if (imgElement) {
-      imgElement.style.display = 'none';
-      
-      // Create text fallback
-      const container = imgElement.parentElement;
-      if (container) {
-        const fallback = document.createElement('div');
-        fallback.textContent = 'H';
-        fallback.style.width = '36px';
-        fallback.style.height = '36px';
-        fallback.style.backgroundColor = '#FF9012';
-        fallback.style.borderRadius = '4px';
-        fallback.style.color = 'white';
-        fallback.style.display = 'flex';
-        fallback.style.alignItems = 'center';
-        fallback.style.justifyContent = 'center';
-        fallback.style.fontWeight = 'bold';
-        container.appendChild(fallback);
-      }
-    }
-  }
-  
-  /**
-   * Handle successful logo load
-   */
-  onLogoLoad(): void {
-    console.log('Logo loaded successfully:', this.logoPath);
-    this.assetLoader.reportAssetSuccess(this.logoPath);
-    this.logoLoaded = true;
   }
 }

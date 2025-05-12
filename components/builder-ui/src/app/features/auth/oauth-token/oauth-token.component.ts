@@ -30,7 +30,7 @@ import { AuthService } from '../../../core/services/auth.service';
           </div>
         </mat-card-content>
         <mat-card-actions>
-          <button *ngIf="!isLoading" mat-raised-button color="primary" routerLink="/">Go to Dashboard</button>
+          <button *ngIf="!isLoading" mat-raised-button color="primary" routerLink="/">Go to Home</button>
           <button *ngIf="error" mat-stroked-button routerLink="/sign-in">Try Again</button>
         </mat-card-actions>
       </mat-card>
