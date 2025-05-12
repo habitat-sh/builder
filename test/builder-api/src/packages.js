@@ -350,6 +350,67 @@ describe('Working with packages', function () {
           done(err);
         });
     });
+    it('fails to download a license-restricted package if unauthenticated', function (done) {
+        request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download`)
+          .expect(401)
+          .end(done);
+      });
+      
+      it('fails to download license-restricted package with no license key', function (done) {
+        request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download`)
+          .set('Authorization', global.noLicenseBearer)
+          .expect(403)
+          .end((err, res) => {
+            expect(res.text).to.contain('No valid license key found');
+            done(err);
+          });
+      });
+      
+      it('fails to download license-restricted package with expired license and no refresh', function (done) {
+        request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download`)
+          .set('Authorization', global.expiredLicenseBearer)
+          .expect(403)
+          .end((err, res) => {
+            expect(res.text).to.contain('License has expired');
+            done(err);
+          });
+      });
+      
+      it('downloads successfully with valid license key', function (done) {
+        request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download`)
+          .set('Authorization', global.validLicenseBearer)
+          .expect(200)
+          .buffer()
+          .parse(binaryParser)
+          .end((err, res) => {
+            expect(res.header['x-filename']).to.equal(`neurosis-testapp-0.1.3-${release2}-x86_64-linux.hart`);
+            expect(res.body.length).to.be.above(0);
+            done(err);
+          });
+      });
+      
+      it('downloads successfully for non-license-restricted package without license', function (done) {
+        request.get(`/depot/pkgs/xmen/testapp/0.1.4/${release4}/download`)
+          .set('Authorization', global.noLicenseBearer)
+          .expect(200)
+          .end(done);
+      });
+      
+      it('downloads successfully for package in both base-2025 and LTS-2024', function (done) {
+        request.get(`/depot/pkgs/dualchannel/testapp/1.0.0/${releaseX}/download`)
+          .set('Authorization', global.noLicenseBearer)
+          .expect(200)
+          .end(done);
+      });
+      
+      it('returns 422 for invalid package target', function (done) {
+        request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download?target=invalid-target`)
+          .expect(422)
+          .end((err, res) => {
+            expect(res.text).to.contain("Invalid package target");
+            done(err);
+          });
+      });      
   });
 
   describe('Deleting origin after package exists', function () {

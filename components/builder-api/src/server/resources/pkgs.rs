@@ -425,15 +425,23 @@ async fn download_package(req: HttpRequest,
         Ok(package) => {
             let channels = match channels_for_package_ident(&req, &package.ident, target, &conn) {
                 Ok(channels) => channels,
-                Err(err) => {
+                Err(_) => {
                     return HttpResponse::InternalServerError().body("Failed to determine \
                                                                      package channels.");
                 }
             };
 
             if channels.as_ref().map_or(false, |chs| {
-                                    chs.contains(&"base-2025".to_string())/// make this a list in default.toml
-                                    && !chs.contains(&"LTS-2024".to_string()) // rermove this
+                                    state.config
+                                         .api
+                                         .restricted_channels
+                                         .iter()
+                                         .any(|rc| chs.contains(&rc.to_lowercase()))
+                                    && !state.config
+                                             .api
+                                             .excluded_channels
+                                             .iter()
+                                             .any(|ec| chs.contains(&ec.to_lowercase()))
                                 })
             {
                 match opt_session_id {
