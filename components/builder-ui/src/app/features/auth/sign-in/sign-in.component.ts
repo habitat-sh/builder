@@ -66,8 +66,14 @@ export class SignInComponent implements OnInit, OnDestroy {
       this.domSanitizer.bypassSecurityTrustResourceUrl('assets/images/icons/github.svg')
     );
     
-    // Sign out any existing session - use the appropriate service based on environment
-    this.authService.logout(false);
+    // Only sign out if explicitly navigated to sign-in page
+    // Don't sign out if being redirected from an OAuth flow
+    if (!this.route.snapshot.queryParams['code'] && !this.route.snapshot.queryParams['error']) {
+      // Record start time for auth flow analytics
+      localStorage.setItem('auth_start_time', Date.now().toString());
+      // Sign out any existing session but don't redirect
+      this.authService.logout(false);
+    }
     
     // Check for error message from OAuth callback
     this.route.queryParams.subscribe((params: Record<string, string>) => {
@@ -127,6 +133,13 @@ export class SignInComponent implements OnInit, OnDestroy {
       try {
         // Store the current time to track auth flow timing
         localStorage.setItem('auth_start_time', Date.now().toString());
+        
+        // Store any additional parameters from the query string that need to be preserved
+        const params = this.route.snapshot.queryParams;
+        if (params['returnUrl']) {
+          // Store returnUrl for post-authentication redirection
+          this.authService.setRedirectUrl(params['returnUrl']);
+        }
         
         // Use the login URL (which will be from the appropriate service based on environment)
         if (environment.useMocks) {

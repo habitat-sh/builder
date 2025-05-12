@@ -1,4 +1,4 @@
-import { ApplicationConfig, provideZoneChangeDetection, importProvidersFrom } from '@angular/core';
+import { ApplicationConfig, provideZoneChangeDetection, importProvidersFrom, APP_INITIALIZER } from '@angular/core';
 import { provideRouter, withRouterConfig } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
@@ -47,6 +47,28 @@ export const appConfig: ApplicationConfig = {
     DialogService,
     Title,
     Meta,
+    
+    // Auth initializer to handle token refresh on app startup
+    { 
+      provide: APP_INITIALIZER,
+      useFactory: (authService: AuthService) => {
+        return () => {
+          console.log('App Initializer: Checking authentication state');
+          // If authenticated but token near expiration, refresh it
+          if (authService.isAuthenticated() && authService.isTokenExpired()) {
+            return new Promise<boolean>((resolve) => {
+              authService.refreshToken().subscribe({
+                next: (result) => resolve(result),
+                error: () => resolve(false)
+              });
+            });
+          }
+          return Promise.resolve(true);
+        };
+      },
+      deps: [AuthService],
+      multi: true 
+    },
     
     // Import MockProvidersModule conditionally
     ...(environment.useMocks ? [importProvidersFrom(MockProvidersModule)] : [])

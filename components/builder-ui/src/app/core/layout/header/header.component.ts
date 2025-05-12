@@ -105,7 +105,7 @@ export interface UserInfo {
           
           <mat-divider></mat-divider>
           
-          <button mat-menu-item (click)="logout.emit()">
+          <button mat-menu-item (click)="handleSignOut()">
             <mat-icon>exit_to_app</mat-icon>
             <span>Log Out</span>
           </button>
@@ -129,7 +129,7 @@ export class HeaderComponent implements OnInit {
   private authService = inject(AuthService);
   
   @Output() logout = new EventEmitter<void>();
-  @Output() signOut = new EventEmitter<void>();
+  @Output() signOut = new EventEmitter<string | undefined>();
   
   ngOnInit(): void {
     // Initialize with default avatar if none provided
@@ -138,9 +138,19 @@ export class HeaderComponent implements OnInit {
     }
   }
   
-  handleSignOut(): void {
-    this.signOut.emit();
-    this.logout.emit(); // For backward compatibility
+  /**
+   * Handle sign out action with optional return URL
+   * @param returnUrl Optional URL to return to after next login
+   */
+  handleSignOut(returnUrl?: string): void {
+    // Both events for compatibility with different parent components
+    this.signOut.emit(returnUrl);
+    this.logout.emit();
+    
+    console.log('HeaderComponent: Sign out initiated for user', this.username);
+    
+    // Clear avatar error state on logout
+    this.hasAvatarError = false;
   }
   
   /**

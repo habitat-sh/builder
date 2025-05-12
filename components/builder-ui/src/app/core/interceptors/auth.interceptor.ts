@@ -47,11 +47,18 @@ export const AuthInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, ne
 function isAuthEndpoint(url: string): boolean {
   const authPaths = [
     '/v1/signin',
+    '/v1/authenticate',
     '/v1/users/authn', 
     '/v1/users/auth_token',
-    '/v1/users/refresh_token'
+    '/v1/users/refresh_token',
+    '/auth/login',
+    '/auth/callback',
+    '/auth/refresh',
+    '/oauth/github',
+    '/oauth/token'
   ];
   
+  // Match either exact paths or paths that contain these patterns
   return authPaths.some(path => url.includes(path));
 }
 

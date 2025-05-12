@@ -4,17 +4,47 @@ import { AuthService } from '../services/auth.service';
 
 /**
  * Guard that prevents access to routes unless the user is authenticated
+ * Also handles token refresh if the token is about to expire
  */
 export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
   
+  // Check if user is authenticated
   if (authService.isAuthenticated()) {
+    // Check if token needs refresh
+    if (authService.isTokenExpired()) {
+      console.log('AuthGuard: Token near expiration, refreshing...');
+      
+      // Return a Promise that resolves when refresh completes
+      return new Promise<boolean | UrlTree>(resolve => {
+        authService.refreshToken().subscribe({
+          next: (refreshed) => {
+            if (refreshed) {
+              console.log('AuthGuard: Token refreshed successfully');
+              resolve(true);
+            } else {
+              console.log('AuthGuard: Token refresh failed, redirecting to login');
+              authService.setRedirectUrl(state.url);
+              resolve(router.createUrlTree(['/sign-in']));
+            }
+          },
+          error: () => {
+            console.error('AuthGuard: Token refresh error, redirecting to login');
+            authService.setRedirectUrl(state.url);
+            resolve(router.createUrlTree(['/sign-in']));
+          }
+        });
+      });
+    }
+    
+    // Token is valid and not near expiration
     return true;
   }
   
   // Store the attempted URL for redirecting after login
   authService.setRedirectUrl(state.url);
+  console.log('AuthGuard: User not authenticated, redirecting to login');
   
   // Redirect to sign-in page
   return router.createUrlTree(['/sign-in']);

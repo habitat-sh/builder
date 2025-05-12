@@ -46,7 +46,7 @@ import { ConfigService } from '../services/config.service';
               [avatarUrl]="avatarUrl()"
               [isSignedIn]="isSignedIn()"
               [user]="{ name: username(), email: '', avatar: avatarUrl() }"
-              (signOut)="handleSignOut()"
+              (signOut)="handleSignOut($event)"
               (logout)="handleSignOut()">
             </app-header>
           }
@@ -254,10 +254,29 @@ export class AppShellComponent implements OnInit {
     this.menuOpen.set(newState);
   }
   
-  handleSignOut() {
-    // Use the AuthService logout method
-    this.authService.logout();
-    // Ensure our local state is updated
+  /**
+   * Handle user sign out action
+   * @param redirectUrl Optional URL to redirect to after next sign-in
+   */
+  handleSignOut(redirectUrl?: string) {
+    console.log('AppShell: Signing out user', this.username());
+    
+    // Store current page as redirect URL if not on sign-in page and no redirectUrl specified
+    const currentUrl = this.router.url;
+    const isAuthPage = currentUrl.startsWith('/sign-in') || 
+                       currentUrl.startsWith('/auth/');
+    
+    if (!isAuthPage && !redirectUrl) {
+      // Remember current page for convenience after next login
+      redirectUrl = currentUrl;
+    }
+    
+    // Use the AuthService logout method with the remembered return URL
+    this.authService.logout(true, redirectUrl);
+    
+    // Ensure our local state is immediately updated
+    // This should happen through the authStatus$ subscription as well,
+    // but we update it here for immediate UI response
     this.isSignedIn.set(false);
     this.username.set('');
     this.avatarUrl.set('');

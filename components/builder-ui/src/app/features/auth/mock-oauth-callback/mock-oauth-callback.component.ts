@@ -105,7 +105,18 @@ export class MockOAuthCallbackComponent implements OnInit {
             response
           });
           
-          // Get the redirect URL from auth service or default to home
+          // Store token in localStorage for debugging/inspection
+          localStorage.setItem('builder_auth_token', response.token);
+          
+          // Store authentication timing for analytics
+          const authStartTime = localStorage.getItem('auth_start_time');
+          if (authStartTime) {
+            const authDuration = Date.now() - parseInt(authStartTime, 10);
+            console.log(`MockOAuthCallbackComponent: Authentication completed in ${authDuration}ms`);
+            localStorage.removeItem('auth_start_time');
+          }
+          
+          // Get the redirect URL from auth service or default to home page
           const redirectUrl = this.mockAuthService.getAndClearRedirectUrl() || '/home';
           console.log('MockOAuthCallbackComponent: Redirecting to', redirectUrl);
           

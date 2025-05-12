@@ -68,6 +68,53 @@ export class AuthService {
     this.loadAuthStateFromStorage();
     // Generate random state value for OAuth security
     this.oauthState = this.generateRandomState();
+    
+    // Initialize cross-tab authentication sync
+    this.initCrossTabSync();
+  }
+  
+  /**
+   * Initialize cross-tab authentication synchronization
+   * This ensures all tabs have consistent auth state
+   */
+  private initCrossTabSync(): void {
+    // Listen for storage events to detect auth changes in other tabs
+    window.addEventListener('storage', (event) => {
+      if (event.key === this.AUTH_TOKEN_KEY) {
+        console.log('AuthService: Auth token changed in another tab');
+        
+        if (event.newValue) {
+          // Another tab logged in or refreshed the token
+          this.loadAuthStateFromStorage();
+        } else {
+          // Another tab logged out, clear our state too
+          if (this.isAuthenticated()) {
+            console.log('AuthService: Logout detected in another tab');
+            // Use logout without redirect to avoid navigation loops
+            this.logout(false);
+          }
+        }
+      }
+    });
+    
+    // Periodically check token expiration (every minute)
+    setInterval(() => {
+      if (this.isAuthenticated() && this.isTokenExpired()) {
+        console.log('AuthService: Token is expired or about to expire, refreshing');
+        this.refreshToken().subscribe({
+          next: (success) => {
+            if (!success) {
+              console.error('AuthService: Auto-refresh failed, logging out');
+              this.logout(true);
+            }
+          },
+          error: () => {
+            console.error('AuthService: Auto-refresh error, logging out');
+            this.logout(true);
+          }
+        });
+      }
+    }, 60000); // Check every minute
   }
 
   /**
@@ -123,8 +170,27 @@ export class AuthService {
   
   /**
    * Log out the current user
+   * @param redirect Whether to redirect to the sign-in page after logout
+   * @param returnTo Optional URL to redirect to after next sign-in
    */
-  logout(redirect = true): void {
+  logout(redirect = true, returnTo?: string): void {
+    // Keep track of the previous authentication state for analytics
+    const wasAuthenticated = this.isAuthenticated();
+    const userId = this._authState().user?.id;
+    
+    // Log if we're logging out an authenticated user
+    if (wasAuthenticated) {
+      console.log(`AuthService: Logging out user ${userId || 'unknown'}`);
+      
+      // Track logout timing for analytics
+      const authStartTime = localStorage.getItem('auth_start_time');
+      if (authStartTime) {
+        const authDuration = Date.now() - parseInt(authStartTime, 10);
+        console.log(`AuthService: Session duration was ${authDuration}ms`);
+        localStorage.removeItem('auth_start_time');
+      }
+    }
+
     // Clear the auth state
     this._authState.set({
       isAuthenticated: false,
@@ -136,9 +202,15 @@ export class AuthService {
     // Update legacy status
     this.authStatusSource.next(false);
     
-    // Clear storage
+    // Clear auth-related storage but preserve other app settings
     localStorage.removeItem(this.AUTH_TOKEN_KEY);
     localStorage.removeItem(this.USER_DATA_KEY);
+    localStorage.removeItem('oauth_state');
+    
+    // Store return URL if provided
+    if (returnTo) {
+      this.setRedirectUrl(returnTo);
+    }
     
     // Redirect to login if specified
     if (redirect) {
@@ -209,22 +281,35 @@ export class AuthService {
   }
   
   /**
-   * Check if the user has a specific permission
+   * Check if the current user has a specific permission
+   * @param permission The permission to check for
+   * @returns boolean indicating whether user has the permission
    */
   hasPermission(permission: string): boolean {
     const user = this._authState().user;
-    return !!user?.permissions?.includes(permission);
+    if (!user || !user.permissions) {
+      return false;
+    }
+    
+    return user.permissions.includes(permission);
   }
   
   /**
    * Check if the current user has any of the specified roles
+   * @param roles A single role or array of roles to check for
+   * @returns boolean indicating whether user has any of the roles
    */
   hasRole(roles: string | string[]): boolean {
     const user = this._authState().user;
-    if (!user || !user.role) return false;
+    if (!user || !user.role) {
+      return false;
+    }
     
-    const rolesToCheck = Array.isArray(roles) ? roles : [roles];
-    return rolesToCheck.includes(user.role);
+    if (Array.isArray(roles)) {
+      return roles.includes(user.role);
+    } else {
+      return user.role === roles;
+    }
   }
   
   /**
@@ -329,11 +414,18 @@ export class AuthService {
     // Check if token is expired
     let tokenExpiration: Date | null = null;
     let isExpired = true;
+    let tokenNeedsRefresh = false;
     
     try {
       const decodedToken = jwtDecode<{ exp: number }>(token);
       tokenExpiration = new Date(decodedToken.exp * 1000);
-      isExpired = new Date() >= tokenExpiration;
+      const now = new Date();
+      isExpired = now >= tokenExpiration;
+      
+      // Check if token needs to be refreshed (less than 5 minutes left)
+      const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+      tokenNeedsRefresh = tokenExpiration < fiveMinutesFromNow;
+      
     } catch (error) {
       console.error('Failed to decode token', error);
     }
@@ -343,6 +435,15 @@ export class AuthService {
       localStorage.removeItem(this.AUTH_TOKEN_KEY);
       localStorage.removeItem(this.USER_DATA_KEY);
       return;
+    }
+    
+    // If token needs refresh soon, trigger a refresh in the background
+    if (tokenNeedsRefresh) {
+      console.log('Token expires soon, triggering refresh');
+      this.refreshToken().subscribe({
+        next: () => console.log('Token refreshed successfully'),
+        error: (error) => console.error('Failed to refresh token', error)
+      });
     }
     
     // Get user data from storage

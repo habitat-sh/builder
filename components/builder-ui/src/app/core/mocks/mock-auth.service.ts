@@ -73,7 +73,8 @@ export class MockAuthService {
     localStorage.setItem('oauth_state', this.state);
     
     // For mock purposes, create a local URL that can be intercepted
-    const callbackUrl = `http://localhost:4200/auth/mock-callback?state=${this.state}`;
+    // Use current window location origin to avoid hardcoded port issues
+    const callbackUrl = `${window.location.origin}/auth/mock-callback?state=${this.state}`;
     
     return callbackUrl;
   }
