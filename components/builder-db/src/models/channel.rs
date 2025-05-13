@@ -13,9 +13,7 @@ use crate::{models::{package::{BuilderPackageIdent,
                      member::origin_members,
                      origin::origins,
                      package::{origin_packages,
-                               origin_packages_with_version_array},
-                     sql_types::{package_channel_trigger,
-                                        package_channel_operation}}};
+                               origin_packages_with_version_array}}};
 
 use crate::{bldr_core::metrics::{CounterMetric,
                                  HistogramMetric},
@@ -43,7 +41,6 @@ use diesel::{self,
 use diesel_full_text_search::{to_tsquery,
                               TsQueryExtensions};
 use diesel_derive_enum::{DbEnum, db_enum};
-
 #[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct Channel {
     #[serde(with = "db_id_format")]
@@ -385,15 +382,16 @@ impl Channel {
 
 
 #[derive(DbEnum, Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[db_enum(existing_type_path = "package_channel_trigger")]
+#[db_enum(diesel_type = "PackageChannelTriggerMapping", pg_type = "package_channel_trigger")]
 pub enum PackageChannelTrigger {
     Unknown,
     BuilderUi,
     HabClient,
 }
 
+/// Rust ↔ Postgres mapping for `package_channel_operation`
 #[derive(Clone, DbEnum, Debug, Serialize, Deserialize, PartialEq)]
-#[db_enum(existing_type_path = "package_channel_operation")]
+#[db_enum(diesel_type = "PackageChannelOperationMapping", pg_type = "package_channel_operation")]
 pub enum PackageChannelOperation {
     Promote,
     Demote,

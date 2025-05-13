@@ -384,6 +384,20 @@ pub enum PackageVisibility {
     #[db_enum(rename = "hidden")]
     Hidden,
 }
+
+impl FromStr for PackageVisibility {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<PackageVisibility, ()> {
+        match s {
+            "public" => Ok(PackageVisibility::Public),
+            "private" => Ok(PackageVisibility::Private),
+            "hidden" => Ok(PackageVisibility::Hidden),
+            _ => Err(()),
+        }
+    }
+}
+
 impl fmt::Display for PackageVisibility {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let value = match *self {
