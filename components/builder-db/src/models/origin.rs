@@ -41,7 +41,7 @@ use crate::{bldr_core::{metrics::CounterMetric,
 use std::{fmt,
           str::FromStr};
 
-use diesel_derive_enum::{DbEnum, db_enum};
+use diesel_derive_enum::DbEnum;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origins"]
@@ -83,7 +83,7 @@ pub struct OriginWithStats {
          Deserialize,
          PartialEq,
          PartialOrd)]
-#[db_enum(diesel_type = "origin_member_role", pg_type = "origin_member_role")]
+#[ExistingTypePath = "crate::schema::sql_types::origin_member_role"]
 pub enum OriginMemberRole {
     // It is important to preserve the declaration order
     // here so that order comparisons work as expected.
@@ -154,7 +154,7 @@ pub struct NewOrigin<'a> {
 }
 
 #[derive(Clone, Copy, DbEnum, Debug, Serialize, Deserialize)]
-#[db_enum(existing_type_path = "crate::schema::sql_types::origin_operation")]
+#[ExistingTypePath = "crate::schema::sql_types::origin_operation"]
 pub enum OriginOperation {
     OriginCreate,
     OriginDelete,
