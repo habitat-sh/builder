@@ -41,6 +41,8 @@ use crate::{bldr_core::{metrics::CounterMetric,
 use std::{fmt,
           str::FromStr};
 
+use diesel_derive_enum::{DbEnum, db_enum};
+
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origins"]
 pub struct Origin {
@@ -79,29 +81,21 @@ pub struct OriginWithStats {
          Debug,
          Serialize,
          Deserialize,
-         ToSql,
-         FromSql,
          PartialEq,
          PartialOrd)]
-#[PgType = "origin_member_role"]
-#[postgres(name = "origin_member_role")]
+#[db_enum(diesel_type = "origin_member_role", pg_type = "origin_member_role")]
 pub enum OriginMemberRole {
     // It is important to preserve the declaration order
     // here so that order comparisons work as expected.
     // The values are from least to greatest.
-    #[postgres(name = "readonly_member")]
     #[serde(rename = "readonly_member")]
     ReadonlyMember,
-    #[postgres(name = "member")]
     #[serde(rename = "member")]
     Member,
-    #[postgres(name = "maintainer")]
     #[serde(rename = "maintainer")]
     Maintainer,
-    #[postgres(name = "administrator")]
     #[serde(rename = "administrator")]
     Administrator,
-    #[postgres(name = "owner")]
     #[serde(rename = "owner")]
     Owner,
 }
@@ -160,6 +154,7 @@ pub struct NewOrigin<'a> {
 }
 
 #[derive(Clone, Copy, DbEnum, Debug, Serialize, Deserialize)]
+#[db_enum(existing_type_path = "crate::schema::sql_types::origin_operation")]
 pub enum OriginOperation {
     OriginCreate,
     OriginDelete,
