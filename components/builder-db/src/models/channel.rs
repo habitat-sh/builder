@@ -324,7 +324,7 @@ impl Channel {
         result
     }
 
-    pub fn count_origin_channels(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+    pub fn count_origin_channels(origin: &str, conn: &mut PgConnection) -> QueryResult<i64> {
         Counter::DBCall.increment();
         origin_channels::table.select(count(origin_channels::id))
                               .filter(origin_channels::origin.eq(&origin))
@@ -430,7 +430,7 @@ pub struct AuditPackageEvent {
 }
 
 impl AuditPackage {
-    pub fn list(el: ListEvents, conn: &PgConnection) -> QueryResult<(Vec<AuditPackage>, i64)> {
+    pub fn list(el: ListEvents, conn: &mut PgConnection) -> QueryResult<(Vec<AuditPackage>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -521,7 +521,7 @@ pub struct PackageChannelAudit<'a> {
 }
 
 impl<'a> PackageChannelAudit<'a> {
-    pub fn audit(pca: &PackageChannelAudit, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn audit(pca: &PackageChannelAudit, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::insert_into(audit_package::table).values(pca)
                                                  .execute(conn)
@@ -543,7 +543,7 @@ pub struct PackageGroupChannelAudit<'a> {
 }
 
 impl<'a> PackageGroupChannelAudit<'a> {
-    pub fn audit(req: PackageGroupChannelAudit, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn audit(req: PackageGroupChannelAudit, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::insert_into(audit_package_group::table).values(req)
                                                        .execute(conn)
@@ -571,7 +571,7 @@ pub struct OriginChannelDemote {
 }
 
 impl OriginChannelPackage {
-    pub fn promote(package: OriginChannelPromote, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn promote(package: OriginChannelPromote, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         // If this looks bad, it is. To ensure we get values here or die we have to execute queries
         // to get the IDs first. I can hear the groaning already, "Why can't we just do a
@@ -599,7 +599,7 @@ impl OriginChannelPackage {
             .execute(conn)
     }
 
-    pub fn demote(package: OriginChannelDemote, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn demote(package: OriginChannelDemote, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_channel_packages::table

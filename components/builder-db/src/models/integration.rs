@@ -34,7 +34,7 @@ pub struct NewOriginIntegration<'a> {
 }
 
 impl OriginIntegration {
-    pub fn create(req: &NewOriginIntegration, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn create(req: &NewOriginIntegration, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::insert_into(origin_integrations::table).values(req)
                                                        .execute(conn)
@@ -43,7 +43,7 @@ impl OriginIntegration {
     pub fn get(origin: &str,
                integration: &str,
                name: &str,
-               conn: &PgConnection)
+               conn: &mut PgConnection)
                -> QueryResult<OriginIntegration> {
         Counter::DBCall.increment();
         origin_integrations::table.filter(origin_integrations::origin.eq(origin))
@@ -55,7 +55,7 @@ impl OriginIntegration {
     pub fn delete(origin: &str,
                   integration: &str,
                   name: &str,
-                  conn: &PgConnection)
+                  conn: &mut PgConnection)
                   -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
@@ -69,7 +69,7 @@ impl OriginIntegration {
 
     pub fn list_for_origin_integration(origin: &str,
                                        integration: &str,
-                                       conn: &PgConnection)
+                                       conn: &mut PgConnection)
                                        -> QueryResult<Vec<OriginIntegration>> {
         Counter::DBCall.increment();
         origin_integrations::table.filter(origin_integrations::origin.eq(origin))
@@ -78,14 +78,14 @@ impl OriginIntegration {
     }
 
     pub fn list_for_origin(origin: &str,
-                           conn: &PgConnection)
+                           conn: &mut PgConnection)
                            -> QueryResult<Vec<OriginIntegration>> {
         Counter::DBCall.increment();
         origin_integrations::table.filter(origin_integrations::origin.eq(origin))
                                   .get_results(conn)
     }
 
-    pub fn count_origin_integrations(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+    pub fn count_origin_integrations(origin: &str, conn: &mut PgConnection) -> QueryResult<i64> {
         Counter::DBCall.increment();
         origin_integrations::table.select(count(origin_integrations::id))
                                   .filter(origin_integrations::origin.eq(&origin))

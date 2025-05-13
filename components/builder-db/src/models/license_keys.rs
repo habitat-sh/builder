@@ -31,7 +31,7 @@ pub struct NewLicenseKey<'a> {
 }
 
 impl LicenseKey {
-    pub fn create(req: &NewLicenseKey, conn: &PgConnection) -> QueryResult<LicenseKey> {
+    pub fn create(req: &NewLicenseKey, conn: &mut PgConnection) -> QueryResult<LicenseKey> {
         Counter::DBCall.increment();
 
         diesel::insert_into(license_keys::table).values((
@@ -48,7 +48,7 @@ impl LicenseKey {
         .get_result(conn)
     }
 
-    pub fn delete_by_account_id(account_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete_by_account_id(account_id: i64, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
 
         diesel::delete(license_keys::table.filter(license_keys::account_id.eq(account_id)))
@@ -56,7 +56,7 @@ impl LicenseKey {
     }
 
     pub fn get_by_account_id(account_id: i64,
-                             conn: &PgConnection)
+                             conn: &mut PgConnection)
                              -> QueryResult<Option<LicenseKey>> {
         Counter::DBCall.increment();
 

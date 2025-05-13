@@ -47,7 +47,7 @@ impl ProjectIntegration {
     pub fn get(origin: &str,
                name: &str,
                integration: &str,
-               conn: &PgConnection)
+               conn: &mut PgConnection)
                -> QueryResult<ProjectIntegration> {
         Counter::DBCall.increment();
         origin_project_integrations::table.inner_join(origin_integrations::table)
@@ -61,7 +61,7 @@ impl ProjectIntegration {
 
     pub fn list(origin: &str,
                 name: &str,
-                conn: &PgConnection)
+                conn: &mut PgConnection)
                 -> QueryResult<Vec<ProjectIntegration>> {
         Counter::DBCall.increment();
         origin_project_integrations::table.inner_join(origin_projects::table)
@@ -74,7 +74,7 @@ impl ProjectIntegration {
     pub fn delete(origin: &str,
                   name: &str,
                   integration: &str,
-                  conn: &PgConnection)
+                  conn: &mut PgConnection)
                   -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
@@ -100,7 +100,7 @@ impl ProjectIntegration {
         .execute(conn)
     }
 
-    pub fn create(req: &NewProjectIntegration, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn create(req: &NewProjectIntegration, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         // We currently support running only one publish step per build job. This
         // temporary fix ensures we store (and can retrieve) only one project integration.

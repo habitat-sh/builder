@@ -424,7 +424,7 @@ impl PackageWithVersionArray {
 impl Package {
     pub fn get_without_target(ident: BuilderPackageIdent,
                               visibility: Vec<PackageVisibility>,
-                              conn: &PgConnection)
+                              conn: &mut PgConnection)
                               -> QueryResult<Package> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -442,7 +442,7 @@ impl Package {
         result
     }
 
-    pub fn get(req: GetPackage, conn: &PgConnection) -> QueryResult<Package> {
+    pub fn get(req: GetPackage, conn: &mut PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -459,7 +459,7 @@ impl Package {
         result
     }
 
-    pub fn delete(req: DeletePackage, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(req: DeletePackage, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_packages::table
@@ -469,7 +469,7 @@ impl Package {
         .execute(conn)
     }
 
-    pub fn get_group(req: GetPackageGroup, conn: &PgConnection) -> QueryResult<Vec<Package>> {
+    pub fn get_group(req: GetPackageGroup, conn: &mut PgConnection) -> QueryResult<Vec<Package>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -486,7 +486,7 @@ impl Package {
     }
 
     pub fn get_all(req_ident: &BuilderPackageIdent,
-                   conn: &PgConnection)
+                   conn: &mut PgConnection)
                    -> QueryResult<Vec<Package>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -506,7 +506,7 @@ impl Package {
     }
 
     pub fn get_latest(req: GetLatestPackage,
-                      conn: &PgConnection)
+                      conn: &mut PgConnection)
                       -> QueryResult<PackageWithVersionArray> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -533,7 +533,7 @@ impl Package {
         result
     }
 
-    pub fn get_all_latest(conn: &PgConnection) -> QueryResult<Vec<PackageWithVersionArray>> {
+    pub fn get_all_latest(conn: &mut PgConnection) -> QueryResult<Vec<PackageWithVersionArray>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
         let result = origin_packages_with_version_array::table
@@ -555,7 +555,7 @@ impl Package {
         result
     }
 
-    pub fn create(package: &NewPackage, conn: &PgConnection) -> QueryResult<Package> {
+    pub fn create(package: &NewPackage, conn: &mut PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
         let pkg = diesel::insert_into(origin_packages::table)
             .values(package)
@@ -591,7 +591,7 @@ impl Package {
 
     pub fn update_visibility(vis: PackageVisibility,
                              idt: BuilderPackageIdent,
-                             conn: &PgConnection)
+                             conn: &mut PgConnection)
                              -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origin_packages::table.filter(origin_packages::ident.eq(idt)))
@@ -600,7 +600,7 @@ impl Package {
     }
 
     pub fn update_visibility_bulk(req: UpdatePackageVisibility,
-                                  conn: &PgConnection)
+                                  conn: &mut PgConnection)
                                   -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origin_packages::table.filter(origin_packages::id.eq_any(req.ids)))
@@ -609,7 +609,7 @@ impl Package {
     }
 
     pub fn list(pl: ListPackages,
-                conn: &PgConnection)
+                conn: &mut PgConnection)
                 -> QueryResult<(Vec<PackageWithChannelPlatform>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -673,7 +673,7 @@ impl Package {
     }
 
     pub fn list_distinct(pl: ListPackages,
-                         conn: &PgConnection)
+                         conn: &mut PgConnection)
                          -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -719,7 +719,7 @@ impl Package {
     }
 
     pub fn distinct_for_origin(pl: ListPackages,
-                               conn: &PgConnection)
+                               conn: &mut PgConnection)
                                -> QueryResult<(Vec<OriginPackageSettings>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -746,7 +746,7 @@ impl Package {
     pub fn list_package_channels(ident: &BuilderPackageIdent,
                                  target: PackageTarget,
                                  visibility: Vec<PackageVisibility>,
-                                 conn: &PgConnection)
+                                 conn: &mut PgConnection)
                                  -> QueryResult<Vec<Channel>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -778,7 +778,7 @@ impl Package {
 
     pub fn list_package_versions(ident: &BuilderPackageIdent,
                                  visibility: Vec<PackageVisibility>,
-                                 conn: &PgConnection)
+                                 conn: &mut PgConnection)
                                  -> QueryResult<Vec<OriginPackageVersions>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -800,7 +800,7 @@ impl Package {
         result
     }
 
-    pub fn count_origin_packages(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+    pub fn count_origin_packages(origin: &str, conn: &mut PgConnection) -> QueryResult<i64> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -818,7 +818,7 @@ impl Package {
     }
 
     pub fn search(sp: &SearchPackages,
-                  conn: &PgConnection)
+                  conn: &mut PgConnection)
                   -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -856,7 +856,7 @@ impl Package {
 
     // This is me giving up on fighting the typechecker and just duplicating a bunch of code
     pub fn search_distinct(sp: &SearchPackages,
-                           conn: &PgConnection)
+                           conn: &mut PgConnection)
                            -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -898,7 +898,7 @@ impl Package {
 
     pub fn list_package_platforms(ident: &BuilderPackageIdent,
                                   visibilities: Vec<PackageVisibility>,
-                                  conn: &PgConnection)
+                                  conn: &mut PgConnection)
                                   -> QueryResult<Vec<BuilderPackageTarget>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
