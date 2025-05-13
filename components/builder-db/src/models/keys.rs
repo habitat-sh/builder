@@ -123,7 +123,7 @@ pub struct NewOriginPublicSigningKey<'a> {
 impl OriginPublicEncryptionKey {
     pub fn get(origin: &str,
                revision: &str,
-               conn: &PgConnection)
+               conn: &mut PgConnection)
                -> QueryResult<OriginPublicEncryptionKey> {
         Counter::DBCall.increment();
         origin_public_encryption_keys::table
@@ -135,14 +135,14 @@ impl OriginPublicEncryptionKey {
     }
 
     pub fn create(req: &NewOriginPublicEncryptionKey,
-                  conn: &PgConnection)
+                  conn: &mut PgConnection)
                   -> QueryResult<OriginPublicEncryptionKey> {
         Counter::DBCall.increment();
         diesel::insert_into(origin_public_encryption_keys::table).values(req)
                                                                  .get_result(conn)
     }
 
-    pub fn latest(origin: &str, conn: &PgConnection) -> QueryResult<OriginPublicEncryptionKey> {
+    pub fn latest(origin: &str, conn: &mut PgConnection) -> QueryResult<OriginPublicEncryptionKey> {
         Counter::DBCall.increment();
         origin_public_encryption_keys::table
             .filter(origin_public_encryption_keys::origin.eq(origin))
@@ -151,7 +151,7 @@ impl OriginPublicEncryptionKey {
             .get_result(conn)
     }
 
-    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginPublicEncryptionKey>> {
+    pub fn list(origin: &str, conn: &mut PgConnection) -> QueryResult<Vec<OriginPublicEncryptionKey>> {
         Counter::DBCall.increment();
         origin_public_encryption_keys::table
             .filter(origin_public_encryption_keys::origin.eq(origin))
@@ -161,7 +161,7 @@ impl OriginPublicEncryptionKey {
 }
 
 impl OriginPrivateEncryptionKey {
-    pub fn latest(origin: &str, conn: &PgConnection) -> QueryResult<OriginPrivateEncryptionKey> {
+    pub fn latest(origin: &str, conn: &mut PgConnection) -> QueryResult<OriginPrivateEncryptionKey> {
         Counter::DBCall.increment();
         // This is really latest because you're not allowed to get old keys
         origin_private_encryption_keys::table
@@ -172,7 +172,7 @@ impl OriginPrivateEncryptionKey {
     }
 
     pub fn create(req: &NewOriginPrivateEncryptionKey,
-                  conn: &PgConnection)
+                  conn: &mut PgConnection)
                   -> QueryResult<OriginPrivateEncryptionKey> {
         Counter::DBCall.increment();
         diesel::insert_into(origin_private_encryption_keys::table).values(req)
@@ -183,7 +183,7 @@ impl OriginPrivateEncryptionKey {
 impl OriginPublicSigningKey {
     pub fn get(origin: &str,
                revision: &str,
-               conn: &PgConnection)
+               conn: &mut PgConnection)
                -> QueryResult<OriginPublicSigningKey> {
         Counter::DBCall.increment();
         origin_public_keys::table.filter(origin_public_keys::origin.eq(origin))
@@ -194,14 +194,14 @@ impl OriginPublicSigningKey {
     }
 
     pub fn create(req: &NewOriginPublicSigningKey,
-                  conn: &PgConnection)
+                  conn: &mut PgConnection)
                   -> QueryResult<OriginPublicSigningKey> {
         Counter::DBCall.increment();
         diesel::insert_into(origin_public_keys::table).values(req)
                                                       .get_result(conn)
     }
 
-    pub fn latest(origin: &str, conn: &PgConnection) -> QueryResult<OriginPublicSigningKey> {
+    pub fn latest(origin: &str, conn: &mut PgConnection) -> QueryResult<OriginPublicSigningKey> {
         Counter::DBCall.increment();
         origin_public_keys::table.filter(origin_public_keys::origin.eq(origin))
                                  .limit(1)
@@ -209,7 +209,7 @@ impl OriginPublicSigningKey {
                                  .get_result(conn)
     }
 
-    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginPublicSigningKey>> {
+    pub fn list(origin: &str, conn: &mut PgConnection) -> QueryResult<Vec<OriginPublicSigningKey>> {
         Counter::DBCall.increment();
         origin_public_keys::table.filter(origin_public_keys::origin.eq(origin))
                                  .order(origin_public_keys::revision.desc())
@@ -218,7 +218,7 @@ impl OriginPublicSigningKey {
 }
 
 impl OriginPrivateSigningKey {
-    pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginPrivateSigningKey> {
+    pub fn get(origin: &str, conn: &mut PgConnection) -> QueryResult<OriginPrivateSigningKey> {
         Counter::DBCall.increment();
         // This is really latest because you're not allowed to get old keys
         origin_secret_keys::table.filter(origin_secret_keys::origin.eq(origin))
@@ -228,7 +228,7 @@ impl OriginPrivateSigningKey {
     }
 
     pub fn create(req: &NewOriginPrivateSigningKey,
-                  conn: &PgConnection)
+                  conn: &mut PgConnection)
                   -> QueryResult<OriginPrivateSigningKey> {
         Counter::DBCall.increment();
         diesel::insert_into(origin_secret_keys::table).values(req)
@@ -238,7 +238,7 @@ impl OriginPrivateSigningKey {
     pub fn update_key(id: i64,
                       body: &str,
                       key_rev: &str,
-                      conn: &PgConnection)
+                      conn: &mut PgConnection)
                       -> QueryResult<OriginPrivateSigningKey> {
         Counter::DBCall.increment();
         diesel::update(origin_secret_keys::table.filter(origin_secret_keys::id.eq(id)))
@@ -255,7 +255,7 @@ impl OriginPrivateSigningKey {
     // at the point we left off, and search in increasing id order
     pub fn list_unencrypted(start: i64,
                             count: i64,
-                            conn: &PgConnection)
+                            conn: &mut PgConnection)
                             -> QueryResult<Vec<OriginPrivateSigningKey>> {
         origin_secret_keys::table.filter(origin_secret_keys::id.ge(start))
                                  .filter(origin_secret_keys::encryption_key_rev.is_null())

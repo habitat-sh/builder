@@ -172,7 +172,7 @@ struct OriginAudit<'a> {
 }
 
 impl<'a> OriginAudit<'a> {
-    fn audit(origin_audit_record: &OriginAudit, conn: &PgConnection) -> QueryResult<usize> {
+    fn audit(origin_audit_record: &OriginAudit, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::insert_into(audit_origin::table).values(origin_audit_record)
                                                 .execute(conn)
@@ -184,7 +184,7 @@ pub fn origin_audit(origin: &str,
                     target: &str,
                     id: i64,
                     name: &str,
-                    conn: &PgConnection) {
+                    conn: &mut PgConnection) {
     if let Err(err) = OriginAudit::audit(&OriginAudit { operation: op,
                                                         origin,
                                                         target_object: target,
@@ -198,14 +198,14 @@ pub fn origin_audit(origin: &str,
 }
 
 impl Origin {
-    pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginWithSecretKey> {
+    pub fn get(origin: &str, conn: &mut PgConnection) -> QueryResult<OriginWithSecretKey> {
         Counter::DBCall.increment();
         origins_with_secret_key::table.find(origin)
                                       .limit(1)
                                       .get_result(conn)
     }
 
-    pub fn list(owner_id: i64, conn: &PgConnection) -> QueryResult<Vec<OriginWithStats>> {
+    pub fn list(owner_id: i64, conn: &mut PgConnection) -> QueryResult<Vec<OriginWithStats>> {
         Counter::DBCall.increment();
         origins_with_stats::table.inner_join(origin_members::table)
                                  .select(origins_with_stats::table::all_columns())
@@ -214,7 +214,7 @@ impl Origin {
                                  .get_results(conn)
     }
 
-    pub fn create(req: &NewOrigin, conn: &PgConnection) -> QueryResult<Origin> {
+    pub fn create(req: &NewOrigin, conn: &mut PgConnection) -> QueryResult<Origin> {
         Counter::DBCall.increment();
         let new_origin = diesel::insert_into(origins::table).values(req)
                                                             .get_result(conn)?;
@@ -232,13 +232,13 @@ impl Origin {
         Ok(new_origin)
     }
 
-    pub fn update(name: &str, dpv: PackageVisibility, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn update(name: &str, dpv: PackageVisibility, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origins::table.find(name)).set(origins::default_package_visibility.eq(dpv))
                                                  .execute(conn)
     }
 
-    pub fn delete(origin: &str, conn: &PgConnection) -> QueryResult<()> {
+    pub fn delete(origin: &str, conn: &mut PgConnection) -> QueryResult<()> {
         // By this point, most of the associated origin data has already been manually deleted
         // by the user. We ensure this by double checking the most critical tables are already empty
         // via builder_api::server::resources::origins::origin_delete_preflight
@@ -291,7 +291,7 @@ impl Origin {
         })
     }
 
-    pub fn transfer(origin: &str, account_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn transfer(origin: &str, account_id: i64, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         conn.transaction::<_, Error, _>(|| {
                 let owner = OriginMemberRole::Owner;
@@ -312,7 +312,7 @@ impl Origin {
             })
     }
 
-    pub fn depart(origin: &str, account_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn depart(origin: &str, account_id: i64, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_members::table
@@ -324,7 +324,7 @@ impl Origin {
 
     pub fn check_membership(origin: &str,
                             account_id: i64,
-                            conn: &PgConnection)
+                            conn: &mut PgConnection)
                             -> QueryResult<bool> {
         Counter::DBCall.increment();
         origin_members::table.filter(origin_members::origin.eq(origin))
@@ -335,7 +335,7 @@ impl Origin {
 }
 
 impl OriginMember {
-    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<String>> {
+    pub fn list(origin: &str, conn: &mut PgConnection) -> QueryResult<Vec<String>> {
         use crate::schema::account::accounts;
 
         Counter::DBCall.increment();
@@ -346,7 +346,7 @@ impl OriginMember {
                              .get_results(conn)
     }
 
-    pub fn delete(origin: &str, account_name: &str, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(origin: &str, account_name: &str, conn: &mut PgConnection) -> QueryResult<usize> {
         use crate::schema::account::accounts;
 
         Counter::DBCall.increment();
@@ -365,7 +365,7 @@ impl OriginMember {
 
     pub fn add(origin: &str,
                account_id: i64,
-               conn: &PgConnection,
+               conn: &mut PgConnection,
                member_role: OriginMemberRole)
                -> QueryResult<usize> {
         diesel::insert_into(origin_members::table)
@@ -377,7 +377,7 @@ impl OriginMember {
             .execute(conn)
     }
 
-    pub fn count_origin_members(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+    pub fn count_origin_members(origin: &str, conn: &mut PgConnection) -> QueryResult<i64> {
         Counter::DBCall.increment();
         origin_members::table.select(count(origin_members::account_id))
                              .filter(origin_members::origin.eq(&origin))
@@ -386,7 +386,7 @@ impl OriginMember {
 
     pub fn member_role(origin: &str,
                        account_id: i64,
-                       conn: &PgConnection)
+                       conn: &mut PgConnection)
                        -> QueryResult<OriginMemberRole> {
         Counter::DBCall.increment();
         origin_members::table.select(origin_members::member_role)
@@ -397,7 +397,7 @@ impl OriginMember {
 
     pub fn update_member_role(origin: &str,
                               account_id: i64,
-                              conn: &PgConnection,
+                              conn: &mut PgConnection,
                               member_role: OriginMemberRole)
                               -> QueryResult<usize> {
         Counter::DBCall.increment();

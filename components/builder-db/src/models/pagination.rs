@@ -28,7 +28,7 @@ pub struct Paginated<T> {
 impl<T> Paginated<T> {
     pub fn per_page(self, per_page: i64) -> Self { Paginated { per_page, ..self } }
 
-    pub fn load_and_count_pages<U>(self, conn: &PgConnection) -> QueryResult<(Vec<U>, i64)>
+    pub fn load_and_count_pages<U>(self, conn: &mut PgConnection) -> QueryResult<(Vec<U>, i64)>
         where for<'a> Self: LoadQuery<'a, PgConnection, (U, i64)>
     {
         let per_page = self.per_page;
@@ -39,7 +39,7 @@ impl<T> Paginated<T> {
         Ok((records, total_pages))
     }
 
-    pub fn load_and_count_records<U>(self, conn: &PgConnection) -> QueryResult<(Vec<U>, i64)>
+    pub fn load_and_count_records<U>(self, conn: &mut PgConnection) -> QueryResult<(Vec<U>, i64)>
         where for<'a> Self: LoadQuery<'a, PgConnection, (U, i64)>
     {
         let results = self.load::<(U, i64)>(conn)?;

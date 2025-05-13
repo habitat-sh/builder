@@ -44,20 +44,20 @@ pub struct NewOriginSecret<'a> {
 }
 
 impl OriginSecret {
-    pub fn create(secret: &NewOriginSecret, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn create(secret: &NewOriginSecret, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::insert_into(origin_secrets::table).values(secret)
                                                   .execute(conn)
     }
 
-    pub fn get(origin: &str, name: &str, conn: &PgConnection) -> QueryResult<OriginSecret> {
+    pub fn get(origin: &str, name: &str, conn: &mut PgConnection) -> QueryResult<OriginSecret> {
         Counter::DBCall.increment();
         origin_secrets::table.filter(origin_secrets::name.eq(name))
                              .filter(origin_secrets::origin.eq(origin))
                              .get_result(conn)
     }
 
-    pub fn delete(origin: &str, name: &str, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(origin: &str, name: &str, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_secrets::table
@@ -67,13 +67,13 @@ impl OriginSecret {
         .execute(conn)
     }
 
-    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginSecret>> {
+    pub fn list(origin: &str, conn: &mut PgConnection) -> QueryResult<Vec<OriginSecret>> {
         Counter::DBCall.increment();
         origin_secrets::table.filter(origin_secrets::origin.eq(origin))
                              .get_results(conn)
     }
 
-    pub fn count_origin_secrets(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+    pub fn count_origin_secrets(origin: &str, conn: &mut PgConnection) -> QueryResult<i64> {
         Counter::DBCall.increment();
         origin_secrets::table.select(count(origin_secrets::id))
                              .filter(origin_secrets::origin.eq(&origin))
