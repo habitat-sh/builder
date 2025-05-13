@@ -62,6 +62,7 @@ use crate::{bldr_core::metrics::{CounterMetric,
             protocol::originsrv::{OriginPackage,
                                   OriginPackageIdent,
                                   OriginPackageVisibility}};
+use diesel_derive_enum::{DbEnum, db_enum};
 
 #[derive(Debug,
          Serialize,
@@ -372,23 +373,17 @@ pub struct OriginPackageVersions {
          Serialize,
          Deserialize,
          PartialEq,
-         Clone,
-         ToSql,
-         FromSql)]
-#[PgType = "origin_package_visibility"]
-#[postgres(name = "origin_package_visibility")]
+         Clone)]
+#[db_enum(diesel_type = "PackageVisibilityMapping")]
+#[db_enum(pg_type      = "origin_package_visibility")]
 pub enum PackageVisibility {
-    #[postgres(name = "public")]
-    #[serde(rename = "public")]
+    #[db_enum(rename = "public")]
     Public,
-    #[postgres(name = "private")]
-    #[serde(rename = "private")]
+    #[db_enum(rename = "private")]
     Private,
-    #[postgres(name = "hidden")]
-    #[serde(rename = "hidden")]
+    #[db_enum(rename = "hidden")]
     Hidden,
 }
-
 impl fmt::Display for PackageVisibility {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let value = match *self {
@@ -397,19 +392,6 @@ impl fmt::Display for PackageVisibility {
             PackageVisibility::Hidden => "hidden",
         };
         write!(f, "{}", value)
-    }
-}
-
-impl FromStr for PackageVisibility {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<PackageVisibility, ()> {
-        match s {
-            "public" => Ok(PackageVisibility::Public),
-            "private" => Ok(PackageVisibility::Private),
-            "hidden" => Ok(PackageVisibility::Hidden),
-            _ => Err(()),
-        }
     }
 }
 

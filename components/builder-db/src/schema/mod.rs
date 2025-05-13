@@ -16,3 +16,4 @@ pub mod project;
 pub mod project_integration;
 pub mod secrets;
 pub mod settings;
+pub mod sql_types;
