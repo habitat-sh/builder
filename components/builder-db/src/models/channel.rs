@@ -13,7 +13,9 @@ use crate::{models::{package::{BuilderPackageIdent,
                      member::origin_members,
                      origin::origins,
                      package::{origin_packages,
-                               origin_packages_with_version_array}}};
+                               origin_packages_with_version_array},
+                     sql_types::{package_channel_trigger,
+                                        package_channel_operation}}};
 
 use crate::{bldr_core::metrics::{CounterMetric,
                                  HistogramMetric},
@@ -40,8 +42,9 @@ use diesel::{self,
              TextExpressionMethods};
 use diesel_full_text_search::{to_tsquery,
                               TsQueryExtensions};
+use diesel_derive_enum::{DbEnum, db_enum};
 
-#[derive(AsExpression, Debug, Serialize, Deserialize, Queryable)]
+#[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct Channel {
     #[serde(with = "db_id_format")]
     pub id:         i64,
@@ -380,7 +383,9 @@ impl Channel {
     }
 }
 
+
 #[derive(DbEnum, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[db_enum(existing_type_path = "package_channel_trigger")]
 pub enum PackageChannelTrigger {
     Unknown,
     BuilderUi,
@@ -388,6 +393,7 @@ pub enum PackageChannelTrigger {
 }
 
 #[derive(Clone, DbEnum, Debug, Serialize, Deserialize, PartialEq)]
+#[db_enum(existing_type_path = "package_channel_operation")]
 pub enum PackageChannelOperation {
     Promote,
     Demote,

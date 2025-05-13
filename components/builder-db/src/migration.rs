@@ -19,17 +19,21 @@ use diesel::{pg::PgConnection,
              result::Error as Dre,
              sql_query,
              Connection};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 use crate::error::Result;
 
-embed_migrations!("src/migrations");
+/// Embed all migrations from src/migrations into a single constant
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("src/migrations");
 
-pub fn setup(conn: &PgConnection) -> Result<()> {
-    let _ = conn.transaction::<_, Dre, _>(|| {
-                    setup_ids(conn).unwrap();
-                    embedded_migrations::run_with_output(conn, &mut io::stdout()).unwrap();
-                    Ok(())
-                });
+/// Run setup and then all pending migrations
+pub fn setup(conn: &mut PgConnection) -> Result<()> {
+    conn.transaction::<(), _, _>(|conn| {
+        setup_ids(conn)?;
+        // run all pending migrations, printing progress to stdout
+        conn.run_pending_migrations_with_output(MIGRATIONS, &mut io::stdout())?;
+        Ok(())
+    })?;
     Ok(())
 }
 
