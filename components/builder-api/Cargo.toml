@@ -15,16 +15,12 @@ doc = false
 [dependencies]
 actix-rt = "*"
 bytes = "*"
-base64 = "*"
 bitflags = "*"
 chrono = { version = "*", features = ["serde"] }
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
-diesel-derive-enum = { version = "*", features = ["postgres"] }
-diesel_full_text_search = "*"
 env_logger = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
-hex = "*"
 lazy_static = "*"
 log = "*"
 memcache = "*"
@@ -37,7 +33,6 @@ serde = "*"
 serde_derive = "*"
 serde_json = "*"
 sha2 = "*"
-toml = { version = "*", default-features = false }
 futures = "*"
 rand = "*"
 r2d2 = "*"
@@ -45,9 +40,7 @@ regex = "*"
 rusoto_core = "*"
 rusoto_s3 = "*"
 tempfile = "*"
-url = "*"
 uuid = { version = "*", features = ["v4"] }
-zmq = "*"
 
 [dependencies.actix-web]
 version = "*"

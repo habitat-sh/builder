@@ -24,3 +24,6 @@ features = ["fs"]
 [dependencies.reqwest]
 version = "*"
 features = ["stream"]
+
+[package.metadata.cargo-machete]
+ignored = ["serde"]

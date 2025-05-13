@@ -11,21 +11,15 @@ bitflags = "*"
 chrono = { version = "*", features = ["serde"] }
 dogstatsd = "*"
 env_proxy = "*"
-futures = "*"
-futures-util = "*"
 glob = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
-libarchive = "*"
 log = "*"
-petgraph = "*"
 protobuf = "*"
-rand = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
 toml = { version = "*", default-features = false }
-walkdir = "*"
 url = "*"
 zmq = "*"
 
@@ -36,9 +30,8 @@ git = "https://github.com/habitat-sh/habitat.git"
 version = "*"
 features = ["stream"]
 
-[dependencies.tokio]
-version = "*"
-features = ["fs", "io-util"]
-
 [dev-dependencies]
 tempfile = "*"
+
+[package.metadata.cargo-machete]
+ignored = ["zmq"]
