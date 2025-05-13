@@ -105,7 +105,7 @@ impl Channel {
 
     pub fn list(origin: &str,
                 include_sandbox_channels: bool,
-                conn: &PgConnection)
+                conn: &mut PgConnection)
                 -> QueryResult<Vec<Channel>> {
         Counter::DBCall.increment();
         let mut query = origin_channels::table.select(origin_channels::table::all_columns())
@@ -117,20 +117,20 @@ impl Channel {
         query.order(origin_channels::name.asc()).get_results(conn)
     }
 
-    pub fn get(origin: &str, channel: &ChannelIdent, conn: &PgConnection) -> QueryResult<Channel> {
+    pub fn get(origin: &str, channel: &ChannelIdent, conn: &mut PgConnection) -> QueryResult<Channel> {
         Counter::DBCall.increment();
         origin_channels::table.filter(origin_channels::origin.eq(origin))
                               .filter(origin_channels::name.eq(channel.as_str()))
                               .get_result(conn)
     }
 
-    pub fn create(channel: &CreateChannel, conn: &PgConnection) -> QueryResult<Channel> {
+    pub fn create(channel: &CreateChannel, conn: &mut PgConnection) -> QueryResult<Channel> {
         Counter::DBCall.increment();
         diesel::insert_into(origin_channels::table).values(channel)
                                                    .get_result(conn)
     }
 
-    pub fn delete(origin: &str, channel: &ChannelIdent, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(origin: &str, channel: &ChannelIdent, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_channels::table
@@ -140,7 +140,7 @@ impl Channel {
         .execute(conn)
     }
 
-    pub fn delete_channel_package(package_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete_channel_package(package_id: i64, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_channel_packages::table
@@ -150,7 +150,7 @@ impl Channel {
     }
 
     pub fn get_latest_package(req: &GetLatestPackage,
-                              conn: &PgConnection)
+                              conn: &mut PgConnection)
                               -> QueryResult<PackageWithVersionArray> {
         Counter::DBCall.increment();
         let ident = req.ident;
@@ -182,7 +182,7 @@ impl Channel {
     }
 
     pub fn list_latest_packages(req: &ListAllChannelPackagesForTarget,
-                                conn: &PgConnection)
+                                conn: &mut PgConnection)
                                 -> QueryResult<(String, String, Vec<BuilderPackageIdent>)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -227,7 +227,7 @@ impl Channel {
     }
 
     pub fn list_packages(lcp: &ListChannelPackages,
-                         conn: &PgConnection)
+                         conn: &mut PgConnection)
                          -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -274,7 +274,7 @@ impl Channel {
     }
 
     pub fn list_all_packages(lacp: &ListAllChannelPackages,
-                             conn: &PgConnection)
+                             conn: &mut PgConnection)
                              -> QueryResult<Vec<BuilderPackageIdent>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -302,7 +302,7 @@ impl Channel {
 
     pub fn list_all_packages_by_channel_id(channel_id: i64,
                                            visibility: &[PackageVisibility],
-                                           conn: &PgConnection)
+                                           conn: &mut PgConnection)
                                            -> QueryResult<Vec<i64>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -333,7 +333,7 @@ impl Channel {
 
     pub fn promote_packages(channel_id: i64,
                             package_ids: &[i64],
-                            conn: &PgConnection)
+                            conn: &mut PgConnection)
                             -> QueryResult<usize> {
         Counter::DBCall.increment();
         let insert: Vec<(_, _)> = package_ids.iter()
@@ -349,7 +349,7 @@ impl Channel {
 
     pub fn demote_packages(channel_id: i64,
                            package_ids: &[i64],
-                           conn: &PgConnection)
+                           conn: &mut PgConnection)
                            -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
@@ -364,7 +364,7 @@ impl Channel {
     pub fn do_promote_or_demote_packages_cross_channels(ch_source: i64,
                                                         ch_target: i64,
                                                         promote: bool,
-                                                        conn: &PgConnection)
+                                                        conn: &mut PgConnection)
                                                         -> QueryResult<Vec<i64>> {
         let pkg_ids: Vec<i64> =
             Channel::list_all_packages_by_channel_id(ch_source, &PackageVisibility::all(), conn)?;

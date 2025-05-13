@@ -960,7 +960,7 @@ fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
          PartialEq,
          Eq,
          Hash)]
-#[sql_type = "Text"]
+#[diesel(sql_type = Text)]
 pub struct BuilderPackageType(pub PackageType);
 
 impl FromStr for BuilderPackageType {
@@ -972,29 +972,6 @@ impl FromStr for BuilderPackageType {
                                                                           s))
                               })?))
     }
-}
-
-impl FromSql<Text, Pg> for BuilderPackageType {
-    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
-        match bytes {
-            Some(text) => Ok(BuilderPackageType(
-                PackageType::from_str(str::from_utf8(text).unwrap()).unwrap(),
-            )),
-            None => Ok(BuilderPackageType(PackageType::Standard)),
-        }
-    }
-}
-
-impl ToSql<Text, Pg> for BuilderPackageType {
-    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
-        out.write_all(self.to_string().as_bytes())
-           .map(|_| IsNull::No)
-           .map_err(Into::into)
-    }
-}
-
-impl From<BuilderPackageType> for PackageType {
-    fn from(value: BuilderPackageType) -> PackageType { value.0 }
 }
 
 impl Deref for BuilderPackageType {
@@ -1012,7 +989,7 @@ impl Deref for BuilderPackageType {
          PartialEq,
          Eq,
          Hash)]
-#[sql_type = "Text"]
+#[diesel(sql_type = Text)]
 pub struct BuilderPackageIdent(pub PackageIdent);
 
 impl FromStr for BuilderPackageIdent {
@@ -1026,25 +1003,6 @@ impl FromStr for BuilderPackageIdent {
                     s
                 ))
                                                         })?))
-    }
-}
-
-impl FromSql<Text, Pg> for BuilderPackageIdent {
-    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
-        match bytes {
-            Some(text) => Ok(BuilderPackageIdent(
-                PackageIdent::from_str(str::from_utf8(text).unwrap()).unwrap(),
-            )),
-            None => Ok(BuilderPackageIdent(PackageIdent::default())),
-        }
-    }
-}
-
-impl ToSql<Text, Pg> for BuilderPackageIdent {
-    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
-        out.write_all(self.to_string().as_bytes())
-           .map(|_| IsNull::No)
-           .map_err(Into::into)
     }
 }
 
@@ -1081,7 +1039,7 @@ impl Deref for BuilderPackageIdent {
          Hash,
          Eq,
          Copy)]
-#[sql_type = "Text"]
+#[diesel(sql_type = Text)]
 pub struct BuilderPackageTarget(pub PackageTarget);
 
 impl FromStr for BuilderPackageTarget {
@@ -1094,27 +1052,6 @@ impl FromStr for BuilderPackageTarget {
                 s
             ))
                                 })?))
-    }
-}
-
-impl FromSql<Text, Pg> for BuilderPackageTarget {
-    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
-        match bytes {
-            Some(text) => Ok(BuilderPackageTarget(
-                PackageTarget::from_str(str::from_utf8(text).unwrap()).unwrap(),
-            )),
-            None => Ok(BuilderPackageTarget(
-                PackageTarget::from_str("x86_64").unwrap(),
-            )),
-        }
-    }
-}
-
-impl ToSql<Text, Pg> for BuilderPackageTarget {
-    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
-        out.write_all(self.to_string().as_bytes())
-           .map(|_| IsNull::No)
-           .map_err(Into::into)
     }
 }
 

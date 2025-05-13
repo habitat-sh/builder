@@ -41,24 +41,24 @@ pub struct NewAccount<'a> {
 }
 
 impl Account {
-    pub fn get(name: &str, conn: &PgConnection) -> QueryResult<Account> {
+    pub fn get(name: &str, conn: &mut PgConnection) -> QueryResult<Account> {
         Counter::DBCall.increment();
         accounts::table.filter(accounts::name.eq(name))
                        .get_result(conn)
     }
 
-    pub fn get_by_id(id: i64, conn: &PgConnection) -> QueryResult<Account> {
+    pub fn get_by_id(id: i64, conn: &mut PgConnection) -> QueryResult<Account> {
         Counter::DBCall.increment();
         accounts::table.find(id).get_result(conn)
     }
 
-    pub fn create(account: &NewAccount, conn: &PgConnection) -> QueryResult<Account> {
+    pub fn create(account: &NewAccount, conn: &mut PgConnection) -> QueryResult<Account> {
         Counter::DBCall.increment();
         diesel::insert_into(accounts::table).values(account)
                                             .get_result(conn)
     }
 
-    pub fn find_or_create(account: &NewAccount, conn: &PgConnection) -> QueryResult<Account> {
+    pub fn find_or_create(account: &NewAccount, conn: &mut PgConnection) -> QueryResult<Account> {
         Counter::DBCall.increment();
         match diesel::insert_into(accounts::table).values(account)
                                                   .on_conflict(accounts::name)
@@ -73,7 +73,7 @@ impl Account {
         }
     }
 
-    pub fn update(id: u64, email: &str, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn update(id: u64, email: &str, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(accounts::table.find(id as i64)).set(accounts::email.eq(email))
                                                        .execute(conn)
@@ -88,13 +88,13 @@ pub struct NewAccountToken<'a> {
 }
 
 impl AccountToken {
-    pub fn list(account_id: u64, conn: &PgConnection) -> QueryResult<Vec<AccountToken>> {
+    pub fn list(account_id: u64, conn: &mut PgConnection) -> QueryResult<Vec<AccountToken>> {
         Counter::DBCall.increment();
         account_tokens::table.filter(account_tokens::account_id.eq(account_id as i64))
                              .get_results(conn)
     }
 
-    pub fn create(req: &NewAccountToken, conn: &PgConnection) -> QueryResult<AccountToken> {
+    pub fn create(req: &NewAccountToken, conn: &mut PgConnection) -> QueryResult<AccountToken> {
         Counter::DBCall.increment();
         diesel::insert_into(account_tokens::table).values(req)
                                                   .on_conflict(account_tokens::account_id)
@@ -103,7 +103,7 @@ impl AccountToken {
                                                   .get_result(conn)
     }
 
-    pub fn delete(id: u64, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(id: u64, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(account_tokens::table.find(id as i64)).execute(conn)
     }

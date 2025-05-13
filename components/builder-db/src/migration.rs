@@ -16,7 +16,8 @@ use std::io;
 
 use diesel::{pg::PgConnection,
              query_dsl::RunQueryDsl,
-             result::Error as Dre,
+             result::{Error as Dre,
+                    QueryResult},
              sql_query,
              Connection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
@@ -27,17 +28,16 @@ use crate::error::Result;
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("src/migrations");
 
 /// Run setup and then all pending migrations
-pub fn setup(conn: &mut PgConnection) -> Result<()> {
-    conn.transaction::<(), _, _>(|conn| {
+pub fn setup(conn: &mut PgConnection) -> QueryResult<()> {
+    conn.transaction::<(), Dre, _>(|conn| {
         setup_ids(conn)?;
-        // run all pending migrations, printing progress to stdout
-        conn.run_pending_migrations_with_output(MIGRATIONS, &mut io::stdout())?;
+        conn.run_pending_migrations(MIGRATIONS)?;
         Ok(())
     })?;
     Ok(())
 }
 
-pub fn setup_ids(conn: &PgConnection) -> Result<()> {
+pub fn setup_ids(conn: &mut PgConnection) -> Result<()> {
     sql_query(
         r#"CREATE OR REPLACE FUNCTION next_id_v1(sequence_id regclass, OUT result bigint) AS $$
                 DECLARE
@@ -52,7 +52,6 @@ pub fn setup_ids(conn: &PgConnection) -> Result<()> {
                 END;
                 $$ LANGUAGE PLPGSQL;"#,
     )
-    .execute(conn)
-    .unwrap();
+    .execute(conn)?;
     Ok(())
 }
