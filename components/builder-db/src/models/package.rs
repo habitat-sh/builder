@@ -62,7 +62,7 @@ use crate::{bldr_core::metrics::{CounterMetric,
             protocol::originsrv::{OriginPackage,
                                   OriginPackageIdent,
                                   OriginPackageVisibility}};
-use diesel_derive_enum::{DbEnum, db_enum};
+use diesel_derive_enum::DbEnum;
 
 #[derive(Debug,
          Serialize,
@@ -374,14 +374,10 @@ pub struct OriginPackageVersions {
          Deserialize,
          PartialEq,
          Clone)]
-#[db_enum(diesel_type = "PackageVisibilityMapping")]
-#[db_enum(pg_type      = "origin_package_visibility")]
+#[ExistingTypePath = "crate::schema::sql_types::origin_package_visibility"]
 pub enum PackageVisibility {
-    #[db_enum(rename = "public")]
     Public,
-    #[db_enum(rename = "private")]
     Private,
-    #[db_enum(rename = "hidden")]
     Hidden,
 }
 

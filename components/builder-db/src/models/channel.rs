@@ -40,7 +40,7 @@ use diesel::{self,
              TextExpressionMethods};
 use diesel_full_text_search::{to_tsquery,
                               TsQueryExtensions};
-use diesel_derive_enum::{DbEnum, db_enum};
+use diesel_derive_enum::DbEnum;
 #[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct Channel {
     #[serde(with = "db_id_format")]
@@ -382,7 +382,7 @@ impl Channel {
 
 
 #[derive(DbEnum, Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[db_enum(diesel_type = "PackageChannelTriggerMapping", pg_type = "package_channel_trigger")]
+#[ExistingTypePath = "crate::schema::sql_types::package_channel_trigger"]
 pub enum PackageChannelTrigger {
     Unknown,
     BuilderUi,
@@ -391,7 +391,7 @@ pub enum PackageChannelTrigger {
 
 /// Rust ↔ Postgres mapping for `package_channel_operation`
 #[derive(Clone, DbEnum, Debug, Serialize, Deserialize, PartialEq)]
-#[db_enum(diesel_type = "PackageChannelOperationMapping", pg_type = "package_channel_operation")]
+#[ExistingTypePath = "crate::schema::sql_types::package_channel_operation"]
 pub enum PackageChannelOperation {
     Promote,
     Demote,
