@@ -2,9 +2,9 @@
 cd /src || exit
 
 echo "--- Installing prerequisites"
-hab pkg install core/openssl
-hab pkg install core/node --binlink
-hab pkg install core/coreutils
+hab pkg install --channel LTS-2024 core/openssl
+hab pkg install --channel LTS-2024 core/node --binlink
+hab pkg install --channel LTS-2024 core/coreutils
 hab pkg binlink core/coreutils env -d /usr/bin
 (
   # At the point studiorc is evaluated, our cwd is /
@@ -19,7 +19,7 @@ hab pkg exec core/openssl openssl genrsa \
 echo "--- Creating log directory"
 mkdir -p logs
 echo "--- Starting the supervisor"
-env HAB_FUNC_TEST=1 hab sup run > logs/sup.log 2>&1 &
+env HAB_FUNC_TEST=1 hab sup run --channel LTS-2024 >logs/sup.log 2>&1 &
 
 until hab svc status >/dev/null 2>&1;
   do echo "waiting for hab sup to start"

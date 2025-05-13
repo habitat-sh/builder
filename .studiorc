@@ -251,7 +251,6 @@ generate_bldr_keys() {
 }
 
 load_package() {
-  # JAH:  Should there really be a --channel option here at all?
   hab pkg upload --url http://localhost --auth "${HAB_AUTH_TOKEN}" "$@" --channel "${HAB_BLDR_CHANNEL:-LTS-2024}"
 }
 

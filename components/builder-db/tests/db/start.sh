@@ -21,7 +21,7 @@ mkdir -p /hab/svc/postgresql
 mkdir -p /hab/user/postgresql
 cp "$DB_TEST_DIR"/pg_hba.conf /hab/svc/postgresql
 cp "$DB_TEST_DIR"/user.toml /hab/user/postgresql
-hab sup run core/postgresql17 &
+hab sup run --channel LTS-2024 core/postgresql17 &
 hab_pid=$!
 
 read -r sudo_ppid < <(ps -p $$ -o 'ppid=')
@@ -35,4 +35,3 @@ while true; do
   fi
   sleep 1
 done
-
