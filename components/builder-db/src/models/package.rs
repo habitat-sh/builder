@@ -974,6 +974,26 @@ impl FromStr for BuilderPackageType {
     }
 }
 
+impl ToSql<Text, Pg> for BuilderPackageType {
+    fn to_sql<'a>(
+        &'a self,
+        out: &mut Output<'a, '_, Pg>
+    ) -> serialize::Result {
+        out.write_all(self.to_string().as_bytes())
+            .map(|_| IsNull::No)
+            .map_err(Into::into)
+    }
+}
+
+impl FromSql<Text, Pg> for BuilderPackageType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        let s = std::str::from_utf8(bytes.as_bytes())
+            .map_err(|e| deserialize::Error::Custom(e.to_string()))?;
+        BuilderPackageType::from_str(s)
+            .map_err(|e| deserialize::Error::Custom(format!("Invalid package type: {}", e)))
+    }
+}
+
 impl Deref for BuilderPackageType {
     type Target = PackageType;
 
@@ -1003,6 +1023,26 @@ impl FromStr for BuilderPackageIdent {
                     s
                 ))
                                                         })?))
+    }
+}
+
+impl ToSql<Text, Pg> for BuilderPackageIdent {
+    fn to_sql<'a>(
+        &'a self,
+        out: &mut Output<'a, '_, Pg>
+    ) -> serialize::Result {
+        out.write_all(self.to_string().as_bytes())
+            .map(|_| IsNull::No)
+            .map_err(Into::into)
+    }
+}
+
+impl FromSql<Text, Pg> for BuilderPackageIdent {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        let s = std::str::from_utf8(bytes.as_bytes())
+            .map_err(|e| deserialize::Error::Custom(e.to_string()))?;
+        BuilderPackageIdent::from_str(s)
+            .map_err(|_| deserialize::Error::Custom(format!("Invalid ident: {}", s)))
     }
 }
 
@@ -1052,6 +1092,26 @@ impl FromStr for BuilderPackageTarget {
                 s
             ))
                                 })?))
+    }
+}
+
+impl ToSql<Text, Pg> for BuilderPackageTarget {
+    fn to_sql<'a>(
+        &'a self,
+        out: &mut Output<'a, '_, Pg>
+    ) -> serialize::Result {
+        out.write_all(self.to_string().as_bytes())
+            .map(|_| IsNull::No)
+            .map_err(Into::into)
+    }
+}
+
+impl FromSql<Text, Pg> for BuilderPackageTarget {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        let s = std::str::from_utf8(bytes.as_bytes())
+            .map_err(|e| deserialize::Error::Custom(e.to_string()))?;
+        BuilderPackageTarget::from_str(s)
+            .map_err(|_| deserialize::Error::Custom(format!("Invalid target: {}", s)))
     }
 }
 
