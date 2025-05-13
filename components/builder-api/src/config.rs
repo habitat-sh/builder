@@ -154,7 +154,7 @@ impl Default for ApiCfg {
                  suppress_autobuild_origins: vec![],
                  allowed_users_for_origin_create: vec![],
                  restricted_channels: vec!["base-2025".to_string()],
-                 excluded_channels: vec!["lts-2024".to_string()] }
+                 excluded_channels: vec!["LTS-2024".to_string()] }
     }
 }
 

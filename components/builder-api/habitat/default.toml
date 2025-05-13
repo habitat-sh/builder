@@ -7,7 +7,7 @@ license_server_url = "http://licensing-acceptance.chef.co"
 allowed_native_package_origins = []
 allowed_users_for_origin_create = []
 restricted_channels = ["base-2025"]
-excluded_channels = ["lts-2024"]
+excluded_channels = ["LTS-2024"]
 
 [http]
 listen = "0.0.0.0"

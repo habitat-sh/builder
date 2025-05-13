@@ -350,67 +350,6 @@ describe('Working with packages', function () {
           done(err);
         });
     });
-    it('fails to download a license-restricted package if unauthenticated', function (done) {
-        request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download`)
-          .expect(401)
-          .end(done);
-      });
-      
-      it('fails to download license-restricted package with no license key', function (done) {
-        request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download`)
-          .set('Authorization', global.noLicenseBearer)
-          .expect(403)
-          .end((err, res) => {
-            expect(res.text).to.contain('No valid license key found');
-            done(err);
-          });
-      });
-      
-      it('fails to download license-restricted package with expired license and no refresh', function (done) {
-        request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download`)
-          .set('Authorization', global.expiredLicenseBearer)
-          .expect(403)
-          .end((err, res) => {
-            expect(res.text).to.contain('License has expired');
-            done(err);
-          });
-      });
-      
-      it('downloads successfully with valid license key', function (done) {
-        request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download`)
-          .set('Authorization', global.validLicenseBearer)
-          .expect(200)
-          .buffer()
-          .parse(binaryParser)
-          .end((err, res) => {
-            expect(res.header['x-filename']).to.equal(`neurosis-testapp-0.1.3-${release2}-x86_64-linux.hart`);
-            expect(res.body.length).to.be.above(0);
-            done(err);
-          });
-      });
-      
-      it('downloads successfully for non-license-restricted package without license', function (done) {
-        request.get(`/depot/pkgs/xmen/testapp/0.1.4/${release4}/download`)
-          .set('Authorization', global.noLicenseBearer)
-          .expect(200)
-          .end(done);
-      });
-      
-      it('downloads successfully for package in both base-2025 and LTS-2024', function (done) {
-        request.get(`/depot/pkgs/dualchannel/testapp/1.0.0/${releaseX}/download`)
-          .set('Authorization', global.noLicenseBearer)
-          .expect(200)
-          .end(done);
-      });
-      
-      it('returns 422 for invalid package target', function (done) {
-        request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download?target=invalid-target`)
-          .expect(422)
-          .end((err, res) => {
-            expect(res.text).to.contain("Invalid package target");
-            done(err);
-          });
-      });      
   });
 
   describe('Deleting origin after package exists', function () {
@@ -1049,6 +988,166 @@ describe('Working with packages', function () {
           expect(res.text).to.be.empty
           done(err);
         });
+    });
+  });
+
+  describe('License-based package download', function () {
+    const origin = 'neurosis';
+    const name = 'testapp';
+    const version = '0.1.3';
+    const release = release2;
+    const target = 'x86_64-linux';
+    const downloadPath = `/depot/pkgs/${origin}/${name}/${version}/${release}/download?target=${target}`;
+    const promotePath = (channel) => `/depot/channels/${origin}/${channel}/pkgs/${name}/${version}/${release}/promote`;
+    const demotePath = (channel) => `/depot/channels/${origin}/${channel}/pkgs/${name}/${version}/${release}/demote`;
+    const createChannelPath = (channel) => `/depot/channels/${origin}/${channel}`;
+    const deleteChannelPath = (channel) => `/depot/channels/${origin}/${channel}`;
+  
+    const validLicenseKey = 'free-6cc49568-d1e8-4165-b1a9-6b232b914ca6-7839';
+    const expiredLicenseKey = 'tmns-3785e812-1704-4d08-836d-2f35bdfddce4-4914';
+  
+    function addLicenseKey(key, done) {
+      request.put('/profile/license')
+        .set('Authorization', global.boboBearer)
+        .send({
+          account_id: global.boboId.toString(),
+          license_key: key
+        })
+        .expect(200)
+        .end(done);
+    }
+  
+    function removeLicenseKey(done) {
+      request.delete('/profile/license')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(done);
+    }
+  
+    function createChannel(channel, done) {
+      request.post(createChannelPath(channel))
+        .set('Authorization', global.boboBearer)
+        .expect(201)
+        .end(done);
+    }
+  
+    function deleteChannel(channel, done) {
+      request.delete(deleteChannelPath(channel))
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(done);
+    }
+  
+    function promoteTo(channel, done) {
+      request.put(promotePath(channel))
+        .query({ target })
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(done);
+    }
+  
+    function demoteFrom(channel, done) {
+      request.put(demotePath(channel))
+        .query({ target })
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(done);
+    }
+  
+    before(function (done) {
+        request.post('/profile/access-tokens')
+          .set('Authorization', global.boboBearer)
+          .type('application/json')
+          .accept('application/json')
+          .expect(200)
+          .end(function (err, res) {
+            if (err) return done(err);
+            expect(res.body.token).to.not.be.empty;
+            global.boboId = res.body.id;
+      
+            createChannel('LTS-2024', () => {
+              createChannel('base-2025', done);
+            });
+          });
+      });
+  
+    after(function (done) {
+      deleteChannel('LTS-2024', () => {
+        deleteChannel('base-2025', done);
+      });
+    });
+  
+    it('succeeds without license when package is in both channels', function (done) {
+      promoteTo('LTS-2024', () => {
+        promoteTo('base-2025', () => {
+          removeLicenseKey(() => {
+            request.get(downloadPath)
+              .set('Authorization', global.boboBearer)
+              .expect(200)
+              .end(() => {
+                demoteFrom('LTS-2024', () => {
+                  demoteFrom('base-2025', done);
+                });
+              });
+          });
+        });
+      });
+    });
+  
+    it('succeeds with valid license when package is in both channels', function (done) {
+      promoteTo('LTS-2024', () => {
+        promoteTo('base-2025', () => {
+          addLicenseKey(validLicenseKey, () => {
+            request.get(downloadPath)
+              .set('Authorization', global.boboBearer)
+              .expect(200)
+              .end(() => {
+                demoteFrom('LTS-2024', () => {
+                  demoteFrom('base-2025', done);
+                });
+              });
+          });
+        });
+      });
+    });
+  
+    it('fails without license when package is only in restricted channel', function (done) {
+      promoteTo('base-2025', () => {
+        removeLicenseKey(() => {
+          request.get(downloadPath)
+            .set('Authorization', global.boboBearer)
+            .expect(403)
+            .end(() => {
+              demoteFrom('base-2025', done);
+            });
+        });
+      });
+    });
+  
+    it('succeeds with valid license when package is only in restricted channel', function (done) {
+      promoteTo('base-2025', () => {
+        addLicenseKey(validLicenseKey, () => {
+          request.get(downloadPath)
+            .set('Authorization', global.boboBearer)
+            .expect(200)
+            .end(() => {
+              demoteFrom('base-2025', done);
+            });
+        });
+      });
+    });
+  
+    it('fails with expired license when package is only in restricted channel', function (done) {
+      promoteTo('base-2025', () => {
+        addLicenseKey(expiredLicenseKey, () => {
+          request.get(downloadPath)
+            .set('Authorization', global.boboBearer)
+            .expect(403)
+            .end(() => {
+              demoteFrom('base-2025', done);
+            });
+        });
+      });
     });
   });
 

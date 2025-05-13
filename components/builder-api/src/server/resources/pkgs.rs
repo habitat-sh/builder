@@ -431,19 +431,27 @@ async fn download_package(req: HttpRequest,
                 }
             };
 
-            if channels.as_ref().map_or(false, |chs| {
-                                    state.config
+            let should_restrict = if let Some(chs) = channels.as_ref() {
+                let chs_lower: Vec<String> = chs.iter().map(|c| c.to_lowercase()).collect();
+
+                let is_restricted = state.config
                                          .api
                                          .restricted_channels
                                          .iter()
-                                         .any(|rc| chs.contains(&rc.to_lowercase()))
-                                    && !state.config
-                                             .api
-                                             .excluded_channels
-                                             .iter()
-                                             .any(|ec| chs.contains(&ec.to_lowercase()))
-                                })
-            {
+                                         .any(|rc| chs_lower.contains(&rc.to_lowercase()));
+
+                let is_not_excluded = !state.config
+                                            .api
+                                            .excluded_channels
+                                            .iter()
+                                            .any(|ec| chs_lower.contains(&ec.to_lowercase()));
+
+                is_restricted && is_not_excluded
+            } else {
+                false
+            };
+
+            if should_restrict {
                 match opt_session_id {
                     Some(account_id) => {
                         match LicenseKey::get_by_account_id(account_id as i64, &conn) {
