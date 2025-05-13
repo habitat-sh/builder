@@ -164,7 +164,7 @@ impl Channel {
             .filter(origin_channels::name.eq(req.channel.as_str()))
             .filter(origin_packages_with_version_array::target.eq(req.target))
             .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
-            .order(sql::<PackageWithVersionArray>(
+            .order(sql(
                 "string_to_array(version_array[1],'.')::\
                  numeric[] desc, version_array[2] desc, \
                  ident_array[4] desc",
@@ -201,7 +201,7 @@ impl Channel {
                 origin_packages_with_version_array::ident,
             ))
             .order(origin_packages_with_version_array::name)
-            .order(sql::<PackageWithVersionArray>(
+            .order(sql(
                 "name,\
                 string_to_array(version_array[1],'.')::numeric[] desc,\
                 version_array[2] desc,\

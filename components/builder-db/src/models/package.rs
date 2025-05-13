@@ -517,7 +517,7 @@ impl Package {
             .filter(origin_packages_with_version_array::ident_array.contains(req.ident.parts()))
             .filter(origin_packages_with_version_array::target.eq(req.target))
             .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
-            .order(sql::<PackageWithVersionArray>(
+            .order(sql(
                 "string_to_array(version_array[1],'.')::\
                  numeric[] desc, version_array[2] desc, \
                  ident_array[4] desc",
@@ -542,7 +542,7 @@ impl Package {
                 origin_packages_with_version_array::name,
                 origin_packages_with_version_array::target,
             ))
-            .order(sql::<PackageWithVersionArray>(
+            .order(sql(
                 "origin, name, target, string_to_array(version_array[1],'.')::\
                 numeric[] desc, ident_array[4] desc",
             ))
