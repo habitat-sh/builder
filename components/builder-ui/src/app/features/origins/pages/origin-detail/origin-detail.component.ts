@@ -12,7 +12,7 @@ import { MatTabsModule } from '@angular/material/tabs';
   styleUrls: ['./origin-detail.component.scss'],
   standalone: true,
   imports: [CommonModule, RouterModule, MatCardModule, MatTabsModule]
-}
+})
 export class OriginDetailComponent implements OnInit, OnDestroy {
   originName: string = '';
   private subscription: Subscription = new Subscription();

@@ -6,10 +6,11 @@ import { filter, map } from 'rxjs/operators';
 
 // Import header, sidebar and footer components with proper relative paths
 import { HeaderComponent } from './header/header.component';
-import { SidebarComponent, NavigationItem } from './sidebar/sidebar.component';
+import { SidebarComponent } from './sidebar/sidebar.component';
 import { FooterComponent } from './footer/footer.component'; 
 import { AuthService } from '../services/auth.service';
 import { ConfigService } from '../services/config.service';
+import { NavigationItem } from '../models/navigation-item.model';
 
 @Component({
   selector: 'app-shell',
@@ -103,7 +104,8 @@ export class AppShellComponent implements OnInit {
       mainNavItems.push({
         label: 'Events',
         icon: 'event',
-        route: '/events'
+        route: '/events',
+        exactMatch: true // Add this to prevent /events/saas from activating this item
       });
       
       // Add SaaS Events if both flags enabled
@@ -119,52 +121,59 @@ export class AppShellComponent implements OnInit {
     // Add section divider for quick links
     mainNavItems.push({ divider: true, label: 'Quick Links' });
     
-    // Quick links section - exactly matching the original side-nav.component.html
-    const quickLinks: NavigationItem[] = [
-      {
-        label: 'Download Habitat',
-        icon: 'file_download',
-        route: this.configService.getUrl('download') || 'https://www.habitat.sh/docs/install-habitat/'
-      },
-      {
-        label: 'Docs',
-        icon: 'description',
-        route: this.configService.getUrl('docs') || 'https://docs.chef.io/habitat/'
-      },
-      {
-        label: 'Tutorials',
-        icon: 'explore',
-        route: this.configService.getUrl('tutorials') || 'https://learn.chef.io/habitat/'
-      },
-      {
-        label: 'Blog',
-        icon: 'rss_feed',
-        route: this.configService.getUrl('blog') || 'https://www.habitat.sh/blog'
-      },
-      {
-        label: 'Website',
-        icon: 'language',
-        route: this.configService.getUrl('website') || 'https://www.habitat.sh'
-      },
-      {
-        label: 'GitHub',
-        icon: 'code',
-        route: this.configService.getUrl('sourceCode') || 'https://github.com/habitat-sh/habitat'
-      }
-    ];
+    // Quick links section - directly add to mainNavItems
+    mainNavItems.push({
+      label: 'Download Habitat',
+      icon: 'file_download',
+      route: this.configService.getUrl('download') || 'https://www.habitat.sh/docs/install-habitat/',
+      isExternal: true
+    });
     
-    // Add Service Status section if config is SaaS
-    if (this.configService.isFeatureEnabled('saas')) {
+    mainNavItems.push({
+      label: 'Docs',
+      icon: 'description',
+      route: this.configService.getUrl('docs') || 'https://docs.chef.io/habitat/',
+      isExternal: true
+    });
+    
+    mainNavItems.push({
+      label: 'Tutorials',
+      icon: 'explore',
+      route: this.configService.getUrl('tutorials') || 'https://learn.chef.io/habitat/',
+      isExternal: true
+    });
+    
+    mainNavItems.push({
+      label: 'Blog',
+      icon: 'rss_feed',
+      route: this.configService.getUrl('blog') || 'https://www.habitat.sh/blog',
+      isExternal: true
+    });
+    
+    mainNavItems.push({
+      label: 'Website',
+      icon: 'language',
+      route: this.configService.getUrl('website') || 'https://www.habitat.sh',
+      isExternal: true
+    });
+    
+    mainNavItems.push({
+      label: 'GitHub',
+      icon: 'code',
+      route: this.configService.getUrl('sourceCode') || 'https://github.com/habitat-sh/habitat',
+      isExternal: true
+    });
+    
+    // Always add Service Status section in development mode or if saas flag is enabled
+    if (!this.configService.isProduction() || this.configService.isFeatureEnabled('saas')) {
       mainNavItems.push({ divider: true, label: 'Service Status' });
       mainNavItems.push({
         label: 'Status',
         icon: 'info',
-        route: 'https://status.chef.io/'
+        route: 'https://status.chef.io/',
+        isExternal: true
       });
     }
-    
-    // Append quick links to mainNavItems
-    mainNavItems.push(...quickLinks);
     this.navigationItems = mainNavItems;
   }
   

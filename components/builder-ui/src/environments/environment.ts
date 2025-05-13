@@ -11,7 +11,8 @@ export const environment = {
     // Updated feature flags for events
     enable_builder_events: true,
     enable_builder_events_saas: true,
-    enableVisibility: true
+    enableVisibility: true,
+    saas: true  // Enable Service Status link in development mode
   },
   urls: {
     docs: 'https://www.habitat.sh/docs',

@@ -7,8 +7,17 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AssetLoaderService } from '../../../shared/services/asset-loader.service';
 import { FallbackImageDirective } from '../../../shared/directives/fallback-image.directive';
-import { NavigationItem } from '../../models/navigation-item.model';
-import { ConfigService } from '../../services/config.service';
+
+export interface NavigationItem {
+  label: string;
+  icon?: string;
+  route?: string;
+  children?: NavigationItem[];
+  expanded?: boolean;
+  divider?: boolean;
+  permissions?: string[];
+  isExternal?: boolean; // Add this property to identify external links explicitly
+}
 
 @Component({
   selector: 'app-sidebar',
@@ -59,9 +68,7 @@ import { ConfigService } from '../../services/config.service';
                   [routerLink]="(isExternalLink(item.route) || item.isExternal) ? undefined : item.route"
                   [attr.href]="(isExternalLink(item.route) || item.isExternal) ? item.route : undefined"
                   [attr.target]="(isExternalLink(item.route) || item.isExternal) ? '_blank' : undefined"
-                  (click)="handleLinkClick($event, item)"
                   routerLinkActive="active-link"
-                  [routerLinkActiveOptions]="item.exactMatch ? {exact: true} : {exact: false}"
                   [matTooltip]="collapsed ? item.label : ''"
                   [matTooltipPosition]="'right'">
                   <mat-icon *ngIf="item.icon">{{ item.icon }}</mat-icon>
@@ -90,9 +97,7 @@ import { ConfigService } from '../../services/config.service';
                         [routerLink]="(isExternalLink(child.route) || child.isExternal) ? undefined : child.route"
                         [attr.href]="(isExternalLink(child.route) || child.isExternal) ? child.route : undefined" 
                         [attr.target]="(isExternalLink(child.route) || child.isExternal) ? '_blank' : undefined"
-                        (click)="handleLinkClick($event, child)"
                         routerLinkActive="active-child"
-                        [routerLinkActiveOptions]="child.exactMatch ? {exact: true} : {exact: false}"
                         class="nav-child-item">
                         <mat-icon *ngIf="child.icon">{{ child.icon }}</mat-icon>
                         <span>{{ child.label }}</span>
@@ -315,10 +320,6 @@ export class SidebarComponent implements OnInit {
   @Input() logoUrl = 'assets/images/builder-habitat-logo.svg';
   @Input() showLogo = true;
   @Input() collapsed = false;
-  @Input() isSignedIn = false;
-  @Input() enabledEvents = false;
-  @Input() enabledSaasEvents = false;
-  @Input() config?: ConfigService;
   
   @Output() closeMobileSidebar = new EventEmitter<void>();
   
@@ -329,10 +330,6 @@ export class SidebarComponent implements OnInit {
   private assetLoader = inject(AssetLoaderService);
   
   ngOnInit(): void {
-    // Report that we're loading the logo
-    this.assetLoader.reportAssetLoading(this.logoUrl);
-    
-    // Try additional logo sources if the default one fails
     this.tryAdditionalLogoSources();
     
     // Initialize sections cache
@@ -388,27 +385,10 @@ export class SidebarComponent implements OnInit {
   isExternalLink(route?: string): boolean {
     if (!route) return false;
     
-    // Simple check for absolute URLs
-    return route.startsWith('http://') || route.startsWith('https://') || route.startsWith('www.');
-  }
-  
-  /**
-   * Handle click on navigation link
-   * @param event Click event
-   * @param item Navigation item that was clicked
-   */
-  handleLinkClick(event: MouseEvent, item: NavigationItem): void {
-    // If it's an external link, open it in a new tab
-    if (this.isExternalLink(item.route) || item.isExternal) {
-      event.preventDefault(); // Prevent default navigation
-      if (item.route) {
-        // Open in a new tab
-        window.open(item.route, '_blank');
-      }
-      return;
-    }
-    
-    // For internal links, let Angular router handle it
+    // Check for common external URL patterns
+    return route.startsWith('http://') || 
+           route.startsWith('https://') || 
+           route.includes('://');
   }
   
   get isMobileView(): boolean {

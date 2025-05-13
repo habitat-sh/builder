@@ -22,25 +22,23 @@ const routes: Routes = [
       { path: 'settings', component: OriginSettingsComponent },
       { path: 'members', component: OriginMembersComponent },
       { path: 'keys', component: OriginKeysComponent },
-      { path: 'integrations', component: OriginIntegrationsComponent }
+      { path: 'integrations', component: OriginIntegrationsComponent },
     ]
   }
 ];
 
 @NgModule({
-  declarations: [
+  imports: [
+    CommonModule,
+    RouterModule.forChild(routes),
+    SharedModule,
     OriginListComponent,
     OriginDetailComponent,
     OriginOverviewComponent,
     OriginSettingsComponent,
     OriginMembersComponent,
     OriginKeysComponent,
-    OriginIntegrationsComponent
-  ],
-  imports: [
-    CommonModule,
-    RouterModule.forChild(routes),
-    SharedModule
+    OriginIntegrationsComponent,
   ],
   exports: [
     RouterModule

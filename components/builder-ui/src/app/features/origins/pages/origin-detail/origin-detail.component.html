@@ -5,24 +5,30 @@
   <div class="page-content">
     <mat-card>
       <mat-card-content>
-        <nav mat-tab-nav-bar>
+        <nav mat-tab-nav-bar [tabPanel]="tabPanel">
           <a mat-tab-link
              routerLink="."
              [routerLinkActiveOptions]="{exact: true}"
-             routerLinkActive="active-link">Overview</a>
+             routerLinkActive #overview="routerLinkActive"
+             [active]="overview.isActive">Overview</a>
           <a mat-tab-link
              routerLink="settings"
-             routerLinkActive="active-link">Settings</a>
+             routerLinkActive #settings="routerLinkActive"
+             [active]="settings.isActive">Settings</a>
           <a mat-tab-link
              routerLink="members"
-             routerLinkActive="active-link">Members</a>
+             routerLinkActive #members="routerLinkActive"
+             [active]="members.isActive">Members</a>
           <a mat-tab-link
              routerLink="keys"
-             routerLinkActive="active-link">Keys</a>
+             routerLinkActive #keys="routerLinkActive"
+             [active]="keys.isActive">Keys</a>
           <a mat-tab-link
              routerLink="integrations"
-             routerLinkActive="active-link">Integrations</a>
+             routerLinkActive #integrations="routerLinkActive"
+             [active]="integrations.isActive">Integrations</a>
         </nav>
+        <mat-tab-nav-panel #tabPanel>
         
         <!-- Router outlet for nested routes -->
         <div class="tab-content">

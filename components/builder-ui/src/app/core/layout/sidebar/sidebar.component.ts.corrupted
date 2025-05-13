@@ -5,10 +5,31 @@ import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { AssetLoaderService } from '../../../shared/services/asset-loader.service';
+  /**
+   * Check if a route is an external link
+   * @param route The route to check
+   * @returns True if it's an external link
+   */
+  isExternalLink(route?: string): boolean {
+    if (!route) return false;
+    
+    // Check for common external URL patterns more thoroughly
+    return route.startsWith('http://') || 
+           route.startsWith('https://') || 
+           route.includes('://') ||
+           !route.startsWith('/');  // If it doesn't start with /, it's likely external
+  }AssetLoaderService } from '../../../shared/services/asset-loader.service';
 import { FallbackImageDirective } from '../../../shared/directives/fallback-image.directive';
-import { NavigationItem } from '../../models/navigation-item.model';
-import { ConfigService } from '../../services/config.service';
+
+export interface NavigationItem {
+  label: string;
+  icon?: string;
+  route?: string;
+  children?: NavigationItem[];
+  expanded?: boolean;
+  divider?: boolean;
+  permissions?: string[];
+}
 
 @Component({
   selector: 'app-sidebar',
@@ -59,9 +80,7 @@ import { ConfigService } from '../../services/config.service';
                   [routerLink]="(isExternalLink(item.route) || item.isExternal) ? undefined : item.route"
                   [attr.href]="(isExternalLink(item.route) || item.isExternal) ? item.route : undefined"
                   [attr.target]="(isExternalLink(item.route) || item.isExternal) ? '_blank' : undefined"
-                  (click)="handleLinkClick($event, item)"
                   routerLinkActive="active-link"
-                  [routerLinkActiveOptions]="item.exactMatch ? {exact: true} : {exact: false}"
                   [matTooltip]="collapsed ? item.label : ''"
                   [matTooltipPosition]="'right'">
                   <mat-icon *ngIf="item.icon">{{ item.icon }}</mat-icon>
@@ -90,9 +109,7 @@ import { ConfigService } from '../../services/config.service';
                         [routerLink]="(isExternalLink(child.route) || child.isExternal) ? undefined : child.route"
                         [attr.href]="(isExternalLink(child.route) || child.isExternal) ? child.route : undefined" 
                         [attr.target]="(isExternalLink(child.route) || child.isExternal) ? '_blank' : undefined"
-                        (click)="handleLinkClick($event, child)"
                         routerLinkActive="active-child"
-                        [routerLinkActiveOptions]="child.exactMatch ? {exact: true} : {exact: false}"
                         class="nav-child-item">
                         <mat-icon *ngIf="child.icon">{{ child.icon }}</mat-icon>
                         <span>{{ child.label }}</span>
@@ -183,152 +200,198 @@ import { ConfigService } from '../../services/config.service';
     }
     
     li {
-      margin-bottom: 6px;
+      margin: 0;
+      padding: 0;
+    }
+    
+    li a {
+      display: flex;
+      align-items: center;
+      color: #D8D8D8;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 16px;
+      line-height: 32px;
+      margin: 0;
+      padding: 0;
+      
+      mat-icon {
+        margin-right: 8px;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+      
+      &:hover {
+        background-color: transparent;
+        color: #ffffff;
+      }
+      
+      &.active-link {
+        color: #ffffff;
+      }
+    }
+    
+    .active-link {
+      background-color: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      border-left: 3px solid #FF9012;
+      font-weight: 600;
     }
     
     h3 {
+      font-family: Montserrat, Verdana;
       font-size: 14px;
-      font-weight: 400;
-      margin: 16px 0 8px 8px;
-      color: #a8bcc8;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      user-select: none;
-    }
-    
-    h3.first {
-      margin-top: 8px;
-    }
-    
-    a {
-      display: flex;
-      align-items: center;
-      padding: 8px 12px;
-      text-decoration: none;
-      color: #e9f0f4;
-      border-radius: 4px;
-      transition: background-color 0.2s ease;
-      cursor: pointer;
-    }
-    
-    a:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-    }
-    
-    a.active-link {
-      background-color: rgba(255, 255, 255, 0.18);
-      font-weight: 500;
+      color: #ffffff;
+      opacity: 0.4;
+      margin: 24px 0 8px 0;
+      font-weight: 600;
+      letter-spacing: 1px;
+      
+      &.first {
+        margin-top: 0;
+      }
     }
     
     .nav-group {
-      margin-bottom: 6px;
+      margin: 12px 0;
     }
     
     .nav-group-header {
       display: flex;
       align-items: center;
-      padding: 8px 12px;
+      padding: 0;
+      height: 44px;
       cursor: pointer;
-      border-radius: 4px;
-      transition: background-color 0.2s ease;
+      transition: all 0.2s ease;
+      color: rgba(255, 255, 255, 0.85);
+      font-weight: 500;
     }
     
     .nav-group-header:hover {
       background-color: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
     }
     
     .nav-group-header.active {
-      background-color: rgba(255, 255, 255, 0.12);
+      background-color: rgba(0, 0, 0, 0.04);
     }
     
-    .nav-group-items {
-      padding-left: 16px;
-      margin-top: 2px;
-    }
-    
-    .nav-child-item {
-      padding: 6px 12px;
-      font-size: 0.95em;
-    }
-    
-    .nav-child-item.active-child {
-      font-weight: 500;
-    }
-    
-    mat-icon {
-      margin-right: 12px;
-      color: #c4d5e0;
-      font-size: 18px;
-      height: 18px;
-      width: 18px;
-    }
-    
-    .collapse-icon {
-      margin-right: 0;
+    .nav-group-header mat-icon {
+      margin-right: 8px;
       font-size: 20px;
       width: 20px;
       height: 20px;
     }
     
-    span {
-      white-space: nowrap;
+    .nav-group-items {
+      padding-left: 8px;
+    }
+    
+    .nav-child-item {
+      height: 40px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      color: #D8D8D8;
+      text-decoration: none;
+      font-weight: 600;
+      line-height: 32px;
+      margin: 0;
+      padding: 0;
+      
+      mat-icon {
+        margin-right: 8px;
+      }
+      
+      &:hover {
+        background-color: transparent;
+        color: #ffffff;
+      }
+    }
+    
+    .close-button {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+      }
+      
+      @media (min-width: 768px) {
+        display: none;
+      }
+    }
+    
+    .active-child {
+      background-color: rgba(33, 150, 243, 0.05);
+      color: #1976d2;
+    }
+    
+    .expand-icon {
+      transition: transform 0.3s;
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
     }
     
     .spacer {
       flex: 1;
     }
     
-    .expand-icon {
-      margin-right: 0;
-      transition: transform 0.2s ease;
-    }
-    
-    .close-button {
-      background: none;
-      border: none;
-      color: #e9f0f4;
-      padding: 4px;
-      margin-left: auto;
-      cursor: pointer;
-      display: none;
-    }
-    
-    @media (max-width: 959px) {
-      .close-button {
-        display: block;
-      }
-      
-      .logo-container {
-        justify-content: space-between;
-      }
-    }
-    
     .sidebar-footer {
-      margin-top: 20px;
-      padding: 16px 0;
-      font-size: 0.85em;
+      border-top: 1px solid rgba(0, 0, 0, 0.12);
+      padding: 16px;
     }
   `]
 })
 export class SidebarComponent implements OnInit {
-  @Input() navigationItems: NavigationItem[] = [];
+  @Input() appName = 'Habitat Builder';
   @Input() logoUrl = 'assets/images/builder-habitat-logo.svg';
-  @Input() showLogo = true;
   @Input() collapsed = false;
+  @Input() showLogo = true;
+  
+  private _navigationItems: NavigationItem[] = [];
+  
+  @Input()
+  set navigationItems(items: NavigationItem[]) {
+    this._navigationItems = items;
+    // Update cache when navigation items change
+    this.updateSectionsCache();
+  }
+  
+  get navigationItems(): NavigationItem[] {
+    return this._navigationItems;
+  }
+  
   @Input() isSignedIn = false;
-  @Input() enabledEvents = false;
-  @Input() enabledSaasEvents = false;
-  @Input() config?: ConfigService;
+  @Input() enabledEvents: boolean = true;
+  @Input() enabledSaasEvents: boolean = false;
+  @Input() config: any = {};
+  
+  // Track if logo loaded successfully
+  logoLoaded: boolean = true;
+  
+  // Cache for grouped navigation items to prevent recalculation on every change detection
+  sectionsCache: { title: string; items: NavigationItem[] }[] = [];
   
   @Output() closeMobileSidebar = new EventEmitter<void>();
-  
-  sectionsCache: {title: string; items: NavigationItem[]}[] = [];
-  private logoLoadAttempts = 0;
-  private maxLogoLoadAttempts = 3;
-  
-  private assetLoader = inject(AssetLoaderService);
-  
-  ngOnInit(): void {
+
+  ngOnInit() {
     // Report that we're loading the logo
     this.assetLoader.reportAssetLoading(this.logoUrl);
     
@@ -388,27 +451,11 @@ export class SidebarComponent implements OnInit {
   isExternalLink(route?: string): boolean {
     if (!route) return false;
     
-    // Simple check for absolute URLs
-    return route.startsWith('http://') || route.startsWith('https://') || route.startsWith('www.');
-  }
-  
-  /**
-   * Handle click on navigation link
-   * @param event Click event
-   * @param item Navigation item that was clicked
-   */
-  handleLinkClick(event: MouseEvent, item: NavigationItem): void {
-    // If it's an external link, open it in a new tab
-    if (this.isExternalLink(item.route) || item.isExternal) {
-      event.preventDefault(); // Prevent default navigation
-      if (item.route) {
-        // Open in a new tab
-        window.open(item.route, '_blank');
-      }
-      return;
-    }
-    
-    // For internal links, let Angular router handle it
+    // Check for common external URL patterns more thoroughly
+    return route.startsWith('http://') || 
+           route.startsWith('https://') || 
+           route.includes('://') ||
+           route.startsWith('www.');
   }
   
   get isMobileView(): boolean {
@@ -455,40 +502,44 @@ export class SidebarComponent implements OnInit {
     return sections;
   }
   
+  // Service for asset loading diagnostics
+  private assetLoader = inject(AssetLoaderService);
+  
   /**
-   * Handle logo loading errors
+   * Handle image loading error
+   * @param event The error event
    */
-  handleLogoError(event: ErrorEvent): void {
-    console.warn('Logo loading failed:', event);
-    this.logoLoadAttempts++;
-    
+  handleLogoError(event: any): void {
+    console.error(`Logo failed to load: ${this.logoUrl}`);
     this.assetLoader.reportAssetError(this.logoUrl);
+    this.logoLoaded = false;
     
-    // Try with a '/' prefix if needed
-    if (this.logoLoadAttempts < this.maxLogoLoadAttempts && !this.logoUrl.startsWith('/')) {
+    // Try a different path approach
+    if (this.logoUrl.startsWith('assets/')) {
       console.log('Trying with / prefix...');
       const newPath = '/' + this.logoUrl;
-      this.logoUrl = newPath;
       this.assetLoader.reportAssetLoading(newPath);
+      this.logoUrl = newPath;
+      this.logoLoaded = true;
+      return;
     }
     
     // Try to fall back to a different logo
-    if (this.logoLoadAttempts >= this.maxLogoLoadAttempts) {
+    if (this.logoUrl.includes('builder-habitat-logo')) {
+      console.log('Trying fallback logo...');
       const fallbackPath = 'assets/images/habitat-logo.svg';
-      
-      if (this.logoUrl.includes('builder-habitat-logo')) {
-        console.log('Falling back to standard habitat logo');
-        this.logoUrl = fallbackPath;
-        this.assetLoader.reportAssetLoading(fallbackPath);
-      }
+      this.assetLoader.reportAssetLoading(fallbackPath);
+      this.logoUrl = fallbackPath;
+      this.logoLoaded = true;
     }
   }
   
   /**
-   * Handle successful logo loading
+   * Handle successful image load
    */
   handleLogoLoad(): void {
-    console.log('Logo loaded successfully:', this.logoUrl);
+    console.log(`Logo loaded successfully: ${this.logoUrl}`);
     this.assetLoader.reportAssetSuccess(this.logoUrl);
+    this.logoLoaded = true;
   }
 }
