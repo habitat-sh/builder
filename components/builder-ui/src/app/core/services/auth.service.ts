@@ -49,6 +49,7 @@ export class AuthService {
   readonly currentUser = computed(() => this._authState().user);
   readonly token = computed(() => this._authState().token);
   readonly tokenExpiration = computed(() => this._authState().tokenExpiration);
+  readonly tokenIsExpired = computed(() => this.checkTokenExpiration());
   
   // Login status subject for legacy components
   private authStatusSource = new BehaviorSubject<boolean>(false);
@@ -85,6 +86,7 @@ export class AuthService {
   
   /**
    * Validate auth state and fix any inconsistencies
+   * This needs to be a public method as it's used by app initialization
    */
   validateAuthState(): void {
     const token = localStorage.getItem(this.AUTH_TOKEN_KEY);
@@ -434,10 +436,10 @@ export class AuthService {
   }
   
   /**
-   * Check if current token is expired or will expire soon
-   * Public method that can be accessed by guards and initializers
+   * Internal helper method for checking token expiration
+   * Used by the tokenIsExpired signal and isTokenExpired method
    */
-  isTokenExpired(): boolean {
+  private checkTokenExpiration(): boolean {
     try {
       const expiration = this._authState().tokenExpiration;
       if (!expiration) return true;
@@ -448,6 +450,14 @@ export class AuthService {
       console.error('AuthService: Error checking token expiration', error);
       return false;
     }
+  }
+  
+  /**
+   * Check if current token is expired or will expire soon
+   * Public method that can be accessed by guards and initializers
+   */
+  isTokenExpired(): boolean {
+    return this.checkTokenExpiration();
   }
   
   /**
@@ -497,8 +507,9 @@ export class AuthService {
   
   /**
    * Load authentication state from local storage
+   * Public so it can be used in validateAuthState and during initialization
    */
-  private loadAuthStateFromStorage(): void {
+  loadAuthStateFromStorage(): void {
     console.log('AuthService: Loading auth state from storage');
     const token = localStorage.getItem(this.AUTH_TOKEN_KEY);
     if (!token) {

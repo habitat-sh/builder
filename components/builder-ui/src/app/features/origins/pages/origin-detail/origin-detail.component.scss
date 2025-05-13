@@ -1,0 +1,21 @@
+.page-container {
+  padding: 16px;
+
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .page-content {
+    mat-card {
+      margin-bottom: 16px;
+    }
+  }
+
+  .tab-content {
+    padding: 16px 8px;
+  }
+
+  .active-link {
+    font-weight: bold;
+  }
+}

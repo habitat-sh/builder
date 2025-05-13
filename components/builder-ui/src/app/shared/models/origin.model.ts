@@ -6,6 +6,10 @@ export interface Origin {
   name: string;
   ownerName: string;
   ownerId: string;
+  owner_id?: string; // Legacy form used by some components
+  description?: string;
+  default_package?: string;
+  visibility?: string; 
   default_package_visibility: string;
   createdAt: Date;
   updatedAt: Date;

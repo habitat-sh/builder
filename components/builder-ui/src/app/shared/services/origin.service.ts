@@ -203,9 +203,64 @@ export class OriginService {
   }
 
   /**
-   * Deletes an origin integration
+   * Delete an origin integration
    */
-  deleteIntegration(originName: string, type: string, name: string): Observable<any> {
-    return this.apiService.delete(`/v1/depot/origins/${originName}/integrations/${type}/${name}`);
+  deleteIntegration(originName: string, integrationType: string): Observable<void> {
+    return this.apiService.delete<void>(`/v1/depot/origins/${originName}/integrations/${integrationType}`);
+  }
+
+  /**
+   * Creates a new origin key pair
+   */
+  generateOriginKeyPair(originName: string): Observable<{publicKey: OriginPublicKey, secretKey: OriginSecretKey}> {
+    return this.apiService.post<{publicKey: OriginPublicKey, secretKey: OriginSecretKey}>(
+      `/v1/depot/origins/${originName}/keys`,
+      {}
+    );
+  }
+
+  /**
+   * Gets origin key content
+   */
+  getOriginKeyContent(originName: string, keyName: string, revision: string, type: 'public' | 'secret'): Observable<string> {
+    const endpoint = type === 'public' ? 'keys' : 'secret_keys';
+    return this.apiService.getText(`/v1/depot/origins/${originName}/${endpoint}/${keyName}/${revision}`);
+  }
+  
+  /**
+   * Delete an origin key
+   */
+  deleteOriginKey(originName: string, keyName: string, revision: string): Observable<void> {
+    return this.apiService.delete<void>(`/v1/depot/origins/${originName}/keys/${keyName}/${revision}`);
+  }
+
+  /**
+   * Search for users (for member invitation)
+   */
+  searchUsers(query: string): Observable<{id: string, name: string}[]> {
+    return this.apiService.get<{id: string, name: string}[]>(
+      `/v1/user/search/${query}`
+    );
+  }
+
+  /**
+   * Remove a member from an origin
+   */
+  removeOriginMember(originName: string, userId: string): Observable<void> {
+    return this.apiService.delete<void>(`/v1/depot/origins/${originName}/users/${userId}`);
+  }
+
+  /**
+   * Cancel an invitation
+   */
+  cancelInvitation(originName: string, invitationId: string): Observable<void> {
+    return this.apiService.delete<void>(`/v1/depot/origins/${originName}/invitations/${invitationId}`);
+  }
+
+  /**
+   * Delete an origin
+   */
+  deleteOrigin(originName: string): Observable<void> {
+    return this.apiService.delete<void>(`/v1/depot/origins/${originName}`);
   }
 }

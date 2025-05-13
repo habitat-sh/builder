@@ -71,11 +71,11 @@ export const routes: Routes = [
         }
       },
       
-      // Protected routes - to be implemented in later phases
+      // Origins routes using standalone components
       {
         path: 'origins',
-        canActivate: [authGuard],
-        component: HomeComponent // Placeholder - will be replaced with actual component
+        loadChildren: () => import('./features/origins-standalone/origins-routes').then(m => m.ORIGINS_ROUTES),
+        canActivate: [authGuard]
       },
       {
         path: 'builds',

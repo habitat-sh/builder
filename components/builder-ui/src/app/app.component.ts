@@ -33,8 +33,23 @@ export class AppComponent implements OnInit {
   ngOnInit() {
     // Ensure authentication state is loaded and validated
     console.log('App: Initializing and validating authentication state');
-    this.authService.validateAuthState();
-    console.log('App: Authentication status:', this.authService.isAuthenticated());
+    try {
+      if (typeof this.authService.validateAuthState === 'function') {
+        this.authService.validateAuthState();
+      } else {
+        console.log('App: validateAuthState method not available, using alternative approach');
+        // We'll rely on isAuthenticated which should work
+      }
+    } catch (error) {
+      console.error('App: Error validating auth state:', error);
+    }
+    
+    // Safely log authentication status
+    if (typeof this.authService.isAuthenticated === 'function') {
+      console.log('App: Authentication status:', this.authService.isAuthenticated());
+    } else {
+      console.log('App: Unable to determine authentication status - isAuthenticated method not available');
+    }
 
     // Set document title
     this.titleService.setTitle(this.title);

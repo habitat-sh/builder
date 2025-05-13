@@ -4,6 +4,7 @@ import { AuthService } from '../../core/services/auth.service';
 
 /**
  * Auth guard for protected routes that require authentication
+ * NOTE: This guard is deprecated. Please use the authGuard from core/guards/auth.guard.ts instead.
  */
 export const authGuard: CanActivateFn = 
   (): boolean | UrlTree => {

@@ -63,7 +63,17 @@ export const appConfig: ApplicationConfig = {
             });
             
             // First ensure the auth state is properly loaded
-            authService.validateAuthState();
+            if (typeof authService.validateAuthState === 'function') {
+              authService.validateAuthState();
+            } else {
+              console.log('App Initializer: validateAuthState method not available, trying to load from storage');
+              // Attempt to load auth state directly as fallback
+              if (typeof authService.loadAuthStateFromStorage === 'function') {
+                authService.loadAuthStateFromStorage();
+              } else {
+                console.log('App Initializer: Cannot validate auth state, proceeding without it');
+              }
+            }
             
             // Use safe checks for authentication and token expiration
             const isAuthenticated = typeof authService.isAuthenticated === 'function' 

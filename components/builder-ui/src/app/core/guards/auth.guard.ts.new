@@ -10,16 +10,17 @@ export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
   
+  // Use any to avoid type errors
+  const auth = authService as any;
+  
   // Check if user is authenticated - safely check if method exists
-  if (typeof authService.isAuthenticated === 'function' && authService.isAuthenticated()) {
+  if (typeof auth.isAuthenticated === 'function' && auth.isAuthenticated()) {
     // Check if token needs refresh - use a safe type casting approach
     const isExpired = (() => {
-      // Cast to any to avoid TypeScript errors
-      const service = authService as any;
-      if ('tokenIsExpired' in service) {
-        return service.tokenIsExpired();
-      } else if (typeof service.isTokenExpired === 'function') {
-        return service.isTokenExpired();
+      if ('tokenIsExpired' in auth) {
+        return auth.tokenIsExpired();
+      } else if (typeof auth.isTokenExpired === 'function') {
+        return auth.isTokenExpired();
       }
       return false;
     })();
@@ -27,35 +28,34 @@ export const authGuard: CanActivateFn = (route, state) => {
     if (isExpired) {
       console.log('AuthGuard: Token near expiration, refreshing...');
       
-      // Make sure refreshToken method exists using safe type casting
-      const service = authService as any;
-      if (typeof service.refreshToken !== 'function') {
+      // Make sure refreshToken method exists
+      if (typeof auth.refreshToken !== 'function') {
         console.error('AuthGuard: refreshToken method not available, redirecting to login');
-        if (typeof service.setRedirectUrl === 'function') {
-          service.setRedirectUrl(state.url);
+        if (typeof auth.setRedirectUrl === 'function') {
+          auth.setRedirectUrl(state.url);
         }
         return router.createUrlTree(['/sign-in']);
       }
       
       // Return a Promise that resolves when refresh completes
       return new Promise<boolean | UrlTree>(resolve => {
-        (authService as any).refreshToken().subscribe({
+        auth.refreshToken().subscribe({
           next: (refreshed: boolean) => {
             if (refreshed) {
               console.log('AuthGuard: Token refreshed successfully');
               resolve(true);
             } else {
               console.log('AuthGuard: Token refresh failed, redirecting to login');
-              if (typeof authService.setRedirectUrl === 'function') {
-                authService.setRedirectUrl(state.url);
+              if (typeof auth.setRedirectUrl === 'function') {
+                auth.setRedirectUrl(state.url);
               }
               resolve(router.createUrlTree(['/sign-in']));
             }
           },
           error: () => {
             console.error('AuthGuard: Token refresh error, redirecting to login');
-            if (typeof authService.setRedirectUrl === 'function') {
-              authService.setRedirectUrl(state.url);
+            if (typeof auth.setRedirectUrl === 'function') {
+              auth.setRedirectUrl(state.url);
             }
             resolve(router.createUrlTree(['/sign-in']));
           }
@@ -68,8 +68,8 @@ export const authGuard: CanActivateFn = (route, state) => {
   }
   
   // Store the attempted URL for redirecting after login if the method exists
-  if (typeof authService.setRedirectUrl === 'function') {
-    authService.setRedirectUrl(state.url);
+  if (typeof auth.setRedirectUrl === 'function') {
+    auth.setRedirectUrl(state.url);
   }
   console.log('AuthGuard: User not authenticated, redirecting to login');
   
@@ -85,7 +85,9 @@ export const noAuthGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
   
-  if (!authService.isAuthenticated()) {
+  const auth = authService as any;
+  
+  if (typeof auth.isAuthenticated === 'function' && !auth.isAuthenticated()) {
     return true;
   }
   
@@ -101,7 +103,10 @@ export function permissionGuard(requiredPermission: string): CanActivateFn {
     const authService = inject(AuthService);
     const router = inject(Router);
     
-    if (authService.hasPermission(requiredPermission)) {
+    const auth = authService as any;
+    
+    if (typeof auth.hasPermission === 'function' && 
+        auth.hasPermission(requiredPermission)) {
       return true;
     }
     
@@ -118,7 +123,10 @@ export function roleGuard(requiredRoles: string | string[]): CanActivateFn {
     const authService = inject(AuthService);
     const router = inject(Router);
     
-    if (authService.hasRole(requiredRoles)) {
+    const auth = authService as any;
+    
+    if (typeof auth.hasRole === 'function' && 
+        auth.hasRole(requiredRoles)) {
       return true;
     }
     

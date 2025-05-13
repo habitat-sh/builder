@@ -1,0 +1,13 @@
+.page-container {
+  padding: 16px;
+
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .page-content {
+    mat-card {
+      margin-bottom: 16px;
+    }
+  }
+}
