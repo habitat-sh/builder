@@ -30,8 +30,8 @@ import { ConfigService } from '../services/config.service';
           [class.open]="menuOpen()"
           [isSignedIn]="isSignedIn()" 
           [navigationItems]="navigationItems"
-          [enabledEvents]="eventsEnabled()"
-          [enabledSaasEvents]="saasEventsEnabled()"
+          [enabledEvents]="events()"
+          [enabledSaasEvents]="saasEvents()"
           [config]="configService"
           (closeMobileSidebar)="toggleMenu(false)">
         </app-sidebar>
@@ -70,6 +70,8 @@ export class AppShellComponent implements OnInit {
   username = signal<string>('');
   avatarUrl = signal<string>('');
   showHeader = signal<boolean>(true);
+  events = signal<boolean>(true);  // Signal for events feature flag
+  saasEvents = signal<boolean>(true);  // Signal for saas events feature flag
   
   // Navigation items to match the builder-web side-nav
   navigationItems: NavigationItem[] = [];
@@ -109,7 +111,7 @@ export class AppShellComponent implements OnInit {
         mainNavItems.push({
           label: 'Events (SaaS)',
           icon: 'cloud',
-          route: '/events-saas'
+          route: '/events/saas'
         });
       }
     }
@@ -175,6 +177,18 @@ export class AppShellComponent implements OnInit {
     
     // Initialize route listeners to hide header on landing page
     this.setupRouteListeners();
+    
+    // Initialize feature flags
+    this.initFeatureFlags();
+  }
+  
+  /**
+   * Initialize feature flags from config service
+   */
+  private initFeatureFlags() {
+    // Update event feature flag signals
+    this.events.set(this.eventsEnabled());
+    this.saasEvents.set(this.saasEventsEnabled());
   }
 
   /**

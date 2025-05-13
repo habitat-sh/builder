@@ -94,11 +94,11 @@ export const routes: Routes = [
       },
       {
         path: 'events',
-        component: HomeComponent // Placeholder - will be replaced with actual component
+        loadComponent: () => import('./features/events/events.component').then(m => m.EventsComponent)
       },
       {
         path: 'events/saas',
-        component: HomeComponent // Placeholder - will be replaced with actual component
+        loadComponent: () => import('./features/events/events-saas.component').then(m => m.EventsSaasComponent)
       }
     ]
   },
