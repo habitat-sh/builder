@@ -234,7 +234,7 @@ impl Channel {
         let start_time = Instant::now();
 
         let origin_str   = lcp.ident.origin.clone();
-        let name_filter  = lcp.ident.name.clone();
+        let name_str  = lcp.ident.name.clone();
         let channel_str  = lcp.channel.as_str();
         let ident_parts  = lcp.ident.clone().parts();
         let visibility   = lcp.visibility.clone();
@@ -247,12 +247,12 @@ impl Channel {
                 origin_channel_packages::table
                     .inner_join(origin_channels::table.inner_join(origins::table)),
             )
-            .filter(origin_packages::origin.eq(origin_str))
+            .filter(origin_packages::origin.eq(origin_str.clone()))
             .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
-        if !name_filter.clone().is_empty() {
-            query = query.filter(origin_packages::name.eq(name_filter))
+        if !name_str.is_empty() {
+            query = query.filter(origin_packages::name.eq(name_str))
         };
         let query = query.filter(origin_packages::ident_array.contains(ident_parts))
                          .filter(origin_packages::visibility.eq(any(visibility)))
