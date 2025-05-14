@@ -99,6 +99,10 @@ export const routes: Routes = [
       {
         path: 'events/saas',
         loadComponent: () => import('./features/events/events-saas.component').then(m => m.EventsSaasComponent)
+      },
+      {
+        path: 'search',
+        loadComponent: () => import('./features/search/search.component').then(m => m.SearchComponent)
       }
     ]
   },

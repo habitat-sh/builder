@@ -1,4 +1,6 @@
 // Based on the original builder-web variables
+@use 'colors' as colors;
+
 // Spacing
 $default-margin: 16px;
 $default-padding: 16px;
@@ -8,7 +10,8 @@ $huge-margin: 64px;
 
 // Borders
 $default-border-radius: 4px;
-$default-border: 1px solid $light-gray;
+$default-radius: $default-border-radius; // Alias for compatibility with old builder-web
+$default-border: 1px solid colors.$light-gray;
 
 // Typography
 $base-font-size: 16px;
@@ -45,9 +48,9 @@ $input-height: 44px;
 $input-font-size: 16px;
 $input-line-height: 1.5;
 $input-border-radius: 4px;
-$input-border: 1px solid $light-gray;
+$input-border: 1px solid colors.$light-gray;
 $input-padding: 12px;
-$input-focus-color: $hab-blue;
+$input-focus-color: colors.$hab-blue;
 
 // Buttons
 $button-border-radius: 4px;
@@ -58,8 +61,8 @@ $button-font-weight: 500;
 
 // Tables
 $table-row-height: 48px;
-$table-header-bg: $light-blue;
-$table-border: 1px solid $light-gray;
+$table-header-bg: colors.$light-blue;
+$table-border: 1px solid colors.$light-gray;
 
 // Cards
 $card-border-radius: 4px;

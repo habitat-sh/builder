@@ -1,24 +1,30 @@
-// This matches the original builder-web header styling in app.scss
+// Import necessary variables and mixins
+@use '../../../core/styles/colors' as colors;
+@use '../../../core/styles/variables' as vars;
+@use '../../../core/styles/typography' as type;
 
 :host {
   display: block;
   width: 100%;
 }
 
-/* Match the original builder-web header styles exactly */
+/* Match the original builder-web header styling */
 .header {
   position: relative;
-  padding: 16px;
-  border-radius: 2px 2px 0 0;
-  background: linear-gradient(205deg, #e9f1f7 5%, #dce6ed 100%);
-  font-family: Montserrat, Verdana;
-  min-height: 74px;
+  padding: vars.$default-padding;
+  border-radius: vars.$default-radius vars.$default-radius 0 0;
+  background: linear-gradient(205deg, colors.$light-blue 5%, colors.$light-slate-gray 100%);
+  font-family: type.$heading-font-family;
+  min-height: 85px; // Increased to accommodate vertical stacking
+  display: flex;
+  align-items: center;
   
   // Override Angular Material toolbar defaults
   &.mat-toolbar {
-    background: linear-gradient(205deg, #e9f1f7 5%, #dce6ed 100%);
+    background: linear-gradient(205deg, colors.$light-blue 5%, colors.$light-slate-gray 100%);
     box-shadow: none;
-    font-family: Montserrat, Verdana;
+    font-family: type.$heading-font-family;
+    color: colors.$hab-text;
   }
   
   h1, h2 {
@@ -26,12 +32,24 @@
     font-weight: normal;
   }
   
+  h1 {
+    font-size: 20px;
+    line-height: 32px; // Reduced line height to fit better in vertical layout
+    font-family: type.$base-font-family;
+    margin: 0;
+    color: colors.$dark-blue;
+  }
+  
   h2 {
-    font-size: 16px; /* Replace $base-font-size with actual value */
+    font-size: type.$base-font-size;
+    font-family: type.$base-font-family;
+    line-height: 22px;
+    margin: 0;
+    color: rgba(0, 0, 0, 0.7); // Added consistent subtitle color
   }
   
   .title {
-    font-size: 20px; /* Replace $large-font-size with actual value */
+    font-size: 20px;
     font-weight: normal;
     margin: 0;
     color: #222;
@@ -48,7 +66,20 @@
 /* Component-specific layout styles */
 .header-left {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-direction: column;
+  
+  // Style for header titles group
+  h1, h2 {
+    display: block;
+    font-weight: normal;
+    width: 100%;
+  }
+  
+  h1 + h2 {
+    margin-top: 4px;
+    margin-left: 0;
+  }
 }
 
 .spacer {
@@ -75,6 +106,19 @@
       align-items: center;
       justify-content: center;
     }
+    
+    .avatar-container {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      overflow: hidden;
+      
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
   }
 }
 
@@ -84,6 +128,40 @@
   padding: 16px;
   min-width: 200px;
   align-items: center;
+  
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    margin-right: 12px;
+    overflow: hidden;
+    border-radius: 50%;
+    
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .default-avatar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background-color: colors.$light-gray;
+    }
+  }
+  
+  .user-details {
+    .user-name {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    .user-email {
+      font-size: 12px;
+      color: rgba(0, 0, 0, 0.6);
+    }
+  }
 }
 
 /* Style for external links in menu items */

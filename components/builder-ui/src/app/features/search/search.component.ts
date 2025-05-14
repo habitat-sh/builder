@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
+import { HeaderService } from '../../core/services/header.service';
+import { HeaderTitleDirective } from '../../core/layout/shared';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -26,22 +28,18 @@ import { Package, PackageIdent } from '../../shared/models/package.model';
     MatCardModule,
     MatProgressSpinnerModule,
     MatSelectModule,
-    SearchResultsComponent
+    SearchResultsComponent,
+    HeaderTitleDirective
   ],
   template: `
+    <!-- Header Title Template -->
+    <ng-template habHeaderTitle>
+      <h1>Search Packages</h1>
+      <h2 *ngIf="searchQuery()">Search Results</h2>
+    </ng-template>
+    
     <div class="search-container">
-      <header>
-        <h1>Search Packages</h1>
-        <h2 *ngIf="searchQuery()">
-          <span *ngIf="origin() !== '*'">
-            <strong>{{ origin() }}</strong> packages matching "{{ searchQuery() }}"
-          </span>
-          <span *ngIf="origin() === '*'">
-            All packages matching "{{ searchQuery() }}"
-          </span>
-        </h2>
-      </header>
-      
+    <div>Hello</div>
       <div class="search-body">
         <section class="search-input-section">
           <div class="search-form">
@@ -106,24 +104,6 @@ import { Package, PackageIdent } from '../../shared/models/package.model';
       padding: 20px;
       max-width: 1200px;
       margin: 0 auto;
-    }
-    
-    header {
-      margin-bottom: 32px;
-    }
-    
-    h1 {
-      font-size: 28px;
-      font-weight: 500;
-      margin: 0;
-      color: #444;
-    }
-    
-    h2 {
-      font-size: 20px;
-      font-weight: normal;
-      color: #666;
-      margin: 8px 0 0;
     }
 
     h2 strong {
@@ -207,6 +187,7 @@ export class SearchComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private title = inject(Title);
   private searchService = inject(PackageSearchService);
+  headerService = inject(HeaderService); // Make public for template access
   
   // Form controls
   searchBox = new FormControl('');

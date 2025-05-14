@@ -2,6 +2,7 @@ export const environment = {
   production: true,
   apiUrl: '/v1',
   useMocks: false,
+  oauthClientId: '{{clientId}}', // Will be replaced during deployment
   featureFlags: {
     enableNewFeatures: false,
     enable_builder_events: true,

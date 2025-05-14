@@ -11,6 +11,7 @@ import { FooterComponent } from './footer/footer.component';
 import { AuthService } from '../services/auth.service';
 import { ConfigService } from '../services/config.service';
 import { NavigationItem } from '../models/navigation-item.model';
+import { HeaderService } from '../services/header.service';
 
 @Component({
   selector: 'app-shell',
@@ -47,6 +48,7 @@ import { NavigationItem } from '../models/navigation-item.model';
               [avatarUrl]="avatarUrl()"
               [isSignedIn]="isSignedIn()"
               [user]="{ name: username(), email: '', avatar: avatarUrl() }"
+              [headerService]="headerService"
               (signOut)="handleSignOut($event)"
               (logout)="handleSignOut()">
             </app-header>
@@ -65,6 +67,7 @@ export class AppShellComponent implements OnInit {
   private authService = inject(AuthService);
   private router = inject(Router);
   public configService = inject(ConfigService);
+  public headerService = inject(HeaderService);
   
   menuOpen = signal<boolean>(false);
   isSignedIn = signal<boolean>(false);

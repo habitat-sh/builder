@@ -99,6 +99,8 @@ body.sign-in-page {
 body {
   height: 100%;
   margin: 0;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
   font-family: typography.$base-font-family;
   font-size: typography.$base-font-size;
   line-height: typography.$base-line-height;

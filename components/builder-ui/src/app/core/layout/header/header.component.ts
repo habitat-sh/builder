@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, AfterContentInit, ContentChild, inject, OnDestroy, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -10,6 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { AssetLoaderService } from '../../../shared/services/asset-loader.service';
 import { FallbackImageDirective } from '../../../shared/directives/fallback-image.directive';
 import { AuthService } from '../../services/auth.service';
+import { HeaderService } from '../../services/header.service';
 
 export interface UserInfo {
   name: string;
@@ -35,13 +36,22 @@ export interface UserInfo {
   template: `
     <mat-toolbar color="primary" class="header">
       <div class="header-left">
-        <h1 class="title">{{ title }}</h1>
+        <ng-content select="[header-title]"></ng-content>
+        <ng-container *ngIf="headerService?.titleTemplateRef">
+          <ng-template [ngTemplateOutlet]="headerService?.titleTemplateRef || null"></ng-template>
+        </ng-container>
+        <ng-container *ngIf="!headerTitleContent && !headerService?.titleTemplateRef">
+          <h1 class="title">{{ title }}</h1>
+        </ng-container>
       </div>
       
       <div class="spacer"></div>
       
       <div class="header-right">
         <ng-content select="[header-actions]"></ng-content>
+        <ng-container *ngIf="headerService?.actionsTemplateRef">
+          <ng-template [ngTemplateOutlet]="headerService?.actionsTemplateRef || null"></ng-template>
+        </ng-container>
         
         <!-- Sign In button (shown when user is not signed in) -->
         <button 
@@ -113,20 +123,54 @@ export interface UserInfo {
       </div>
     </mat-toolbar>
   `,
-  styles: []
+  styles: [`
+    .header-left h1.title {
+      margin: 0;
+      font-size: 24px;
+      font-weight: normal;
+    }
+    
+    .header-left ::ng-deep h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: normal;
+    }
+    
+    .header-left ::ng-deep h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: normal;
+      opacity: 0.8;
+    }
+  `]
 })
-export class HeaderComponent implements OnInit {
+export class HeaderComponent implements OnInit, AfterContentInit, OnDestroy {
   @Input() title = 'Habitat Builder';
   @Input() user: UserInfo | null = null;
   @Input() username = '';
   @Input() avatarUrl = '';
   @Input() isSignedIn = false; // Accept isSignedIn as input property
+  @Input() headerService?: HeaderService; // Service can be injected or provided by parent
+  
+  // Content child to detect if there is header-title content projected
+  @ContentChild('[header-title]') headerTitleContent: any;
   
   // Track avatar image loading errors
   hasAvatarError = false;
   
+  // Service injections
   private assetLoader = inject(AssetLoaderService);
   private authService = inject(AuthService);
+  
+  // Dynamically determine if we have a custom title
+  get hasCustomTitle(): boolean {
+    return !!this.headerTitleContent || !!this.headerService?.titleTemplateRef;
+  }
+  
+  // Get title text from the service
+  get serviceTitleText(): string {
+    return this.headerService?.titleText || 'Habitat Builder';
+  }
   
   @Output() logout = new EventEmitter<void>();
   @Output() signOut = new EventEmitter<string | undefined>();
@@ -136,6 +180,23 @@ export class HeaderComponent implements OnInit {
     if (this.isSignedIn && !this.avatarUrl) {
       this.avatarUrl = 'assets/images/avatar.svg';
     }
+    
+    // Use service title if no input title is provided
+    if (!this.title) {
+      this.title = this.serviceTitleText;
+    }
+  }
+  
+  /**
+   * After content init lifecycle hook to log if there is custom title content
+   */
+  ngAfterContentInit(): void {
+    // Just log the status - actual value comes from getter
+    console.log('HeaderComponent: Has custom title content:', this.hasCustomTitle);
+  }
+  
+  ngOnDestroy(): void {
+    // No cleanup needed yet
   }
   
   /**

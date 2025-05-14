@@ -1,19 +1,23 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { Title } from '@angular/platform-browser';
+import { HeaderService } from '../../../core/services/header.service';
+import { HeaderTitleDirective } from '../../../core/layout/shared';
 
 @Component({
   selector: 'app-origins-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatCardModule, MatButtonModule],
+  imports: [CommonModule, RouterLink, MatCardModule, MatButtonModule, HeaderTitleDirective],
   template: `
+    <!-- Header Title Template -->
+    <ng-template habHeaderTitle>
+      <h1>My Origins</h1>
+    </ng-template>
+    
     <div class="page-container">
-      <div class="page-header">
-        <h1>Origins</h1>
-      </div>
       <div class="page-content">
         <mat-card>
           <mat-card-content>
@@ -41,10 +45,10 @@ import { Title } from '@angular/platform-browser';
   `]
 })
 export class OriginsListComponent implements OnInit {
-  
-  constructor(private title: Title) { }
+  private title = inject(Title);
+  private headerService = inject(HeaderService);
 
   ngOnInit(): void {
-    this.title.setTitle('Origins | Habitat Builder');
+    this.title.setTitle('My Origins | Habitat Builder');
   }
 }

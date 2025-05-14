@@ -5,6 +5,9 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { Meta, Title, provideClientHydration } from '@angular/platform-browser';
 import { environment } from '../environments/environment';
 
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+
 import { routes } from './app.routes';
 import { AuthInterceptor } from './core/interceptors/auth.interceptor';
 import { ErrorInterceptor } from './core/interceptors/error.interceptor';
@@ -106,5 +109,8 @@ export const appConfig: ApplicationConfig = {
     
     // Import MockProvidersModule conditionally
     ...(environment.useMocks ? [importProvidersFrom(MockProvidersModule)] : [])
+    
+    // Note: For MatDatepickerModule, it's better to import it directly in the components
+    // that need it, rather than providing it globally in the app config
   ]
 };
