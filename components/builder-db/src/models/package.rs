@@ -640,8 +640,8 @@ impl Package {
 
         let mut pkgs = if pl.limit < 0 {
             let query =
-                query.filter(packages_with_channel_platform::ident_array.contains(parts))
-                     .filter(packages_with_channel_platform::visibility.eq(any(visibility)))
+                query.filter(packages_with_channel_platform::ident_array.contains(parts.clone()))
+                     .filter(packages_with_channel_platform::visibility.eq(any(visibility.clone())))
                      .order(packages_with_channel_platform::ident.desc());
             let pkgs: std::vec::Vec<PackageWithChannelPlatform> = query.get_results(conn)?;
             pkgs
@@ -735,15 +735,21 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
+        // Extract cloned copies out of pl
+        let origin_str  = pl.ident.origin.clone();
+        let visibility= pl.visibility.clone();
+        let page        = pl.page;
+        let limit       = pl.limit;
+
         let result = origin_package_settings::table
             .select(origin_package_settings::all_columns)
-            .filter(origin_package_settings::origin.eq(&pl.ident.origin))
-            .filter(origin_package_settings::visibility.eq(any(pl.visibility)))
+            .filter(origin_package_settings::origin.eq(origin_str))
+            .filter(origin_package_settings::visibility.eq(any(visibility)))
             .filter(origin_package_settings::hidden.eq(false))
             .order(origin_package_settings::origin.asc())
             .order(origin_package_settings::name.asc())
-            .paginate(pl.page)
-            .per_page(pl.limit)
+            .paginate(page)
+            .per_page(limit)
             .load_and_count_records(conn);
 
         let duration_millis = start_time.elapsed().as_millis();

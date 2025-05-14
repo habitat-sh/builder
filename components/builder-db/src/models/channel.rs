@@ -233,26 +233,35 @@ impl Channel {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
+        let origin_str   = lcp.ident.origin.clone();
+        let name_filter  = lcp.ident.name.clone();
+        let channel_str  = lcp.channel.as_str();
+        let ident_parts  = lcp.ident.clone().parts();
+        let visibility   = lcp.visibility.clone();
+        let origin = lcp.origin.clone();
+        let page         = lcp.page;
+        let limit        = lcp.limit;
+
         let mut query = origin_packages::table
             .inner_join(
                 origin_channel_packages::table
                     .inner_join(origin_channels::table.inner_join(origins::table)),
             )
-            .filter(origin_packages::origin.eq(&lcp.ident.origin))
+            .filter(origin_packages::origin.eq(origin_str))
             .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
-        if !lcp.ident.name.is_empty() {
-            query = query.filter(origin_packages::name.eq(&lcp.ident.name))
+        if !name_filter.clone().is_empty() {
+            query = query.filter(origin_packages::name.eq(name_filter))
         };
-        let query = query.filter(origin_packages::ident_array.contains(lcp.ident.clone().parts()))
-                         .filter(origin_packages::visibility.eq(any(lcp.visibility)))
-                         .filter(origins::name.eq(lcp.origin))
-                         .filter(origin_channels::name.eq(lcp.channel.as_str()))
+        let query = query.filter(origin_packages::ident_array.contains(ident_parts))
+                         .filter(origin_packages::visibility.eq(any(visibility)))
+                         .filter(origins::name.eq(origin))
+                         .filter(origin_channels::name.eq(channel_str))
                          .select(origin_packages::ident)
                          .order(origin_packages::ident.asc())
-                         .paginate(lcp.page)
-                         .per_page(lcp.limit);
+                         .paginate(page)
+                         .per_page(limit);
         // helpful trick when debugging queries, this has Debug trait:
         // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query)
 
