@@ -7,6 +7,7 @@ import { DatePipe } from '@angular/common';
 
 import { EventsService } from './services/events.service';
 import { Event, EventsResponse, EventsSearchParams } from './models/event.model';
+import { DateFilter, getDateRange } from './utils/date-util';
 
 @Directive()
 export abstract class BaseEventsComponent implements OnInit, OnDestroy {
@@ -18,6 +19,13 @@ export abstract class BaseEventsComponent implements OnInit, OnDestroy {
   
   searchForm: FormGroup;
   availableChannels = ['stable', 'unstable', 'dev'];
+  
+  // Date filter
+  currentDateFilter: DateFilter = { 
+    label: 'Last 1 Week', 
+    type: 'days', 
+    interval: 7
+  };
   
   protected subscriptions = new Subscription();
   protected eventsService = inject(EventsService);
@@ -64,6 +72,13 @@ export abstract class BaseEventsComponent implements OnInit, OnDestroy {
    * Reset search form to default values
    */
   resetFilters(): void {
+    // Reset date filter to default
+    this.currentDateFilter = { 
+      label: 'Last 1 Week', 
+      type: 'days', 
+      interval: 7
+    };
+    
     const dateRange = this.eventsService.getDefaultDateRange();
     
     this.searchForm.patchValue({
@@ -149,5 +164,21 @@ export abstract class BaseEventsComponent implements OnInit, OnDestroy {
     this.currentPage = 0;
     
     this.loadEvents();
+  }
+  
+  /**
+   * Handle date filter changes
+   */
+  onDateFilterChanged = (filter: DateFilter): void => {
+    this.currentDateFilter = filter;
+    
+    // Update form with new date range
+    const dateRange = getDateRange(filter);
+    this.searchForm.patchValue({
+      fromDate: dateRange.fromDate,
+      toDate: dateRange.toDate
+    });
+    
+    this.onSearch();
   }
 }
