@@ -8,18 +8,14 @@ workspace = "../../"
 edition = "2018"
 
 [dependencies]
-fnv = "*"
 protobuf = "*"
 serde = "*"
-serde_derive = "*"
-regex = "*"
-lazy_static = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
 
 [build-dependencies]
-pkg-config = "*"
-protoc = "*"
 protoc-rust = "*"
-protobuf-codegen = "*"
+
+[package.metadata.cargo-machete]
+ignored = ["protoc-rust"]

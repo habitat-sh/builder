@@ -15,25 +15,23 @@ diesel_full_text_search = "*"
 diesel_migrations = "*"
 itertools = "*"
 r2d2 = "*"
-rand = "*"
 serde = "*"
 chrono = { version = "*", features = ["serde"] }
 serde_derive = "*"
 num_cpus = "*"
 protobuf = "*"
-fnv = "*"
-fallible-iterator = "*"
-paste = "*"
+fallible-iterator = "*" # TODO: Do we need this? Machete says we don't.
 percent-encoding = "*"
 postgres = "*"
 postgres-types = { version = "*", features = ["derive"] }
 postgres-shared = "*"
 r2d2_postgres = "*"
-threadpool = "*"
-url = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.builder_core]
 path = "../builder-core"
+
+[package.metadata.cargo-machete]
+ignored = ["fallible-iterator", "r2d2_postgres"]

@@ -7,15 +7,12 @@ edition = "2018"
 
 [dependencies]
 base64 = "*"
-env_proxy = "*"
 frank_jwt = "*"
 log = "*"
-regex = "*"
 reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
-url = "*"
 
 [dependencies.builder_core]
 path = "../builder-core"
@@ -25,4 +22,7 @@ git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.tokio]
 version = "*"
-features = ["macros","rt-multi-thread"]
+features = ["macros", "rt-multi-thread"]
+
+[package.metadata.cargo-machete]
+ignored = ["serde"]

@@ -13,8 +13,9 @@ reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
-url = "*"
 
 [dependencies.builder_core]
 path = "../builder-core"
 
+[package.metadata.cargo-machete]
+ignored = ["serde"]
