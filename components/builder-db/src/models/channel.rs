@@ -227,7 +227,7 @@ impl Channel {
         result.map(|x| (channel, target, x))
     }
 
-    pub fn list_packages(lcp: &ListChannelPackages,
+    pub fn list_packages(lcp: ListChannelPackages,
                          conn: &mut PgConnection)
                          -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
@@ -235,7 +235,7 @@ impl Channel {
 
         let origin_str   = lcp.ident.origin.clone();
         let name_str  = lcp.ident.name.clone();
-        let channel_str  = lcp.channel.as_str();
+        let channel_str  = lcp.channel.as_str().to_string();
         let ident_parts  = lcp.ident.clone().parts();
         let visibility   = lcp.visibility.clone();
         let origin = lcp.origin.clone();
