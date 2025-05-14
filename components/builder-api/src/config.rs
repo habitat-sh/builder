@@ -153,8 +153,8 @@ impl Default for ApiCfg {
                  license_server_url: "http://licensing-acceptance.chef.co".to_string(),
                  suppress_autobuild_origins: vec![],
                  allowed_users_for_origin_create: vec![],
-                 restricted_channels: vec!["base-2025".to_string()],
-                 excluded_channels: vec!["LTS-2024".to_string()] }
+                 restricted_channels: vec![],
+                 excluded_channels: vec![] }
     }
 }
 

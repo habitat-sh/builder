@@ -425,9 +425,8 @@ async fn download_package(req: HttpRequest,
         Ok(package) => {
             let channels = match channels_for_package_ident(&req, &package.ident, target, &conn) {
                 Ok(channels) => channels,
-                Err(_) => {
-                    return HttpResponse::InternalServerError().body("Failed to determine \
-                                                                     package channels.");
+                Err(err) => {
+                    return HttpResponse::InternalServerError().body(format!("Failed to determine package channels: {}", err));
                 }
             };
 
