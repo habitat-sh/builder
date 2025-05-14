@@ -1,7 +1,6 @@
 // filepath: /Users/psajja/Workspace/habitat-sh/builder/components/builder-ui/src/app/features/events/events.component.ts
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -20,7 +19,7 @@ import { finalize } from 'rxjs';
 import { BaseEventsComponent } from './base-events.component';
 import { Event, EventsResponse, EventsSearchParams } from './models/event.model';
 import { AuthService } from '../../core/services/auth.service';
-import { HeaderTitleDirective, HeaderActionsDirective } from '../../core/layout/shared';
+import { HeaderTitleDirective } from '../../core/layout/shared';
 import { DateFilterComponent } from './components/date-filter/date-filter.component';
 import { EventsResultsComponent } from './components/events-results/events-results.component';
 import { DateFilter, getDateRange } from './utils/date-util';
@@ -30,7 +29,6 @@ import { DateFilter, getDateRange } from './utils/date-util';
   standalone: true,
   imports: [
     CommonModule,
-    RouterLink,
     ReactiveFormsModule,
     MatFormFieldModule,
     MatInputModule,
@@ -45,7 +43,6 @@ import { DateFilter, getDateRange } from './utils/date-util';
     MatIconModule,
     MatTooltipModule,
     HeaderTitleDirective,
-    HeaderActionsDirective,
     DateFilterComponent,
     EventsResultsComponent
   ],

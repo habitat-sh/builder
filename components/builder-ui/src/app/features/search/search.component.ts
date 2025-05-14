@@ -39,7 +39,6 @@ import { Package, PackageIdent } from '../../shared/models/package.model';
     </ng-template>
     
     <div class="search-container">
-    <div>Hello</div>
       <div class="search-body">
         <section class="search-input-section">
           <div class="search-form">
@@ -92,8 +91,9 @@ import { Package, PackageIdent } from '../../shared/models/package.model';
         
         <section class="load-more" *ngIf="packages().length < totalCount() && packages().length > 0">
           <p>Showing {{packages().length}} of {{totalCount()}} packages.</p>
-          <button mat-stroked-button color="primary" (click)="fetchMorePackages()">
-            Load {{(totalCount() - packages().length) > perPage ? perPage : totalCount() - packages().length }} more
+          <button mat-stroked-button color="primary" (click)="fetchMorePackages()" [disabled]="isLoading()">
+            <span *ngIf="!isLoading()">Load {{(totalCount() - packages().length) > perPage ? perPage : totalCount() - packages().length }} more</span>
+            <span *ngIf="isLoading()">Loading...</span>
           </button>
         </section>
       </div>
@@ -174,11 +174,17 @@ import { Package, PackageIdent } from '../../shared/models/package.model';
       text-align: center;
       padding: 16px;
       border-top: 1px solid #eee;
+      cursor: pointer;
     }
     
     .load-more p {
       margin: 0 0 12px 0;
       color: #666;
+    }
+    
+    .load-more button {
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
   `]
 })
@@ -216,7 +222,7 @@ export class SearchComponent implements OnInit, OnDestroy {
   private subscriptions = new Subscription();
   
   ngOnInit(): void {
-    // Subscribe to route params to handle direct navigation to search with query
+    // First check route params
     this.subscriptions.add(
       this.route.params.subscribe(params => {
         const query = params['q'] || '';
@@ -234,6 +240,29 @@ export class SearchComponent implements OnInit, OnDestroy {
         }
         
         this.fetchPackages();
+      })
+    );
+    
+    // Then check query params (used with /pkgs route)
+    this.subscriptions.add(
+      this.route.queryParams.subscribe(params => {
+        // Only process if we have query parameters and no route params
+        if (Object.keys(params).length > 0 && !this.route.snapshot.params['q']) {
+          const query = params['q'] || '';
+          const origin = params['origin'] || this._originSignal();
+          
+          if (origin !== this._originSignal()) {
+            this._originSignal.set(origin);
+            this.originSelect.setValue(origin, { emitEvent: false });
+          }
+          
+          if (query && query !== this._searchQuery()) {
+            this._searchQuery.set(query);
+            this.searchBox.setValue(query, { emitEvent: false });
+            this.title.setTitle(`Search › ${origin} › ${query} › Results | Habitat Builder`);
+            this.fetchPackages();
+          }
+        }
       })
     );
     
@@ -264,6 +293,30 @@ export class SearchComponent implements OnInit, OnDestroy {
     this._isLoading.set(true);
     this._error.set(null);
     
+    // Update URL to reflect the search based on which route we're on
+    if (this._searchQuery()) {
+      const currentUrl = this.router.url;
+      
+      if (currentUrl.startsWith('/pkgs') && !currentUrl.includes(';')) {
+        // If we're on /pkgs route with query params
+        const params = {
+          q: this._searchQuery(),
+          origin: this._originSignal()
+        };
+        
+        // Update URL without triggering navigation
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: params,
+          queryParamsHandling: 'merge',
+          replaceUrl: true
+        });
+      } else if (currentUrl.startsWith('/search') || currentUrl.includes(';')) {
+        // If we're on /search route with matrix params, don't change the URL here
+        // The matrix params are handled in submit() and changeOrigin()
+      }
+    }
+    
     this.searchService.searchPackages(
       this._originSignal(), 
       this._searchQuery(), 
@@ -273,6 +326,13 @@ export class SearchComponent implements OnInit, OnDestroy {
         this._packages.set(response.results);
         this._totalCount.set(response.totalCount);
         this._isLoading.set(false);
+        
+        // Update title with search information
+        if (this._searchQuery()) {
+          this.title.setTitle(`Search › ${this._originSignal()} › ${this._searchQuery()} › ${response.results.length} of ${response.totalCount} Results | Habitat Builder`);
+        } else {
+          this.title.setTitle(`Packages › ${this._originSignal()} | Habitat Builder`);
+        }
       },
       error: (err) => {
         console.error('Error fetching packages:', err);
@@ -286,6 +346,7 @@ export class SearchComponent implements OnInit, OnDestroy {
     if (this._isLoading()) return;
     
     this._isLoading.set(true);
+    this._error.set(null);
     
     // Calculate the next range based on current packages length
     const nextRange = this._packages().length;
@@ -300,6 +361,9 @@ export class SearchComponent implements OnInit, OnDestroy {
         this._packages.update(packages => [...packages, ...response.results]);
         this._totalCount.set(response.totalCount);
         this._isLoading.set(false);
+        
+        // Update the title with the latest counts for screen reader users
+        this.title.setTitle(`Search › ${this._originSignal()} › ${this._searchQuery()} › ${this._packages().length} of ${response.totalCount} Results | Habitat Builder`);
       },
       error: (err) => {
         console.error('Error fetching more packages:', err);
@@ -314,7 +378,21 @@ export class SearchComponent implements OnInit, OnDestroy {
     
     const trimmedQuery = query.trim();
     if (trimmedQuery) {
-      this.router.navigate(['/search', { q: trimmedQuery, origin: this._originSignal() }]);
+      // Determine which route pattern to use based on the current URL
+      const currentUrl = this.router.url;
+      
+      if (currentUrl.startsWith('/pkgs')) {
+        // If we're on /pkgs route, use query params
+        this.router.navigate(['/pkgs'], { 
+          queryParams: { q: trimmedQuery, origin: this._originSignal() } 
+        });
+      } else {
+        // Default to /search with matrix params for backward compatibility
+        this.router.navigate(['/search', { q: trimmedQuery, origin: this._originSignal() }]);
+      }
+    } else {
+      // If the query is empty, navigate to packages page
+      this.router.navigate(['/pkgs']);
     }
   }
   
@@ -325,11 +403,27 @@ export class SearchComponent implements OnInit, OnDestroy {
     this._originSignal.set(origin);
     this.fetchPackages();
     
-    // Update URL to reflect the origin change
-    if (this._searchQuery()) {
-      this.router.navigate(['/search', { q: this._searchQuery(), origin }]);
+    // Determine which route pattern to use based on the current URL
+    const currentUrl = this.router.url;
+    
+    if (currentUrl.startsWith('/pkgs')) {
+      // If we're on /pkgs route, use query params
+      if (this._searchQuery()) {
+        this.router.navigate(['/pkgs'], { 
+          queryParams: { q: this._searchQuery(), origin }
+        });
+      } else {
+        this.router.navigate(['/pkgs'], { 
+          queryParams: { origin }
+        });
+      }
     } else {
-      this.router.navigate(['/search', { origin }]);
+      // Default to /search with matrix params
+      if (this._searchQuery()) {
+        this.router.navigate(['/search', { q: this._searchQuery(), origin }]);
+      } else {
+        this.router.navigate(['/search', { origin }]);
+      }
     }
   }
 }

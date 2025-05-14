@@ -6,6 +6,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Package, PackageVisibility } from '../../../shared/models/package.model';
+import { packageString, packageRoutePath } from '../../../shared/utils/package.utils';
 
 @Component({
   selector: 'app-search-results',
@@ -402,12 +403,7 @@ export class SearchResultsComponent {
    * the correct '/pkgs/core/core/hab'.
    */
   routeFor(pkg: Package): string[] {
-    const ident = pkg.ident;
-    
-    if (ident.version && ident.release) {
-      return ['/pkgs', ident.origin, ident.name, ident.version, ident.release];
-    }
-    return ['/pkgs', ident.origin, ident.name, 'latest'];
+    return packageRoutePath(pkg);
   }
   
   /**
@@ -431,9 +427,7 @@ export class SearchResultsComponent {
    * Format a package identifier string
    */
   packageString(pkg: Package): string {
-    return [pkg.ident.origin, pkg.ident.name, pkg.ident.version, pkg.ident.release]
-      .filter(part => part)
-      .join('/');
+    return packageString(pkg);
   }
   
   /**

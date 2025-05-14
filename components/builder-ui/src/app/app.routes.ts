@@ -40,7 +40,7 @@ export const routes: Routes = [
       // Package routes
       {
         path: 'pkgs',
-        component: PackageListComponent
+        loadComponent: () => import('./features/search/search.component').then(m => m.SearchComponent)
       },
       {
         path: 'pkgs/:origin/:name',
@@ -110,7 +110,7 @@ export const routes: Routes = [
   // Auth routes (without layout)
   {
     path: 'auth',
-    loadChildren: () => import('./features/auth/auth.module').then(m => m.AuthModule)
+    loadChildren: () => import('./features/auth/auth.routes').then(m => m.AUTH_ROUTES)
   },
   
   // Direct sign-in route (without auth path)
