@@ -10,6 +10,7 @@ import { environment } from '../../../../environments/environment';
 
 import { AuthService } from '../../../core/services/auth.service';
 import { ConfigService } from '../../../core/services/config.service';
+import { HabitatConfigService } from '../../../core/services/habitat-config.service';
 import { MockAuthService } from '../../../core/mocks/mock-auth.service';
 import { EulaConfirmDialogComponent } from '../../../shared/dialogs/eula-confirm-dialog/eula-confirm-dialog.component';
 
@@ -24,6 +25,7 @@ export class SignInComponent implements OnInit, OnDestroy {
   private realAuthService = inject(AuthService);
   private mockAuthService = inject(MockAuthService);
   private configService = inject(ConfigService);
+  private habitatConfig = inject(HabitatConfigService);
   private titleService = inject(Title);
   private dialog = inject(MatDialog);
   private route = inject(ActivatedRoute);
@@ -37,6 +39,7 @@ export class SignInComponent implements OnInit, OnDestroy {
   
   // Provider information
   providerName = 'GitHub';  // Default to GitHub
+  providerIcon = 'github';  // Default to GitHub icon
   signupUrl = 'https://github.com/join';  // Default GitHub signup URL
   wwwUrl = 'https://www.habitat.sh';  // Default Habitat URL
   
@@ -45,6 +48,9 @@ export class SignInComponent implements OnInit, OnDestroy {
   
   // Error message from OAuth callback
   errorMessage = '';
+  
+  // Flag to track if configuration is loaded from file (vs defaults)
+  configLoadedProperly = true;
   
   ngOnInit() {
     // Set page title
@@ -60,11 +66,8 @@ export class SignInComponent implements OnInit, OnDestroy {
       appElement.classList.remove('full');
     }
     
-    // Register GitHub icon locally to ensure it's available
-    this.iconRegistry.addSvgIcon(
-      'github',
-      this.domSanitizer.bypassSecurityTrustResourceUrl('assets/images/icons/github.svg')
-    );
+    // Register provider icons - we'll register both since we might need either
+    this.registerProviderIcons();
     
     // Only sign out if explicitly navigated to sign-in page
     // Don't sign out if being redirected from an OAuth flow
@@ -82,21 +85,56 @@ export class SignInComponent implements OnInit, OnDestroy {
       }
     });
     
-    // Get OAuth configuration
-    this.configService.getConfig().subscribe(config => {
-      if (config) {
-        this.providerName = config.oauthProvider || 'GitHub';
-        this.signupUrl = config.oauthSignupUrl || this.signupUrl;
-        this.wwwUrl = config.wwwUrl as string || this.wwwUrl;
-        
-        // Construct OAuth login URL - authService getter will return the appropriate service
-        this.loginUrl = this.authService.getAuthorizationUrl();
-        
-        if (environment.useMocks) {
-          console.log('Using mock authentication service');
-        }
-      }
+    // Get OAuth configuration from Habitat Config
+    const config = this.habitatConfig.config;
+    
+    // Get the configuration loading status from the service directly
+    this.configLoadedProperly = this.habitatConfig.isLoadedFromFile;
+    
+    // Set provider information from habitat config
+    const provider = config.oauth_provider || 'github';
+    this.providerName = provider === 'github' ? 'GitHub' : 
+                       provider === 'bitbucket' ? 'Bitbucket' : 
+                       'GitHub';
+    this.providerIcon = provider;
+    this.signupUrl = config.oauth_signup_url || this.signupUrl;
+    this.wwwUrl = config.www_url || this.wwwUrl;
+    
+    // Construct OAuth login URL - authService getter will return the appropriate service
+    this.loginUrl = this.authService.getAuthorizationUrl();
+    
+    if (environment.useMocks) {
+      console.log('Using mock authentication service');
+    }
+    
+    // Log configuration usage for debugging
+    console.log('Using Habitat configuration:', {
+      provider: this.providerName,
+      icon: this.providerIcon,
+      wwwUrl: this.wwwUrl,
+      loadedFromFile: this.configLoadedProperly
     });
+  }
+  
+  /**
+   * Register provider icons
+   */
+  private registerProviderIcons() {
+    // Register GitHub icon
+    this.iconRegistry.addSvgIcon(
+      'github',
+      this.domSanitizer.bypassSecurityTrustResourceUrl('assets/images/icons/github.svg')
+    );
+    
+    // Register Bitbucket icon if we have it
+    try {
+      this.iconRegistry.addSvgIcon(
+        'bitbucket',
+        this.domSanitizer.bypassSecurityTrustResourceUrl('assets/images/icons/bitbucket.svg')
+      );
+    } catch (e) {
+      console.warn('Bitbucket icon not available, will fallback to GitHub icon if needed');
+    }
   }
   
   /**

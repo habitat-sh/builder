@@ -31,6 +31,55 @@ export class AppComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    // Check if we're coming from a forced reload due to auth issues
+    const authForcedReload = sessionStorage.getItem('auth_forced_reload');
+    if (authForcedReload === 'true') {
+      console.log('App: Detected forced reload for auth, special handling activated');
+      // Clear the flag so we don't loop
+      sessionStorage.removeItem('auth_forced_reload');
+      
+      // Give priority to auth validation
+      setTimeout(() => this.validateAndFixAuthState(), 100);
+    }
+    
+    // Normal app initialization
+    this.initializeApp();
+  }
+  
+  /**
+   * Dedicated method for auth state validation with enhanced error recovery
+   */
+  private validateAndFixAuthState(): void {
+    console.log('App: Running enhanced auth state validation');
+    
+    try {
+      if (typeof this.authService.validateAuthState === 'function') {
+        this.authService.validateAuthState();
+        
+        // Double-check auth state after validation
+        if (typeof this.authService.isAuthenticated === 'function') {
+          const isAuth = this.authService.isAuthenticated();
+          console.log('App: Post-validation auth state:', isAuth);
+          
+          // If we have auth_success in session but still not authenticated, try one more approach
+          if (!isAuth && sessionStorage.getItem('auth_success') === 'true') {
+            console.log('App: Auth inconsistency detected, attempting to restore state from storage');
+            // Trigger any methods that might help restore auth state
+            if (typeof this.authService['loadAuthStateFromStorage'] === 'function') {
+              this.authService['loadAuthStateFromStorage']();
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('App: Error during enhanced auth validation:', error);
+    }
+  }
+  
+  /**
+   * Initialize the application
+   */
+  private initializeApp(): void {
     // Ensure authentication state is loaded and validated
     console.log('App: Initializing and validating authentication state');
     try {

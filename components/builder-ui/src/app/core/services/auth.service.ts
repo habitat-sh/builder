@@ -7,6 +7,7 @@ import { jwtDecode } from 'jwt-decode';
 import { environment } from '../../../environments/environment';
 import { ApiService } from './api.service';
 import { ConfigService } from './config.service';
+import { HabitatConfigService } from './habitat-config.service';
 
 export interface User {
   id: string;
@@ -33,8 +34,9 @@ export class AuthService {
   private readonly AUTH_TOKEN_KEY = 'auth_token';
   private readonly USER_DATA_KEY = 'user_data';
 
-  // Config service for OAuth settings
+  // Config services
   private configService = inject(ConfigService);
+  private habitatConfig = inject(HabitatConfigService);
   
   // State signals
   private _authState = signal<AuthState>({
@@ -208,13 +210,16 @@ export class AuthService {
     const state = this.generateRandomState();
     localStorage.setItem('oauth_state', state);
     
-    // Get OAuth parameters from environment
-    const clientId = environment.oauthClientId || '';
-    const redirectUri = `${window.location.origin}/auth/callback`;
-    const scope = 'user:email,read:org';
+    // Get OAuth parameters from Habitat Config
+    const config = this.habitatConfig.config;
+    const clientId = config.oauth_client_id;
+    const redirectUri = config.oauth_redirect_url || `${window.location.origin}/auth/callback`;
+    
+    // Default scope for GitHub
+    const scope = config.oauth_provider === 'github' ? 'user:email,read:org' : '';
     
     // Construct the authorization URL
-    const authUrl = new URL('https://github.com/login/oauth/authorize');
+    const authUrl = new URL(config.oauth_authorize_url);
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('scope', scope);

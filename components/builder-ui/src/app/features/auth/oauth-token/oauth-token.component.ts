@@ -82,6 +82,9 @@ export class OAuthTokenComponent implements OnInit {
   isLoading = true;
   error = '';
   success = false;
+  private maxRetries = 3;
+  private retryCount = 0;
+  private retryDelay = 500; // ms
   
   ngOnInit(): void {
     // Get token from URL hash fragment or query param
@@ -105,17 +108,57 @@ export class OAuthTokenComponent implements OnInit {
           window.history.replaceState({}, document.title, window.location.pathname);
         }
         
-        // Store authentication timestamp in sessionStorage for better refresh handling
-        sessionStorage.setItem('auth_timestamp', Date.now().toString());
+        // Store authentication timestamp and flags in sessionStorage for better refresh handling
+        const timestamp = Date.now().toString();
+        sessionStorage.setItem('auth_timestamp', timestamp);
+        sessionStorage.setItem('auth_success', 'true');
+        sessionStorage.setItem('auth_just_completed', 'true');
         
-        // Verify authentication is reflected in the app state
+        // Also add a broadcast channel if supported to notify other tabs
+        this.broadcastAuthSuccess();
+        
+        // Ensure the auth state is fully recognized across the application
         console.log('OAuth token: Authentication successful, verifying app state');
         
+        // Manually validate the auth state to ensure it's properly loaded
+        // Do this multiple times to make sure it propagates
+        for (let i = 0; i < 3; i++) {
+          if (typeof this.authService.validateAuthState === 'function') {
+            this.authService.validateAuthState();
+          }
+        }
+        
+        // Dispatch a custom auth success event for components to listen for
+        try {
+          // Try to get user data from authService or localStorage
+          const userJson = localStorage.getItem('user_data');
+          let user = this.authService.currentUser();
+          
+          if (!user && userJson) {
+            try {
+              user = JSON.parse(userJson);
+            } catch (err) {
+              console.warn('OAuth token: Failed to parse user data', err);
+            }
+          }
+          
+          if (user) {
+            const event = new CustomEvent('habitat-auth-success', { 
+              detail: { user, timestamp } 
+            });
+            document.dispatchEvent(event);
+            console.log('OAuth token: Dispatched custom auth success event');
+          }
+        } catch (err) {
+          console.warn('OAuth token: Error dispatching auth event', err);
+        }
+        
+        // Allow a small delay before starting auth checks to give the app time to process the token
+        console.log('OAuth token: Adding initial delay before starting auth state checks');
         setTimeout(() => {
-          const redirectUrl = this.authService.getAndClearRedirectUrl() || '/';
-          console.log(`OAuth token: Redirecting to ${redirectUrl}`);
-          this.router.navigateByUrl(redirectUrl);
-        }, 1000);
+          // Use a more robust approach to ensure auth state is fully propagated
+          this.waitForAuthStateAndRedirect();
+        }, 800);
       },
       error: (error) => {
         this.isLoading = false;
@@ -135,5 +178,137 @@ export class OAuthTokenComponent implements OnInit {
         sessionStorage.removeItem('auth_success');
       }
     });
+  }
+
+  /**
+   * Use BroadcastChannel API to notify other tabs about auth success if supported
+   */
+  private broadcastAuthSuccess(): void {
+    try {
+      if ('BroadcastChannel' in window) {
+        const authChannel = new BroadcastChannel('auth_channel');
+        authChannel.postMessage({ event: 'auth_success', timestamp: Date.now() });
+        console.log('OAuth token: Broadcasted auth success to other tabs');
+        
+        // Close the channel after sending
+        setTimeout(() => authChannel.close(), 1000);
+      }
+    } catch (err) {
+      console.warn('OAuth token: BroadcastChannel not supported or error occurred', err);
+    }
+  }
+
+  /**
+   * Wait for auth state to be fully propagated with retry mechanism
+   */
+  private waitForAuthStateAndRedirect(): void {
+    // First check - is auth state already ready?
+    if (this.authService.isAuthenticated()) {
+      console.log('OAuth token: Auth state is already set, proceeding with redirect');
+      this.redirectToTarget();
+      return;
+    }
+
+    // Use a more robust approach with retries
+    this.retryAuthStateCheck();
+  }
+
+  /**
+   * Retry checking auth state until it's ready or max retries reached
+   */
+  private retryAuthStateCheck(): void {
+    // Force a validation of auth state
+    if (typeof this.authService.validateAuthState === 'function') {
+      this.authService.validateAuthState();
+    }
+    
+    // Check if now authenticated
+    if (this.authService.isAuthenticated()) {
+      console.log(`OAuth token: Auth state ready after ${this.retryCount} retries, proceeding with redirect`);
+      this.redirectToTarget();
+      return;
+    }
+    
+    // If still not authenticated, retry if under max retries
+    this.retryCount++;
+    if (this.retryCount < this.maxRetries) {
+      console.log(`OAuth token: Auth state not ready, retry ${this.retryCount}/${this.maxRetries} in ${this.retryDelay}ms`);
+      setTimeout(() => this.retryAuthStateCheck(), this.retryDelay);
+      // Increase delay for next retry (exponential backoff)
+      this.retryDelay *= 1.5;
+    } else {
+      // Last attempt with longer timeout before giving up
+      console.log(`OAuth token: Final auth state check before forced reload`);
+      setTimeout(() => {
+        // Force one last validation attempt
+        if (typeof this.authService.validateAuthState === 'function') {
+          this.authService.validateAuthState();
+        }
+        
+        // No need to check auth state again - just force a reload to root path
+        // This is the most reliable solution for ensuring auth state is properly initialized
+        console.log('OAuth token: Forcing page reload to root path for reliable auth state initialization');
+        
+        // Set additional flags in sessionStorage to help diagnose the issue
+        sessionStorage.setItem('auth_forced_reload', 'true');
+        sessionStorage.setItem('auth_debug_info', JSON.stringify({
+          timestamp: new Date().toISOString(),
+          isAuthenticated: this.authService.isAuthenticated(),
+          retryCount: this.retryCount,
+          authTokenExists: !!localStorage.getItem('auth_token'),
+          userDataExists: !!localStorage.getItem('user_data')
+        }));
+        
+        // Force navigation to root with hard reload
+        window.location.href = '/';
+      }, 2000);
+    }
+  }
+
+  /**
+   * Redirect to the target URL after successful authentication
+   */
+  private redirectToTarget(): void {
+    // Always use root path and ignore any stored redirectUrl
+    const targetUrl = '/';
+    console.log(`OAuth token: Redirecting to root path with hard reload, auth state: ${this.authService.isAuthenticated()}`);
+    
+    // Record final auth state for diagnostics
+    sessionStorage.setItem('auth_redirect_state', JSON.stringify({
+      isAuthenticated: this.authService.isAuthenticated(),
+      timestamp: new Date().toISOString(),
+      retryCount: this.retryCount,
+      targetUrl: targetUrl,
+      originalRedirectUrl: this.authService.getAndClearRedirectUrl() || '/'
+    }));
+    
+    // Store a special flag that will be checked by app-shell
+    sessionStorage.setItem('auth_just_completed', 'true');
+    sessionStorage.setItem('auth_completed_at', Date.now().toString());
+    
+    // Ensure that the app will see auth state on the next page load
+    // This is a fallback in case the service's internal state isn't properly updated
+    try {
+      // Try to directly update the DOM to show success while we're still on this page
+      const userDataStr = localStorage.getItem('user_data');
+      if (userDataStr) {
+        try {
+          const userData = JSON.parse(userDataStr);
+          const event = new CustomEvent('habitat-auth-success', { 
+            detail: { user: userData, timestamp: Date.now() } 
+          });
+          document.dispatchEvent(event);
+          console.log('OAuth token: Dispatched custom auth success event');
+        } catch (err) {
+          console.warn('OAuth token: Failed to parse user data', err);
+        }
+      }
+    } catch (err) {
+      console.warn('OAuth token: Error preparing auth state', err);
+    }
+    
+    // Force a browser location change with hard refresh
+    // This is the most reliable way to ensure proper auth state initialization
+    window.location.href = targetUrl;
   }
 }

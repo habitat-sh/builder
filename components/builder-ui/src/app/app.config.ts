@@ -13,6 +13,7 @@ import { AuthInterceptor } from './core/interceptors/auth.interceptor';
 import { ErrorInterceptor } from './core/interceptors/error.interceptor';
 import { LoadingInterceptor } from './core/interceptors/loading.interceptor';
 import { MockProvidersModule } from './core/mocks/mock-providers.module';
+import { HabitatConfigService } from './core/services/habitat-config.service';
 
 // Services that were previously in CoreModule
 import { ApiService } from './core/services/api.service';
@@ -50,6 +51,39 @@ export const appConfig: ApplicationConfig = {
     DialogService,
     Title,
     Meta,
+    HabitatConfigService,
+    
+    // Habitat Config initializer
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (configService: HabitatConfigService) => {
+        return () => {
+          console.log('App Initializer: Loading Habitat configuration');
+          try {
+            // This will load the config automatically when the service is instantiated
+            const config = configService.config;
+            console.log(`Habitat Config loaded from ${configService.isLoadedFromFile ? 'external file' : 'default values'}:`, config);
+            
+            // Log warnings for critical missing configuration
+            if (!config.oauth_client_id || config.oauth_client_id === configService['defaultConfig'].oauth_client_id) {
+              console.warn('WARNING: Using default OAuth client ID - authentication may not work correctly');
+            }
+            
+            if (!config.oauth_redirect_url || config.oauth_redirect_url === configService['defaultConfig'].oauth_redirect_url) {
+              console.warn('WARNING: Using default OAuth redirect URL - authentication may not work correctly');
+            }
+            
+            return Promise.resolve(true);
+          } catch (error) {
+            console.error('App Initializer: Error loading Habitat config', error);
+            // Still resolve with true to allow the app to continue loading
+            return Promise.resolve(true);
+          }
+        };
+      },
+      deps: [HabitatConfigService],
+      multi: true
+    },
     
     // Auth initializer to handle token refresh on app startup
     { 

@@ -21,6 +21,10 @@ export class MockAuthInterceptor implements HttpInterceptor {
     permissions: ['read:packages', 'write:packages', 'read:origins', 'create:origins']
   };
   
+  constructor() {
+    console.log('MockAuthInterceptor: Initialized');
+  }
+  
   intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
     // Only intercept requests if mock mode is enabled
     if (!environment.useMocks) {
@@ -32,6 +36,32 @@ export class MockAuthInterceptor implements HttpInterceptor {
     // Handle GitHub OAuth callback
     if (url.includes('/auth/github/callback')) {
       const mockToken = 'mock_github_token_' + Math.random().toString(36).substring(2);
+      
+      // ALWAYS store in localStorage directly before responding
+      // This ensures authentication data is available immediately after the request completes
+      localStorage.setItem('auth_token', mockToken);
+      localStorage.setItem('user_data', JSON.stringify(this.mockUser));
+      sessionStorage.setItem('auth_timestamp', Date.now().toString());
+      sessionStorage.setItem('auth_success', 'true');
+      sessionStorage.setItem('auth_just_completed', 'true'); // Add this flag for the app shell
+      
+      // Log detailed information about what was stored
+      console.log('MockAuth: Directly setting auth data in storage', {
+        token: mockToken.substring(0, 10) + '...',
+        user: this.mockUser.name,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Dispatch a custom event to notify any components that might be listening
+      try {
+        const event = new CustomEvent('habitat-auth-success', { 
+          detail: { user: this.mockUser, timestamp: Date.now() } 
+        });
+        document.dispatchEvent(event);
+        console.log('MockAuth: Dispatched custom auth success event');
+      } catch (err) {
+        console.warn('MockAuth: Failed to dispatch auth event', err);
+      }
       
       return this.delayResponse(new HttpResponse({
         status: 200,

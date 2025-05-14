@@ -13,6 +13,46 @@
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <!-- Image loader script for fallback handling -->
   <script src="assets/scripts/image-loader.js"></script>
+  
+  <!-- Habitat configuration initialization -->
+  <script>
+    // Initialize Habitat configuration object
+    window.Habitat = { config: {} };
+    
+    // Define the global configuration function that will be called by habitat.conf.js
+    function habitatConfig(options) {
+      if (options && typeof options === 'object') {
+        window.Habitat.config = options;
+        console.log('Habitat configuration loaded successfully');
+      } else {
+        console.warn('Habitat configuration called with invalid options');
+        window.Habitat.config = {};
+      }
+    };
+  </script>
+  
+  <!-- Load Habitat configuration file -->
+  <script>
+    // Try loading the user's custom config
+    function loadHabitatConfig() {
+      const configScript = document.createElement('script');
+      configScript.src = 'habitat.conf.js';
+      configScript.onerror = function() {
+        console.error('Failed to load habitat.conf.js');
+        console.error('Please ensure you have copied habitat.conf.sample.js to public/habitat.conf.js');
+        
+        // Add informational banner about missing config
+        setTimeout(() => {
+          const errorDiv = document.createElement('div');
+          errorDiv.style = 'position:fixed;bottom:0;left:0;right:0;background:#f0ad4e;color:white;padding:15px;z-index:10000;text-align:center;font-weight:bold;';
+          errorDiv.innerHTML = 'CONFIGURATION NOTICE: Using default configuration. For custom settings, copy habitat.conf.sample.js to public/habitat.conf.js';
+          document.body.appendChild(errorDiv);
+        }, 1000);
+      };
+      document.head.appendChild(configScript);
+    }
+    loadHabitatConfig();
+  </script>
 </head>
 <body class="mat-typography">
   <app-root></app-root>

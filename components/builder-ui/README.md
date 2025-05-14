@@ -2,6 +2,77 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.0.5.
 
+## Configuration Setup
+
+Before starting development, you need to set up your local configuration:
+
+1. Copy the sample configuration file to the public directory:
+   ```bash
+   cp habitat.conf.sample.js public/habitat.conf.js
+   ```
+   
+2. Edit `public/habitat.conf.js` with your specific development settings:
+   ```javascript
+   // You can customize these settings for your development environment
+   oauth_client_id: "your-actual-client-id", 
+   
+   // Update the redirect URL if needed
+   oauth_redirect_url: "http://localhost:4200/",
+   ```
+
+> **Important Notes:** 
+> 
+> - The `habitat.conf.js` file is git-ignored and will not be committed to the repository. This allows each developer to have their own local configuration without affecting others.
+> - In production, `habitat.conf.js` should be deployed separately from the application bundle and served from the root URL of the site.
+> - If no `habitat.conf.js` file is found, the application will use default values and show an informational notice.
+
+### Configuration Safety
+
+Remember that `habitat.conf.js` may contain sensitive credentials and is excluded from Git tracking.
+Always be careful not to accidentally commit this file to the repository.
+
+## Configuration System
+
+The Builder UI uses an external configuration system that loads settings from a `habitat.conf.js` file located in the public directory. This allows for easy customization across different environments (development, staging, production) without recompiling the application.
+
+For detailed information, see [Configuration System Documentation](src/docs/configuration-system.md).
+
+### How the Configuration Works
+
+1. The `habitat.conf.js` file is loaded before the Angular application starts
+2. Configuration is globally available via `window.Habitat.config`
+3. The `HabitatConfigService` provides type-safe access to configuration values
+4. Default values are used as fallbacks if specific settings are not present
+
+### Customizing Configuration
+
+To customize the configuration for different environments:
+
+1. Edit `public/habitat.conf.js` for local development
+2. For production deployments, place a customized `habitat.conf.js` at the root of the deployment
+
+```javascript
+// Example habitat.conf.js
+habitatConfig({
+  // Company information
+  company_id: "my-company-id",
+  company_name: "My Company Name",
+  
+  // OAuth settings 
+  oauth_provider: "github",  // can be "github" or "bitbucket"
+  oauth_client_id: "your-oauth-client-id",
+  oauth_redirect_url: "https://your-site.com/",
+  oauth_authorize_url: "https://github.com/login/oauth/authorize",
+  
+  // Environment settings
+  environment: "production", // can be "development", "staging", or "production"
+  
+  // ... other settings
+});
+```
+
+See `habitat-config.model.ts` for the full list of available configuration options.
+
 ## Development server
 
 To start a local development server, run:

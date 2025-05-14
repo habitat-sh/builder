@@ -117,7 +117,7 @@ export class MockOAuthCallbackComponent implements OnInit {
           }
           
           // Get the redirect URL from auth service or default to home page
-          const redirectUrl = this.mockAuthService.getAndClearRedirectUrl() || '/home';
+          const redirectUrl = this.mockAuthService.getAndClearRedirectUrl() || '/';
           console.log('MockOAuthCallbackComponent: Redirecting to', redirectUrl);
           
           // Redirect to the stored URL or home
@@ -126,13 +126,37 @@ export class MockOAuthCallbackComponent implements OnInit {
           // Make sure the authentication state is fully updated before redirecting
           // This ensures any components that depend on the auth state will be properly updated
           setTimeout(() => {
+            // Set special flags for app-shell to detect
+            sessionStorage.setItem('auth_just_completed', 'true');
+            sessionStorage.setItem('auth_success', 'true');
+            sessionStorage.setItem('auth_timestamp', Date.now().toString());
+            
+            // Record detailed state for diagnostics
+            sessionStorage.setItem('auth_redirect_state', JSON.stringify({
+              isAuthenticated: this.mockAuthService.isAuthenticated(),
+              timestamp: new Date().toISOString(),
+              targetUrl: redirectUrl,
+              component: 'mock-oauth-callback'
+            }));
+            
+            // Ensure user data is directly available in storage
+            if (this.mockAuthService.currentUser()) {
+              localStorage.setItem('user_data', JSON.stringify(this.mockAuthService.currentUser()));
+            }
+            
+            // Log the current auth state before redirect
             console.log('MockOAuthCallbackComponent: Navigating to', redirectUrl, 
               'AuthState:', {
                 isAuthenticated: this.mockAuthService.isAuthenticated(),
-                user: this.mockAuthService.currentUser()
+                user: this.mockAuthService.currentUser(),
+                hasUserData: !!localStorage.getItem('user_data'),
+                hasAuthToken: !!localStorage.getItem('auth_token')
               }
             );
-            this.router.navigateByUrl(redirectUrl);
+            
+            // IMPORTANT: Always use a hard browser refresh when redirecting after auth
+            // This forces a complete app reload with the new auth state
+            window.location.href = redirectUrl;
           }, 1000);
         },
         error: (error) => {

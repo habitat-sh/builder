@@ -11,9 +11,12 @@
         </div>
         <div class="button-container">
           <a mat-raised-button color="primary" class="button" (click)="showEulaPopup()">
-            <mat-icon svgIcon="github"></mat-icon>
+            <mat-icon [svgIcon]="providerIcon"></mat-icon>
             <span>Sign In with {{ providerName }}</span>
           </a>
+        </div>
+        <div class="config-note" *ngIf="!configLoadedProperly">
+          <small>Note: Using default configuration values</small>
         </div>
       </section>
       <section class="lower">

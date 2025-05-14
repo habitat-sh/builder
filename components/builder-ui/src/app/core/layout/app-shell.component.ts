@@ -181,8 +181,37 @@ export class AppShellComponent implements OnInit {
   }
   
   ngOnInit() {
+    // Register a direct event listener for auth state changes via custom event
+    // This provides an alternative path for auth state changes to be detected
+    document.addEventListener('habitat-auth-success', ((event: CustomEvent) => {
+      if (event.detail && event.detail.user) {
+        console.log('AppShell: Received custom auth success event', event.detail);
+        
+        // Force the auth state to be updated directly
+        this.forceAuthUpdateFromStorage();
+      }
+    }) as EventListener);
+    
     // Check for auth state during initialization
     this.checkAndUpdateAuthState();
+    
+    // Force auth state check if we detect a recent authentication session
+    // through URL params or session storage flags
+    const justAuthenticated = sessionStorage.getItem('auth_just_completed') === 'true' ||
+                              sessionStorage.getItem('auth_success') === 'true';
+                              
+    if (justAuthenticated) {
+      console.log('AppShell: Detected recent authentication, forcing state update');
+      this.forceAuthUpdateFromStorage();
+      
+      // Set up multiple checks to ensure UI reflects auth state
+      [200, 500, 1000, 2000].forEach(delay => {
+        setTimeout(() => this.checkAndUpdateAuthState(), delay);
+      });
+    } else {
+      // Double-check auth state after a short delay for normal initialization
+      setTimeout(() => this.checkAndUpdateAuthState(), 200);
+    }
     
     // Update navigation items with URLs from config
     this.updateNavigationUrls();
@@ -208,13 +237,46 @@ export class AppShellComponent implements OnInit {
    * This ensures proper state when app loads or refreshes
    */
   private checkAndUpdateAuthState() {
+    // Check if we just completed authentication
+    const justAuthenticated = sessionStorage.getItem('auth_just_completed') === 'true';
+    const hasAuthToken = !!localStorage.getItem('auth_token');
+    const hasUserData = !!localStorage.getItem('user_data');
+    
     // Get the current authenticated state from service
-    const isAuthenticated = this.authService.isAuthenticated();
+    let isAuthenticated = this.authService.isAuthenticated();
+    
+    // Special case: If we just completed authentication and have tokens but the auth state
+    // doesn't reflect it, try to force a refresh of the auth state from storage
+    if (justAuthenticated && hasAuthToken && hasUserData && !isAuthenticated) {
+      console.log('AppShell: Just completed authentication but auth state not updated, forcing refresh');
+      
+      // Try to force a refresh of auth state
+      if (typeof this.authService['loadAuthStateFromStorage'] === 'function') {
+        this.authService['loadAuthStateFromStorage']();
+        
+        // Check again
+        isAuthenticated = this.authService.isAuthenticated();
+        
+        // If still not authenticated but we have the tokens, override the state
+        if (!isAuthenticated && hasAuthToken && hasUserData) {
+          console.log('AppShell: Forcing authenticated state based on local storage tokens');
+          isAuthenticated = true;
+          
+          // Clear the flag after handling it
+          setTimeout(() => {
+            sessionStorage.removeItem('auth_just_completed');
+          }, 5000);
+        }
+      }
+    }
     
     console.log('AppShell: Checking auth state on init:', { 
       isAuthenticated: isAuthenticated,
       userExists: this.authService.currentUser() !== null,
-      user: this.authService.currentUser()
+      user: this.authService.currentUser(),
+      justAuthenticated: justAuthenticated,
+      hasAuthToken: hasAuthToken,
+      hasUserData: hasUserData
     });
     
     // Update our local state
@@ -226,6 +288,17 @@ export class AppShellComponent implements OnInit {
       if (user) {
         this.username.set(user.name);
         this.avatarUrl.set(user.avatar || 'assets/images/avatar.svg');
+      } else if (hasUserData) {
+        // Try to parse user data directly from storage if not available from service
+        try {
+          const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+          if (userData && userData.name) {
+            this.username.set(userData.name);
+            this.avatarUrl.set(userData.avatar || 'assets/images/avatar.svg');
+          }
+        } catch (err) {
+          console.error('AppShell: Error parsing user data from storage', err);
+        }
       }
     }
     
@@ -306,6 +379,12 @@ export class AppShellComponent implements OnInit {
     this.isSignedIn.set(false);
     this.username.set('');
     this.avatarUrl.set('');
+    
+    // Clear our custom auth flags
+    sessionStorage.removeItem('auth_just_completed');
+    sessionStorage.removeItem('auth_completed_at');
+    sessionStorage.removeItem('auth_redirect_state');
+    sessionStorage.removeItem('auth_forced_reload');
   }
   
   // Helper methods for feature flags with updated flag names
@@ -336,5 +415,42 @@ export class AppShellComponent implements OnInit {
       // The header contains the user profile dropdown needed for logout
       this.showHeader.set(true);
     });
+  }
+  
+  /**
+   * Force a direct update of authentication state from storage
+   * This method bypasses the auth service's state management and reads directly from storage
+   */
+  private forceAuthUpdateFromStorage(): void {
+    console.log('AppShell: Forcing auth state update directly from storage');
+    
+    // Check for auth token and user data in storage
+    const token = localStorage.getItem('auth_token');
+    const userDataStr = localStorage.getItem('user_data');
+    
+    if (token && userDataStr) {
+      try {
+        // Parse user data
+        const userData = JSON.parse(userDataStr);
+        
+        // Update our local state directly
+        this.isSignedIn.set(true);
+        this.username.set(userData.name || '');
+        this.avatarUrl.set(userData.avatar || 'assets/images/avatar.svg');
+        
+        console.log('AppShell: Successfully forced auth state update from storage', {
+          username: userData.name,
+          hasAvatar: !!userData.avatar
+        });
+        
+        // Force a refresh of navigation items
+        this.initNavigationItems();
+        
+      } catch (err) {
+        console.error('AppShell: Error parsing user data from storage', err);
+      }
+    } else {
+      console.log('AppShell: No auth data found in storage to force update');
+    }
   }
 }

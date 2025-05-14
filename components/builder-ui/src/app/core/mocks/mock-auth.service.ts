@@ -111,10 +111,8 @@ export class MockAuthService {
     this.token_value = 'mock_token_' + Math.random().toString(36).substring(2);
     this._isAuthenticated = true;
     
-    // Save authentication state to local storage
-    this.saveAuthState(this.token_value, this.mockUser);
-    
-    // Update signal state
+    // Force authentication state to be true first
+    // This is critical for components that check auth state immediately
     this._authSignal.set({
       isAuthenticated: true,
       user: this.mockUser,
@@ -123,6 +121,10 @@ export class MockAuthService {
     
     // Update legacy status subject - this is critical for components that use the observable API
     this.authStatusSource.next(true);
+    
+    // Now save to storage with all the extra signals and events
+    // This creates multiple paths for auth state to propagate
+    this.saveAuthState(this.token_value, this.mockUser);
     
     console.log('MockAuthService: Authentication successful', { 
       authenticated: this._isAuthenticated,
@@ -224,9 +226,32 @@ export class MockAuthService {
    * Save authentication state to local storage
    */
   private saveAuthState(token: string, user: any): void {
-    // Save to local storage
+    // Save to both our mock keys and the real auth service keys
+    // This ensures that both services can recognize the authentication
+    
+    // Mock auth service keys
     localStorage.setItem(this.AUTH_TOKEN_KEY, token);
     localStorage.setItem(this.USER_DATA_KEY, JSON.stringify(user));
+    
+    // Real auth service keys - these are the ones the app shell will look for
+    localStorage.setItem('auth_token', token);
+    localStorage.setItem('user_data', JSON.stringify(user));
+    
+    // Also set session storage flags
+    sessionStorage.setItem('auth_timestamp', Date.now().toString());
+    sessionStorage.setItem('auth_success', 'true');
+    sessionStorage.setItem('auth_just_completed', 'true');
+    
+    // Dispatch a custom event for components that might be listening
+    try {
+      const event = new CustomEvent('habitat-auth-success', { 
+        detail: { user, timestamp: Date.now() } 
+      });
+      document.dispatchEvent(event);
+      console.log('MockAuthService: Dispatched custom auth success event');
+    } catch (err) {
+      console.warn('MockAuthService: Failed to dispatch auth event', err);
+    }
   }
   
   /**
