@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { OriginsListComponent } from './list/origins-list.component';
+import { OriginCreateComponent } from './create/origin-create.component';
 import { OriginDetailComponent } from './detail/origin-detail.component';
 import { OriginOverviewComponent } from './detail/origin-overview.component';
 import { OriginPlaceholderComponent } from './detail/origin-placeholder.component';
@@ -10,6 +11,10 @@ export const ORIGINS_ROUTES: Routes = [
   { 
     path: '', 
     component: OriginsListComponent 
+  },
+  {
+    path: 'create',
+    component: OriginCreateComponent
   },
   {
     path: ':origin',
