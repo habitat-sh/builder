@@ -548,7 +548,7 @@ impl Package {
                 origin_packages_with_version_array::origin,
                 origin_packages_with_version_array::name,
                 origin_packages_with_version_array::target,
-                sql(
+                sql::<text>(
                 "origin, name, target, string_to_array(version_array[1],'.')::\
                 numeric[] desc, ident_array[4] desc",
                 ),
@@ -685,7 +685,7 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let mut query = origin_packages::table.select(sql("concat_ws('/', ident_array[1], \
+        let mut query = origin_packages::table.select(sql::<Text>("concat_ws('/', ident_array[1], \
                                                            ident_array[2]) as ident"))
                                               .filter(origin_packages::origin.eq(&pl.ident.origin))
                                               .into_boxed();
@@ -888,7 +888,7 @@ impl Package {
         }
 
         // Because of the filter hack it is very important that this be the last filter
-        query = query.filter(sql("TRUE GROUP BY origin_packages.name, origins.name"));
+        query = query.filter(sql::<Text>("TRUE GROUP BY origin_packages.name, origins.name"));
 
         let result = query.paginate(sp.page)
                           .per_page(sp.limit)

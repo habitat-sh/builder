@@ -201,7 +201,7 @@ impl Channel {
                 origin_packages_with_version_array::ident,
             ))
             .order((origin_packages_with_version_array::name,
-                sql(
+                sql::<Text>(
                 "name,\
                 string_to_array(version_array[1],'.')::numeric[] desc,\
                 version_array[2] desc,\
