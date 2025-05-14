@@ -62,7 +62,7 @@ use crate::{bldr_core::metrics::{CounterMetric,
                       Histogram},
             protocol::originsrv::{OriginPackage,
                                   OriginPackageIdent,
-                                  OriginPackageVisibility}
+                                  OriginPackageVisibility},
             error::Error as CrateError};
 use diesel_derive_enum::DbEnum;
 
@@ -548,7 +548,7 @@ impl Package {
                 origin_packages_with_version_array::origin,
                 origin_packages_with_version_array::name,
                 origin_packages_with_version_array::target,
-                sql::<text>(
+                sql::<Text>(
                 "origin, name, target, string_to_array(version_array[1],'.')::\
                 numeric[] desc, ident_array[4] desc",
                 ),
@@ -620,34 +620,38 @@ impl Package {
                 -> QueryResult<(Vec<PackageWithChannelPlatform>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
+        
+        // Extract cloned copies out of pl
+        let origin_str  = pl.ident.origin.clone();
+        let name_str    = pl.ident.name.clone();
+        let parts  = pl.ident.clone().parts();
+        let visibility= pl.visibility.clone();
+        let page        = pl.page;
+        let limit       = pl.limit;
 
         let mut query = packages_with_channel_platform::table
-            .filter(packages_with_channel_platform::origin.eq(&pl.ident.origin))
+            .filter(packages_with_channel_platform::origin.eq(origin_str))
             .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
         if !pl.ident.name.is_empty() {
-            query = query.filter(packages_with_channel_platform::name.eq(&pl.ident.name))
+            query = query.filter(packages_with_channel_platform::name.eq(name_str))
         };
 
         let mut pkgs = if pl.limit < 0 {
             let query =
-                query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
-                                                                                    .clone()
-                                                                                    .parts()))
-                     .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
+                query.filter(packages_with_channel_platform::ident_array.contains(parts))
+                     .filter(packages_with_channel_platform::visibility.eq(any(visibility)))
                      .order(packages_with_channel_platform::ident.desc());
             let pkgs: std::vec::Vec<PackageWithChannelPlatform> = query.get_results(conn)?;
             pkgs
         } else {
             let query =
-                query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
-                                                                                    .clone()
-                                                                                    .parts()))
-                     .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
+                query.filter(packages_with_channel_platform::ident_array.contains(parts))
+                     .filter(packages_with_channel_platform::visibility.eq(any(visibility)))
                      .order(packages_with_channel_platform::ident.desc())
-                     .paginate(pl.page)
-                     .per_page(pl.limit);
+                     .paginate(page)
+                     .per_page(limit);
             let (pkgs, _): (std::vec::Vec<PackageWithChannelPlatform>, i64) =
                 query.load_and_count_records(conn)?;
             pkgs
