@@ -74,7 +74,7 @@ export const routes: Routes = [
       // Origins routes using standalone components
       {
         path: 'origins',
-        loadChildren: () => import('./features/origins-standalone/origins-routes').then(m => m.ORIGINS_ROUTES),
+        loadChildren: () => import('./features/origins/origins-routes').then(m => m.ORIGINS_ROUTES),
         canActivate: [authGuard]
       },
       {
