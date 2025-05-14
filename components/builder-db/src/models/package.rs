@@ -49,7 +49,8 @@ use diesel::{self,
                          IsNull,
                          Output,
                          ToSql},
-             sql_types::Text,
+             sql_types::{Text,
+                         Bool},
              PgArrayExpressionMethods,
              RunQueryDsl};
 use diesel_full_text_search::{to_tsquery,
@@ -712,7 +713,7 @@ impl Package {
             .filter(origin_packages::hidden.eq(false))
             // This is because diesel doesn't yet support group_by
             // see: https://github.com/diesel-rs/diesel/issues/210
-            .filter(sql("TRUE GROUP BY ident_array[2], ident_array[1]"))
+            .filter(sql::<Bool>("TRUE GROUP BY ident_array[2], ident_array[1]"))
             .order(sql::<Text>("ident ASC"))
             .paginate(page)
             .per_page(limit);
@@ -906,7 +907,7 @@ impl Package {
         }
 
         // Because of the filter hack it is very important that this be the last filter
-        query = query.filter(sql::<Text>("TRUE GROUP BY origin_packages.name, origins.name"));
+        query = query.filter(sql::<Bool>("TRUE GROUP BY origin_packages.name, origins.name"));
 
         let result = query.paginate(sp.page)
                           .per_page(sp.limit)

@@ -57,14 +57,14 @@ impl<T> RunQueryDsl<PgConnection> for Paginated<T> {}
 
 impl<T> QueryFragment<Pg> for Paginated<T> where T: QueryFragment<Pg>
 {
-    fn walk_ast(&self, mut out: AstPass<Pg>) -> QueryResult<()> {
+    fn walk_ast<'query>(&'query self, mut out: AstPass<'_, 'query, Pg>) -> QueryResult<()> {
         out.push_sql("SELECT *, COUNT(*) OVER () FROM (");
         self.query.walk_ast(out.reborrow())?;
         out.push_sql(") t LIMIT ");
         out.push_bind_param::<BigInt, _>(&self.per_page)?;
-        out.push_sql(" OFFSET ");
-        let offset = (self.page - 1) * self.per_page;
-        out.push_bind_param::<BigInt, _>(&offset)?;
+        out.push_sql(&self.per_page.to_string());
+        let offs = (self.page - 1) * self.per_page;
+        out.push_sql(&offs.to_string());
         Ok(())
     }
 }
