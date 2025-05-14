@@ -30,7 +30,7 @@ use diesel::{self,
                   PgConnection},
              prelude::*,
              result::QueryResult,
-             sql_types::Timestamptz,
+             sql_types::{Timestamptz,Text},
              ExpressionMethods,
              NullableExpressionMethods,
              PgArrayExpressionMethods,
@@ -164,7 +164,7 @@ impl Channel {
             .filter(origin_channels::name.eq(req.channel.as_str()))
             .filter(origin_packages_with_version_array::target.eq(req.target))
             .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
-            .order(sql(
+            .order(sql::<Text>(
                 "string_to_array(version_array[1],'.')::\
                  numeric[] desc, version_array[2] desc, \
                  ident_array[4] desc",
@@ -200,12 +200,13 @@ impl Channel {
                 origin_packages_with_version_array::name,
                 origin_packages_with_version_array::ident,
             ))
-            .order(origin_packages_with_version_array::name)
-            .order(sql(
+            .order((origin_packages_with_version_array::name,
+                sql(
                 "name,\
                 string_to_array(version_array[1],'.')::numeric[] desc,\
                 version_array[2] desc,\
                 ident_array[4] desc",
+                ),
             ));
 
         // The query returns name, ident because of the way distinct works.

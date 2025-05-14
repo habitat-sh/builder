@@ -246,7 +246,7 @@ impl Origin {
         // with the origin to ensure no vestigial data remains.
 
         Counter::DBCall.increment();
-        conn.transaction::<_, Error, _>(|| {
+        conn.transaction::<_, Error, _>(|_| {
             diesel::delete(origin_channels::table.filter(origin_channels::origin.eq(origin)))
                 .execute(conn)?;
             diesel::delete(origin_secret_keys::table.filter(origin_secret_keys::origin.eq(origin)))
@@ -293,7 +293,7 @@ impl Origin {
 
     pub fn transfer(origin: &str, account_id: i64, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        conn.transaction::<_, Error, _>(|| {
+        conn.transaction::<_, Error, _>(|_| {
                 let owner = OriginMemberRole::Owner;
                 let maintainer = OriginMemberRole::Maintainer;
 

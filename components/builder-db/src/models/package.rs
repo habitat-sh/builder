@@ -41,7 +41,8 @@ use diesel::{self,
                   upsert::{excluded,
                            on_constraint},
                   Pg,
-                  PgConnection},
+                  PgConnection,
+                  PgValue},
              prelude::*,
              result::QueryResult,
              serialize::{self,
@@ -61,7 +62,8 @@ use crate::{bldr_core::metrics::{CounterMetric,
                       Histogram},
             protocol::originsrv::{OriginPackage,
                                   OriginPackageIdent,
-                                  OriginPackageVisibility}};
+                                  OriginPackageVisibility}
+            error::Error as CrateError};
 use diesel_derive_enum::DbEnum;
 
 #[derive(Debug,
@@ -517,7 +519,7 @@ impl Package {
             .filter(origin_packages_with_version_array::ident_array.contains(req.ident.parts()))
             .filter(origin_packages_with_version_array::target.eq(req.target))
             .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
-            .order(sql(
+            .order(sql::<Text>(
                 "string_to_array(version_array[1],'.')::\
                  numeric[] desc, version_array[2] desc, \
                  ident_array[4] desc",
@@ -542,9 +544,14 @@ impl Package {
                 origin_packages_with_version_array::name,
                 origin_packages_with_version_array::target,
             ))
-            .order(sql(
+            .order((
+                origin_packages_with_version_array::origin,
+                origin_packages_with_version_array::name,
+                origin_packages_with_version_array::target,
+                sql(
                 "origin, name, target, string_to_array(version_array[1],'.')::\
                 numeric[] desc, ident_array[4] desc",
+                ),
             ))
             .get_results(conn);
         let duration_millis = start_time.elapsed().as_millis();
@@ -694,7 +701,7 @@ impl Package {
             // This is because diesel doesn't yet support group_by
             // see: https://github.com/diesel-rs/diesel/issues/210
             .filter(sql("TRUE GROUP BY ident_array[2], ident_array[1]"))
-            .order(sql::<BuilderPackageIdent>("ident ASC"))
+            .order(sql::<Text>("ident ASC"))
             .paginate(pl.page)
             .per_page(pl.limit);
 
@@ -787,7 +794,7 @@ impl Package {
             .filter(origin_package_versions::origin.eq(ident.origin()))
             .filter(origin_package_versions::name.eq(ident.name()))
             .filter(origin_package_versions::visibility.eq(any(visibility)))
-            .order(sql::<OriginPackageVersions>(
+            .order(sql::<Text>(
                 "string_to_array(version_array[1],'.')::numeric[]desc, version_array[2] desc",
             ))
             .get_results(conn);
@@ -863,7 +870,7 @@ impl Package {
 
         let mut query = origin_packages::table
             .inner_join(origins::table)
-            .select(sql("concat_ws('/', origins.name, origin_packages.name)"))
+            .select(sql::<Text>("concat_ws('/', origins.name, origin_packages.name)"))
             .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
             .filter(origin_packages::hidden.eq(false))
             .order(origin_packages::name.asc())
@@ -988,9 +995,10 @@ impl ToSql<Text, Pg> for BuilderPackageType {
 impl FromSql<Text, Pg> for BuilderPackageType {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
         let s = std::str::from_utf8(bytes.as_bytes())
-            .map_err(|e| deserialize::Error::Custom(e.to_string()))?;
-        BuilderPackageType::from_str(s)
-            .map_err(|e| deserialize::Error::Custom(format!("Invalid package type: {}", e)))
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        Ok(BuilderPackageType::from_str(s).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::Other, format!("Invalid ident: {}", s))
+        })?)
     }
 }
 
@@ -1040,9 +1048,10 @@ impl ToSql<Text, Pg> for BuilderPackageIdent {
 impl FromSql<Text, Pg> for BuilderPackageIdent {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
         let s = std::str::from_utf8(bytes.as_bytes())
-            .map_err(|e| deserialize::Error::Custom(e.to_string()))?;
-        BuilderPackageIdent::from_str(s)
-            .map_err(|_| deserialize::Error::Custom(format!("Invalid ident: {}", s)))
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        Ok(BuilderPackageIdent::from_str(s).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::Other, format!("Invalid ident: {}", s))
+        })?)
     }
 }
 
@@ -1109,9 +1118,10 @@ impl ToSql<Text, Pg> for BuilderPackageTarget {
 impl FromSql<Text, Pg> for BuilderPackageTarget {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
         let s = std::str::from_utf8(bytes.as_bytes())
-            .map_err(|e| deserialize::Error::Custom(e.to_string()))?;
-        BuilderPackageTarget::from_str(s)
-            .map_err(|_| deserialize::Error::Custom(format!("Invalid target: {}", s)))
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        Ok(BuilderPackageTarget::from_str(s).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::Other, format!("Invalid ident: {}", s))
+        })?)
     }
 }
 
