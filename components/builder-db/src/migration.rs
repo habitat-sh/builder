@@ -28,16 +28,17 @@ use crate::error::{Result,Error};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("src/migrations");
 
 /// Run setup and then all pending migrations
-pub fn setup(conn: &mut PgConnection) -> Result<()> {
-    conn.transaction::<(), Error, _>(|conn| {
+pub fn setup(conn: &mut PgConnection) -> QueryResult<()> {
+    conn.transaction::<(), Dre, _>(|conn| {
         setup_ids(conn)?;
-        conn.run_pending_migrations(MIGRATIONS)?;
+        conn.run_pending_migrations(MIGRATIONS)
+            .map_err(Dre::QueryBuilderError)?;
         Ok(())
     })?;
     Ok(())
 }
 
-pub fn setup_ids(conn: &mut PgConnection) -> Result<()> {
+pub fn setup_ids(conn: &mut PgConnection) -> QueryResult<()> {
     sql_query(
         r#"CREATE OR REPLACE FUNCTION next_id_v1(sequence_id regclass, OUT result bigint) AS $$
                 DECLARE

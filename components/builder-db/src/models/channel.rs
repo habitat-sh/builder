@@ -77,11 +77,11 @@ pub struct GetLatestPackage<'a> {
     pub target:     &'a str,
 }
 
-pub struct ListChannelPackages<'a> {
-    pub ident:      &'a BuilderPackageIdent,
-    pub visibility: &'a Vec<PackageVisibility>,
-    pub channel:    &'a ChannelIdent,
-    pub origin:     &'a str,
+pub struct ListChannelPackages {
+    pub ident:      BuilderPackageIdent,
+    pub visibility: Vec<PackageVisibility>,
+    pub channel:    ChannelIdent,
+    pub origin:     String,
     pub page:       i64,
     pub limit:      i64,
 }
