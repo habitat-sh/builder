@@ -689,25 +689,33 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
+        // Extract cloned copies out of pl
+        let origin_str  = pl.ident.origin.clone();
+        let name_str    = pl.ident.name.clone();
+        let parts  = pl.ident.clone().parts();
+        let visibility= pl.visibility.clone();
+        let page        = pl.page;
+        let limit       = pl.limit;
+
         let mut query = origin_packages::table.select(sql::<Text>("concat_ws('/', ident_array[1], \
                                                            ident_array[2]) as ident"))
-                                              .filter(origin_packages::origin.eq(&pl.ident.origin))
+                                              .filter(origin_packages::origin.eq(origin_str))
                                               .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
-        if !pl.ident.name.is_empty() {
-            query = query.filter(origin_packages::name.eq(&pl.ident.name))
+        if !name_str.is_empty() {
+            query = query.filter(origin_packages::name.eq(name_str.clone()))
         };
         let query = query
-            .filter(origin_packages::ident_array.contains(pl.ident.clone().parts()))
-            .filter(origin_packages::visibility.eq(any(pl.visibility)))
+            .filter(origin_packages::ident_array.contains(parts))
+            .filter(origin_packages::visibility.eq(any(visibility)))
             .filter(origin_packages::hidden.eq(false))
             // This is because diesel doesn't yet support group_by
             // see: https://github.com/diesel-rs/diesel/issues/210
             .filter(sql("TRUE GROUP BY ident_array[2], ident_array[1]"))
             .order(sql::<Text>("ident ASC"))
-            .paginate(pl.page)
-            .per_page(pl.limit);
+            .paginate(page)
+            .per_page(limit);
 
         // helpful trick when debugging queries, this has Debug trait:
         // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query)
@@ -720,7 +728,7 @@ impl Package {
         Histogram::PackageListDistinctCallTime.set(duration_millis as f64);
         // Package list for a whole origin is still not very
         // performant, and we want to track that
-        if !pl.ident.name.is_empty() {
+        if !name_str.is_empty() {
             Histogram::PackageListDistinctOriginOnlyCallTime.set(duration_millis as f64);
         } else {
             Histogram::PackageListDistinctOriginNameCallTime.set(duration_millis as f64);
