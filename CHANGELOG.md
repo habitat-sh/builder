@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Updates deprecated &#39;hab sup status&#39; commands to &#39;hab svc status&#39; calls [#1893](https://github.com/habitat-sh/builder/pull/1893) ([jasonheath](https://github.com/jasonheath))
 - Taking cargo machete to our crates [#1894](https://github.com/habitat-sh/builder/pull/1894) ([jasonheath](https://github.com/jasonheath))
 - soft delete origins [#1886](https://github.com/habitat-sh/builder/pull/1886) ([mwrock](https://github.com/mwrock))
 - license key [#1883](https://github.com/habitat-sh/builder/pull/1883) ([sougata-progress](https://github.com/sougata-progress))
