@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::reverse_dependencies::{self};
 use crate::{bldr_core::metrics::CounterMetric,
             db::models::{channel::{Channel,
                                    ChannelWithPromotion},
+                         license_keys::*,
                          origin::*,
                          package::{BuilderPackageIdent,
                                    BuilderPackageTarget,
@@ -45,7 +47,8 @@ use crate::{bldr_core::metrics::CounterMetric,
                                req_state,
                                Pagination,
                                Target},
-                     resources::channels::channels_for_package_ident,
+                     resources::{channels::channels_for_package_ident,
+                                 profile::fetch_license_expiration},
                      services::metrics::Counter,
                      AppState}};
 use actix_web::{body::BoxBody,
@@ -80,8 +83,6 @@ use std::{convert::Infallible,
           str::FromStr};
 use tempfile::tempdir_in;
 use uuid::Uuid;
-
-use super::reverse_dependencies::{self};
 
 // Query param containers
 #[derive(Debug, Deserialize)]
@@ -420,6 +421,74 @@ async fn download_package(req: HttpRequest,
                        &conn)
     {
         Ok(package) => {
+            let channels = match channels_for_package_ident(&req, &package.ident, target, &conn) {
+                Ok(channels) => channels,
+                Err(err) => {
+                    return HttpResponse::InternalServerError()
+                        .body(format!("Failed to determine package channels: {}", err));
+                }
+            };
+
+            let should_restrict = if let Some(chs) = channels.as_ref() {
+                let chs_lower: Vec<String> = chs.iter().map(|c| c.to_lowercase()).collect();
+
+                !state.config
+                      .api
+                      .unrestricted_channels
+                      .iter()
+                      .any(|ec| chs_lower.contains(&ec.to_lowercase()))
+            } else {
+                true
+            };
+
+            if should_restrict {
+                match opt_session_id {
+                    Some(account_id) => {
+                        match LicenseKey::get_by_account_id(account_id as i64, &conn) {
+                            Ok(Some(license)) => {
+                                let today = chrono::Utc::now().date_naive();
+                                if license.expiration_date < today {
+                                    match fetch_license_expiration(&license.license_key,
+                                                                   &state.config
+                                                                         .api
+                                                                         .license_server_url)
+                                    {
+                                        Ok(new_expiration) => {
+                                            let update =
+                                                NewLicenseKey { account_id:      account_id as i64,
+                                                                license_key:
+                                                                    &license.license_key,
+                                                                expiration_date: new_expiration, };
+
+                                            if let Err(err) = LicenseKey::create(&update, &conn) {
+                                                debug!("Failed to update license in DB: {}", err);
+                                                return HttpResponse::InternalServerError()
+                                                    .body("License update failed.");
+                                            }
+                                        }
+                                        Err(err_msg) => {
+                                            return err_msg;
+                                        }
+                                    }
+                                }
+                            }
+                            Ok(None) => {
+                                return HttpResponse::Forbidden().body("No valid license key \
+                                                                       found.");
+                            }
+                            Err(err) => {
+                                debug!("License DB error: {}", err);
+                                return HttpResponse::InternalServerError()
+                                    .body("License validation error.");
+                            }
+                        }
+                    }
+                    None => {
+                        return HttpResponse::Unauthorized().body("Authentication required.");
+                    }
+                }
+            }
+
             let dir = tempdir_in(&state.config.api.data_path).expect("Unable to create a tempdir!");
             let file_path = dir.path().join(archive_name(&package.ident, target));
             let temp_ident = ident;
