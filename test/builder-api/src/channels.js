@@ -344,8 +344,8 @@ describe('Channels API', function () {
         .end(function (err, res) {
           console.log(res.body)
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(20);
-          expect(res.body.total_count).to.equal(21);
+          expect(res.body.range_end).to.equal(26);
+          expect(res.body.total_count).to.equal(27);
           expect(res.body.data[0].operation).to.equal('Promote');
           expect(res.body.data[0].origin).to.equal('neurosis');
           expect(res.body.data[0].channel).to.equal('bar');
@@ -364,9 +364,12 @@ describe('Channels API', function () {
           expect(res.body.data[5].operation).to.equal('Demote');
           expect(res.body.data[5].origin).to.equal('neurosis');
           expect(res.body.data[5].channel).to.equal('base-2025');
-          expect(res.body.data[6].operation).to.equal('Promote');
+          expect(res.body.data[6].operation).to.equal('Demote');
           expect(res.body.data[6].origin).to.equal('neurosis');
-          expect(res.body.data[6].channel).to.equal('base-2025');
+          expect(res.body.data[6].channel).to.equal('LTS-2024');
+          expect(res.body.data[7].operation).to.equal('Promote');
+          expect(res.body.data[7].origin).to.equal('neurosis');
+          expect(res.body.data[7].channel).to.equal('base-2025');
           done(err);
         });
     });

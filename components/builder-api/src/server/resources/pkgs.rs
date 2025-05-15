@@ -424,31 +424,21 @@ async fn download_package(req: HttpRequest,
             let channels = match channels_for_package_ident(&req, &package.ident, target, &conn) {
                 Ok(channels) => channels,
                 Err(err) => {
-                    return HttpResponse::InternalServerError().body(format!(
-                        "Failed to determine package channels: {}",
-                        err
-                    ));
+                    return HttpResponse::InternalServerError()
+                        .body(format!("Failed to determine package channels: {}", err));
                 }
             };
 
             let should_restrict = if let Some(chs) = channels.as_ref() {
                 let chs_lower: Vec<String> = chs.iter().map(|c| c.to_lowercase()).collect();
 
-                let is_restricted = state.config
-                                         .api
-                                         .restricted_channels
-                                         .iter()
-                                         .any(|rc| chs_lower.contains(&rc.to_lowercase()));
-
-                let is_not_excluded = !state.config
-                                            .api
-                                            .excluded_channels
-                                            .iter()
-                                            .any(|ec| chs_lower.contains(&ec.to_lowercase()));
-
-                is_restricted && is_not_excluded
+                !state.config
+                      .api
+                      .unrestricted_channels
+                      .iter()
+                      .any(|ec| chs_lower.contains(&ec.to_lowercase()))
             } else {
-                false
+                true
             };
 
             if should_restrict {
@@ -472,7 +462,8 @@ async fn download_package(req: HttpRequest,
 
                                             if let Err(err) = LicenseKey::create(&update, &conn) {
                                                 debug!("Failed to update license in DB: {}", err);
-                                                return HttpResponse::InternalServerError().body("License update failed.");
+                                                return HttpResponse::InternalServerError()
+                                                    .body("License update failed.");
                                             }
                                         }
                                         Err(err_msg) => {
@@ -487,7 +478,8 @@ async fn download_package(req: HttpRequest,
                             }
                             Err(err) => {
                                 debug!("License DB error: {}", err);
-                                return HttpResponse::InternalServerError().body("License validation error.");
+                                return HttpResponse::InternalServerError()
+                                    .body("License validation error.");
                             }
                         }
                     }

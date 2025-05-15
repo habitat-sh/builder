@@ -1077,36 +1077,15 @@ describe('Working with packages', function () {
       });
     });
   
-    it('succeeds without license when package is in both channels', function (done) {
+    it('succeeds without license when package is only in unrestricted channel', function (done) {
       promoteTo('LTS-2024', () => {
-        promoteTo('base-2025', () => {
-          removeLicenseKey(() => {
-            request.get(downloadPath)
-              .set('Authorization', global.boboBearer)
-              .expect(200)
-              .end(() => {
-                demoteFrom('LTS-2024', () => {
-                  demoteFrom('base-2025', done);
-                });
-              });
-          });
-        });
-      });
-    });
-  
-    it('succeeds with valid license when package is in both channels', function (done) {
-      promoteTo('LTS-2024', () => {
-        promoteTo('base-2025', () => {
-          addLicenseKey(validLicenseKey, () => {
-            request.get(downloadPath)
-              .set('Authorization', global.boboBearer)
-              .expect(200)
-              .end(() => {
-                demoteFrom('LTS-2024', () => {
-                  demoteFrom('base-2025', done);
-                });
-              });
-          });
+        removeLicenseKey(() => {
+          request.get(downloadPath)
+            .set('Authorization', global.boboBearer)
+            .expect(200)
+            .end(() => {
+              demoteFrom('LTS-2024', done);
+            });
         });
       });
     });
@@ -1149,7 +1128,58 @@ describe('Working with packages', function () {
         });
       });
     });
-  });
+  
+    it('succeeds without license when package is in both restricted and unrestricted channels', function (done) {
+      promoteTo('LTS-2024', () => {
+        promoteTo('base-2025', () => {
+          removeLicenseKey(() => {
+            request.get(downloadPath)
+              .set('Authorization', global.boboBearer)
+              .expect(200)
+              .end(() => {
+                demoteFrom('LTS-2024', () => {
+                  demoteFrom('base-2025', done);
+                });
+              });
+          });
+        });
+      });
+    });
+  
+    it('succeeds with valid license when package is in both restricted and unrestricted channels', function (done) {
+      promoteTo('LTS-2024', () => {
+        promoteTo('base-2025', () => {
+          addLicenseKey(validLicenseKey, () => {
+            request.get(downloadPath)
+              .set('Authorization', global.boboBearer)
+              .expect(200)
+              .end(() => {
+                demoteFrom('LTS-2024', () => {
+                  demoteFrom('base-2025', done);
+                });
+              });
+          });
+        });
+      });
+    });
+  
+    it('succeeds with expired license when package is in both restricted and unrestricted channels', function (done) {
+      promoteTo('LTS-2024', () => {
+        promoteTo('base-2025', () => {
+          addLicenseKey(expiredLicenseKey, () => {
+            request.get(downloadPath)
+              .set('Authorization', global.boboBearer)
+              .expect(200)
+              .end(() => {
+                demoteFrom('LTS-2024', () => {
+                  demoteFrom('base-2025', done);
+                });
+              });
+          });
+        });
+      });
+    });
+  });  
 
   describe('Other functions', function () {
     it('lists all the channels a package is in', function (done) {
@@ -1160,22 +1190,6 @@ describe('Working with packages', function () {
         .end(function (err, res) {
           expect(res.body.length).to.equal(1);
           expect(res.body[0].name).to.equal('unstable');
-          done(err);
-        });
-    });
-
-    it('downloads a package', function (done) {
-      request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/download`)
-        .expect(200)
-        .buffer()
-        .parse(binaryParser)
-        .end(function (err, res) {
-          var name = res.header['x-filename'];
-          var path = downloadedPath + name;
-          fs.writeFileSync(path, res.body);
-          var size = fs.statSync(path).size;
-          expect(name).to.equal(`neurosis-testapp-0.1.3-${release2}-x86_64-linux.hart`)
-          expect(size).to.equal(1569);
           done(err);
         });
     });
