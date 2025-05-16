@@ -1,16 +1,25 @@
 #!/bin/bash
+# shellcheck disable=SC1083
 
 set -euo pipefail
 
-PGHOST="{{cfg.datastore.host}}"
-PGPORT="{{cfg.datastore.port}}"
-PGUSER="{{cfg.datastore.user}}"
-PGPASSWORD="{{cfg.datastore.password}}"
-PGDATABASE="{{cfg.datastore.database}}"
-export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
+if [[ -f /hab/svc/builder-datastore/config/pwfile ]]; then
+  PGHOST={{cfg.datastore.host}}
+  PGPORT={{cfg.datastore.port}}
+  PGUSER={{cfg.datastore.user}}
+  PGPASSWORD=$(cat /hab/svc/builder-datastore/config/pwfile )
+  PGDATABASE={{cfg.datastore.database}}
+  export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
 
-# Check that the DB is exists and is reachable or create it
-# NOTE: Builder's .studiorc has a psql function necessitating the use of command
-if ! command psql --no-password --command=";"; then
-  createdb
+  # confirm that the builder db is accessible
+  if command psql --no-password -c ";"; then
+    echo The builder-datastore is available to the builder-api
+    exit 0
+  else
+    echo The builder-datastore is UNAVAILABLE to the builder-api
+    exit 3
+  fi
+else
+  echo The builder-datastore is UNAVAILABLE to the builder-api
+  exit 4
 fi

@@ -15,7 +15,7 @@ if [ -z "$hub_check" ]; then
   install_hub
 fi
 
-hab pkg install core/node
+hab pkg install --channel LTS-2024 core/node
 
 npm install webapi-parser@0.5.0
 npm install minimist@1.2.5
@@ -26,7 +26,7 @@ cd "${tempdir}"
 git clone "https://github.com/habitat-sh/habitat.git"
 cd ..
 
-#  Generate the api docs file. 
+#  Generate the api docs file.
 input_file=components/${component}/doc/api.raml
 output_file=${tempdir}/${component}".json"
 

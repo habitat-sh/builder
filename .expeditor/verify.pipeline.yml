@@ -3,14 +3,14 @@ expeditor:
     buildkite:
       timeout_in_minutes: 30
       env:
-          HAB_STUDIO_SECRET_HAB_BLDR_CHANNEL: LTS-2024
-          HAB_STUDIO_SECRET_HAB_REFRESH_CHANNEL: LTS-2024
-          HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL: "LTS-2024"
+        HAB_STUDIO_SECRET_HAB_BLDR_CHANNEL: LTS-2024
+        HAB_STUDIO_SECRET_HAB_REFRESH_CHANNEL: LTS-2024
+        HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL: "LTS-2024"
 
 steps:
-#######################################################################
-# Linting!
-#######################################################################
+  #######################################################################
+  # Linting!
+  #######################################################################
 
   - label: "[lint] :linux: :bash: Shellcheck"
     command:
@@ -50,9 +50,9 @@ steps:
       executor:
         docker:
 
-#######################################################################
-# Unit Tests - Linux!
-#######################################################################
+  #######################################################################
+  # Unit Tests - Linux!
+  #######################################################################
 
   - label: "[unit] :linux: builder-api"
     command:
@@ -142,4 +142,3 @@ steps:
             # `studio` should not matter.
             # test test
             - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
-
