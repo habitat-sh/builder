@@ -7,7 +7,7 @@ if [[ -f /hab/svc/builder-datastore/config/pwfile ]]; then
   PGHOST={{cfg.datastore.host}}
   PGPORT={{cfg.datastore.port}}
   PGUSER={{cfg.datastore.user}}
-  PGPASSWORD=$(cat /hab/svc/builder-datastore/config/pwfile )
+  PGPASSWORD={{cfg.datastore.password}}
   PGDATABASE={{cfg.datastore.database}}
   export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
 
