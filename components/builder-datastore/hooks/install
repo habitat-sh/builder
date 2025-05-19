@@ -214,15 +214,15 @@ create_postgres_cluster() {
 
 postgres_healthy() {
   echo Allowing ~${PG_TIMEOUT}s for PostgreSQL to become healthy
-  for ((i = 0; i < 30; i++)); do
+  for ((i = 0; i < PG_TIMEOUT; i++)); do
     if postgres_running && postgres_ready; then
       echo PostgreSQL is healthy
       return
-    elif ((i >= 30)); then
-      echo "PostgreSQL failed to become healthy within 30s"
+    elif ((i >= PG_TIMEOUT)); then
+      echo "PostgreSQL failed to become healthy within ${PG_TIMEOUT}s"
       exit 12
     else
-      echo "Waiting for PostgreSQL to be healthy ($((i + 1))/30)"
+      echo "Waiting for PostgreSQL to be healthy ($((i + 1))/$PG_TIMEOUT)"
       sleep 1
     fi
   done
@@ -282,12 +282,12 @@ stop_postgres() {
     --silent
 
   echo Allowing ~${PG_TIMEOUT}s for PostgreSQL to stop
-  for ((i = 0; i < 30; i++)); do
+  for ((i = 0; i < PG_TIMEOUT; i++)); do
     if postgres_running; then
-      echo "Waiting for PostgreSQL to stop ($((i + 1))/30)"
-      sleep 1
-    elif ((i >= 30)); then
-      echo "PostgreSQL failed to stop in 30s"
+      echo "Waiting for PostgreSQL to stop ($((i + 1))/$PG_TIMEOUT)"
+       sleep 1
+    elif ((i >= PG_TIMEOUT)); then
+      echo "PostgreSQL failed to stop in ${PG_TIMEOUT}s"
       echo "$output"
       exit 13
     else
