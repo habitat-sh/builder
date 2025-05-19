@@ -53,7 +53,7 @@ clean_test_artifacts() {
 wait_for_migrations() {
   echo "Waiting for migrations to finish"
   local count=0
-  # while ! command with set -e fails on the first loop, so we get this slightly 
+  # while ! command with set -e fails on the first loop, so we get this slightly
   # more complex implementation
   while true; do
     # The status endpoint won't become available until migrations are finished
@@ -76,7 +76,7 @@ wait_for_migrations
 clean_test_artifacts
 
 if ! command -v npm >/dev/null 2>&1; then
-  hab pkg install core/node -b
+  hab pkg install --channel LTS-2024 --binlink core/node
 fi
 
 if ! [ -f /usr/bin/env ]; then

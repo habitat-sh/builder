@@ -20,7 +20,7 @@ get_rustfmt_toolchain() {
 }
 
 get_toolchain() {
-  tail -n 1 "$dir/../../rust-toolchain"  | cut -d'"' -f 2
+  tail -n 1 "$dir/../../rust-toolchain" | cut -d'"' -f 2
 }
 
 install_rustup() {
@@ -63,12 +63,6 @@ install_rustfmt() {
 
 install_hab_pkg() {
   for ident; do
-    installed_pkgs=$(hab pkg list "$ident")
-
-    if [[ -z $installed_pkgs ]]; then
-      sudo hab pkg install "$ident"
-    else
-      echo "$ident already installed"
-    fi
+    sudo hab pkg install "$ident" --channel=LTS-2024 --ignore-local
   done
 }

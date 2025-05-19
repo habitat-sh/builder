@@ -77,7 +77,7 @@ installDeps() {
     configMsg
 
     for bin in "${!PDEPS[@]}"; do
-        hab pkg install -b "${PDEPS[$bin]}"
+        hab pkg install --channel=LTS-2024 --binlink "${PDEPS[$bin]}"
     done
 }
 
