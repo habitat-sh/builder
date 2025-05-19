@@ -64,7 +64,6 @@ export default function packages(state = initialState['packages'], action) {
           setIn(['ui', 'current', 'exists'], false);
       } else {
         let p = Object.assign({}, action.payload);
-        p.manifest = marked(p.manifest);
         // Immutable Package object has its own size property
         p.hart_size = p.size;
         delete p.size;
@@ -123,7 +122,6 @@ export default function packages(state = initialState['packages'], action) {
           setIn(['ui', 'latest', 'loading'], false);
       } else {
         let p = Object.assign({}, action.payload);
-        p.manifest = marked(p.manifest);
          // Immutable Package object has its own size property
         p.hart_size = p.size;
         delete p.size;
