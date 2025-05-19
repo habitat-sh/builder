@@ -6,12 +6,14 @@ use crate::{db::models::{channel::PackageChannelTrigger as PCT,
                      AppState}};
 use actix_web::{http::header,
                 web::Query,
-                HttpRequest};
-use chrono::NaiveDateTime;
+                HttpRequest,
+                HttpResponse};
+use chrono::{NaiveDate,
+             NaiveDateTime};
 use regex::Regex;
 use serde::Serialize;
+use serde_json::Value;
 use std::str::FromStr;
-
 // TODO - this module should not just be a grab bag of stuff
 
 pub const PAGINATION_RANGE_MAX: isize = 50;
@@ -147,6 +149,67 @@ pub fn target_from_headers(req: &HttpRequest) -> PackageTarget {
         Ok(t) => t,
         Err(_) => PackageTarget::from_str("x86_64-linux").unwrap(),
     }
+}
+
+pub fn fetch_license_expiration(license_key: &str,
+                                base_url: &str)
+                                -> std::result::Result<NaiveDate, HttpResponse> {
+    let license_url = format!("{}/License/download?licenseId={}&version=2",
+                              base_url.trim_end_matches('/'),
+                              license_key);
+
+    let response =
+        reqwest::blocking::Client::new().get(license_url)
+                                        .header("Accept", "application/json")
+                                        .send()
+                                        .map_err(|e| {
+                                            debug!("License API request failed: {}", e);
+                                            HttpResponse::BadRequest().body(format!("License API \
+                                                                                     error: {}",
+                                                                                    e))
+                                        })?;
+
+    let status = response.status();
+    let body = response.text().map_err(|e| {
+                                   debug!("Failed to read license server response: {}", e);
+                                   HttpResponse::BadRequest().body(format!("Failed to read \
+                                                                            license server \
+                                                                            response: {}",
+                                                                           e))
+                               })?;
+
+    if !status.is_success() {
+        debug!("License server returned error: {}", body);
+        return Err(HttpResponse::BadRequest().body(body));
+    }
+
+    let json: Value = serde_json::from_str(&body).map_err(|e| {
+                          debug!("Failed to parse license server response: {}", e);
+                          HttpResponse::BadRequest().body(format!("JSON parse error: {}", e))
+                      })?;
+
+    let entitlements = json["entitlements"].as_array()
+                                           .filter(|ents| !ents.is_empty())
+                                           .ok_or_else(|| {
+                                               debug!("No entitlements found in license data");
+                                               HttpResponse::BadRequest().body("Invalid license \
+                                                                                key.")
+                                           })?;
+
+    let today = chrono::Utc::now().date_naive();
+
+    let expiration = entitlements.iter().find_map(|ent| {
+                                            let end_str = ent.get("period")?.get("end")?.as_str()?;
+                                            match NaiveDate::parse_from_str(end_str, "%Y-%m-%d") {
+                                                Ok(end_date) if end_date >= today => Some(end_date),
+                                                _ => None,
+                                            }
+                                        });
+
+    expiration.ok_or_else(|| {
+                  debug!("No valid (non-expired) entitlement found in license");
+                  HttpResponse::BadRequest().body("License key has expired.")
+              })
 }
 
 pub fn visibility_for_optional_session(req: &HttpRequest,

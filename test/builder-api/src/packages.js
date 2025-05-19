@@ -1055,29 +1055,29 @@ describe('Working with packages', function () {
     }
   
     before(function (done) {
-        request.post('/profile/access-tokens')
-          .set('Authorization', global.boboBearer)
-          .type('application/json')
-          .accept('application/json')
-          .expect(200)
-          .end(function (err, res) {
-            if (err) return done(err);
-            expect(res.body.token).to.not.be.empty;
-            global.boboId = res.body.id;
-      
-            createChannel('LTS-2024', () => {
+      request.post('/profile/access-tokens')
+        .set('Authorization', global.boboBearer)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          if (err) return done(err);
+          expect(res.body.token).to.not.be.empty;
+          global.boboId = res.body.id;
+  
+          createChannel('LTS-2024', () => {
               createChannel('base-2025', done);
-            });
           });
-      });
+        });
+    });
   
     after(function (done) {
       deleteChannel('LTS-2024', () => {
-        deleteChannel('base-2025', done);
+          deleteChannel('base-2025', done);
       });
     });
   
-    it('succeeds without license when package is only in unrestricted channel', function (done) {
+    it('succeeds without license when package is only in LTS-2024', function (done) {
       promoteTo('LTS-2024', () => {
         removeLicenseKey(() => {
           request.get(downloadPath)
@@ -1090,7 +1090,7 @@ describe('Working with packages', function () {
       });
     });
   
-    it('fails without license when package is only in restricted channel', function (done) {
+    it('fails without license when package is only in base-2025', function (done) {
       promoteTo('base-2025', () => {
         removeLicenseKey(() => {
           request.get(downloadPath)
@@ -1103,7 +1103,7 @@ describe('Working with packages', function () {
       });
     });
   
-    it('succeeds with valid license when package is only in restricted channel', function (done) {
+    it('succeeds with valid license when package is only in base-2025', function (done) {
       promoteTo('base-2025', () => {
         addLicenseKey(validLicenseKey, () => {
           request.get(downloadPath)
@@ -1116,7 +1116,7 @@ describe('Working with packages', function () {
       });
     });
   
-    it('fails with expired license when package is only in restricted channel', function (done) {
+    it('fails with expired license when package is only in base-2025', function (done) {
       promoteTo('base-2025', () => {
         addLicenseKey(expiredLicenseKey, () => {
           request.get(downloadPath)
@@ -1129,7 +1129,7 @@ describe('Working with packages', function () {
       });
     });
   
-    it('succeeds without license when package is in both restricted and unrestricted channels', function (done) {
+    it('succeeds without license when package is in LTS-2024 and base-2025', function (done) {
       promoteTo('LTS-2024', () => {
         promoteTo('base-2025', () => {
           removeLicenseKey(() => {
@@ -1146,7 +1146,7 @@ describe('Working with packages', function () {
       });
     });
   
-    it('succeeds with valid license when package is in both restricted and unrestricted channels', function (done) {
+    it('succeeds with valid license when package is in LTS-2024 and base-2025', function (done) {
       promoteTo('LTS-2024', () => {
         promoteTo('base-2025', () => {
           addLicenseKey(validLicenseKey, () => {
@@ -1163,7 +1163,7 @@ describe('Working with packages', function () {
       });
     });
   
-    it('succeeds with expired license when package is in both restricted and unrestricted channels', function (done) {
+    it('succeeds with expired license when package is in LTS-2024 and base-2025', function (done) {
       promoteTo('LTS-2024', () => {
         promoteTo('base-2025', () => {
           addLicenseKey(expiredLicenseKey, () => {
@@ -1179,6 +1179,71 @@ describe('Working with packages', function () {
         });
       });
     });
+  
+    it('succeeds without license when package is in stable and not in base-2025', function (done) {
+      promoteTo('stable', () => {
+        removeLicenseKey(() => {
+          request.get(downloadPath)
+            .set('Authorization', global.boboBearer)
+            .expect(200)
+            .end(() => {
+              demoteFrom('stable', done);
+            });
+        });
+      });
+    });
+  
+    it('fails without license when package is in stable and base-2025', function (done) {
+      promoteTo('stable', () => {
+        promoteTo('base-2025', () => {
+          removeLicenseKey(() => {
+            request.get(downloadPath)
+              .set('Authorization', global.boboBearer)
+              .expect(403)
+              .end(() => {
+                demoteFrom('stable', () => {
+                  demoteFrom('base-2025', done);
+                });
+              });
+          });
+        });
+      });
+    });
+  
+    it('succeeds with valid license when package is in stable and base-2025', function (done) {
+      promoteTo('stable', () => {
+        promoteTo('base-2025', () => {
+          addLicenseKey(validLicenseKey, () => {
+            request.get(downloadPath)
+              .set('Authorization', global.boboBearer)
+              .expect(200)
+              .end(() => {
+                demoteFrom('stable', () => {
+                  demoteFrom('base-2025', done);
+                });
+              });
+          });
+        });
+      });
+    });
+  
+    it('fails with expired license when package is in stable and base-2025', function (done) {
+      promoteTo('stable', () => {
+        promoteTo('base-2025', () => {
+          addLicenseKey(expiredLicenseKey, () => {
+            request.get(downloadPath)
+              .set('Authorization', global.boboBearer)
+              .expect(403)
+              .end(() => {
+                demoteFrom('stable', () => {
+                  demoteFrom('base-2025', done);
+                });
+              });
+          });
+        });
+      });
+    });
+  
   });  
 
   describe('Other functions', function () {

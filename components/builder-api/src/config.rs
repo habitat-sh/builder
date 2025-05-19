@@ -118,6 +118,8 @@ pub struct ApiCfg {
     pub allowed_users_for_origin_create: Vec<String>,
     pub license_server_url: String,
     pub unrestricted_channels: Vec<String>,
+    pub partially_unrestricted_channels: Vec<String>,
+    pub restricted_if_present: Vec<String>,
 }
 
 mod deserialize_into_vec {
@@ -152,7 +154,9 @@ impl Default for ApiCfg {
                  license_server_url: "http://licensing-acceptance.chef.co".to_string(),
                  suppress_autobuild_origins: vec![],
                  allowed_users_for_origin_create: vec![],
-                 unrestricted_channels: vec![] }
+                 unrestricted_channels: vec![],
+                 partially_unrestricted_channels: vec![],
+                 restricted_if_present: vec![] }
     }
 }
 

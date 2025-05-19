@@ -44,11 +44,11 @@ use crate::{bldr_core::metrics::CounterMetric,
                      feat,
                      framework::headers,
                      helpers::{self,
+                               fetch_license_expiration,
                                req_state,
                                Pagination,
                                Target},
-                     resources::{channels::channels_for_package_ident,
-                                 profile::fetch_license_expiration},
+                     resources::channels::channels_for_package_ident,
                      services::metrics::Counter,
                      AppState}};
 use actix_web::{body::BoxBody,
@@ -432,11 +432,27 @@ async fn download_package(req: HttpRequest,
             let should_restrict = if let Some(chs) = channels.as_ref() {
                 let chs_lower: Vec<String> = chs.iter().map(|c| c.to_lowercase()).collect();
 
-                !state.config
-                      .api
-                      .unrestricted_channels
-                      .iter()
-                      .any(|ec| chs_lower.contains(&ec.to_lowercase()))
+                let in_unrestricted_channels = state.config
+                                                    .api
+                                                    .unrestricted_channels
+                                                    .iter()
+                                                    .any(|c| chs_lower.contains(&c.to_lowercase()));
+
+                let in_partially_unrestricted_channels =
+                    state.config
+                         .api
+                         .partially_unrestricted_channels
+                         .iter()
+                         .any(|c| chs_lower.contains(&c.to_lowercase()));
+
+                let in_restricted_if_present = state.config
+                                                    .api
+                                                    .restricted_if_present
+                                                    .iter()
+                                                    .any(|c| chs_lower.contains(&c.to_lowercase()));
+
+                !(in_unrestricted_channels
+                  || (in_partially_unrestricted_channels && !in_restricted_if_present))
             } else {
                 true
             };
