@@ -6,22 +6,25 @@ saas_bldr_url = "https://bldr.habitat.sh"
 license_server_url = "http://licensing-acceptance.chef.co"
 allowed_native_package_origins = []
 allowed_users_for_origin_create = []
+unrestricted_channels = ["LTS-2024"]
+partially_unrestricted_channels = ["stable"]
+restricted_if_present = ["base-2025"]
 
 [http]
 listen = "0.0.0.0"
-port   = 9636
+port = 9636
 
 [oauth]
-provider       = "github"
-token_url      = "https://github.com/login/oauth/access_token"
-userinfo_url   = "https://api.github.com/user"
-redirect_url   = ""
-client_id      = ""
-client_secret  = ""
+provider = "github"
+token_url = "https://github.com/login/oauth/access_token"
+userinfo_url = "https://api.github.com/user"
+redirect_url = ""
+client_id = ""
+client_secret = ""
 
 [github]
-api_url        = "https://api.github.com"
-app_id         = 5565
+api_url = "https://api.github.com"
+app_id = 5565
 webhook_secret = ""
 
 [s3]

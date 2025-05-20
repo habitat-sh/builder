@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::reverse_dependencies::{self};
 use crate::{bldr_core::metrics::CounterMetric,
             db::models::{channel::{Channel,
                                    ChannelWithPromotion},
+                         license_keys::*,
                          origin::*,
                          package::{BuilderPackageIdent,
                                    BuilderPackageTarget,
@@ -42,6 +44,7 @@ use crate::{bldr_core::metrics::CounterMetric,
                      feat,
                      framework::headers,
                      helpers::{self,
+                               fetch_license_expiration,
                                req_state,
                                Pagination,
                                Target},
@@ -80,8 +83,6 @@ use std::{convert::Infallible,
           str::FromStr};
 use tempfile::tempdir_in;
 use uuid::Uuid;
-
-use super::reverse_dependencies::{self};
 
 // Query param containers
 #[derive(Debug, Deserialize)]
@@ -420,6 +421,90 @@ async fn download_package(req: HttpRequest,
                        &conn)
     {
         Ok(package) => {
+            let channels = match channels_for_package_ident(&req, &package.ident, target, &conn) {
+                Ok(channels) => channels,
+                Err(err) => {
+                    return HttpResponse::InternalServerError()
+                        .body(format!("Failed to determine package channels: {}", err));
+                }
+            };
+
+            let should_restrict = if let Some(chs_vec) = channels.as_ref() {
+                let in_unrestricted_channels = state.config
+                                                    .api
+                                                    .unrestricted_channels
+                                                    .iter()
+                                                    .any(|c| chs_vec.contains(c));
+
+                if in_unrestricted_channels || state.config.api.restricted_if_present.is_empty() {
+                    false
+                } else {
+                    let in_partially_unrestricted_channels = state.config
+                                                                  .api
+                                                                  .partially_unrestricted_channels
+                                                                  .iter()
+                                                                  .any(|c| chs_vec.contains(c));
+
+                    let in_restricted_if_present = state.config
+                                                        .api
+                                                        .restricted_if_present
+                                                        .iter()
+                                                        .any(|c| chs_vec.contains(c));
+
+                    !in_partially_unrestricted_channels || in_restricted_if_present
+                }
+            } else {
+                true
+            };
+
+            if should_restrict {
+                match opt_session_id {
+                    Some(account_id) => {
+                        match LicenseKey::get_by_account_id(account_id as i64, &conn) {
+                            Ok(Some(license)) => {
+                                let today = chrono::Utc::now().date_naive();
+                                if license.expiration_date < today {
+                                    match fetch_license_expiration(&license.license_key,
+                                                                   &state.config
+                                                                         .api
+                                                                         .license_server_url)
+                                    {
+                                        Ok(new_expiration) => {
+                                            let update =
+                                                NewLicenseKey { account_id:      account_id as i64,
+                                                                license_key:
+                                                                    &license.license_key,
+                                                                expiration_date: new_expiration, };
+
+                                            if let Err(err) = LicenseKey::create(&update, &conn) {
+                                                debug!("Failed to update license in DB: {}", err);
+                                                return HttpResponse::InternalServerError()
+                                                    .body("License update failed.");
+                                            }
+                                        }
+                                        Err(err_msg) => {
+                                            return err_msg;
+                                        }
+                                    }
+                                }
+                            }
+                            Ok(None) => {
+                                return HttpResponse::Forbidden().body("No valid license key \
+                                                                       found.");
+                            }
+                            Err(err) => {
+                                debug!("License DB error: {}", err);
+                                return HttpResponse::InternalServerError()
+                                    .body("License validation error.");
+                            }
+                        }
+                    }
+                    None => {
+                        return HttpResponse::Unauthorized().body("Authentication required.");
+                    }
+                }
+            }
+
             let dir = tempdir_in(&state.config.api.data_path).expect("Unable to create a tempdir!");
             let file_path = dir.path().join(archive_name(&package.ident, target));
             let temp_ident = ident;

@@ -6,7 +6,8 @@ use crate::{bldr_core,
                      error::{Error,
                              Result},
                      framework::headers,
-                     helpers::req_state,
+                     helpers::{fetch_license_expiration,
+                               req_state},
                      AppState}};
 use actix_web::{body::BoxBody,
                 http::{self,
@@ -21,8 +22,6 @@ use actix_web::{body::BoxBody,
                 HttpResponse};
 use bldr_core::access_token::AccessToken as CoreAccessToken;
 use bytes::Bytes;
-use chrono::NaiveDate;
-use reqwest;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserUpdateReq {
@@ -230,71 +229,15 @@ async fn set_license(req: HttpRequest,
 
     match authorize_session(&req, None, None) {
         Ok(_session) => {
-            let base_url = &state.config.api.license_server_url;
-            let license_url = format!("{}/License/download?licenseId={}&version=2",
-                                      base_url.trim_end_matches('/'),
-                                      payload.license_key);
-
-            let response =
-                match reqwest::blocking::Client::new().get(license_url)
-                                                      .header("Accept", "application/json")
-                                                      .send()
-                {
-                    Ok(resp) => resp,
-                    Err(err) => {
-                        return HttpResponse::InternalServerError().body(format!("License API \
-                                                                                 error: {}",
-                                                                                err));
-                    }
-                };
-
-            let status = response.status();
-            let body =
-                match response.text() {
-                    Ok(text) => text,
-                    Err(err) => {
-                        return HttpResponse::InternalServerError()
-                        .body(format!("Failed to read license server response: {}", err));
-                    }
-                };
-
-            if !status.is_success() {
-                return HttpResponse::build(status).body(body);
-            }
-
-            let json: serde_json::Value = match serde_json::from_str(&body) {
-                Ok(data) => data,
-                Err(err) => {
-                    return HttpResponse::InternalServerError().body(format!("JSON parse error: \
-                                                                             {}",
-                                                                            err));
-                }
-            };
-
-            let today = chrono::Utc::now().date_naive();
-
-            let entitlements = match json["entitlements"].as_array() {
-                Some(ents) if !ents.is_empty() => ents,
-                _ => {
-                    return HttpResponse::BadRequest().body("Invalid license key.");
-                }
-            };
-
             let expiration_date =
-                entitlements.iter().find_map(|ent| {
-                                       let end_str = ent.get("period")?.get("end")?.as_str()?;
-                                       match NaiveDate::parse_from_str(end_str, "%Y-%m-%d") {
-                                           Ok(end_date) if end_date >= today => Some(end_date),
-                                           _ => None,
-                                       }
-                                   });
-
-            let expiration_date = match expiration_date {
-                Some(date) => date,
-                None => {
-                    return HttpResponse::BadRequest().body("License key has expired.");
-                }
-            };
+                match fetch_license_expiration(&payload.license_key,
+                                               &state.config.api.license_server_url)
+                {
+                    Ok(date) => date,
+                    Err(err) => {
+                        return err;
+                    }
+                };
 
             let new_license =
                 NewLicenseKey { account_id: payload.account_id.trim().parse::<i64>().unwrap(),
