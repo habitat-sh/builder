@@ -429,30 +429,30 @@ async fn download_package(req: HttpRequest,
                 }
             };
 
-            let should_restrict = if let Some(chs) = channels.as_ref() {
-                let chs_lower: Vec<String> = chs.iter().map(|c| c.to_lowercase()).collect();
-
+            let should_restrict = if let Some(chs_vec) = channels.as_ref() {
                 let in_unrestricted_channels = state.config
                                                     .api
                                                     .unrestricted_channels
                                                     .iter()
-                                                    .any(|c| chs_lower.contains(&c.to_lowercase()));
+                                                    .any(|c| chs_vec.contains(c));
 
-                let in_partially_unrestricted_channels =
-                    state.config
-                         .api
-                         .partially_unrestricted_channels
-                         .iter()
-                         .any(|c| chs_lower.contains(&c.to_lowercase()));
+                if in_unrestricted_channels || state.config.api.restricted_if_present.is_empty() {
+                    false
+                } else {
+                    let in_partially_unrestricted_channels = state.config
+                                                                  .api
+                                                                  .partially_unrestricted_channels
+                                                                  .iter()
+                                                                  .any(|c| chs_vec.contains(c));
 
-                let in_restricted_if_present = state.config
-                                                    .api
-                                                    .restricted_if_present
-                                                    .iter()
-                                                    .any(|c| chs_lower.contains(&c.to_lowercase()));
+                    let in_restricted_if_present = state.config
+                                                        .api
+                                                        .restricted_if_present
+                                                        .iter()
+                                                        .any(|c| chs_vec.contains(c));
 
-                !(in_unrestricted_channels
-                  || (in_partially_unrestricted_channels && !in_restricted_if_present))
+                    !in_partially_unrestricted_channels || in_restricted_if_present
+                }
             } else {
                 true
             };
