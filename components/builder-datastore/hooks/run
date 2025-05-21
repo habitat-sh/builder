@@ -3,7 +3,6 @@
 exec 2>&1
 
 chmod 0700 "{{pkg.svc_data_path}}"
-export PGDATA="{{pkg.svc_data_path}}"
 
 title="Service Start"
 text="builder-datastore starting"
