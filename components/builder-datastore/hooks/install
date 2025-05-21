@@ -23,12 +23,12 @@ set_installed_pg_ident_and_active_ident() {
     local installed_pg_version
     installed_pg_version=$(cat $PG_VERSION_FILE | sed 's/\.//')
     INSTALLED_PG_IDENT="core/postgresql${installed_pg_version}"
-    sudo hab pkg install "$INSTALLED_PG_IDENT"
     ACTIVE_IDENT=$INSTALLED_PG_IDENT
   else
     INSTALLED_PG_IDENT=""
     ACTIVE_IDENT=$PACKAGED_DATASTORE_IDENT
   fi
+  # The pkg ident of the currently installed version in upgrade scenarios
   readonly INSTALLED_PG_IDENT
 }
 
@@ -433,6 +433,9 @@ upgrade_postgres() {
   manage_upgrade_readme "$work_dir"
 
   ACTIVE_IDENT=$INSTALLED_PG_IDENT
+  if ! hab pkg list "$INSTALLED_PG_IDENT" >/dev/null ; then
+    sudo hab pkg install "$INSTALLED_PG_IDENT"
+  fi
 
   start_postgres
 
