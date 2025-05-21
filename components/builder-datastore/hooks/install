@@ -462,7 +462,6 @@ upgrade_postgres() {
   # step 8) finally, restore your data from backup
   load_postgres_database
   stop_postgres # because the run method is going to start it again
-  sudo hab svc load "$ACTIVE_IDENT" --force
 
   # JAH: password upgrade would go here but would we even need it?
   # JAH: will this method of upgrade address it?
