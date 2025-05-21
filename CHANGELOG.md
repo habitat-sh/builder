@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- remove restricted channel settings in default toml [#1897](https://github.com/habitat-sh/builder/pull/1897) ([mwrock](https://github.com/mwrock))
 - Added license validation for pkg download [#1891](https://github.com/habitat-sh/builder/pull/1891) ([sougata-progress](https://github.com/sougata-progress))
 - Removed entire plan, package manifest and the dependencies section [#1896](https://github.com/habitat-sh/builder/pull/1896) ([sougata-progress](https://github.com/sougata-progress))
 - Updates deprecated &#39;hab sup status&#39; commands to &#39;hab svc status&#39; calls [#1893](https://github.com/habitat-sh/builder/pull/1893) ([jasonheath](https://github.com/jasonheath))
