@@ -6,9 +6,9 @@ saas_bldr_url = "https://bldr.habitat.sh"
 license_server_url = "http://licensing-acceptance.chef.co"
 allowed_native_package_origins = []
 allowed_users_for_origin_create = []
-unrestricted_channels = ["LTS-2024"]
-partially_unrestricted_channels = ["stable"]
-restricted_if_present = ["base-2025"]
+unrestricted_channels = []
+partially_unrestricted_channels = []
+restricted_if_present = []
 
 [http]
 listen = "0.0.0.0"
