@@ -27,6 +27,7 @@ install_hab_pkg core/libb2
 install_hab_pkg core/libsodium
 install_hab_pkg core/make
 install_hab_pkg core/openssl
+install_hab_pkg core/patchelf
 install_hab_pkg core/pkg-config
 install_hab_pkg core/postgresql17
 install_hab_pkg core/protobuf
@@ -101,6 +102,7 @@ PATH+=":$(hab pkg path core/libarchive)/bin"
 PATH+=":$(hab pkg path core/make)/bin"
 PATH+=":$(hab pkg path core/cmake)/bin"
 PATH+=":$(hab pkg path core/openssl)/bin"
+PATH+=":$(hab pkg path core/patchelf)/bin"
 PATH+=":$(hab pkg path core/pkg-config)/bin"
 PATH+=":$(hab pkg path core/postgresql17)/bin"
 PATH+=":$(hab pkg path core/protobuf)/bin"
