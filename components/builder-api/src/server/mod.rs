@@ -102,7 +102,9 @@ fn enable_features(config: &Config) {
     for key in &config.api.features_enabled {
         if features.contains_key(key.as_str()) {
             info!("Enabling feature: {}", key);
-            feat::enable(features[key.as_str()]);
+            if let Some(flag) = features.get(key.as_str()) {
+                feat::enable(*flag);
+            }
         }
     }
 
@@ -127,12 +129,11 @@ pub async fn run(config: Config) -> error::Result<()> {
     if let Err(e) = keys::get_latest_builder_key(&config.api.key_path) {
         panic!("Failed to get the builder encryption key, error = {}", e);
     }
+    let mut conn = db_pool.get_conn().unwrap();
+    migration::setup(&mut conn).unwrap();
+    migrations::migrate_to_encrypted(&mut conn, &config.api.key_path).unwrap();
 
-    migration::setup(&db_pool.get_conn().unwrap()).unwrap();
-
-    migrations::migrate_to_encrypted(&db_pool.get_conn().unwrap(), &config.api.key_path).unwrap();
-
-    migrations::encrypt_secret_keys::run(&db_pool.get_conn().unwrap(), &config.api.key_path)
+    migrations::encrypt_secret_keys::run(&mut conn, &config.api.key_path)
         .expect("Error encrypting secret keys");
 
     // Bootstrap the user if automatic provisioning of the account is enabled.
@@ -225,4 +226,15 @@ pub async fn run(config: Config) -> error::Result<()> {
         None => srv.bind(cfg.http.clone())?,
     };
     Ok(srv.run().await?)
+}
+
+impl Clone for feat::Flags {
+    fn clone(&self) -> Self { *self }
+}
+
+impl Copy for feat::Flags {}
+impl std::fmt::Debug for feat::Flags {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Flags({:#010b})", self.bits())
+    }
 }

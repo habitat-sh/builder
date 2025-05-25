@@ -232,7 +232,10 @@ impl Origin {
         Ok(new_origin)
     }
 
-    pub fn update(name: &str, dpv: PackageVisibility, conn: &mut PgConnection) -> QueryResult<usize> {
+    pub fn update(name: &str,
+                  dpv: PackageVisibility,
+                  conn: &mut PgConnection)
+                  -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origins::table.find(name)).set(origins::default_package_visibility.eq(dpv))
                                                  .execute(conn)

@@ -13,7 +13,7 @@ pub mod encrypt_secret_keys;
 // This value was arbitrarily chosen and might need some tuning
 const KEY_MIGRATION_CHUNK_SIZE: i64 = 100;
 
-pub fn migrate_to_encrypted(conn: &PgConnection, key_cache: &KeyCache) -> Result<()> {
+pub fn migrate_to_encrypted(conn: &mut PgConnection, key_cache: &KeyCache) -> Result<()> {
     let start_time = Instant::now();
     let mut updated_keys = 0;
     let mut skipped_keys = 0;
@@ -21,9 +21,10 @@ pub fn migrate_to_encrypted(conn: &PgConnection, key_cache: &KeyCache) -> Result
     let mut next_id: i64 = 0;
 
     loop {
-        let skeys = OriginPrivateSigningKey::list_unencrypted(next_id,
-                                                              KEY_MIGRATION_CHUNK_SIZE,
-                                                              conn).map_err(Error::DieselError)?;
+        let skeys =
+            OriginPrivateSigningKey::list_unencrypted(next_id,
+                                                      KEY_MIGRATION_CHUNK_SIZE,
+                                                      &mut *conn).map_err(Error::DieselError)?;
         warn!("migrate_to_encrypted found {}/{} keys requested",
               skeys.len(),
               KEY_MIGRATION_CHUNK_SIZE);
@@ -41,7 +42,7 @@ pub fn migrate_to_encrypted(conn: &PgConnection, key_cache: &KeyCache) -> Result
                 OriginPrivateSigningKey::update_key(skey.id,
                                                     &encrypted_key,
                                                     builder_secret_key.named_revision().revision(),
-                                                    conn).map_err(Error::DieselError)?;
+                                                    &mut *conn).map_err(Error::DieselError)?;
                 updated_keys += 1;
             } else {
                 skipped_keys += 1;

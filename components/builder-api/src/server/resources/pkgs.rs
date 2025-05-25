@@ -293,7 +293,7 @@ async fn delete_package(req: HttpRequest,
         None => helpers::target_from_headers(&req),
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -302,7 +302,7 @@ async fn delete_package(req: HttpRequest,
     match Package::list_package_channels(&BuilderPackageIdent(ident.clone()),
                                          target,
                                          PackageVisibility::all(),
-                                         &conn)
+                                         &mut *conn)
     {
         Ok(channels) => {
             if channels.iter()
@@ -322,7 +322,7 @@ async fn delete_package(req: HttpRequest,
         }
     }
 
-    match reverse_dependencies::get_rdeps(&conn, &origin, &pkg, &target).await {
+    match reverse_dependencies::get_rdeps(&conn, &origin, &pkg, &target, &req).await {
         Ok(reverse_depenencies) => {
             if !reverse_depenencies.rdeps.is_empty() {
                 let body = Bytes::from(format!("Deleting package with rdeps not allowed '{}'",
@@ -342,20 +342,22 @@ async fn delete_package(req: HttpRequest,
     let pkg = match Package::get(GetPackage { ident:      BuilderPackageIdent(ident.clone()),
                                               visibility: PackageVisibility::all(),
                                               target:     BuilderPackageTarget(target), },
-                                 &conn).map_err(Error::DieselError)
+                                 &mut *conn).map_err(Error::DieselError)
     {
         Ok(pkg) => pkg,
         Err(err) => return err.into(),
     };
 
-    if let Err(err) = Channel::delete_channel_package(pkg.id, &conn).map_err(Error::DieselError) {
+    if let Err(err) =
+        Channel::delete_channel_package(pkg.id, &mut *conn).map_err(Error::DieselError)
+    {
         debug!("{}", err);
         return err.into();
     }
 
     match Package::delete(DeletePackage { ident:  BuilderPackageIdent(ident.clone()),
                                           target: BuilderPackageTarget(target), },
-                          &conn).map_err(Error::DieselError)
+                          &mut *conn).map_err(Error::DieselError)
     {
         Ok(_) => {
             state.memcache.borrow_mut().clear_cache_for_package(&ident);
@@ -377,7 +379,7 @@ async fn download_package(req: HttpRequest,
                           -> HttpResponse {
     let (origin, name, version, release) = path.into_inner();
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -417,7 +419,7 @@ async fn download_package(req: HttpRequest,
     match Package::get(GetPackage { ident:      BuilderPackageIdent(ident.clone()),
                                     visibility: vis,
                                     target:     BuilderPackageTarget(target), },
-                       &conn)
+                       &mut *conn)
     {
         Ok(package) => {
             let dir = tempdir_in(&state.config.api.data_path).expect("Unable to create a tempdir!");
@@ -509,7 +511,7 @@ async fn get_package_channels(req: HttpRequest,
         Err(_) => None,
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -545,7 +547,7 @@ async fn get_package_channels(req: HttpRequest,
                                          helpers::visibility_for_optional_session(&req,
                                                                                   opt_session_id,
                                                                                   &ident.origin),
-                                         &conn)
+                                         &mut *conn)
     {
         Ok(channels) => {
             let list: Vec<ChannelWithPromotion> =
@@ -572,7 +574,7 @@ async fn list_package_versions(req: HttpRequest,
         Err(_) => None,
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -583,7 +585,7 @@ async fn list_package_versions(req: HttpRequest,
                                          helpers::visibility_for_optional_session(&req,
                                                                                   opt_session_id,
                                                                                   &origin),
-                                         &conn)
+                                         &mut *conn)
     {
         Ok(packages) => {
             trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "list_package_versions for {} found {} package versions: {:?}", ident, packages.len(), packages);
@@ -616,7 +618,7 @@ async fn search_packages(req: HttpRequest,
         Err(_) => None,
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -650,7 +652,7 @@ async fn search_packages(req: HttpRequest,
                                            account_id: opt_session_id, };
 
     if pagination.distinct {
-        return match Package::search_distinct(&search_packages, &conn) {
+        return match Package::search_distinct(&search_packages, &mut *conn) {
             Ok((packages, count)) => postprocess_package_list(&req, &packages, count, &pagination),
             Err(err) => {
                 debug!("{}", err);
@@ -659,7 +661,7 @@ async fn search_packages(req: HttpRequest,
         };
     }
 
-    match Package::search(&search_packages, &conn) {
+    match Package::search(&search_packages, &mut *conn) {
         Ok((packages, count)) => postprocess_package_list(&req, &packages, count, &pagination),
         Err(err) => {
             debug!("{}", err);
@@ -697,7 +699,7 @@ async fn package_privacy_toggle(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -708,7 +710,7 @@ async fn package_privacy_toggle(req: HttpRequest,
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
-    match Package::update_visibility(pv, BuilderPackageIdent(ident.clone()), &conn) {
+    match Package::update_visibility(pv, BuilderPackageIdent(ident.clone()), &mut *conn) {
         Ok(_) => {
             trace!("Clearing cache for {}", ident);
             state.memcache.borrow_mut().clear_cache_for_package(&ident);
@@ -799,7 +801,7 @@ fn do_get_packages(req: &HttpRequest,
     let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
     let limit = if pagination.range < 0 { -1 } else { per_page };
 
-    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+    let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     let lpr = ListPackages { ident:      BuilderPackageIdent(ident.clone()),
                              visibility: helpers::visibility_for_optional_session(req,
@@ -809,7 +811,7 @@ fn do_get_packages(req: &HttpRequest,
                              limit:      limit as i64, };
 
     if pagination.distinct {
-        match Package::list_distinct(lpr, &conn).map_err(Error::DieselError) {
+        match Package::list_distinct(lpr, &mut *conn).map_err(Error::DieselError) {
             Ok((packages, count)) => {
                 let ident_pkgs: Vec<PackageIdentWithChannelPlatform> =
                     packages.into_iter().map(|p| p.into()).collect();
@@ -819,7 +821,7 @@ fn do_get_packages(req: &HttpRequest,
         }
     }
 
-    match Package::list(lpr, &conn).map_err(Error::DieselError) {
+    match Package::list(lpr, &mut *conn).map_err(Error::DieselError) {
         Ok((packages, count)) => {
             let ident_pkgs: Vec<PackageIdentWithChannelPlatform> =
                 packages.into_iter().map(|p| p.into()).collect();
@@ -840,7 +842,7 @@ fn do_upload_package_start(req: &HttpRequest,
                            -> Result<(PathBuf, BufWriter<File>)> {
     authorize_session(req, Some(&ident.origin), Some(OriginMemberRole::Member))?;
 
-    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+    let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     if qupload.forced {
         debug!("Upload was forced (bypassing existing package check) for: {}",
@@ -860,7 +862,7 @@ fn do_upload_package_start(req: &HttpRequest,
                 visibility: PackageVisibility::all(),
                 target: BuilderPackageTarget(PackageTarget::from_str(&target).unwrap()), // Unwrap OK
             },
-            &conn,
+            &mut *conn,
         ) {
             Ok(_) => return Err(Error::Conflict),
             Err(NotFound) => {}
@@ -948,7 +950,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
     }
 
-    let conn = match req_state(req).db.get_conn().map_err(Error::DbError) {
+    let mut conn = match req_state(req).db.get_conn().map_err(Error::DbError) {
         Ok(conn) => conn,
         Err(err) => return err.into(),
     };
@@ -962,7 +964,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
             target: BuilderPackageTarget(PackageTarget::from_str(&target_from_artifact).unwrap()),
             visibility: PackageVisibility::all(),
         },
-        &conn,
+        &mut *conn,
     ) {
         Ok(pkg) => {
             if package_type != *pkg.package_type {
@@ -1000,7 +1002,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
                     PackageTarget::from_str(&target_from_artifact).unwrap(),
                 ), // Unwrap OK
             },
-            &conn,
+            &mut *conn,
         ) {
             Ok(pkg) => {
                 if qupload.checksum != pkg.checksum {
@@ -1086,11 +1088,11 @@ async fn do_upload_package_finish(req: &HttpRequest,
             origin: &package.origin,
             name: &package.name,
         },
-        &conn,
+        &mut *conn,
     ) {
         // TED if this is in-fact optional in the db it should be an option in the model
         Ok(pkg) => pkg.visibility,
-        Err(_) => match Origin::get(&ident.origin, &conn) {
+        Err(_) => match Origin::get(&ident.origin, &mut *conn) {
             Ok(o) => {
                 match OriginPackageSettings::create(
                     &NewOriginPackageSettings {
@@ -1099,7 +1101,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
                         visibility: &o.default_package_visibility,
                         owner_id: package.owner_id,
                     },
-                    &conn,
+                    &mut *conn,
                 ) {
                     Ok(pkg_settings) => pkg_settings.visibility,
                     Err(err) => return Error::DieselError(err).into(),
@@ -1110,7 +1112,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
     };
 
     // Re-create origin package as needed (eg, checksum update)
-    match Package::create(&package, &conn) {
+    match Package::create(&package, &mut *conn) {
         Ok(_) => {}
         Err(NotFound) => {
             debug!("Package::create returned NotFound (DB conflict handled)");
@@ -1168,7 +1170,7 @@ async fn do_get_package(req: &HttpRequest,
     };
     Counter::GetPackage.increment();
 
-    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+    let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     let target = match qtarget.target {
         Some(ref t) => {
@@ -1223,7 +1225,7 @@ async fn do_get_package(req: &HttpRequest,
                                           helpers::visibility_for_optional_session(req,
                                                                                    opt_session_id,
                                                                                    &ident.origin),
-                                          &conn)
+                                          &mut *conn)
         {
             Ok(pkg) => pkg,
             Err(NotFound) => {
@@ -1252,7 +1254,7 @@ async fn do_get_package(req: &HttpRequest,
                     &ident.origin,
                 ),
             },
-            &conn,
+            &mut *conn,
         ) {
             Ok(pkg) => pkg.into(),
             Err(NotFound) => {
@@ -1274,7 +1276,7 @@ async fn do_get_package(req: &HttpRequest,
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = channels_for_package_ident(req, &pkg.ident, *pkg.target, &conn)?;
+    let channels = channels_for_package_ident(req, &pkg.ident, *pkg.target, &mut *conn)?;
     let manifest_without_plan = pkg.manifest
                                    .lines()
                                    .take_while(|line| !line.trim_start().starts_with("# Plan"))

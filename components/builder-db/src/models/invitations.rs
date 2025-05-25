@@ -38,13 +38,17 @@ pub struct NewOriginInvitation<'a> {
 }
 
 impl OriginInvitation {
-    pub fn create(req: &NewOriginInvitation, conn: &mut PgConnection) -> QueryResult<OriginInvitation> {
+    pub fn create(req: &NewOriginInvitation,
+                  conn: &mut PgConnection)
+                  -> QueryResult<OriginInvitation> {
         Counter::DBCall.increment();
         diesel::insert_into(origin_invitations::table).values(req)
                                                       .get_result(conn)
     }
 
-    pub fn list_by_origin(origin: &str, conn: &mut PgConnection) -> QueryResult<Vec<OriginInvitation>> {
+    pub fn list_by_origin(origin: &str,
+                          conn: &mut PgConnection)
+                          -> QueryResult<Vec<OriginInvitation>> {
         Counter::DBCall.increment();
         origin_invitations::table.filter(origin_invitations::origin.eq(origin))
                                  .get_results(conn)

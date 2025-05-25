@@ -11,14 +11,14 @@ use habitat_core::crypto::keys::KeyCache;
 use std::time::Instant;
 
 /// Perform the actual migration of data.
-pub fn run(conn: &PgConnection, key_cache: &KeyCache) -> Result<()> {
+pub fn run(conn: &mut PgConnection, key_cache: &KeyCache) -> Result<()> {
     let start_time = Instant::now();
     let builder_encryption_key = keys::get_latest_builder_key(key_cache)?;
 
-    let updated_rows = conn.transaction::<_, Error, _>(|| {
+    let updated_rows = conn.transaction::<_, Error, _>(|txn_conn| {
                                Ok(
             db_keys::OriginPrivateEncryptionKey::encrypt_unencrypted_keys(
-                conn,
+                txn_conn,
                 &builder_encryption_key,
             )?,
         )

@@ -30,7 +30,8 @@ use diesel::{self,
                   PgConnection},
              prelude::*,
              result::QueryResult,
-             sql_types::{Timestamptz,Text},
+             sql_types::{Text,
+                         Timestamptz},
              ExpressionMethods,
              NullableExpressionMethods,
              PgArrayExpressionMethods,
@@ -38,9 +39,9 @@ use diesel::{self,
              RunQueryDsl,
              Table,
              TextExpressionMethods};
+use diesel_derive_enum::DbEnum;
 use diesel_full_text_search::{to_tsquery,
                               TsQueryExtensions};
-use diesel_derive_enum::DbEnum;
 #[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct Channel {
     #[serde(with = "db_id_format")]
@@ -117,7 +118,10 @@ impl Channel {
         query.order(origin_channels::name.asc()).get_results(conn)
     }
 
-    pub fn get(origin: &str, channel: &ChannelIdent, conn: &mut PgConnection) -> QueryResult<Channel> {
+    pub fn get(origin: &str,
+               channel: &ChannelIdent,
+               conn: &mut PgConnection)
+               -> QueryResult<Channel> {
         Counter::DBCall.increment();
         origin_channels::table.filter(origin_channels::origin.eq(origin))
                               .filter(origin_channels::name.eq(channel.as_str()))
@@ -130,7 +134,10 @@ impl Channel {
                                                    .get_result(conn)
     }
 
-    pub fn delete(origin: &str, channel: &ChannelIdent, conn: &mut PgConnection) -> QueryResult<usize> {
+    pub fn delete(origin: &str,
+                  channel: &ChannelIdent,
+                  conn: &mut PgConnection)
+                  -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_channels::table
@@ -233,14 +240,14 @@ impl Channel {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let origin_str   = lcp.ident.origin.clone();
-        let name_str  = lcp.ident.name.clone();
-        let channel_str  = lcp.channel.as_str().to_string();
-        let ident_parts  = lcp.ident.clone().parts();
-        let visibility   = lcp.visibility.clone();
+        let origin_str = lcp.ident.origin.clone();
+        let name_str = lcp.ident.name.clone();
+        let channel_str = lcp.channel.as_str().to_string();
+        let ident_parts = lcp.ident.clone().parts();
+        let visibility = lcp.visibility.clone();
         let origin = lcp.origin.clone();
-        let page         = lcp.page;
-        let limit        = lcp.limit;
+        let page = lcp.page;
+        let limit = lcp.limit;
 
         let mut query = origin_packages::table
             .inner_join(
@@ -389,7 +396,6 @@ impl Channel {
         Ok(pkg_ids)
     }
 }
-
 
 #[derive(DbEnum, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[ExistingTypePath = "crate::schema::sql_types::package_channel_trigger"]

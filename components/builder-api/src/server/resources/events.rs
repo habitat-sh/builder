@@ -130,7 +130,7 @@ fn do_get_events(req: &HttpRequest,
     };
     let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
 
-    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+    let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
     let decoded_query =
         match percent_encoding::percent_decode(search_query.query.as_bytes()).decode_utf8() {
             Ok(q) => q.to_string().trim_end_matches('/').replace('/', " & "),
@@ -147,7 +147,7 @@ fn do_get_events(req: &HttpRequest,
                           from_date:  date_range.from_date,
                           to_date:    date_range.to_date,
                           query:      decoded_query, };
-    match AuditPackage::list(el, &conn).map_err(Error::DieselError) {
+    match AuditPackage::list(el, &mut *conn).map_err(Error::DieselError) {
         Ok((packages, count)) => {
             let pkg_events: Vec<AuditPackageEvent> =
                 packages.into_iter().map(|p| p.into()).collect();
