@@ -1,5 +1,5 @@
-use diesel::sql_types::SqlType;
-use diesel::query_builder::QueryId;
+use diesel::{query_builder::QueryId,
+             sql_types::SqlType};
 
 /// Backing Postgres enum for PackageVisibility
 #[derive(SqlType, QueryId)]
@@ -25,5 +25,3 @@ pub struct origin_operation;
 #[derive(SqlType, QueryId)]
 #[diesel(postgres_type(name = "origin_member_role"))]
 pub struct origin_member_role;
-
-

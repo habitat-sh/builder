@@ -45,12 +45,12 @@ async fn get_invitations(req: HttpRequest, state: Data<AppState>) -> HttpRespons
         Err(err) => return err.into(),
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match OriginInvitation::list_by_account(account_id, &conn) {
+    match OriginInvitation::list_by_account(account_id, &mut *conn) {
         Ok(response) => HttpResponse::Ok().json(response),
         Err(err) => {
             debug!("{}", err);
@@ -66,12 +66,12 @@ async fn get_origins(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match Origin::list(account_id, &conn) {
+    match Origin::list(account_id, &mut *conn) {
         Ok(response) => HttpResponse::Ok().json(response),
         Err(err) => {
             debug!("{}", err);

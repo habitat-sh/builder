@@ -100,7 +100,9 @@ impl OriginPackageSettings {
         .get_result(conn)
     }
 
-    pub fn delete(req: &DeleteOriginPackageSettings, conn: &mut PgConnection) -> QueryResult<usize> {
+    pub fn delete(req: &DeleteOriginPackageSettings,
+                  conn: &mut PgConnection)
+                  -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_package_settings::table
@@ -110,7 +112,9 @@ impl OriginPackageSettings {
         .execute(conn)
     }
 
-    pub fn count_origin_package_settings(origin: &str, conn: &mut PgConnection) -> QueryResult<i64> {
+    pub fn count_origin_package_settings(origin: &str,
+                                         conn: &mut PgConnection)
+                                         -> QueryResult<i64> {
         Counter::DBCall.increment();
         origin_package_settings::table.select(count(origin_package_settings::id))
                                       .filter(origin_package_settings::origin.eq(&origin))

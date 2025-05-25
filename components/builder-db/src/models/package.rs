@@ -49,8 +49,8 @@ use diesel::{self,
                          IsNull,
                          Output,
                          ToSql},
-             sql_types::{Text,
-                         Bool},
+             sql_types::{Bool,
+                         Text},
              PgArrayExpressionMethods,
              RunQueryDsl};
 use diesel_full_text_search::{to_tsquery,
@@ -59,12 +59,12 @@ use itertools::Itertools;
 
 use crate::{bldr_core::metrics::{CounterMetric,
                                  HistogramMetric},
+            error::Error as CrateError,
             metrics::{Counter,
                       Histogram},
             protocol::originsrv::{OriginPackage,
                                   OriginPackageIdent,
-                                  OriginPackageVisibility},
-            error::Error as CrateError};
+                                  OriginPackageVisibility}};
 use diesel_derive_enum::DbEnum;
 
 #[derive(Debug,
@@ -369,14 +369,7 @@ pub struct OriginPackageVersions {
     pub visibility:    PackageVisibility,
 }
 
-#[derive(DbEnum,
-         Debug,
-         Eq,
-         Hash,
-         Serialize,
-         Deserialize,
-         PartialEq,
-         Clone)]
+#[derive(DbEnum, Debug, Eq, Hash, Serialize, Deserialize, PartialEq, Clone)]
 #[ExistingTypePath = "crate::schema::sql_types::origin_package_visibility"]
 pub enum PackageVisibility {
     Public,
@@ -621,14 +614,14 @@ impl Package {
                 -> QueryResult<(Vec<PackageWithChannelPlatform>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
-        
+
         // Extract cloned copies out of pl
-        let origin_str  = pl.ident.origin.clone();
-        let name_str    = pl.ident.name.clone();
-        let parts  = pl.ident.clone().parts();
-        let visibility= pl.visibility.clone();
-        let page        = pl.page;
-        let limit       = pl.limit;
+        let origin_str = pl.ident.origin.clone();
+        let name_str = pl.ident.name.clone();
+        let parts = pl.ident.clone().parts();
+        let visibility = pl.visibility.clone();
+        let page = pl.page;
+        let limit = pl.limit;
 
         let mut query = packages_with_channel_platform::table
             .filter(packages_with_channel_platform::origin.eq(origin_str))
@@ -647,12 +640,11 @@ impl Package {
             let pkgs: std::vec::Vec<PackageWithChannelPlatform> = query.get_results(conn)?;
             pkgs
         } else {
-            let query =
-                query.filter(packages_with_channel_platform::ident_array.contains(parts))
-                     .filter(packages_with_channel_platform::visibility.eq(any(visibility)))
-                     .order(packages_with_channel_platform::ident.desc())
-                     .paginate(page)
-                     .per_page(limit);
+            let query = query.filter(packages_with_channel_platform::ident_array.contains(parts))
+                             .filter(packages_with_channel_platform::visibility.eq(any(visibility)))
+                             .order(packages_with_channel_platform::ident.desc())
+                             .paginate(page)
+                             .per_page(limit);
             let (pkgs, _): (std::vec::Vec<PackageWithChannelPlatform>, i64) =
                 query.load_and_count_records(conn)?;
             pkgs
@@ -691,15 +683,16 @@ impl Package {
         let start_time = Instant::now();
 
         // Extract cloned copies out of pl
-        let origin_str  = pl.ident.origin.clone();
-        let name_str    = pl.ident.name.clone();
-        let parts  = pl.ident.clone().parts();
-        let visibility= pl.visibility.clone();
-        let page        = pl.page;
-        let limit       = pl.limit;
+        let origin_str = pl.ident.origin.clone();
+        let name_str = pl.ident.name.clone();
+        let parts = pl.ident.clone().parts();
+        let visibility = pl.visibility.clone();
+        let page = pl.page;
+        let limit = pl.limit;
 
-        let mut query = origin_packages::table.select(sql::<Text>("concat_ws('/', ident_array[1], \
-                                                           ident_array[2]) as ident"))
+        let mut query = origin_packages::table.select(sql::<Text>("concat_ws('/', \
+                                                                   ident_array[1], \
+                                                                   ident_array[2]) as ident"))
                                               .filter(origin_packages::origin.eq(origin_str))
                                               .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
@@ -745,10 +738,10 @@ impl Package {
         let start_time = Instant::now();
 
         // Extract cloned copies out of pl
-        let origin_str  = pl.ident.origin.clone();
-        let visibility= pl.visibility.clone();
-        let page        = pl.page;
-        let limit       = pl.limit;
+        let origin_str = pl.ident.origin.clone();
+        let visibility = pl.visibility.clone();
+        let page = pl.page;
+        let limit = pl.limit;
 
         let result = origin_package_settings::table
             .select(origin_package_settings::all_columns)
@@ -1001,23 +994,24 @@ impl FromStr for BuilderPackageType {
 }
 
 impl ToSql<Text, Pg> for BuilderPackageType {
-    fn to_sql<'a>(
-        &'a self,
-        out: &mut Output<'a, '_, Pg>
-    ) -> serialize::Result {
+    fn to_sql<'a>(&'a self, out: &mut Output<'a, '_, Pg>) -> serialize::Result {
         out.write_all(self.to_string().as_bytes())
-            .map(|_| IsNull::No)
-            .map_err(Into::into)
+           .map(|_| IsNull::No)
+           .map_err(Into::into)
     }
 }
 
 impl FromSql<Text, Pg> for BuilderPackageType {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
-        let s = std::str::from_utf8(bytes.as_bytes())
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let s =
+            std::str::from_utf8(bytes.as_bytes()).map_err(|e| {
+                                                     std::io::Error::new(std::io::ErrorKind::Other,
+                                                                         e)
+                                                 })?;
         Ok(BuilderPackageType::from_str(s).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::Other, format!("Invalid ident: {}", s))
-        })?)
+                                              std::io::Error::new(std::io::ErrorKind::Other,
+                                                                  format!("Invalid ident: {}", s))
+                                          })?)
     }
 }
 
@@ -1054,23 +1048,24 @@ impl FromStr for BuilderPackageIdent {
 }
 
 impl ToSql<Text, Pg> for BuilderPackageIdent {
-    fn to_sql<'a>(
-        &'a self,
-        out: &mut Output<'a, '_, Pg>
-    ) -> serialize::Result {
+    fn to_sql<'a>(&'a self, out: &mut Output<'a, '_, Pg>) -> serialize::Result {
         out.write_all(self.to_string().as_bytes())
-            .map(|_| IsNull::No)
-            .map_err(Into::into)
+           .map(|_| IsNull::No)
+           .map_err(Into::into)
     }
 }
 
 impl FromSql<Text, Pg> for BuilderPackageIdent {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
-        let s = std::str::from_utf8(bytes.as_bytes())
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let s =
+            std::str::from_utf8(bytes.as_bytes()).map_err(|e| {
+                                                     std::io::Error::new(std::io::ErrorKind::Other,
+                                                                         e)
+                                                 })?;
         Ok(BuilderPackageIdent::from_str(s).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::Other, format!("Invalid ident: {}", s))
-        })?)
+                                               std::io::Error::new(std::io::ErrorKind::Other,
+                                                                   format!("Invalid ident: {}", s))
+                                           })?)
     }
 }
 
@@ -1124,23 +1119,24 @@ impl FromStr for BuilderPackageTarget {
 }
 
 impl ToSql<Text, Pg> for BuilderPackageTarget {
-    fn to_sql<'a>(
-        &'a self,
-        out: &mut Output<'a, '_, Pg>
-    ) -> serialize::Result {
+    fn to_sql<'a>(&'a self, out: &mut Output<'a, '_, Pg>) -> serialize::Result {
         out.write_all(self.to_string().as_bytes())
-            .map(|_| IsNull::No)
-            .map_err(Into::into)
+           .map(|_| IsNull::No)
+           .map_err(Into::into)
     }
 }
 
 impl FromSql<Text, Pg> for BuilderPackageTarget {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
-        let s = std::str::from_utf8(bytes.as_bytes())
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let s =
+            std::str::from_utf8(bytes.as_bytes()).map_err(|e| {
+                                                     std::io::Error::new(std::io::ErrorKind::Other,
+                                                                         e)
+                                                 })?;
         Ok(BuilderPackageTarget::from_str(s).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::Other, format!("Invalid ident: {}", s))
-        })?)
+                                                std::io::Error::new(std::io::ErrorKind::Other,
+                                                                    format!("Invalid ident: {}", s))
+                                            })?)
     }
 }
 

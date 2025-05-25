@@ -100,4 +100,3 @@ use super::origin::{origins,
 
 joinable!(origin_packages -> origins (origin));
 joinable!(origin_packages -> origins_with_stats (origin));
-

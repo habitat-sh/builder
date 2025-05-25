@@ -70,7 +70,7 @@ async fn get_origin_package_settings(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match req_state(&req).db.get_conn().map_err(Error::DbError) {
+    let mut conn = match req_state(&req).db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -78,7 +78,7 @@ async fn get_origin_package_settings(req: HttpRequest,
     let get_ops = &GetOriginPackageSettings { origin: &origin,
                                               name:   &pkg, };
 
-    match OriginPackageSettings::get(get_ops, &conn).map_err(Error::DieselError) {
+    match OriginPackageSettings::get(get_ops, &mut *conn).map_err(Error::DieselError) {
         Ok(ops) => HttpResponse::Ok().json(ops),
         Err(err) => {
             debug!("{}", err);
@@ -101,13 +101,13 @@ async fn create_origin_package_settings(req: HttpRequest,
             Err(err) => return err.into(),
         };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
     // Validate that the origin exists before attempting to create pkg settings
-    let (oname, pv) = match Origin::get(&origin, &conn).map_err(Error::DieselError) {
+    let (oname, pv) = match Origin::get(&origin, &mut *conn).map_err(Error::DieselError) {
         Ok(origin) => (origin.name, origin.default_package_visibility),
         Err(err) => {
             debug!("{}", err);
@@ -122,7 +122,7 @@ async fn create_origin_package_settings(req: HttpRequest,
             visibility: &pv,
             owner_id: account_id as i64,
         },
-        &conn,
+        &mut *conn,
     )
     .map_err(Error::DieselError)
     {
@@ -152,7 +152,7 @@ async fn update_origin_package_settings(req: HttpRequest,
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
-    let conn = match req_state(&req).db.get_conn().map_err(Error::DbError) {
+    let mut conn = match req_state(&req).db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -170,7 +170,7 @@ async fn update_origin_package_settings(req: HttpRequest,
                                                                        visibility: &pv,
                                                                        owner_id:   account_id
                                                                                    as i64, },
-                                        &conn).map_err(Error::DieselError)
+                                        &mut *conn).map_err(Error::DieselError)
     {
         Ok(ups) => HttpResponse::Ok().json(ups),
         Err(err) => {
@@ -192,21 +192,21 @@ async fn delete_origin_package_settings(req: HttpRequest,
             Err(err) => return err.into(),
         };
 
-    let conn = match req_state(&req).db.get_conn().map_err(Error::DbError) {
+    let mut conn = match req_state(&req).db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
     // Prior to passing the deletion request to the backend, we validate
     // that the user has already cleaned up any existing packages.
-    match package_settings_delete_preflight(&origin, &pkg, &conn) {
+    match package_settings_delete_preflight(&origin, &pkg, &mut *conn) {
         Ok(_) => {
             // Delete the package setting
             match OriginPackageSettings::delete(&DeleteOriginPackageSettings { origin:   &origin,
                                                                                name:     &pkg,
                                                                                owner_id: account_id
                                                                                          as i64, },
-                                                &conn).map_err(Error::DieselError)
+                                                &mut *conn).map_err(Error::DieselError)
             {
                 Ok(_) => HttpResponse::new(StatusCode::NO_CONTENT),
                 Err(err) => {
@@ -227,8 +227,11 @@ async fn delete_origin_package_settings(req: HttpRequest,
     }
 }
 
-fn package_settings_delete_preflight(origin: &str, pkg: &str, conn: &PgConnection) -> Result<()> {
-    match OriginPackageSettings::count_packages_for_origin_package(origin, pkg, conn) {
+fn package_settings_delete_preflight(origin: &str,
+                                     pkg: &str,
+                                     conn: &mut PgConnection)
+                                     -> Result<()> {
+    match OriginPackageSettings::count_packages_for_origin_package(origin, pkg, &mut *conn) {
         Ok(0) => {}
         Ok(count) => {
             let err = format!("There are {} packages remaining for setting {}/{}. Must be zero.",

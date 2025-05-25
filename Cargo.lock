@@ -357,7 +357,6 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "tempfile",
- "tokio",
  "toml 0.5.9",
  "url",
  "zmq",
@@ -1178,7 +1177,6 @@ dependencies = [
  "actix-rt",
  "actix-web",
  "artifactory-client",
- "base64 0.21.0",
  "bitflags 2.5.0",
  "builder_core",
  "bytes",
@@ -1211,8 +1209,6 @@ dependencies = [
  "serde_json",
  "sha2 0.10.6",
  "tempfile",
- "toml 0.5.9",
- "url",
  "uuid",
 ]
 

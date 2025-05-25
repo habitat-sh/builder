@@ -151,7 +151,9 @@ impl OriginPublicEncryptionKey {
             .get_result(conn)
     }
 
-    pub fn list(origin: &str, conn: &mut PgConnection) -> QueryResult<Vec<OriginPublicEncryptionKey>> {
+    pub fn list(origin: &str,
+                conn: &mut PgConnection)
+                -> QueryResult<Vec<OriginPublicEncryptionKey>> {
         Counter::DBCall.increment();
         origin_public_encryption_keys::table
             .filter(origin_public_encryption_keys::origin.eq(origin))
@@ -161,7 +163,9 @@ impl OriginPublicEncryptionKey {
 }
 
 impl OriginPrivateEncryptionKey {
-    pub fn latest(origin: &str, conn: &mut PgConnection) -> QueryResult<OriginPrivateEncryptionKey> {
+    pub fn latest(origin: &str,
+                  conn: &mut PgConnection)
+                  -> QueryResult<OriginPrivateEncryptionKey> {
         Counter::DBCall.increment();
         // This is really latest because you're not allowed to get old keys
         origin_private_encryption_keys::table

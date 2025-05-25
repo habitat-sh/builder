@@ -17,12 +17,15 @@ use std::io;
 use diesel::{pg::PgConnection,
              query_dsl::RunQueryDsl,
              result::{Error as Dre,
-                    QueryResult},
+                      QueryResult},
              sql_query,
              Connection};
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use diesel_migrations::{embed_migrations,
+                        EmbeddedMigrations,
+                        MigrationHarness};
 
-use crate::error::{Result,Error};
+use crate::error::{Error,
+                   Result};
 
 /// Embed all migrations from src/migrations into a single constant
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("src/migrations");
@@ -30,11 +33,11 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("src/migrations");
 /// Run setup and then all pending migrations
 pub fn setup(conn: &mut PgConnection) -> QueryResult<()> {
     conn.transaction::<(), Dre, _>(|conn| {
-        setup_ids(conn)?;
-        conn.run_pending_migrations(MIGRATIONS)
-            .map_err(Dre::QueryBuilderError)?;
-        Ok(())
-    })?;
+            setup_ids(conn)?;
+            conn.run_pending_migrations(MIGRATIONS)
+                .map_err(Dre::QueryBuilderError)?;
+            Ok(())
+        })?;
     Ok(())
 }
 
