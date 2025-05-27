@@ -766,7 +766,7 @@ fn do_get_channel_packages(req: &HttpRequest,
     let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     Channel::list_packages(
-        ListChannelPackages {
+        &ListChannelPackages {
             ident: BuilderPackageIdent(ident.clone()),
             visibility: helpers::visibility_for_optional_session(
                 req,

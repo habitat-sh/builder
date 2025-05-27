@@ -811,7 +811,7 @@ fn do_get_packages(req: &HttpRequest,
                              limit:      limit as i64, };
 
     if pagination.distinct {
-        match Package::list_distinct(lpr, &mut *conn).map_err(Error::DieselError) {
+        match Package::list_distinct(&lpr, &mut *conn).map_err(Error::DieselError) {
             Ok((packages, count)) => {
                 let ident_pkgs: Vec<PackageIdentWithChannelPlatform> =
                     packages.into_iter().map(|p| p.into()).collect();
@@ -821,7 +821,7 @@ fn do_get_packages(req: &HttpRequest,
         }
     }
 
-    match Package::list(lpr, &mut *conn).map_err(Error::DieselError) {
+    match Package::list(&lpr, &mut *conn).map_err(Error::DieselError) {
         Ok((packages, count)) => {
             let ident_pkgs: Vec<PackageIdentWithChannelPlatform> =
                 packages.into_iter().map(|p| p.into()).collect();
