@@ -26,8 +26,7 @@ use diesel::{self,
              dsl::{count,
                    sql,
                    IntervalDsl},
-             pg::{expression::dsl::any,
-                  PgConnection},
+             pg::PgConnection,
              prelude::*,
              result::QueryResult,
              sql_types::{Text,
@@ -170,7 +169,7 @@ impl Channel {
             .filter(origin_packages_with_version_array::ident_array.contains(ident.clone().parts()))
             .filter(origin_channels::name.eq(req.channel.as_str()))
             .filter(origin_packages_with_version_array::target.eq(req.target))
-            .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
+            .filter(origin_packages_with_version_array::visibility.eq_any(req.visibility))
             .order(sql::<Text>(
                 "string_to_array(version_array[1],'.')::\
                  numeric[] desc, version_array[2] desc, \
@@ -201,7 +200,7 @@ impl Channel {
             .filter(origin_packages_with_version_array::origin.eq(&req.origin))
             .filter(origin_channels::name.eq(&channel))
             .filter(origin_packages_with_version_array::target.eq(&target))
-            .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
+            .filter(origin_packages_with_version_array::visibility.eq_any(req.visibility))
             .distinct_on(origin_packages_with_version_array::name)
             .select((
                 origin_packages_with_version_array::name,
@@ -262,7 +261,7 @@ impl Channel {
             query = query.filter(origin_packages::name.eq(name_str))
         };
         let query = query.filter(origin_packages::ident_array.contains(ident_parts))
-                         .filter(origin_packages::visibility.eq(any(visibility)))
+                         .filter(origin_packages::visibility.eq_any(visibility))
                          .filter(origins::name.eq(origin))
                          .filter(origin_channels::name.eq(channel_str))
                          .select(origin_packages::ident)
@@ -302,7 +301,7 @@ impl Channel {
                 origin_channel_packages::table
                     .inner_join(origin_channels::table.inner_join(origins::table)),
             )
-            .filter(origin_packages::visibility.eq(any(lacp.visibility)))
+            .filter(origin_packages::visibility.eq_any(lacp.visibility))
             .filter(origins::name.eq(lacp.origin))
             .filter(origin_channels::name.eq(lacp.channel.as_str()))
             .select(origin_packages::ident)
@@ -327,7 +326,7 @@ impl Channel {
         // TODO check that this join is using an appropriate index
         let result =
             origin_packages::table.inner_join(origin_channel_packages::table)
-                                  .filter(origin_packages::visibility.eq(any(visibility)))
+                                  .filter(origin_packages::visibility.eq_any(visibility))
                                   .filter(origin_channel_packages::channel_id.eq(channel_id))
                                   .select(origin_packages::id)
                                   .order(origin_packages::id)
@@ -372,7 +371,7 @@ impl Channel {
         diesel::delete(
             origin_channel_packages::table
                 .filter(origin_channel_packages::channel_id.eq(channel_id))
-                .filter(origin_channel_packages::package_id.eq(any(package_ids))),
+                .filter(origin_channel_packages::package_id.eq_any(package_ids)),
         )
         .execute(conn)
     }
@@ -469,7 +468,7 @@ impl AuditPackage {
                                                .filter(origin_members::account_id.eq(session_id));
             query = query.filter(
                 origin_packages::visibility
-                    .eq(any(PackageVisibility::private()))
+                    .eq_any(PackageVisibility::private())
                     .and(origin_packages::origin.eq_any(origins))
                     .or(origin_packages::visibility.eq(PackageVisibility::Public))
                     .or(audit_package::requester_id.eq(session_id)),
