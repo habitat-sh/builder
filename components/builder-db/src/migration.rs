@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io;
-
 use diesel::{pg::PgConnection,
              query_dsl::RunQueryDsl,
              result::{Error as Dre,
@@ -23,9 +21,6 @@ use diesel::{pg::PgConnection,
 use diesel_migrations::{embed_migrations,
                         EmbeddedMigrations,
                         MigrationHarness};
-
-use crate::error::{Error,
-                   Result};
 
 /// Embed all migrations from src/migrations into a single constant
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("src/migrations");

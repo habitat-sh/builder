@@ -37,7 +37,7 @@ use diesel::{self,
                            FromSql},
              dsl::{count,
                    sql},
-             pg::{expression::dsl::any,
+             pg::{
                   upsert::{excluded,
                            on_constraint},
                   Pg,
@@ -59,7 +59,7 @@ use itertools::Itertools;
 
 use crate::{bldr_core::metrics::{CounterMetric,
                                  HistogramMetric},
-            error::Error as CrateError,
+            // error::Error as CrateError,
             metrics::{Counter,
                       Histogram},
             protocol::originsrv::{OriginPackage,
@@ -426,7 +426,7 @@ impl Package {
         let start_time = Instant::now();
 
         let result = Self::all().filter(origin_packages::ident.eq(ident))
-                                .filter(origin_packages::visibility.eq(any(visibility)))
+                                .filter(origin_packages::visibility.eq_any(visibility))
                                 .filter(origin_packages::hidden.eq(false))
                                 .get_result(conn);
 
@@ -443,7 +443,7 @@ impl Package {
         let start_time = Instant::now();
 
         let result = Self::all().filter(origin_packages::ident.eq(req.ident))
-                                .filter(origin_packages::visibility.eq(any(req.visibility)))
+                                .filter(origin_packages::visibility.eq_any(req.visibility))
                                 .filter(origin_packages::target.eq(req.target))
                                 .filter(origin_packages::hidden.eq(false))
                                 .get_result(conn);
@@ -469,8 +469,8 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let result = Self::all().filter(origin_packages::ident.eq(any(req.pkgs)))
-                                .filter(origin_packages::visibility.eq(any(req.visibility)))
+        let result = Self::all().filter(origin_packages::ident.eq_any(req.pkgs))
+                                .filter(origin_packages::visibility.eq_any(req.visibility))
                                 .filter(origin_packages::hidden.eq(false))
                                 .get_results(conn);
 
@@ -512,7 +512,7 @@ impl Package {
             .filter(origin_packages_with_version_array::name.eq(&req.ident.name.clone()))
             .filter(origin_packages_with_version_array::ident_array.contains(req.ident.parts()))
             .filter(origin_packages_with_version_array::target.eq(req.target))
-            .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
+            .filter(origin_packages_with_version_array::visibility.eq_any(req.visibility))
             .order(sql::<Text>(
                 "string_to_array(version_array[1],'.')::\
                  numeric[] desc, version_array[2] desc, \
@@ -635,13 +635,13 @@ impl Package {
         let mut pkgs = if pl.limit < 0 {
             let query =
                 query.filter(packages_with_channel_platform::ident_array.contains(parts.clone()))
-                     .filter(packages_with_channel_platform::visibility.eq(any(visibility.clone())))
+                     .filter(packages_with_channel_platform::visibility.eq_any(visibility.clone()))
                      .order(packages_with_channel_platform::ident.desc());
             let pkgs: std::vec::Vec<PackageWithChannelPlatform> = query.get_results(conn)?;
             pkgs
         } else {
             let query = query.filter(packages_with_channel_platform::ident_array.contains(parts))
-                             .filter(packages_with_channel_platform::visibility.eq(any(visibility)))
+                             .filter(packages_with_channel_platform::visibility.eq_any(visibility))
                              .order(packages_with_channel_platform::ident.desc())
                              .paginate(page)
                              .per_page(limit);
@@ -702,7 +702,7 @@ impl Package {
         };
         let query = query
             .filter(origin_packages::ident_array.contains(parts))
-            .filter(origin_packages::visibility.eq(any(visibility)))
+            .filter(origin_packages::visibility.eq_any(visibility))
             .filter(origin_packages::hidden.eq(false))
             // This is because diesel doesn't yet support group_by
             // see: https://github.com/diesel-rs/diesel/issues/210
@@ -746,7 +746,7 @@ impl Package {
         let result = origin_package_settings::table
             .select(origin_package_settings::all_columns)
             .filter(origin_package_settings::origin.eq(origin_str))
-            .filter(origin_package_settings::visibility.eq(any(visibility)))
+            .filter(origin_package_settings::visibility.eq_any(visibility))
             .filter(origin_package_settings::hidden.eq(false))
             .order(origin_package_settings::origin.asc())
             .order(origin_package_settings::name.asc())
@@ -782,7 +782,7 @@ impl Package {
             ))
             .filter(origin_packages::ident.eq(ident))
             .filter(origin_packages::target.eq(target.to_string()))
-            .filter(origin_packages::visibility.eq(any(visibility)))
+            .filter(origin_packages::visibility.eq_any(visibility))
             .filter(origin_packages::hidden.eq(false))
             .order(origin_channels::name.desc())
             .get_results(conn);
@@ -805,7 +805,7 @@ impl Package {
         let result = origin_package_versions::table
             .filter(origin_package_versions::origin.eq(ident.origin()))
             .filter(origin_package_versions::name.eq(ident.name()))
-            .filter(origin_package_versions::visibility.eq(any(visibility)))
+            .filter(origin_package_versions::visibility.eq_any(visibility))
             .order(sql::<Text>(
                 "string_to_array(version_array[1],'.')::numeric[]desc, version_array[2] desc",
             ))
@@ -854,7 +854,7 @@ impl Package {
                                                .filter(origin_members::account_id.eq(session_id));
             query = query.filter(
                 origin_packages::visibility
-                    .eq(any(PackageVisibility::private()))
+                    .eq_any(PackageVisibility::private())
                     .and(origin_packages::origin.eq_any(origins))
                     .or(origin_packages::visibility.eq(PackageVisibility::Public)),
             );
@@ -891,7 +891,7 @@ impl Package {
         if let Some(session_id) = sp.account_id {
             query = query.filter(
                 origin_packages::visibility
-                    .eq(any(PackageVisibility::private()))
+                    .eq_any(PackageVisibility::private())
                     .and(origins::owner_id.eq(session_id))
                     .or(origin_packages::visibility.eq(PackageVisibility::Public)),
             );
@@ -927,7 +927,7 @@ impl Package {
             .filter(origin_packages::origin.eq(&ident.origin))
             .filter(origin_packages::name.eq(&ident.name))
             .filter(origin_packages::ident_array.contains(&searchable_ident(ident)))
-            .filter(origin_packages::visibility.eq(any(visibilities)))
+            .filter(origin_packages::visibility.eq_any(visibilities))
             .filter(origin_packages::hidden.eq(false))
             .get_results(conn);
 
