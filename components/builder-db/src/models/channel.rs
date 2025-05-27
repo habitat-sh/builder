@@ -233,7 +233,7 @@ impl Channel {
         result.map(|x| (channel, target, x))
     }
 
-    pub fn list_packages(lcp: ListChannelPackages,
+    pub fn list_packages(lcp: &ListChannelPackages,
                          conn: &mut PgConnection)
                          -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();

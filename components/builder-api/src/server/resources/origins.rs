@@ -844,7 +844,7 @@ async fn list_unique_packages(req: HttpRequest,
                              page:       page as i64,
                              limit:      per_page as i64, };
 
-    match Package::distinct_for_origin(lpr, &mut *conn) {
+    match Package::distinct_for_origin(&lpr, &mut *conn) {
         Ok((packages, count)) => {
             postprocess_package_list(&req, packages.as_slice(), count, &pagination)
         }

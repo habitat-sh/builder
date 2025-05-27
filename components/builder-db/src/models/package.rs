@@ -37,8 +37,7 @@ use diesel::{self,
                            FromSql},
              dsl::{count,
                    sql},
-             pg::{
-                  upsert::{excluded,
+             pg::{upsert::{excluded,
                            on_constraint},
                   Pg,
                   PgConnection,
@@ -609,7 +608,7 @@ impl Package {
             .execute(conn)
     }
 
-    pub fn list(pl: ListPackages,
+    pub fn list(pl: &ListPackages,
                 conn: &mut PgConnection)
                 -> QueryResult<(Vec<PackageWithChannelPlatform>, i64)> {
         Counter::DBCall.increment();
@@ -676,7 +675,7 @@ impl Package {
         Ok((pkgs, new_count))
     }
 
-    pub fn list_distinct(pl: ListPackages,
+    pub fn list_distinct(pl: &ListPackages,
                          conn: &mut PgConnection)
                          -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
@@ -731,7 +730,7 @@ impl Package {
         result
     }
 
-    pub fn distinct_for_origin(pl: ListPackages,
+    pub fn distinct_for_origin(pl: &ListPackages,
                                conn: &mut PgConnection)
                                -> QueryResult<(Vec<OriginPackageSettings>, i64)> {
         Counter::DBCall.increment();
