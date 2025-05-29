@@ -120,7 +120,7 @@ installDeps() (
     configMsg
 
     for bin in "${pdeps[@]}"; do
-        hab pkg install -b "${bin}"
+        hab pkg install --channel LTS-2024 --binlink "${bin}"
     done
 )
 
@@ -154,7 +154,7 @@ setBucket() {
             echo ""
             echo "Configured bucket: ${bucket_name} has been verified!"
             echo ""
-            if promptUser "Are you sure you would like to use this bucket?"; then 
+            if promptUser "Are you sure you would like to use this bucket?"; then
                 echo "Using specified bucket."
                 S3_BUCKET=${bucket_name}
             else
@@ -352,7 +352,7 @@ welcome() {
         echo "${HAB_AUTH_TOKEN}"
         if promptUser "Would you like to use these credentials?"; then
            echo "Setting detected credentials"
-       else 
+       else
            genBldrCreds
         fi
     else
