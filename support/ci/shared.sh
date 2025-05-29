@@ -20,18 +20,7 @@ get_rustfmt_toolchain() {
 }
 
 get_toolchain() {
-  tail -n 1 "$dir/../../rust-toolchain"  | cut -d'"' -f 2
-}
-
-install_rustup() {
-  if command -v rustup && command -v cargo &>/dev/null; then
-    echo "--- :rust: rustup is currently installed."
-  else
-    echo "--- :rust: Installing rustup."
-    curl https://sh.rustup.rs -sSf | sh -s -- --no-modify-path -y
-    # shellcheck disable=SC1090
-    source "$HOME"/.cargo/env
-  fi
+  tail -n 1 "$dir/../../rust-toolchain" | cut -d'"' -f 2
 }
 
 install_rustup() {
@@ -41,6 +30,7 @@ install_rustup() {
     echo "--- :rust: Installing rustup."
     curl https://sh.rustup.rs -sSf | sh -s -- --no-modify-path -y
   fi
+  # shellcheck disable=SC1091
   source "$HOME"/.cargo/env
 }
 
