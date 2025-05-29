@@ -3,23 +3,18 @@
 
 set -euo pipefail
 
-if [[ -f /hab/svc/builder-datastore/config/pwfile ]]; then
-  PGHOST={{cfg.datastore.host}}
-  PGPORT={{cfg.datastore.port}}
-  PGUSER={{cfg.datastore.user}}
-  PGPASSWORD={{cfg.datastore.password}}
-  PGDATABASE={{cfg.datastore.database}}
-  export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
+PGHOST={{cfg.datastore.host}}
+PGPORT={{cfg.datastore.port}}
+PGUSER={{cfg.datastore.user}}
+PGPASSWORD={{cfg.datastore.password}}
+PGDATABASE={{cfg.datastore.database}}
+export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
 
-  # confirm that the builder db is accessible
-  if command psql --no-password -c ";"; then
-    echo The builder-datastore is available to the builder-api
-    exit 0
-  else
-    echo The builder-datastore is UNAVAILABLE to the builder-api
-    exit 3
-  fi
+# confirm that the builder db is accessible
+if command psql --no-password -c ";"; then
+  echo The builder-datastore is available to the builder-api
+  exit 0
 else
   echo The builder-datastore is UNAVAILABLE to the builder-api
-  exit 4
+  exit 3
 fi
