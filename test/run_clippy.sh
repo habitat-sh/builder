@@ -39,7 +39,7 @@ sudo hab pkg exec core/patchelf patchelf -- --set-interpreter "$(hab pkg path co
 
 export OPENSSL_NO_VENDOR=1
 export LD_RUN_PATH
-LD_RUN_PATH="$(hab pkg path core/glibc)/lib:$(hab pkg path core/gcc-libs)/lib:$(hab pkg path core/openssl)/lib:$(hab pkg path core/postgresql17)/lib:$(hab pkg path core/zeromq)/lib:$(hab pkg path core/libarchive)/lib"
+LD_RUN_PATH="$(hab pkg path core/glibc)/lib:$(hab pkg path core/gcc-libs)/lib:$(hab pkg path core/postgresql17)/lib:$(hab pkg path core/zeromq)/lib:$(hab pkg path core/libarchive)/lib"
 export LD_LIBRARY_PATH
 LD_LIBRARY_PATH="$(hab pkg path core/gcc-libs)/lib:$(hab pkg path core/zeromq)/lib:$(hab pkg path core/zlib)/lib"
 export PKG_CONFIG_PATH
