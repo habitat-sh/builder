@@ -4,8 +4,8 @@ set -euo pipefail
 
 # This is problematic if you want to be able to run this script from anywhere other than the root of the project,
 # but changing it to an idiom like we have in rustfmt.sh breaks BK, so I dunno?
-# shellcheck disable=SC1094
-source ./support/ci/shared.sh
+# shellcheck source=../support/ci/shared.sh
+source support/ci/shared.sh
 
 export RUSTFLAGS="-D warnings"
 
@@ -24,8 +24,9 @@ rustup component add --toolchain "$toolchain" clippy
 
 # TODO: these should be in a shared script?
 sudo hab license accept
-install_hab_pkg core/rust/"$toolchain" core/libarchive core/openssl core/pkg-config core/zeromq core/postgresql17 core/patchelf core/cmake
-sudo hab pkg install core/protobuf
+install_hab_pkg core/rust/"$toolchain" core/libarchive core/openssl core/pkg-config core/zeromq core/patchelf core/cmake core/zlib
+sudo hab pkg install --channel=LTS-2024 core/postgresql17
+sudo hab pkg install --channel=LTS-2024 core/protobuf
 
 # Yes, this is terrible but we need the clippy binary to run under our glibc.
 # This became an issue with the latest refresh and can likely be dropped in
@@ -40,31 +41,34 @@ export OPENSSL_NO_VENDOR=1
 export LD_RUN_PATH
 LD_RUN_PATH="$(hab pkg path core/glibc)/lib:$(hab pkg path core/gcc-libs)/lib:$(hab pkg path core/openssl)/lib:$(hab pkg path core/postgresql17)/lib:$(hab pkg path core/zeromq)/lib:$(hab pkg path core/libarchive)/lib"
 export LD_LIBRARY_PATH
-LD_LIBRARY_PATH="$(hab pkg path core/gcc)/lib:$(hab pkg path core/zeromq)/lib"
+LD_LIBRARY_PATH="$(hab pkg path core/gcc-libs)/lib:$(hab pkg path core/zeromq)/lib:$(hab pkg path core/zlib)/lib"
 export PKG_CONFIG_PATH
-PKG_CONFIG_PATH="$(hab pkg path core/zeromq)/lib/pkgconfig:$(hab pkg path core/libarchive)/lib/pkgconfig:$(hab pkg path core/postgresql17)/lib/pkgconfig:$(hab pkg path core/openssl)/lib/pkgconfig"
-eval "$(hab pkg env core/rust/"$toolchain"):$(hab pkg path core/protobuf)/bin:$(hab pkg path core/pkg-config)/bin:$(hab pkg path core/postgresql17)/bin:$(hab pkg path core/cmake)/bin:$PATH"
+PKG_CONFIG_PATH="$(hab pkg path core/zeromq)/lib/pkgconfig:$(hab pkg path core/libarchive)/lib/pkgconfig:$(hab pkg path core/postgresql17)/lib/pkgconfig:$(hab pkg path core/openssl)/lib64/pkgconfig"
+
+readonly OG_PATH=$PATH
+eval "$(hab pkg env core/rust/"$toolchain")"
+PATH="$PATH:$OG_PATH"
+PATH="$(hab pkg path core/protobuf)/bin:$(hab pkg path core/pkg-config)/bin:$(hab pkg path core/postgresql17)/bin:$(hab pkg path core/cmake)/bin:$PATH"
 
 # Lints we need to work through and decide as a team whether to allow or fix
-mapfile -t unexamined_lints < "$2"
+mapfile -t unexamined_lints <"$2"
 
 # Lints we disagree with and choose to keep in our code with no warning
-mapfile -t allowed_lints < "$3"
+mapfile -t allowed_lints <"$3"
 
 # Known failing lints we want to receive warnings for, but not fail the build
-mapfile -t lints_to_fix < "$4"
+mapfile -t lints_to_fix <"$4"
 
 # Lints we don't expect to have in our code at all and want to avoid adding
 # even at the cost of failing the build
-mapfile -t denied_lints < "$5"
+mapfile -t denied_lints <"$5"
 
 clippy_args=()
 
 add_lints_to_clippy_args() {
   flag=$1
   shift
-  for lint
-  do
+  for lint; do
     clippy_args+=("$flag" "${lint}")
   done
 }
