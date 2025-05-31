@@ -54,7 +54,7 @@ impl Profile {
 
 pub fn do_get_access_tokens(req: &HttpRequest, account_id: u64) -> Result<Vec<AccountToken>> {
     let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-    AccountToken::list(account_id, &mut *conn).map_err(Error::DieselError)
+    AccountToken::list(account_id, &mut conn).map_err(Error::DieselError)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -69,7 +69,7 @@ async fn get_account(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    match Account::get_by_id(account_id, &mut *conn).map_err(Error::DieselError) {
+    match Account::get_by_id(account_id, &mut conn).map_err(Error::DieselError) {
         Ok(account) => HttpResponse::Ok().json(account),
         Err(err) => {
             debug!("{}", err);
@@ -113,7 +113,7 @@ async fn generate_access_token(req: HttpRequest, state: Data<AppState>) -> HttpR
         Err(err) => return err.into(),
     };
 
-    let access_tokens = match AccountToken::list(account_id, &mut *conn).map_err(Error::DieselError)
+    let access_tokens = match AccountToken::list(account_id, &mut conn).map_err(Error::DieselError)
     {
         Ok(access_tokens) => access_tokens,
         Err(err) => {
@@ -139,7 +139,7 @@ async fn generate_access_token(req: HttpRequest, state: Data<AppState>) -> HttpR
     let new_token = NewAccountToken { account_id: account_id as i64,
                                       token:      &token, };
 
-    match AccountToken::create(&new_token, &mut *conn).map_err(Error::DieselError) {
+    match AccountToken::create(&new_token, &mut conn).map_err(Error::DieselError) {
         Ok(account_token) => {
             let mut memcache = state.memcache.borrow_mut();
             for token in access_tokens {
@@ -178,7 +178,7 @@ async fn revoke_access_token(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let access_tokens = match AccountToken::list(account_id, &mut *conn).map_err(Error::DieselError)
+    let access_tokens = match AccountToken::list(account_id, &mut conn).map_err(Error::DieselError)
     {
         Ok(access_tokens) => access_tokens,
         Err(err) => {
@@ -195,7 +195,7 @@ async fn revoke_access_token(req: HttpRequest,
         return HttpResponse::with_body(StatusCode::UNAUTHORIZED, BoxBody::new(body));
     }
 
-    match AccountToken::delete(token_id, &mut *conn).map_err(Error::DieselError) {
+    match AccountToken::delete(token_id, &mut conn).map_err(Error::DieselError) {
         Ok(_) => {
             let mut memcache = state.memcache.borrow_mut();
             for token in access_tokens {
@@ -287,7 +287,7 @@ async fn set_license(req: HttpRequest,
                                 license_key: &payload.license_key,
                                 expiration_date };
 
-            match LicenseKey::create(&new_license, &mut *conn).map_err(Error::DieselError) {
+            match LicenseKey::create(&new_license, &mut conn).map_err(Error::DieselError) {
                 Ok(license) => {
                     HttpResponse::Ok().json(json!({
                               "expiration_date": license.expiration_date.to_string()
@@ -315,7 +315,7 @@ async fn delete_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse
         Err(err) => return err.into(),
     };
 
-    match LicenseKey::delete_by_account_id(account_id, &mut *conn).map_err(Error::DieselError) {
+    match LicenseKey::delete_by_account_id(account_id, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -336,7 +336,7 @@ async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    match LicenseKey::get_by_account_id(account_id, &mut *conn).map_err(Error::DieselError) {
+    match LicenseKey::get_by_account_id(account_id, &mut conn).map_err(Error::DieselError) {
         Ok(Some(license)) => {
             HttpResponse::Ok().json(json!({
                                         "license_key": license.license_key,
@@ -370,7 +370,7 @@ async fn update_account(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match Account::update(account_id, &body.email, &mut *conn).map_err(Error::DieselError) {
+    match Account::update(account_id, &body.email, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::new(StatusCode::OK),
         Err(err) => {
             debug!("{}", err);

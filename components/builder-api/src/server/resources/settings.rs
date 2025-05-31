@@ -78,7 +78,7 @@ async fn get_origin_package_settings(req: HttpRequest,
     let get_ops = &GetOriginPackageSettings { origin: &origin,
                                               name:   &pkg, };
 
-    match OriginPackageSettings::get(get_ops, &mut *conn).map_err(Error::DieselError) {
+    match OriginPackageSettings::get(get_ops, &mut conn).map_err(Error::DieselError) {
         Ok(ops) => HttpResponse::Ok().json(ops),
         Err(err) => {
             debug!("{}", err);
@@ -107,7 +107,7 @@ async fn create_origin_package_settings(req: HttpRequest,
     };
 
     // Validate that the origin exists before attempting to create pkg settings
-    let (oname, pv) = match Origin::get(&origin, &mut *conn).map_err(Error::DieselError) {
+    let (oname, pv) = match Origin::get(&origin, &mut conn).map_err(Error::DieselError) {
         Ok(origin) => (origin.name, origin.default_package_visibility),
         Err(err) => {
             debug!("{}", err);
@@ -122,7 +122,7 @@ async fn create_origin_package_settings(req: HttpRequest,
             visibility: &pv,
             owner_id: account_id as i64,
         },
-        &mut *conn,
+        &mut conn,
     )
     .map_err(Error::DieselError)
     {
@@ -170,7 +170,7 @@ async fn update_origin_package_settings(req: HttpRequest,
                                                                        visibility: &pv,
                                                                        owner_id:   account_id
                                                                                    as i64, },
-                                        &mut *conn).map_err(Error::DieselError)
+                                        &mut conn).map_err(Error::DieselError)
     {
         Ok(ups) => HttpResponse::Ok().json(ups),
         Err(err) => {
@@ -199,14 +199,14 @@ async fn delete_origin_package_settings(req: HttpRequest,
 
     // Prior to passing the deletion request to the backend, we validate
     // that the user has already cleaned up any existing packages.
-    match package_settings_delete_preflight(&origin, &pkg, &mut *conn) {
+    match package_settings_delete_preflight(&origin, &pkg, &mut conn) {
         Ok(_) => {
             // Delete the package setting
             match OriginPackageSettings::delete(&DeleteOriginPackageSettings { origin:   &origin,
                                                                                name:     &pkg,
                                                                                owner_id: account_id
                                                                                          as i64, },
-                                                &mut *conn).map_err(Error::DieselError)
+                                                &mut conn).map_err(Error::DieselError)
             {
                 Ok(_) => HttpResponse::new(StatusCode::NO_CONTENT),
                 Err(err) => {

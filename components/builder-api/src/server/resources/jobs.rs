@@ -93,7 +93,7 @@ fn filtered_rdeps(req: &HttpRequest,
         let origin_name = ident.get_origin();
         let pv = if !origin_map.contains_key(origin_name) {
             let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-            let origin = Origin::get(origin_name, &mut *conn)?;
+            let origin = Origin::get(origin_name, &mut conn)?;
             origin_map.insert(origin_name.to_owned(),
                               origin.default_package_visibility.clone());
             origin.default_package_visibility

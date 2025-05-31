@@ -159,7 +159,7 @@ async fn get_origin(path: Path<String>, state: Data<AppState>) -> HttpResponse {
         Err(err) => return err.into(),
     };
 
-    match Origin::get(&origin_name, &mut *conn) {
+    match Origin::get(&origin_name, &mut conn) {
         Ok(origin) => {
             HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(origin)
@@ -208,14 +208,14 @@ async fn create_origin(req: HttpRequest,
                                  owner_id: session.get_id() as i64,
                                  default_package_visibility: &dpv, };
 
-    match Origin::create(&new_origin, &mut *conn).map_err(Error::DieselError) {
+    match Origin::create(&new_origin, &mut conn).map_err(Error::DieselError) {
         Ok(origin) => {
             origin_audit(&body.0.name,
                          OriginOperation::OriginCreate,
                          &body.0.name,
                          session.get_id() as i64,
                          session.get_name(),
-                         &mut *conn);
+                         &mut conn);
             HttpResponse::Created().json(origin)
         }
         Err(err) => {
@@ -248,7 +248,7 @@ async fn update_origin(req: HttpRequest,
         None => PackageVisibility::Public,
     };
 
-    match Origin::update(&origin, dpv, &mut *conn).map_err(Error::DieselError) {
+    match Origin::update(&origin, dpv, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().into(),
         Err(err) => {
             debug!("{}", err);
@@ -282,16 +282,16 @@ async fn delete_origin(req: HttpRequest,
 
     // Prior to passing the deletion request to the backend, we validate
     // that the user has already cleaned up the most critical origin data.
-    match origin_delete_preflight(&origin, &mut *conn) {
+    match origin_delete_preflight(&origin, &mut conn) {
         Ok(_) => {
-            match Origin::delete(&origin, &mut *conn).map_err(Error::DieselError) {
+            match Origin::delete(&origin, &mut conn).map_err(Error::DieselError) {
                 Ok(_) => {
                     origin_audit(&origin,
                                  OriginOperation::OriginDelete,
                                  &origin,
                                  session.get_id() as i64,
                                  session.get_name(),
-                                 &mut *conn);
+                                 &mut conn);
                     HttpResponse::NoContent().into()
                 }
                 Err(err) => {
@@ -430,7 +430,7 @@ async fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>
         Err(err) => return err.into(),
     };
 
-    if let Err(e) = save_public_origin_signing_key(account_id, &origin, &public, &mut *conn) {
+    if let Err(e) = save_public_origin_signing_key(account_id, &origin, &public, &mut conn) {
         error!("Failed to save public signing key for origin '{}', err={}",
                origin, e);
         return e.into();
@@ -440,7 +440,7 @@ async fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>
                                                    &origin,
                                                    &state.config.api.key_path,
                                                    &secret,
-                                                   &mut *conn)
+                                                   &mut conn)
     {
         error!("Failed to save secret signing key for origin '{}', err={}",
                origin, e);
@@ -459,7 +459,7 @@ async fn list_origin_keys(path: Path<String>, state: Data<AppState>) -> HttpResp
         Err(err) => return err.into(),
     };
 
-    match db_keys::OriginPublicSigningKey::list(&origin, &mut *conn).map_err(Error::DieselError) {
+    match db_keys::OriginPublicSigningKey::list(&origin, &mut conn).map_err(Error::DieselError) {
         Ok(list) => {
             let list: Vec<OriginKeyIdent> =
                 list.iter()
@@ -506,7 +506,7 @@ async fn upload_origin_key(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    if db_keys::OriginPublicSigningKey::get(&origin, &revision, &mut *conn).is_ok() {
+    if db_keys::OriginPublicSigningKey::get(&origin, &revision, &mut conn).is_ok() {
         HttpResponse::new(StatusCode::CONFLICT)
     } else {
         // In this case we are checking if the user actually has permissions to write a
@@ -533,7 +533,7 @@ async fn upload_origin_key(req: HttpRequest,
             }
         };
 
-        match save_public_origin_signing_key(account_id, &origin, &key, &mut *conn) {
+        match save_public_origin_signing_key(account_id, &origin, &key, &mut conn) {
             Ok(_) => {
                 HttpResponse::Created().append_header((http::header::LOCATION,
                                                        format!("{}", req.uri())))
@@ -558,7 +558,7 @@ async fn download_origin_key(path: Path<(String, String)>, state: Data<AppState>
         Err(err) => return err.into(),
     };
 
-    let key = match get_specific_public_origin_signing_key(&origin, &revision, &mut *conn) {
+    let key = match get_specific_public_origin_signing_key(&origin, &revision, &mut conn) {
         Ok(key) => key,
         Err(err) => {
             debug!("{}", err);
@@ -578,7 +578,7 @@ async fn download_latest_origin_key(path: Path<String>, state: Data<AppState>) -
         Err(err) => return err.into(),
     };
 
-    let key = match get_latest_public_origin_signing_key(&origin, &mut *conn) {
+    let key = match get_latest_public_origin_signing_key(&origin, &mut conn) {
         Ok(key) => key,
         Err(err) => {
             debug!("{}", err);
@@ -606,7 +606,7 @@ async fn list_origin_secrets(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginSecret::list(&origin, &mut *conn).map_err(Error::DieselError) {
+    match OriginSecret::list(&origin, &mut conn).map_err(Error::DieselError) {
         Ok(list) => {
             // Need to map to different struct for hab cli backward compat
             let new_list: Vec<OriginSecretWithOriginId> =
@@ -670,7 +670,7 @@ async fn create_origin_secret(req: HttpRequest,
 
     // Fetch the origin's secret encryption key from the database
     let secret_encryption_key =
-        match get_secret_origin_encryption_key(&origin, key_cache, &mut *conn) {
+        match get_secret_origin_encryption_key(&origin, key_cache, &mut conn) {
             Ok(key) => key,
             Err(err) => {
                 debug!("{}", err);
@@ -693,7 +693,7 @@ async fn create_origin_secret(req: HttpRequest,
                                                   name:     &body.name,
                                                   value:    &body.value,
                                                   owner_id: account_id, },
-                               &mut *conn).map_err(Error::DieselError)
+                               &mut conn).map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::Created().finish(),
         Err(err) => {
@@ -720,7 +720,7 @@ async fn delete_origin_secret(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginSecret::delete(&origin, &secret, &mut *conn).map_err(Error::DieselError) {
+    match OriginSecret::delete(&origin, &secret, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -771,7 +771,7 @@ async fn upload_origin_secret_key(req: HttpRequest,
                                                    &origin,
                                                    &state.config.api.key_path,
                                                    &key,
-                                                   &mut *conn)
+                                                   &mut conn)
     {
         error!("Failed to save uploaded secret signing key for origin '{}', err={}",
                origin, e);
@@ -797,15 +797,16 @@ async fn download_latest_origin_secret_key(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let key =
-        match get_latest_secret_origin_signing_key(&origin, &state.config.api.key_path, &mut *conn)
-        {
-            Ok(key) => key,
-            Err(err) => {
-                debug!("{}", err);
-                return err.into();
-            }
-        };
+    let key = match get_latest_secret_origin_signing_key(&origin,
+                                                         &state.config.api.key_path,
+                                                         &mut conn)
+    {
+        Ok(key) => key,
+        Err(err) => {
+            debug!("{}", err);
+            return err.into();
+        }
+    };
 
     key_as_http_response(&key)
 }
@@ -844,7 +845,7 @@ async fn list_unique_packages(req: HttpRequest,
                              page:       page as i64,
                              limit:      per_page as i64, };
 
-    match Package::distinct_for_origin(&lpr, &mut *conn) {
+    match Package::distinct_for_origin(&lpr, &mut conn) {
         Ok((packages, count)) => {
             postprocess_package_list(&req, packages.as_slice(), count, &pagination)
         }
@@ -873,11 +874,11 @@ async fn download_latest_origin_encryption_key(req: HttpRequest,
     };
 
     let key_cache = &state.config.api.key_path;
-    let key = match get_latest_public_origin_encryption_key(&origin, &mut *conn) {
+    let key = match get_latest_public_origin_encryption_key(&origin, &mut conn) {
         Ok(key) => key,
         Err(Error::DieselError(NotFound)) => {
             // TODO: redesign to not be generating keys during d/l
-            match generate_origin_encryption_keys(&origin, account_id, key_cache, &mut *conn) {
+            match generate_origin_encryption_keys(&origin, account_id, key_cache, &mut conn) {
                 Ok(key) => key,
                 Err(err) => {
                     debug!("{}", err);
@@ -915,7 +916,7 @@ async fn invite_to_origin(req: HttpRequest,
     };
 
     let (recipient_id, recipient_name) =
-        match Account::get(&user, &mut *conn).map_err(Error::DieselError) {
+        match Account::get(&user, &mut conn).map_err(Error::DieselError) {
             Ok(account) => (account.id, account.name),
             Err(err) => {
                 debug!("{}", err);
@@ -929,7 +930,7 @@ async fn invite_to_origin(req: HttpRequest,
                                                owner_id:     account_id as i64, };
 
     // store invitations in the originsrv
-    match OriginInvitation::create(&new_invitation, &mut *conn).map_err(Error::DieselError) {
+    match OriginInvitation::create(&new_invitation, &mut conn).map_err(Error::DieselError) {
         Ok(invitation) => HttpResponse::Created().json(&invitation),
         // TODO (SA): Check for error case where invitation already exists
         Err(err) => {
@@ -967,7 +968,7 @@ async fn accept_invitation(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginInvitation::accept(invitation_id, false, &mut *conn).map_err(Error::DieselError) {
+    match OriginInvitation::accept(invitation_id, false, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -1005,7 +1006,7 @@ async fn ignore_invitation(req: HttpRequest,
     debug!("Ignoring invitation id {} for origin {}",
            invitation_id, &origin);
 
-    match OriginInvitation::ignore(invitation_id, &mut *conn).map_err(Error::DieselError) {
+    match OriginInvitation::ignore(invitation_id, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -1043,7 +1044,7 @@ async fn rescind_invitation(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginInvitation::rescind(invitation_id, &mut *conn).map_err(Error::DieselError) {
+    match OriginInvitation::rescind(invitation_id, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -1068,7 +1069,7 @@ async fn list_origin_invitations(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginInvitation::list_by_origin(&origin, &mut *conn).map_err(Error::DieselError) {
+    match OriginInvitation::list_by_origin(&origin, &mut conn).map_err(Error::DieselError) {
         Ok(list) => {
             let json = json!({
                 "origin": &origin,
@@ -1102,8 +1103,7 @@ async fn get_origin_member_role(req: HttpRequest,
     };
 
     // The account id of the user being requested
-    let (target_user_id, _) = match Account::get(&username, &mut *conn).map_err(Error::DieselError)
-    {
+    let (target_user_id, _) = match Account::get(&username, &mut conn).map_err(Error::DieselError) {
         Ok(account) => (account.id, account.name),
         Err(err) => {
             debug!("{}", err);
@@ -1111,7 +1111,7 @@ async fn get_origin_member_role(req: HttpRequest,
         }
     };
 
-    match OriginMember::member_role(&origin, target_user_id, &mut *conn) {
+    match OriginMember::member_role(&origin, target_user_id, &mut conn) {
         Ok(role) => {
             let body = role_results_json(role);
 
@@ -1166,7 +1166,7 @@ async fn update_origin_member_role(req: HttpRequest,
     }
 
     // The account id of the user being requested
-    let (target_user_id, _) = match Account::get(&username, &mut *conn) {
+    let (target_user_id, _) = match Account::get(&username, &mut conn) {
         Ok(account) => (account.id, account.name),
         Err(err) => {
             debug!("{}", err);
@@ -1188,7 +1188,7 @@ async fn update_origin_member_role(req: HttpRequest,
          .borrow_mut()
          .clear_cache_for_member_role(&origin, target_user_id as u64);
 
-    match OriginMember::update_member_role(&origin, target_user_id, &mut *conn, target_role) {
+    match OriginMember::update_member_role(&origin, target_user_id, &mut conn, target_role) {
         Ok(0) => HttpResponse::NotFound().into(),
         Ok(_) => HttpResponse::NoContent().into(),
         Err(err) => {
@@ -1228,7 +1228,7 @@ async fn transfer_origin_ownership(req: HttpRequest,
     };
 
     let (recipient_id, _recipient_name) =
-        match Account::get(&user, &mut *conn).map_err(Error::DieselError) {
+        match Account::get(&user, &mut conn).map_err(Error::DieselError) {
             Ok(account) => (account.id, account.name),
             Err(err) => {
                 debug!("{}", err);
@@ -1241,14 +1241,14 @@ async fn transfer_origin_ownership(req: HttpRequest,
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
-    match Origin::transfer(&origin, recipient_id, &mut *conn).map_err(Error::DieselError) {
+    match Origin::transfer(&origin, recipient_id, &mut conn).map_err(Error::DieselError) {
         Ok(_) => {
             origin_audit(&origin,
                          OriginOperation::OwnerTransfer,
                          &recipient_id.to_string(),
                          session.get_id() as i64,
                          session.get_name(),
-                         &mut *conn);
+                         &mut conn);
             HttpResponse::NoContent().finish()
         }
         Err(err) => {
@@ -1292,7 +1292,7 @@ async fn depart_from_origin(req: HttpRequest,
            session.get_name(),
            &origin);
 
-    match Origin::depart(&origin, session.get_id() as i64, &mut *conn).map_err(Error::DieselError) {
+    match Origin::depart(&origin, session.get_id() as i64, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -1317,7 +1317,7 @@ async fn list_origin_members(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginMember::list(&origin, &mut *conn).map_err(Error::DieselError) {
+    match OriginMember::list(&origin, &mut conn).map_err(Error::DieselError) {
         Ok(users) => {
             let json = json!({
                 "origin": &origin,
@@ -1365,7 +1365,7 @@ async fn origin_member_delete(req: HttpRequest,
     };
 
     let (target_account_id, _target_account_name) =
-        match Account::get(&user, &mut *conn).map_err(Error::DieselError) {
+        match Account::get(&user, &mut conn).map_err(Error::DieselError) {
             Ok(account) => (account.id, account.name),
             Err(err) => {
                 debug!("{}", err);
@@ -1373,7 +1373,7 @@ async fn origin_member_delete(req: HttpRequest,
             }
         };
 
-    match OriginMember::delete(&origin, &user, &mut *conn).map_err(Error::DieselError) {
+    match OriginMember::delete(&origin, &user, &mut conn).map_err(Error::DieselError) {
         Ok(_) => {
             state.memcache
                  .borrow_mut()
@@ -1403,7 +1403,7 @@ async fn fetch_origin_integrations(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginIntegration::list_for_origin(&origin, &mut *conn).map_err(Error::DieselError) {
+    match OriginIntegration::list_for_origin(&origin, &mut conn).map_err(Error::DieselError) {
         Ok(oir) => {
             let integrations_response: HashMap<String, Vec<String>> =
                 oir.iter().fold(HashMap::new(), |mut acc, i| {
@@ -1438,7 +1438,7 @@ async fn fetch_origin_integration_names(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginIntegration::list_for_origin_integration(&origin, &integration, &mut *conn)
+    match OriginIntegration::list_for_origin_integration(&origin, &integration, &mut conn)
         .map_err(Error::DieselError)
     {
         Ok(integrations) => {
@@ -1487,7 +1487,7 @@ async fn create_origin_integration(req: HttpRequest,
                                      name:        &name,
                                      body:        &encrypted, };
 
-    match OriginIntegration::create(&noi, &mut *conn).map_err(Error::DieselError) {
+    match OriginIntegration::create(&noi, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Created().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -1512,7 +1512,7 @@ async fn delete_origin_integration(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginIntegration::delete(&origin, &integration, &name, &mut *conn).map_err(Error::DieselError)
+    match OriginIntegration::delete(&origin, &integration, &name, &mut conn).map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
@@ -1538,7 +1538,7 @@ async fn get_origin_integration(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginIntegration::get(&origin, &integration, &name, &mut *conn).map_err(Error::DieselError) {
+    match OriginIntegration::get(&origin, &integration, &name, &mut conn).map_err(Error::DieselError) {
         Ok(integration) => {
             match crypto::decrypt(&state.config.api.key_path, &integration.body)
                 .map_err(Error::BuilderCore)
