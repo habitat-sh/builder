@@ -369,7 +369,8 @@ pub struct OriginPackageVersions {
 }
 
 #[derive(DbEnum, Debug, Eq, Hash, Serialize, Deserialize, PartialEq, Clone)]
-#[ExistingTypePath = "crate::schema::sql_types::origin_package_visibility"]
+#[ExistingTypePath = "crate::schema::sql_types::OriginPackageVisibility"]
+#[DbValueStyle = "snake_case"]
 pub enum PackageVisibility {
     Public,
     Private,

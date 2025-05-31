@@ -1,7 +1,4 @@
 use super::db_id_format;
-use chrono::NaiveDateTime;
-use std::time::Instant;
-
 use crate::{models::{package::{BuilderPackageIdent,
                                PackageVisibility,
                                PackageWithVersionArray},
@@ -14,6 +11,9 @@ use crate::{models::{package::{BuilderPackageIdent,
                      origin::origins,
                      package::{origin_packages,
                                origin_packages_with_version_array}}};
+use chrono::NaiveDateTime;
+use diesel_derive_enum::DbEnum;
+use std::time::Instant;
 
 use crate::{bldr_core::metrics::{CounterMetric,
                                  HistogramMetric},
@@ -38,7 +38,6 @@ use diesel::{self,
              RunQueryDsl,
              Table,
              TextExpressionMethods};
-use diesel_derive_enum::DbEnum;
 use diesel_full_text_search::{to_tsquery,
                               TsQueryExtensions};
 #[derive(Debug, Serialize, Deserialize, Queryable)]
@@ -397,7 +396,8 @@ impl Channel {
 }
 
 #[derive(DbEnum, Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[ExistingTypePath = "crate::schema::sql_types::package_channel_trigger"]
+#[ExistingTypePath = "crate::schema::sql_types::PackageChannelTrigger"]
+#[DbValueStyle = "snake_case"]
 pub enum PackageChannelTrigger {
     Unknown,
     BuilderUi,
@@ -405,8 +405,9 @@ pub enum PackageChannelTrigger {
 }
 
 /// Rust ↔ Postgres mapping for `package_channel_operation`
-#[derive(Clone, DbEnum, Debug, Serialize, Deserialize, PartialEq)]
-#[ExistingTypePath = "crate::schema::sql_types::package_channel_operation"]
+#[derive(DbEnum, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[ExistingTypePath = "crate::schema::sql_types::PackageChannelOperation"]
+#[DbValueStyle = "snake_case"]
 pub enum PackageChannelOperation {
     Promote,
     Demote,
