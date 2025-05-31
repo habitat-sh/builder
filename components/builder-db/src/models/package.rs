@@ -36,6 +36,7 @@ use diesel::{self,
              deserialize::{self,
                            FromSql},
              dsl::{count,
+                   count_star,
                    sql},
              pg::{upsert::{excluded,
                            on_constraint},
@@ -843,35 +844,42 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let mut query = origin_packages::table
+        let mut base_query = origin_packages::table
             .select(origin_packages::ident)
             .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
-            .filter(origin_packages::hidden.eq(false))
-            .order(origin_packages::ident.asc())
-            .into_boxed();
+            .filter(origin_packages::hidden.eq(false));
 
         if let Some(session_id) = sp.account_id {
-            let origins = origin_members::table.select(origin_members::origin)
-                                               .filter(origin_members::account_id.eq(session_id));
-            query = query.filter(
+            let owned_origins =
+                origin_members::table.select(origin_members::origin)
+                                     .filter(origin_members::account_id.eq(session_id));
+
+            base_query = base_query.filter(
                 origin_packages::visibility
                     .eq_any(PackageVisibility::private())
-                    .and(origin_packages::origin.eq_any(origins))
+                    .and(origin_packages::origin.eq_any(owned_origins))
                     .or(origin_packages::visibility.eq(PackageVisibility::Public)),
             );
         } else {
-            query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+            base_query =
+                base_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
         }
 
-        let result = query.paginate(sp.page)
-                          .per_page(sp.limit)
-                          .load_and_count_records(conn);
+        let total_count: i64 = base_query.clone().select(count_star()).first(conn)?;
+
+        let limit = sp.limit as i64;
+        let offset = ((sp.page.saturating_sub(1)) * sp.limit) as i64;
+
+        let packages: Vec<BuilderPackageIdent> = base_query.order(origin_packages::ident.asc())
+                                                           .limit(limit)
+                                                           .offset(offset)
+                                                           .load(conn)?;
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::search time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageSearchCallTime.set(duration_millis as f64);
-        result
+        Ok((packages, total_count))
     }
 
     // This is me giving up on fighting the typechecker and just duplicating a bunch of code
