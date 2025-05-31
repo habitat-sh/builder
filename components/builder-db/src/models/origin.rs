@@ -1,9 +1,9 @@
 use super::db_id_format;
 use chrono::NaiveDateTime;
-
 use diesel::{self,
              dsl::count,
-             pg::PgConnection,
+             pg::{Pg,
+                  PgConnection},
              prelude::*,
              result::{Error,
                       QueryResult},
@@ -83,7 +83,8 @@ pub struct OriginWithStats {
          Deserialize,
          PartialEq,
          PartialOrd)]
-#[ExistingTypePath = "crate::schema::sql_types::origin_member_role"]
+#[ExistingTypePath = "crate::schema::sql_types::OriginMemberRole"]
+#[DbValueStyle = "snake_case"]
 pub enum OriginMemberRole {
     // It is important to preserve the declaration order
     // here so that order comparisons work as expected.
@@ -154,7 +155,8 @@ pub struct NewOrigin<'a> {
 }
 
 #[derive(Clone, Copy, DbEnum, Debug, Serialize, Deserialize)]
-#[ExistingTypePath = "crate::schema::sql_types::origin_operation"]
+#[ExistingTypePath = "crate::schema::sql_types::OriginOperation"]
+#[DbValueStyle = "snake_case"]
 pub enum OriginOperation {
     OriginCreate,
     OriginDelete,
@@ -200,18 +202,17 @@ pub fn origin_audit(origin: &str,
 impl Origin {
     pub fn get(origin: &str, conn: &mut PgConnection) -> QueryResult<OriginWithSecretKey> {
         Counter::DBCall.increment();
-        origins_with_secret_key::table.find(origin)
-                                      .limit(1)
-                                      .get_result(conn)
+        origins_with_secret_key::table.find(origin).first(conn)
     }
 
     pub fn list(owner_id: i64, conn: &mut PgConnection) -> QueryResult<Vec<OriginWithStats>> {
         Counter::DBCall.increment();
-        origins_with_stats::table.inner_join(origin_members::table)
-                                 .select(origins_with_stats::table::all_columns())
+        origins_with_stats::table.into_boxed::<Pg>()
+                                 .inner_join(origin_members::table)
                                  .filter(origin_members::account_id.eq(owner_id))
                                  .order(origins_with_stats::name.asc())
-                                 .get_results(conn)
+                                 .select(origins_with_stats::table::all_columns())
+                                 .load(conn)
     }
 
     pub fn create(req: &NewOrigin, conn: &mut PgConnection) -> QueryResult<Origin> {

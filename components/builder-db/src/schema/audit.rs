@@ -1,45 +1,48 @@
 table! {
-    use crate::schema::sql_types::{package_channel_operation, package_channel_trigger};
+    use crate::schema::sql_types::{PackageChannelOperation, PackageChannelTrigger};
     use diesel::sql_types::{BigInt, Text, Nullable, Timestamptz};
+
     audit_package (origin, package_ident, channel) {
-        package_ident -> Text,
-        channel -> Text,
-        operation -> package_channel_operation,
-        trigger -> package_channel_trigger,
-        requester_id -> BigInt,
-        requester_name -> Text,
-        created_at -> Nullable<Timestamptz>,
-        origin -> Text,
+        package_ident   -> Text,
+        channel         -> Text,
+        operation       -> PackageChannelOperation,
+        trigger         -> PackageChannelTrigger,
+        requester_id    -> BigInt,
+        requester_name  -> Text,
+        created_at      -> Nullable<Timestamptz>,
+        origin          -> Text,
     }
 }
 
 table! {
-    use crate::schema::sql_types::{package_channel_operation, package_channel_trigger};
+    use crate::schema::sql_types::{PackageChannelOperation, PackageChannelTrigger};
     use diesel::sql_types::{BigInt, Array, Text, Nullable, Timestamptz};
+
     audit_package_group (origin, channel) {
-        channel -> Text,
-        package_ids -> Array<BigInt>,
-        operation -> package_channel_operation,
-        trigger -> package_channel_trigger,
-        requester_id -> BigInt,
-        requester_name -> Text,
-        group_id -> BigInt,
-        created_at -> Nullable<Timestamptz>,
-        origin -> Text,
+        channel         -> Text,
+        package_ids     -> Array<BigInt>,
+        operation       -> PackageChannelOperation,
+        trigger         -> PackageChannelTrigger,
+        requester_id    -> BigInt,
+        requester_name  -> Text,
+        group_id        -> BigInt,
+        created_at      -> Nullable<Timestamptz>,
+        origin          -> Text,
     }
 }
 
 table! {
-    use crate::schema::sql_types::origin_operation;
+    use crate::schema::sql_types::OriginOperation;
     use diesel::sql_types::{BigInt, Text, Nullable, Timestamptz};
+
     audit_origin (id) {
-        id -> BigInt,
-        operation -> origin_operation,
-        origin -> Text,
-        requester_id -> BigInt,
-        requester_name -> Text,
-        target_object -> Text,
-        created_at -> Nullable<Timestamptz>,
+        id              -> BigInt,
+        operation       -> OriginOperation,
+        origin          -> Text,
+        requester_id    -> BigInt,
+        requester_name  -> Text,
+        target_object   -> Text,
+        created_at      -> Nullable<Timestamptz>,
     }
 }
 
