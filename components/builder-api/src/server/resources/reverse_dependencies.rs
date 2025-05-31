@@ -27,7 +27,7 @@ pub(crate) struct ReverseDependencies {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub(crate) async fn get_rdeps(conn: &PooledConnection<ConnectionManager<PgConnection>>,
+pub(crate) async fn get_rdeps(_conn: &PooledConnection<ConnectionManager<PgConnection>>,
                               origin: &str,
                               name: &str,
                               target: &str,

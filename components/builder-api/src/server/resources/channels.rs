@@ -112,7 +112,7 @@ async fn get_channels(path: Path<String>,
         Err(err) => return err.into(),
     };
 
-    match Channel::list(&origin, sandbox.sandbox, &mut *conn).map_err(Error::DieselError) {
+    match Channel::list(&origin, sandbox.sandbox, &mut conn).map_err(Error::DieselError) {
         Ok(list) => {
             // TED: This is to maintain backwards API compat while killing some proto definitions
             // currently the output looks like [{"name": "foo"}] when it probably should be ["foo"]
@@ -156,7 +156,7 @@ async fn create_channel(req: HttpRequest,
     match Channel::create(&CreateChannel { name:     &channel,
                                            origin:   &origin,
                                            owner_id: session_id as i64, },
-                          &mut *conn)
+                          &mut conn)
     {
         Ok(channel) => HttpResponse::Created().json(channel),
         Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => {
@@ -194,7 +194,7 @@ async fn delete_channel(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match Channel::delete(&origin, &channel, &mut *conn).map_err(Error::DieselError) {
+    match Channel::delete(&origin, &channel, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::new(StatusCode::OK),
         Err(err) => {
             debug!("Failed to delete channel, err={}", err);
@@ -243,7 +243,7 @@ async fn promote_channel_packages(req: HttpRequest,
                     requester_name: session.get_name(),
                     group_id: 0_i64,
                 },
-                &mut *conn,
+                &mut conn,
             ) {
                 Ok(_) => {}
                 Err(e) => debug!("Failed to save rank change to audit log: {}", e),
@@ -296,7 +296,7 @@ async fn demote_channel_packages(req: HttpRequest,
                     requester_name: session.get_name(),
                     group_id: 0_i64,
                 },
-                &mut *conn,
+                &mut conn,
             ) {
                 Ok(_) => {}
                 Err(e) => debug!("Failed to save rank change to audit log: {}", e),
@@ -339,7 +339,7 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
     let pkgs = do_get_all_channel_packages(req, origin, ch_source)?;
 
     #[rustfmt::skip]
-    let channel = match Channel::get(origin, ch_target, &mut *conn) {
+    let channel = match Channel::get(origin, ch_target, &mut conn) {
         Ok(channel) => channel,
         Err(NotFound) => {
             if (ch_target != &ChannelIdent::stable()) && (ch_target != &ChannelIdent::unstable()) {
@@ -349,7 +349,7 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
                         origin,
                         owner_id: session_id,
                     },
-                &mut *conn)?
+                &mut conn)?
             } else {
                 warn!("Unable to retrieve target channel: {}", &ch_target);
                 return Err(Error::DieselError(NotFound));
@@ -367,7 +367,7 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
             pkgs,
             visibility: PackageVisibility::all()
         },
-    &mut *conn)?;
+    &mut conn)?;
 
     let mut ids: Vec<i64> = op.iter().map(|x| x.id).collect();
 
@@ -375,10 +375,10 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
 
     if promote {
         debug!("Bulk promoting Pkg IDs: {:?}", &pkg_ids);
-        Channel::promote_packages(channel.id, &pkg_ids, &mut *conn)?;
+        Channel::promote_packages(channel.id, &pkg_ids, &mut conn)?;
     } else {
         debug!("Bulk demoting Pkg IDs: {:?}", &pkg_ids);
-        Channel::demote_packages(channel.id, &pkg_ids, &mut *conn)?;
+        Channel::demote_packages(channel.id, &pkg_ids, &mut conn)?;
     }
     Ok(pkg_ids)
 }
@@ -437,14 +437,14 @@ async fn promote_package(req: HttpRequest,
             origin: origin.clone(),
             channel: channel.clone(),
         },
-        &mut *conn,
+        &mut conn,
     )
     .map_err(Error::DieselError)
     {
         Ok(promoted_count) => {
             // Note: promoted_count is 0 when attempting to promote a package to a channel where it already exists
             if promoted_count != 0 {
-                if let Err(e) = PackageChannelAudit::audit(&auditevent, &mut *conn) {
+                if let Err(e) = PackageChannelAudit::audit(&auditevent, &mut conn) {
                     debug!("Failed to save rank change to audit log: {}", e);
                 };
             }
@@ -506,7 +506,7 @@ async fn demote_package(req: HttpRequest,
                                                              target,
                                                              origin: origin.clone(),
                                                              channel: channel.clone() },
-                                       &mut *conn).map_err(Error::DieselError)
+                                       &mut conn).map_err(Error::DieselError)
     {
         Ok(0) => {
             debug!("Requested package {} for target {} not present in channel {}",
@@ -524,7 +524,7 @@ async fn demote_package(req: HttpRequest,
                     requester_name: session.get_name(),
                     origin: &origin,
                 },
-                &mut *conn,
+                &mut conn,
             ) {
                 Ok(_) => {}
                 Err(err) => debug!("Failed to save rank change to audit log: {}", err),
@@ -747,7 +747,7 @@ fn do_get_latest_channel_packages(req: &HttpRequest,
             origin,
             target,
         },
-        &mut *conn,
+        &mut conn,
     )
     .map_err(Error::DieselError)
 }
@@ -778,7 +778,7 @@ fn do_get_channel_packages(req: &HttpRequest,
             page: page as i64,
             limit: per_page as i64,
         },
-        &mut *conn,
+        &mut conn,
     )
     .map_err(Error::DieselError)
 }
@@ -792,7 +792,7 @@ fn do_get_all_channel_packages(req: &HttpRequest,
     Channel::list_all_packages(&ListAllChannelPackages { visibility: &PackageVisibility::all(),
                                                          origin,
                                                          channel },
-                               &mut *conn).map_err(Error::DieselError)
+                               &mut conn).map_err(Error::DieselError)
 }
 
 fn do_get_channel_package(req: &HttpRequest,
@@ -876,7 +876,7 @@ fn do_get_channel_package(req: &HttpRequest,
                 &ident.origin,
             ),
         },
-        &mut *conn,
+        &mut conn,
     ) {
         Ok(pkg) => pkg.into(),
         Err(NotFound) => {
@@ -888,7 +888,7 @@ fn do_get_channel_package(req: &HttpRequest,
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = channels_for_package_ident(req, &pkg.ident, target, &mut *conn)?;
+    let channels = channels_for_package_ident(req, &pkg.ident, target, &mut conn)?;
 
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
