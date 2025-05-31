@@ -371,6 +371,7 @@ pub struct OriginPackageVersions {
 #[derive(DbEnum, Debug, Eq, Hash, Serialize, Deserialize, PartialEq, Clone)]
 #[ExistingTypePath = "crate::schema::sql_types::OriginPackageVisibility"]
 #[DbValueStyle = "snake_case"]
+#[serde(rename_all = "snake_case")]
 pub enum PackageVisibility {
     Public,
     Private,
@@ -900,7 +901,7 @@ impl Package {
         }
 
         // Because of the filter hack it is very important that this be the last filter
-        query = query.filter(sql::<Bool>("TRUE GROUP BY origin_packages.name, origins.name"));
+        query = query.filter(sql::<Bool>("TRUE GROUP BY origin_packages.name, origins.name "));
 
         let result = query.paginate(sp.page)
                           .per_page(sp.limit)
