@@ -36,6 +36,7 @@ use diesel::{self,
              deserialize::{self,
                            FromSql},
              dsl::{count,
+                   count_star,
                    sql},
              pg::{upsert::{excluded,
                            on_constraint},
@@ -843,35 +844,65 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let mut query = origin_packages::table
-            .select(origin_packages::ident)
-            .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
-            .filter(origin_packages::hidden.eq(false))
-            .order(origin_packages::ident.asc())
-            .into_boxed();
+        let mut count_query = origin_packages::table.into_boxed();
+        count_query = count_query
+        .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+        .filter(origin_packages::hidden.eq(false));
 
         if let Some(session_id) = sp.account_id {
-            let origins = origin_members::table.select(origin_members::origin)
-                                               .filter(origin_members::account_id.eq(session_id));
-            query = query.filter(
-                origin_packages::visibility
-                    .eq_any(PackageVisibility::private())
-                    .and(origin_packages::origin.eq_any(origins))
-                    .or(origin_packages::visibility.eq(PackageVisibility::Public)),
-            );
+            let owned_origins =
+                origin_members::table.select(origin_members::origin)
+                                     .filter(origin_members::account_id.eq(session_id));
+
+            count_query = count_query.filter(
+            origin_packages::visibility
+                .eq_any(PackageVisibility::private())
+                .and(origin_packages::origin.eq_any(owned_origins))
+                .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+        );
         } else {
-            query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+            count_query =
+                count_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
         }
 
-        let result = query.paginate(sp.page)
-                          .per_page(sp.limit)
-                          .load_and_count_records(conn);
+        let total_count: i64 = count_query.select(count_star()).first(conn)?;
+
+        let mut page_query = origin_packages::table.into_boxed();
+        page_query = page_query
+        .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+        .filter(origin_packages::hidden.eq(false));
+
+        if let Some(session_id) = sp.account_id {
+            let owned_origins =
+                origin_members::table.select(origin_members::origin)
+                                     .filter(origin_members::account_id.eq(session_id));
+
+            page_query = page_query.filter(
+            origin_packages::visibility
+                .eq_any(PackageVisibility::private())
+                .and(origin_packages::origin.eq_any(owned_origins))
+                .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+        );
+        } else {
+            page_query =
+                page_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+        }
+
+        let limit = sp.limit;
+        let offset = (sp.page.saturating_sub(1)) * sp.limit;
+
+        let packages: Vec<BuilderPackageIdent> = page_query.select(origin_packages::ident)
+                                                           .order(origin_packages::ident.asc())
+                                                           .limit(limit)
+                                                           .offset(offset)
+                                                           .load(conn)?;
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::search time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageSearchCallTime.set(duration_millis as f64);
-        result
+
+        Ok((packages, total_count))
     }
 
     // This is me giving up on fighting the typechecker and just duplicating a bunch of code
