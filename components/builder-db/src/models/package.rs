@@ -20,7 +20,6 @@ use crate::{hab_core::{self,
             models::{channel::{Channel,
                                OriginChannelPackage,
                                OriginChannelPromote},
-                     pagination::*,
                      settings::OriginPackageSettings},
             schema::{channel::{origin_channel_packages,
                                origin_channels},
@@ -49,8 +48,7 @@ use diesel::{self,
                          IsNull,
                          Output,
                          ToSql},
-             sql_types::{Bool,
-                         Text},
+             sql_types::Text,
              PgArrayExpressionMethods,
              RunQueryDsl};
 use diesel_full_text_search::{to_tsquery,
@@ -725,20 +723,20 @@ impl Package {
             page_query = page_query.filter(origin_packages::name.eq(pl.ident.name.clone()));
         }
 
-        let limit_i64 = limit as i64;
-        let offset_i64 = ((page.saturating_sub(1)) * limit) as i64;
+        let limit_i64 = limit;
+        let offset_i64 = (page.saturating_sub(1)) * limit;
 
         let rows: Vec<(String, String)> =
             page_query.limit(limit_i64).offset(offset_i64).load(conn)?;
 
-        let mut pkgs: Vec<BuilderPackageIdent> = rows.into_iter()
-                                                     .map(|(origin, name)| {
-                                                         BuilderPackageIdent(PackageIdent { origin,
+        let pkgs: Vec<BuilderPackageIdent> = rows.into_iter()
+                                                 .map(|(origin, name)| {
+                                                     BuilderPackageIdent(PackageIdent { origin,
                                                        name,
                                                        version: None,
                                                        release: None })
-                                                     })
-                                                     .collect();
+                                                 })
+                                                 .collect();
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::list_distinct time: {} ms", duration_millis);
@@ -767,23 +765,39 @@ impl Package {
         let page = pl.page;
         let limit = pl.limit;
 
-        let result = origin_package_settings::table
-            .select(origin_package_settings::all_columns)
+        let  base_query = origin_package_settings::table
             .filter(origin_package_settings::origin.eq(origin_str))
             .filter(origin_package_settings::visibility.eq_any(visibility))
             .filter(origin_package_settings::hidden.eq(false))
             .order(origin_package_settings::origin.asc())
             .order(origin_package_settings::name.asc())
-            .paginate(page)
-            .per_page(limit)
-            .load_and_count_records(conn);
+            .into_boxed();
+
+        // helpful trick when debugging queries, this has Debug trait:
+        // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&base_query)
+
+        let all_rows: Vec<OriginPackageSettings> = base_query.load(conn)?;
+        let unique_by_name: Vec<OriginPackageSettings> = all_rows.into_iter()
+                                                                 .unique_by(|pkg| pkg.name.clone())
+                                                                 .collect();
+
+        let total_count = unique_by_name.len() as i64;
+        let start = ((page.saturating_sub(1)) * limit) as usize;
+        let end = (start + limit as usize).min(unique_by_name.len());
+        let results = if limit < 0 {
+            unique_by_name.clone()
+        } else if start >= unique_by_name.len() {
+            Vec::new()
+        } else {
+            unique_by_name[start..end].to_vec()
+        };
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::list_distinct_for_origin time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageListDistinctForOriginCallTime.set(duration_millis as f64);
-        result
+        Ok((results, total_count))
     }
 
     pub fn list_package_channels(ident: &BuilderPackageIdent,
