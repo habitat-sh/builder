@@ -626,8 +626,8 @@ impl Package {
         let limit = pl.limit;
 
         let mut query = packages_with_channel_platform::table
-            .filter(packages_with_channel_platform::origin.eq(origin_str))
-            .into_boxed();
+        .filter(packages_with_channel_platform::origin.eq(origin_str))
+        .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
         if !pl.ident.name.is_empty() {
@@ -642,14 +642,16 @@ impl Package {
             let pkgs: std::vec::Vec<PackageWithChannelPlatform> = query.get_results(conn)?;
             pkgs
         } else {
-            let query = query.filter(packages_with_channel_platform::ident_array.contains(parts))
-                             .filter(packages_with_channel_platform::visibility.eq_any(visibility))
-                             .order(packages_with_channel_platform::ident.desc())
-                             .paginate(page)
-                             .per_page(limit);
-            let (pkgs, _): (std::vec::Vec<PackageWithChannelPlatform>, i64) =
-                query.load_and_count_records(conn)?;
-            pkgs
+            let all_rows: Vec<PackageWithChannelPlatform> =
+                query.filter(packages_with_channel_platform::ident_array.contains(parts.clone()))
+                     .filter(packages_with_channel_platform::visibility.eq_any(visibility.clone()))
+                     .order(packages_with_channel_platform::ident.desc())
+                     .load(conn)?;
+            let unique_rows: Vec<PackageWithChannelPlatform> =
+                all_rows.into_iter().unique().collect();
+            let start = ((page.saturating_sub(1)) * limit) as usize;
+            let end = (start + limit as usize).min(unique_rows.len());
+            unique_rows[start..end].to_vec()
         };
 
         // helpful trick when debugging queries, this has Debug trait:
