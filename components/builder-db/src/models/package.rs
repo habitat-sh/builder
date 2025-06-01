@@ -694,31 +694,51 @@ impl Package {
         let page = pl.page;
         let limit = pl.limit;
 
-        let mut query = origin_packages::table.select(sql::<Text>("concat_ws('/', \
-                                                                   ident_array[1], \
-                                                                   ident_array[2]) as ident"))
-                                              .filter(origin_packages::origin.eq(origin_str))
-                                              .into_boxed();
+        let mut count_query =
+            origin_packages::table.filter(origin_packages::origin.eq(origin_str.clone()))
+                                  .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
         if !name_str.is_empty() {
-            query = query.filter(origin_packages::name.eq(name_str.clone()))
-        };
-        let query = query
-            .filter(origin_packages::ident_array.contains(parts))
-            .filter(origin_packages::visibility.eq_any(visibility))
-            .filter(origin_packages::hidden.eq(false))
-            // This is because diesel doesn't yet support group_by
-            // see: https://github.com/diesel-rs/diesel/issues/210
-            .filter(sql::<Bool>("TRUE GROUP BY ident_array[2], ident_array[1]"))
-            .order(sql::<Text>("ident ASC"))
-            .paginate(page)
-            .per_page(limit);
+            count_query = count_query.filter(origin_packages::name.eq(name_str.clone()));
+        }
+        let total_count: i64 =
+            count_query.filter(origin_packages::ident_array.contains(parts.clone()))
+                       .filter(origin_packages::visibility.eq_any(visibility.clone()))
+                       .filter(origin_packages::hidden.eq(false))
+                       .select(sql::<diesel::sql_types::BigInt>("COUNT(DISTINCT \
+                                                                 (origin_packages.origin, \
+                                                                 origin_packages.name))"))
+                       .first(conn)?;
 
-        // helpful trick when debugging queries, this has Debug trait:
-        // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query)
+        let mut page_query =
+            origin_packages::table.filter(origin_packages::origin.eq(origin_str.clone()))
+                                  .filter(origin_packages::ident_array.contains(parts))
+                                  .filter(origin_packages::visibility.eq_any(visibility))
+                                  .filter(origin_packages::hidden.eq(false))
+                                  .select((origin_packages::origin, origin_packages::name))
+                                  .distinct()
+                                  .order((origin_packages::name.asc(),
+                                          origin_packages::origin.asc()))
+                                  .into_boxed();
+        if !pl.ident.name.is_empty() {
+            page_query = page_query.filter(origin_packages::name.eq(pl.ident.name.clone()));
+        }
 
-        let result = query.load_and_count_records(conn);
+        let limit_i64 = limit as i64;
+        let offset_i64 = ((page.saturating_sub(1)) * limit) as i64;
+
+        let rows: Vec<(String, String)> =
+            page_query.limit(limit_i64).offset(offset_i64).load(conn)?;
+
+        let mut pkgs: Vec<BuilderPackageIdent> = rows.into_iter()
+                                                     .map(|(origin, name)| {
+                                                         BuilderPackageIdent(PackageIdent { origin,
+                                                       name,
+                                                       version: None,
+                                                       release: None })
+                                                     })
+                                                     .collect();
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::list_distinct time: {} ms", duration_millis);
@@ -726,13 +746,13 @@ impl Package {
         Histogram::PackageListDistinctCallTime.set(duration_millis as f64);
         // Package list for a whole origin is still not very
         // performant, and we want to track that
-        if !name_str.is_empty() {
+        if !pl.ident.name.is_empty() {
             Histogram::PackageListDistinctOriginOnlyCallTime.set(duration_millis as f64);
         } else {
             Histogram::PackageListDistinctOriginNameCallTime.set(duration_millis as f64);
         }
 
-        result
+        Ok((pkgs, total_count))
     }
 
     pub fn distinct_for_origin(pl: &ListPackages,
