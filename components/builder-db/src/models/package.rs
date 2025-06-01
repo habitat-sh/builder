@@ -912,37 +912,64 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let mut query = origin_packages::table
-            .inner_join(origins::table)
-            .select(sql::<Text>("concat_ws('/', origins.name, origin_packages.name)"))
-            .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
-            .filter(origin_packages::hidden.eq(false))
-            .order(origin_packages::name.asc())
-            .into_boxed();
+        let mut count_query = origin_packages::table
+        .inner_join(origins::table)
+        .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+        .filter(origin_packages::hidden.eq(false))
+        .into_boxed();
 
         if let Some(session_id) = sp.account_id {
-            query = query.filter(
-                origin_packages::visibility
-                    .eq_any(PackageVisibility::private())
-                    .and(origins::owner_id.eq(session_id))
-                    .or(origin_packages::visibility.eq(PackageVisibility::Public)),
-            );
+            count_query = count_query.filter(
+            origin_packages::visibility
+                .eq_any(PackageVisibility::private())
+                .and(origins::owner_id.eq(session_id))
+                .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+        );
         } else {
-            query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+            count_query =
+                count_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
         }
 
-        // Because of the filter hack it is very important that this be the last filter
-        query = query.filter(sql::<Bool>("TRUE GROUP BY origin_packages.name, origins.name "));
+        let total_count: i64 =
+            count_query.select(sql::<diesel::sql_types::BigInt>("COUNT(DISTINCT concat_ws('/', \
+                                                                 origins.name, \
+                                                                 origin_packages.name))"))
+                       .first(conn)?;
 
-        let result = query.paginate(sp.page)
-                          .per_page(sp.limit)
-                          .load_and_count_records(conn);
+        let mut page_query = origin_packages::table
+        .inner_join(origins::table)
+        .select(sql::<diesel::sql_types::Text>(
+            "concat_ws('/', origins.name, origin_packages.name)",
+        ))
+        .distinct_on((origin_packages::name, origins::name))
+        .order((origin_packages::name.asc(), origins::name.asc()))
+        .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+        .filter(origin_packages::hidden.eq(false))
+        .into_boxed();
+
+        if let Some(session_id) = sp.account_id {
+            page_query = page_query.filter(
+            origin_packages::visibility
+                .eq_any(PackageVisibility::private())
+                .and(origins::owner_id.eq(session_id))
+                .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+        );
+        } else {
+            page_query =
+                page_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+        }
+
+        let limit = sp.limit;
+        let offset = (sp.page.saturating_sub(1)) * sp.limit;
+
+        let packages: Vec<BuilderPackageIdent> =
+            page_query.limit(limit).offset(offset).load(conn)?;
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::search time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageSearchDistinctCallTime.set(duration_millis as f64);
-        result
+        Ok((packages, total_count))
     }
 
     pub fn all() -> All { origin_packages::table.select(ALL_COLUMNS) }
