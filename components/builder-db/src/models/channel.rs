@@ -450,16 +450,14 @@ impl AuditPackage {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let mut query = audit_package::table
+        let mut count_query = audit_package::table
             .left_join(
                 origin_packages::table.on(origin_packages::ident.eq(audit_package::package_ident)),
             )
-            .select(audit_package::all_columns)
-            .distinct_on((audit_package::package_ident, audit_package::created_at))
             .into_boxed();
 
         if !el.query.is_empty() {
-            query = query.filter(
+            count_query = count_query.filter(
                 to_tsquery(format!("{}:*", el.query)).matches(origin_packages::ident_vector),
             );
         }
@@ -467,7 +465,7 @@ impl AuditPackage {
         if let Some(session_id) = el.account_id {
             let origins = origin_members::table.select(origin_members::origin)
                                                .filter(origin_members::account_id.eq(session_id));
-            query = query.filter(
+            count_query = count_query.filter(
                 origin_packages::visibility
                     .eq_any(PackageVisibility::private())
                     .and(origin_packages::origin.eq_any(origins))
@@ -475,11 +473,12 @@ impl AuditPackage {
                     .or(audit_package::requester_id.eq(session_id)),
             );
         } else {
-            query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+            count_query =
+                count_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
         }
 
         // to_date is inclusive, add '1' to the to_date so we can easily compare using less than
-        query = query.filter(
+        count_query = count_query.filter(
             audit_package::created_at
                 .ge(el.from_date.into_sql::<Timestamptz>().nullable())
                 .and(
@@ -489,15 +488,66 @@ impl AuditPackage {
         );
 
         if !el.channel.is_empty() {
-            query = query.filter(audit_package::channel.eq(el.channel));
+            count_query = count_query.filter(audit_package::channel.eq(el.channel.clone()));
         }
 
-        let query = query.order((audit_package::created_at.desc(),
-                                 audit_package::package_ident.desc()))
-                         .paginate(el.page)
-                         .per_page(el.limit);
-        let (events, total_count): (std::vec::Vec<AuditPackage>, i64) =
-            query.load_and_count_records(conn)?;
+        let total_count: i64 =
+            count_query.select(sql::<diesel::sql_types::BigInt>("COUNT(DISTINCT \
+                                                                 (audit_package.package_ident, \
+                                                                 audit_package.created_at))"))
+                       .first(conn)?;
+
+        let mut page_query = audit_package::table
+            .left_join(
+                origin_packages::table.on(origin_packages::ident.eq(audit_package::package_ident)),
+            )
+            .select(audit_package::all_columns)
+            .distinct_on((audit_package::package_ident, audit_package::created_at))
+            .into_boxed();
+
+        if !el.query.is_empty() {
+            page_query = page_query.filter(
+                to_tsquery(format!("{}:*", el.query)).matches(origin_packages::ident_vector),
+            );
+        }
+
+        if let Some(session_id) = el.account_id {
+            let origins = origin_members::table.select(origin_members::origin)
+                                               .filter(origin_members::account_id.eq(session_id));
+            page_query = page_query.filter(
+                origin_packages::visibility
+                    .eq_any(PackageVisibility::private())
+                    .and(origin_packages::origin.eq_any(origins))
+                    .or(origin_packages::visibility.eq(PackageVisibility::Public))
+                    .or(audit_package::requester_id.eq(session_id)),
+            );
+        } else {
+            page_query =
+                page_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+        }
+
+        page_query = page_query.filter(
+            audit_package::created_at
+                .ge(el.from_date.into_sql::<Timestamptz>().nullable())
+                .and(
+                    audit_package::created_at
+                        .lt((el.to_date.into_sql::<Timestamptz>() + 1.days()).nullable()),
+                ),
+        );
+
+        if !el.channel.is_empty() {
+            page_query = page_query.filter(audit_package::channel.eq(el.channel.clone()));
+        }
+
+        let page_i64 = el.page;
+        let limit_i64 = el.limit;
+
+        let events: Vec<AuditPackage> = page_query.order((audit_package::created_at.desc(),
+                                                          audit_package::package_ident.desc()))
+                                                  .limit(limit_i64)
+                                                  .offset((page_i64 - 1) * limit_i64)
+                                                  .load(conn)?;
+
         let duration_millis = start_time.elapsed().as_millis();
         Histogram::DbCallTime.set(duration_millis as f64);
 
