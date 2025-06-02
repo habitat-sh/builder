@@ -16,40 +16,6 @@ source support/ci/shared_build_environment.sh
 source support/ci/shared.sh
 
 toolchain="${1:-"$(get_toolchain)"}"
-install_rustup
-install_rust_toolchain "$toolchain"
-
-# Install clippy
-echo "--- :rust: Installing clippy"
-rustup component add --toolchain "$toolchain" clippy
-
-# TODO: these should be in a shared script?
-sudo hab license accept
-install_hab_pkg core/rust/"$toolchain" core/libarchive core/openssl core/pkg-config core/zeromq core/patchelf core/cmake core/zlib
-sudo hab pkg install --channel=LTS-2024 core/postgresql17
-sudo hab pkg install --channel=LTS-2024 core/protobuf
-
-# Yes, this is terrible but we need the clippy binary to run under our glibc.
-# This became an issue with the latest refresh and can likely be dropped in
-# the future when rust and supporting components are build against a later
-# glibc.
-sudo cp "$HOME"/.rustup/toolchains/"$toolchain"-x86_64-unknown-linux-gnu/bin/cargo-clippy "$(hab pkg path core/rust/"$toolchain")/bin"
-sudo cp "$HOME"/.rustup/toolchains/"$toolchain"-x86_64-unknown-linux-gnu/bin/clippy-driver "$(hab pkg path core/rust/"$toolchain")/bin"
-sudo hab pkg exec core/patchelf patchelf -- --set-interpreter "$(hab pkg path core/glibc)/lib/ld-linux-x86-64.so.2" "$(hab pkg path core/rust/"$toolchain")/bin/clippy-driver"
-sudo hab pkg exec core/patchelf patchelf -- --set-interpreter "$(hab pkg path core/glibc)/lib/ld-linux-x86-64.so.2" "$(hab pkg path core/rust/"$toolchain")/bin/cargo-clippy"
-
-export OPENSSL_NO_VENDOR=1
-export LD_RUN_PATH
-LD_RUN_PATH="$(hab pkg path core/glibc)/lib:$(hab pkg path core/gcc-libs)/lib:$(hab pkg path core/postgresql17)/lib:$(hab pkg path core/zeromq)/lib:$(hab pkg path core/libarchive)/lib"
-export LD_LIBRARY_PATH
-LD_LIBRARY_PATH="$(hab pkg path core/gcc-libs)/lib:$(hab pkg path core/zeromq)/lib:$(hab pkg path core/zlib)/lib"
-export PKG_CONFIG_PATH
-PKG_CONFIG_PATH="$(hab pkg path core/zeromq)/lib/pkgconfig:$(hab pkg path core/libarchive)/lib/pkgconfig:$(hab pkg path core/postgresql17)/lib/pkgconfig:$(hab pkg path core/openssl)/lib64/pkgconfig"
-
-readonly OG_PATH=$PATH
-eval "$(hab pkg env core/rust/"$toolchain")"
-PATH="$PATH:$OG_PATH"
-PATH="$(hab pkg path core/protobuf)/bin:$(hab pkg path core/pkg-config)/bin:$(hab pkg path core/postgresql17)/bin:$(hab pkg path core/cmake)/bin:$PATH"
 
 # Lints we need to work through and decide as a team whether to allow or fix
 mapfile -t unexamined_lints <"$2"
