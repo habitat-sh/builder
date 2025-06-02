@@ -147,7 +147,7 @@ fn do_get_events(req: &HttpRequest,
                           from_date:  date_range.from_date,
                           to_date:    date_range.to_date,
                           query:      decoded_query, };
-    match AuditPackage::list(el, &mut conn).map_err(Error::DieselError) {
+    match AuditPackage::list(&el, &mut conn).map_err(Error::DieselError) {
         Ok((packages, count)) => {
             let pkg_events: Vec<AuditPackageEvent> =
                 packages.into_iter().map(|p| p.into()).collect();

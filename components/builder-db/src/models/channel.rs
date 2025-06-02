@@ -1,8 +1,14 @@
 use super::db_id_format;
-use crate::{models::{package::{BuilderPackageIdent,
-                               PackageVisibility,
-                               PackageWithVersionArray},
-                     pagination::Paginate},
+use crate::{bldr_core::metrics::{CounterMetric,
+                                 HistogramMetric},
+            hab_core::{package::{PackageIdent,
+                                 PackageTarget},
+                       ChannelIdent},
+            metrics::{Counter,
+                      Histogram},
+            models::package::{BuilderPackageIdent,
+                              PackageVisibility,
+                              PackageWithVersionArray},
             schema::{audit::{audit_package,
                              audit_package_group},
                      channel::{origin_channel_packages,
@@ -15,15 +21,9 @@ use chrono::NaiveDateTime;
 use diesel_derive_enum::DbEnum;
 use std::time::Instant;
 
-use crate::{bldr_core::metrics::{CounterMetric,
-                                 HistogramMetric},
-            hab_core::{package::PackageTarget,
-                       ChannelIdent},
-            metrics::{Counter,
-                      Histogram}};
-
 use diesel::{self,
              dsl::{count,
+                   count_star,
                    sql,
                    IntervalDsl},
              pg::PgConnection,
@@ -240,52 +240,86 @@ impl Channel {
 
         let origin_str = lcp.ident.origin.clone();
         let name_str = lcp.ident.name.clone();
-        let channel_str = lcp.channel.as_str().to_string();
+        let channel_name: String = lcp.channel.clone().to_string();
         let ident_parts = lcp.ident.clone().parts();
-        let visibility = lcp.visibility.clone();
-        let origin = lcp.origin.clone();
-        let page = lcp.page;
-        let limit = lcp.limit;
+        let visibility_list = lcp.visibility.clone();
+        let origin_name = lcp.origin.clone();
+        let page_i64 = lcp.page;
+        let limit_i64 = lcp.limit;
 
-        let mut query = origin_packages::table
+        let mut count_query = origin_packages::table
             .inner_join(
                 origin_channel_packages::table
                     .inner_join(origin_channels::table.inner_join(origins::table)),
             )
-            .filter(origin_packages::origin.eq(origin_str.clone()))
-            .into_boxed();
+            .into_boxed::<diesel::pg::Pg>();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
+        count_query = count_query.filter(origin_packages::origin.eq(&origin_str));
         if !name_str.is_empty() {
-            query = query.filter(origin_packages::name.eq(name_str))
-        };
-        let query = query.filter(origin_packages::ident_array.contains(ident_parts))
-                         .filter(origin_packages::visibility.eq_any(visibility))
-                         .filter(origins::name.eq(origin))
-                         .filter(origin_channels::name.eq(channel_str))
-                         .select(origin_packages::ident)
-                         .order(origin_packages::ident.asc())
-                         .paginate(page)
-                         .per_page(limit);
-        // helpful trick when debugging queries, this has Debug trait:
-        // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query)
+            count_query = count_query.filter(origin_packages::name.eq(&name_str));
+        }
+        count_query =
+            count_query.filter(origin_packages::ident_array.contains(ident_parts.clone()))
+                       .filter(origin_packages::visibility.eq_any(visibility_list.clone()))
+                       .filter(origins::name.eq(&origin_name))
+                       .filter(origin_channels::name.eq(&channel_name));
 
-        let result = query.load_and_count_records(conn);
+        let total_count: i64 = count_query.select(count_star()).first(conn)?;
 
-        let duration_millis = start_time.elapsed().as_millis();
+        let mut page_base = origin_packages::table
+            .inner_join(
+                origin_channel_packages::table
+                    .inner_join(origin_channels::table.inner_join(origins::table)),
+            )
+            .into_boxed::<diesel::pg::Pg>();
+
+        page_base = page_base.filter(origin_packages::origin.eq(&origin_str));
+
+        if !name_str.is_empty() {
+            page_base = page_base.filter(origin_packages::name.eq(&name_str));
+        }
+
+        page_base = page_base.filter(origin_packages::ident_array.contains(ident_parts.clone()))
+                             .filter(origin_packages::visibility.eq_any(visibility_list))
+                             .filter(origins::name.eq(&origin_name))
+                             .filter(origin_channels::name.eq(&channel_name));
+
+        let idents: Vec<String> = page_base.select(origin_packages::ident)
+                                           .order(origin_packages::ident.asc())
+                                           .limit(limit_i64)
+                                           .offset((page_i64 - 1) * limit_i64)
+                                           .load(conn)?;
+
+        let pkgs: Vec<BuilderPackageIdent> =
+            idents.into_iter()
+                  .map(|ident| {
+                      let mut parts = ident.splitn(4, '/');
+                      let origin = parts.next().unwrap_or_default().to_string();
+                      let name = parts.next().unwrap_or_default().to_string();
+                      let version = parts.next().unwrap_or_default().to_string();
+                      let release = parts.next().unwrap_or_default().to_string();
+                      BuilderPackageIdent(PackageIdent { origin,
+                                                         name,
+                                                         version: Some(version),
+                                                         release: Some(release) })
+                  })
+                  .collect();
+
+        let duration_millis = start_time.elapsed().as_millis() as f64;
         trace!("DBCall channel::list_package time: {} ms", duration_millis);
-        Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::ChannelListPackagesCallTime.set(duration_millis as f64);
+        Histogram::DbCallTime.set(duration_millis);
+        Histogram::ChannelListPackagesCallTime.set(duration_millis);
 
         // Package list for a whole origin is still not very
         // performant, and we want to track that
         if !lcp.ident.name.is_empty() {
-            Histogram::ChannelListPackagesOriginOnlyCallTime.set(duration_millis as f64);
+            Histogram::ChannelListPackagesOriginOnlyCallTime.set(duration_millis);
         } else {
-            Histogram::ChannelListPackagesOriginNameCallTime.set(duration_millis as f64);
+            Histogram::ChannelListPackagesOriginNameCallTime.set(duration_millis);
         }
 
-        result
+        Ok((pkgs, total_count))
     }
 
     pub fn list_all_packages(lacp: &ListAllChannelPackages,
@@ -446,7 +480,7 @@ pub struct AuditPackageEvent {
 }
 
 impl AuditPackage {
-    pub fn list(el: ListEvents, conn: &mut PgConnection) -> QueryResult<(Vec<AuditPackage>, i64)> {
+    pub fn list(el: &ListEvents, conn: &mut PgConnection) -> QueryResult<(Vec<AuditPackage>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
