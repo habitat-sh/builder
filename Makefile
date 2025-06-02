@@ -57,9 +57,9 @@ clean-lib: $(addprefix clean-,$(LIB)) ## cleans the library components' project 
 clean-srv: $(addprefix clean-,$(SRV)) ## cleans the service components' project trees
 .PHONY: clean-srv
 
-fmt: 
+fmt:
 	bash ./support/ci/rustfmt.sh
-.PHONY: fmt 
+.PHONY: fmt
 
 help:
 	@perl -nle'print $& if m{^[a-zA-Z_-]+:.*?## .*$$}' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
@@ -82,7 +82,7 @@ $(foreach component,$(ALL),$(eval $(call UNIT,$(component))))
 
 TOOLCHAIN := $(shell tail -n 1  rust-toolchain | cut -d'"' -f 2)
 lint:
-	$(run) test/run_clippy.sh $(TOOLCHAIN) test/unexamined_lints.txt \
+	test/run_clippy.sh $(TOOLCHAIN) test/unexamined_lints.txt \
 	                                 test/allowed_lints.txt \
 	                                 test/lints_to_fix.txt \
 	                                 test/denied_lints.txt
