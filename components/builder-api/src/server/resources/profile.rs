@@ -254,21 +254,12 @@ async fn set_license(req: HttpRequest,
                 return HttpResponse::build(status).body(body);
             }
 
-            let json: serde_json::Value = match serde_json::from_str(&body) {
+            let _json: serde_json::Value = match serde_json::from_str(&body) {
                 Ok(data) => data,
                 Err(err) => {
                     return HttpResponse::InternalServerError().body(format!("JSON parse error: \
                                                                              {}",
                                                                             err));
-                }
-            };
-
-            let today = chrono::Utc::now().date_naive();
-
-            let entitlements = match json["entitlements"].as_array() {
-                Some(ents) if !ents.is_empty() => ents,
-                _ => {
-                    return HttpResponse::BadRequest().body("Invalid license key.");
                 }
             };
 

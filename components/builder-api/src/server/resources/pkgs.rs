@@ -422,7 +422,8 @@ async fn download_package(req: HttpRequest,
                        &mut conn)
     {
         Ok(package) => {
-            let channels = match channels_for_package_ident(&req, &package.ident, target, &conn) {
+            let channels = match channels_for_package_ident(&req, &package.ident, target, &mut conn)
+            {
                 Ok(channels) => channels,
                 Err(err) => {
                     return HttpResponse::InternalServerError()
@@ -461,7 +462,7 @@ async fn download_package(req: HttpRequest,
             if should_restrict {
                 match opt_session_id {
                     Some(account_id) => {
-                        match LicenseKey::get_by_account_id(account_id as i64, &conn) {
+                        match LicenseKey::get_by_account_id(account_id as i64, &mut conn) {
                             Ok(Some(license)) => {
                                 let today = chrono::Utc::now().date_naive();
                                 if license.expiration_date < today {
@@ -477,7 +478,8 @@ async fn download_package(req: HttpRequest,
                                                                     &license.license_key,
                                                                 expiration_date: new_expiration, };
 
-                                            if let Err(err) = LicenseKey::create(&update, &conn) {
+                                            if let Err(err) = LicenseKey::create(&update, &mut conn)
+                                            {
                                                 debug!("Failed to update license in DB: {}", err);
                                                 return HttpResponse::InternalServerError()
                                                     .body("License update failed.");
@@ -1360,7 +1362,7 @@ async fn do_get_package(req: &HttpRequest,
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = channels_for_package_ident(req, &pkg.ident, *pkg.target, &conn)?;
+    let channels = channels_for_package_ident(req, &pkg.ident, *pkg.target, &mut conn)?;
 
     pkg_json["manifest"] = json!("");
     pkg_json["channels"] = json!(channels);
