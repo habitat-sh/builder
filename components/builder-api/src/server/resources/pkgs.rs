@@ -323,7 +323,7 @@ async fn delete_package(req: HttpRequest,
         }
     }
 
-    match reverse_dependencies::get_rdeps(&conn, &origin, &pkg, &target, &req).await {
+    match reverse_dependencies::get_rdeps(&mut conn, &origin, &pkg, &target).await {
         Ok(reverse_depenencies) => {
             if !reverse_depenencies.rdeps.is_empty() {
                 let body = Bytes::from(format!("Deleting package with rdeps not allowed '{}'",

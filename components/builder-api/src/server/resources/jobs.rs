@@ -55,12 +55,12 @@ async fn get_rdeps(req: HttpRequest,
                                 .clone()
                                 .unwrap_or_else(|| "x86_64-linux".to_string());
 
-    let connection = req_state(&req).db
-                                    .get_conn()
-                                    .map_err(Error::DbError)
-                                    .unwrap();
+    let mut connection = req_state(&req).db
+                                        .get_conn()
+                                        .map_err(Error::DbError)
+                                        .unwrap();
 
-    match reverse_dependencies::get_rdeps(&connection, &origin, &name, &target, &req).await {
+    match reverse_dependencies::get_rdeps(&mut connection, &origin, &name, &target).await {
         Ok(reverse_dependencies) => {
             debug!("BEFORE FILTERING: reverse_dependencies: {:?}",
                    reverse_dependencies);

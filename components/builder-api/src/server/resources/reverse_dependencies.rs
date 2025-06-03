@@ -10,8 +10,6 @@ use diesel::{debug_query,
 use crate::server::error::{Error,
                            Result};
 
-use crate::server::helpers::req_state;
-use actix_web::HttpRequest;
 use r2d2::PooledConnection;
 #[derive(Clone, Debug, QueryableByName, Serialize, Deserialize)]
 pub(crate) struct Dependent {
@@ -27,11 +25,10 @@ pub(crate) struct ReverseDependencies {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub(crate) async fn get_rdeps(_conn: &PooledConnection<ConnectionManager<PgConnection>>,
+pub(crate) async fn get_rdeps(conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
                               origin: &str,
                               name: &str,
-                              target: &str,
-                              req: &HttpRequest)
+                              target: &str)
                               -> Result<ReverseDependencies> {
     let sql_stmt = r###"
         select * from (
@@ -52,9 +49,7 @@ pub(crate) async fn get_rdeps(_conn: &PooledConnection<ConnectionManager<PgConne
 
     debug!("debug_query {}", debug_query::<Pg, _>(&query));
 
-    let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-    let rdeps = query.load::<Dependent>(&mut conn)
-                     .map_err(Error::DieselError)?;
+    let rdeps = query.load::<Dependent>(conn).map_err(Error::DieselError)?;
 
     let reverse_dependencies =
         ReverseDependencies { origin: origin.to_string(),
