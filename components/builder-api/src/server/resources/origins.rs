@@ -154,12 +154,12 @@ impl Origins {
 async fn get_origin(path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin_name = path.into_inner();
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match Origin::get(&origin_name, &conn) {
+    match Origin::get(&origin_name, &mut conn) {
         Ok(origin) => {
             HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
                               .json(origin)
@@ -199,7 +199,7 @@ async fn create_origin(req: HttpRequest,
         return HttpResponse::ExpectationFailed().into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -208,14 +208,14 @@ async fn create_origin(req: HttpRequest,
                                  owner_id: session.get_id() as i64,
                                  default_package_visibility: &dpv, };
 
-    match Origin::create(&new_origin, &conn).map_err(Error::DieselError) {
+    match Origin::create(&new_origin, &mut conn).map_err(Error::DieselError) {
         Ok(origin) => {
             origin_audit(&body.0.name,
                          OriginOperation::OriginCreate,
                          &body.0.name,
                          session.get_id() as i64,
                          session.get_name(),
-                         &conn);
+                         &mut conn);
             HttpResponse::Created().json(origin)
         }
         Err(err) => {
@@ -238,7 +238,7 @@ async fn update_origin(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -248,7 +248,7 @@ async fn update_origin(req: HttpRequest,
         None => PackageVisibility::Public,
     };
 
-    match Origin::update(&origin, dpv, &conn).map_err(Error::DieselError) {
+    match Origin::update(&origin, dpv, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().into(),
         Err(err) => {
             debug!("{}", err);
@@ -275,23 +275,23 @@ async fn delete_origin(req: HttpRequest,
 
     debug!("Request to delete origin {}", &origin);
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
     // Prior to passing the deletion request to the backend, we validate
     // that the user has already cleaned up the most critical origin data.
-    match origin_delete_preflight(&origin, &conn) {
+    match origin_delete_preflight(&origin, &mut conn) {
         Ok(_) => {
-            match Origin::delete(&origin, &conn).map_err(Error::DieselError) {
+            match Origin::delete(&origin, &mut conn).map_err(Error::DieselError) {
                 Ok(_) => {
                     origin_audit(&origin,
                                  OriginOperation::OriginDelete,
                                  &origin,
                                  session.get_id() as i64,
                                  session.get_name(),
-                                 &conn);
+                                 &mut conn);
                     HttpResponse::NoContent().into()
                 }
                 Err(err) => {
@@ -314,7 +314,7 @@ async fn delete_origin(req: HttpRequest,
     }
 }
 
-fn origin_delete_preflight(origin: &str, conn: &PgConnection) -> Result<()> {
+fn origin_delete_preflight(origin: &str, conn: &mut PgConnection) -> Result<()> {
     match Project::count_origin_projects(origin, conn) {
         Ok(0) => {}
         Ok(count) => {
@@ -414,7 +414,7 @@ async fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>
             Err(err) => return err.into(),
         };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => {
             error!("create_keys: Failed to get DB connection, err={}", err);
@@ -430,7 +430,7 @@ async fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>
         Err(err) => return err.into(),
     };
 
-    if let Err(e) = save_public_origin_signing_key(account_id, &origin, &public, &conn) {
+    if let Err(e) = save_public_origin_signing_key(account_id, &origin, &public, &mut conn) {
         error!("Failed to save public signing key for origin '{}', err={}",
                origin, e);
         return e.into();
@@ -440,7 +440,7 @@ async fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>
                                                    &origin,
                                                    &state.config.api.key_path,
                                                    &secret,
-                                                   &conn)
+                                                   &mut conn)
     {
         error!("Failed to save secret signing key for origin '{}', err={}",
                origin, e);
@@ -454,12 +454,12 @@ async fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>
 async fn list_origin_keys(path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin = path.into_inner();
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match db_keys::OriginPublicSigningKey::list(&origin, &conn).map_err(Error::DieselError) {
+    match db_keys::OriginPublicSigningKey::list(&origin, &mut conn).map_err(Error::DieselError) {
         Ok(list) => {
             let list: Vec<OriginKeyIdent> =
                 list.iter()
@@ -501,12 +501,12 @@ async fn upload_origin_key(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    if db_keys::OriginPublicSigningKey::get(&origin, &revision, &conn).is_ok() {
+    if db_keys::OriginPublicSigningKey::get(&origin, &revision, &mut conn).is_ok() {
         HttpResponse::new(StatusCode::CONFLICT)
     } else {
         // In this case we are checking if the user actually has permissions to write a
@@ -533,7 +533,7 @@ async fn upload_origin_key(req: HttpRequest,
             }
         };
 
-        match save_public_origin_signing_key(account_id, &origin, &key, &conn) {
+        match save_public_origin_signing_key(account_id, &origin, &key, &mut conn) {
             Ok(_) => {
                 HttpResponse::Created().append_header((http::header::LOCATION,
                                                        format!("{}", req.uri())))
@@ -553,12 +553,12 @@ async fn upload_origin_key(req: HttpRequest,
 async fn download_origin_key(path: Path<(String, String)>, state: Data<AppState>) -> HttpResponse {
     let (origin, revision) = path.into_inner();
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    let key = match get_specific_public_origin_signing_key(&origin, &revision, &conn) {
+    let key = match get_specific_public_origin_signing_key(&origin, &revision, &mut conn) {
         Ok(key) => key,
         Err(err) => {
             debug!("{}", err);
@@ -573,12 +573,12 @@ async fn download_origin_key(path: Path<(String, String)>, state: Data<AppState>
 async fn download_latest_origin_key(path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin = path.into_inner();
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    let key = match get_latest_public_origin_signing_key(&origin, &conn) {
+    let key = match get_latest_public_origin_signing_key(&origin, &mut conn) {
         Ok(key) => key,
         Err(err) => {
             debug!("{}", err);
@@ -601,12 +601,12 @@ async fn list_origin_secrets(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match OriginSecret::list(&origin, &conn).map_err(Error::DieselError) {
+    match OriginSecret::list(&origin, &mut conn).map_err(Error::DieselError) {
         Ok(list) => {
             // Need to map to different struct for hab cli backward compat
             let new_list: Vec<OriginSecretWithOriginId> =
@@ -661,7 +661,7 @@ async fn create_origin_secret(req: HttpRequest,
         }
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -669,15 +669,16 @@ async fn create_origin_secret(req: HttpRequest,
     let key_cache = &state.config.api.key_path;
 
     // Fetch the origin's secret encryption key from the database
-    let secret_encryption_key = match get_secret_origin_encryption_key(&origin, key_cache, &conn) {
-        Ok(key) => key,
-        Err(err) => {
-            debug!("{}", err);
-            let body = Bytes::from(format!("Failed to get secret from payload: {}", err));
-            let body = BoxBody::new(body);
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
-        }
-    };
+    let secret_encryption_key =
+        match get_secret_origin_encryption_key(&origin, key_cache, &mut conn) {
+            Ok(key) => key,
+            Err(err) => {
+                debug!("{}", err);
+                let body = Bytes::from(format!("Failed to get secret from payload: {}", err));
+                let body = BoxBody::new(body);
+                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
+            }
+        };
 
     // Though we're storing the data in its encrypted form, we still
     // need to ensure that we have the ability to decrypt it.
@@ -692,7 +693,7 @@ async fn create_origin_secret(req: HttpRequest,
                                                   name:     &body.name,
                                                   value:    &body.value,
                                                   owner_id: account_id, },
-                               &conn).map_err(Error::DieselError)
+                               &mut conn).map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::Created().finish(),
         Err(err) => {
@@ -714,12 +715,12 @@ async fn delete_origin_secret(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match OriginSecret::delete(&origin, &secret, &conn).map_err(Error::DieselError) {
+    match OriginSecret::delete(&origin, &secret, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -742,7 +743,7 @@ async fn upload_origin_secret_key(req: HttpRequest,
             Err(err) => return err.into(),
         };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -766,8 +767,11 @@ async fn upload_origin_secret_key(req: HttpRequest,
         }
     };
 
-    if let Err(e) =
-        save_secret_origin_signing_key(account_id, &origin, &state.config.api.key_path, &key, &conn)
+    if let Err(e) = save_secret_origin_signing_key(account_id,
+                                                   &origin,
+                                                   &state.config.api.key_path,
+                                                   &key,
+                                                   &mut conn)
     {
         error!("Failed to save uploaded secret signing key for origin '{}', err={}",
                origin, e);
@@ -788,12 +792,14 @@ async fn download_latest_origin_secret_key(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    let key = match get_latest_secret_origin_signing_key(&origin, &state.config.api.key_path, &conn)
+    let key = match get_latest_secret_origin_signing_key(&origin,
+                                                         &state.config.api.key_path,
+                                                         &mut conn)
     {
         Ok(key) => key,
         Err(err) => {
@@ -818,7 +824,7 @@ async fn list_unique_packages(req: HttpRequest,
         Err(_) => None,
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => {
             return {
@@ -839,7 +845,7 @@ async fn list_unique_packages(req: HttpRequest,
                              page:       page as i64,
                              limit:      per_page as i64, };
 
-    match Package::distinct_for_origin(lpr, &conn) {
+    match Package::distinct_for_origin(&lpr, &mut conn) {
         Ok((packages, count)) => {
             postprocess_package_list(&req, packages.as_slice(), count, &pagination)
         }
@@ -862,17 +868,17 @@ async fn download_latest_origin_encryption_key(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
     let key_cache = &state.config.api.key_path;
-    let key = match get_latest_public_origin_encryption_key(&origin, &conn) {
+    let key = match get_latest_public_origin_encryption_key(&origin, &mut conn) {
         Ok(key) => key,
         Err(Error::DieselError(NotFound)) => {
             // TODO: redesign to not be generating keys during d/l
-            match generate_origin_encryption_keys(&origin, account_id, key_cache, &conn) {
+            match generate_origin_encryption_keys(&origin, account_id, key_cache, &mut conn) {
                 Ok(key) => key,
                 Err(err) => {
                     debug!("{}", err);
@@ -904,13 +910,13 @@ async fn invite_to_origin(req: HttpRequest,
 
     debug!("Creating invitation for user {} origin {}", &user, &origin);
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
     let (recipient_id, recipient_name) =
-        match Account::get(&user, &conn).map_err(Error::DieselError) {
+        match Account::get(&user, &mut conn).map_err(Error::DieselError) {
             Ok(account) => (account.id, account.name),
             Err(err) => {
                 debug!("{}", err);
@@ -924,7 +930,7 @@ async fn invite_to_origin(req: HttpRequest,
                                                owner_id:     account_id as i64, };
 
     // store invitations in the originsrv
-    match OriginInvitation::create(&new_invitation, &conn).map_err(Error::DieselError) {
+    match OriginInvitation::create(&new_invitation, &mut conn).map_err(Error::DieselError) {
         Ok(invitation) => HttpResponse::Created().json(&invitation),
         // TODO (SA): Check for error case where invitation already exists
         Err(err) => {
@@ -957,12 +963,12 @@ async fn accept_invitation(req: HttpRequest,
     debug!("Accepting invitation for user {} origin {}",
            account_id, origin);
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match OriginInvitation::accept(invitation_id, false, &conn).map_err(Error::DieselError) {
+    match OriginInvitation::accept(invitation_id, false, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -992,7 +998,7 @@ async fn ignore_invitation(req: HttpRequest,
         }
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -1000,7 +1006,7 @@ async fn ignore_invitation(req: HttpRequest,
     debug!("Ignoring invitation id {} for origin {}",
            invitation_id, &origin);
 
-    match OriginInvitation::ignore(invitation_id, &conn).map_err(Error::DieselError) {
+    match OriginInvitation::ignore(invitation_id, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -1033,12 +1039,12 @@ async fn rescind_invitation(req: HttpRequest,
     debug!("Rescinding invitation id {} for user from origin {}",
            invitation_id, &origin);
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match OriginInvitation::rescind(invitation_id, &conn).map_err(Error::DieselError) {
+    match OriginInvitation::rescind(invitation_id, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -1058,12 +1064,12 @@ async fn list_origin_invitations(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match OriginInvitation::list_by_origin(&origin, &conn).map_err(Error::DieselError) {
+    match OriginInvitation::list_by_origin(&origin, &mut conn).map_err(Error::DieselError) {
         Ok(list) => {
             let json = json!({
                 "origin": &origin,
@@ -1091,13 +1097,13 @@ async fn get_origin_member_role(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
     // The account id of the user being requested
-    let (target_user_id, _) = match Account::get(&username, &conn).map_err(Error::DieselError) {
+    let (target_user_id, _) = match Account::get(&username, &mut conn).map_err(Error::DieselError) {
         Ok(account) => (account.id, account.name),
         Err(err) => {
             debug!("{}", err);
@@ -1105,7 +1111,7 @@ async fn get_origin_member_role(req: HttpRequest,
         }
     };
 
-    match OriginMember::member_role(&origin, target_user_id, &conn) {
+    match OriginMember::member_role(&origin, target_user_id, &mut conn) {
         Ok(role) => {
             let body = role_results_json(role);
 
@@ -1149,7 +1155,7 @@ async fn update_origin_member_role(req: HttpRequest,
             Err(err) => return err.into(),
         };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -1160,7 +1166,7 @@ async fn update_origin_member_role(req: HttpRequest,
     }
 
     // The account id of the user being requested
-    let (target_user_id, _) = match Account::get(&username, &conn) {
+    let (target_user_id, _) = match Account::get(&username, &mut conn) {
         Ok(account) => (account.id, account.name),
         Err(err) => {
             debug!("{}", err);
@@ -1182,7 +1188,7 @@ async fn update_origin_member_role(req: HttpRequest,
          .borrow_mut()
          .clear_cache_for_member_role(&origin, target_user_id as u64);
 
-    match OriginMember::update_member_role(&origin, target_user_id, &conn, target_role) {
+    match OriginMember::update_member_role(&origin, target_user_id, &mut conn, target_role) {
         Ok(0) => HttpResponse::NotFound().into(),
         Ok(_) => HttpResponse::NoContent().into(),
         Err(err) => {
@@ -1216,13 +1222,13 @@ async fn transfer_origin_ownership(req: HttpRequest,
 
     debug!(" Transferring origin {} to new owner {}", &origin, &user);
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
     let (recipient_id, _recipient_name) =
-        match Account::get(&user, &conn).map_err(Error::DieselError) {
+        match Account::get(&user, &mut conn).map_err(Error::DieselError) {
             Ok(account) => (account.id, account.name),
             Err(err) => {
                 debug!("{}", err);
@@ -1235,14 +1241,14 @@ async fn transfer_origin_ownership(req: HttpRequest,
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
-    match Origin::transfer(&origin, recipient_id, &conn).map_err(Error::DieselError) {
+    match Origin::transfer(&origin, recipient_id, &mut conn).map_err(Error::DieselError) {
         Ok(_) => {
             origin_audit(&origin,
                          OriginOperation::OwnerTransfer,
                          &recipient_id.to_string(),
                          session.get_id() as i64,
                          session.get_name(),
-                         &conn);
+                         &mut conn);
             HttpResponse::NoContent().finish()
         }
         Err(err) => {
@@ -1277,7 +1283,7 @@ async fn depart_from_origin(req: HttpRequest,
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -1286,7 +1292,7 @@ async fn depart_from_origin(req: HttpRequest,
            session.get_name(),
            &origin);
 
-    match Origin::depart(&origin, session.get_id() as i64, &conn).map_err(Error::DieselError) {
+    match Origin::depart(&origin, session.get_id() as i64, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -1306,12 +1312,12 @@ async fn list_origin_members(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match OriginMember::list(&origin, &conn).map_err(Error::DieselError) {
+    match OriginMember::list(&origin, &mut conn).map_err(Error::DieselError) {
         Ok(users) => {
             let json = json!({
                 "origin": &origin,
@@ -1353,13 +1359,13 @@ async fn origin_member_delete(req: HttpRequest,
 
     debug!("Deleting origin member {} from origin {}", &user, &origin);
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
     let (target_account_id, _target_account_name) =
-        match Account::get(&user, &conn).map_err(Error::DieselError) {
+        match Account::get(&user, &mut conn).map_err(Error::DieselError) {
             Ok(account) => (account.id, account.name),
             Err(err) => {
                 debug!("{}", err);
@@ -1367,7 +1373,7 @@ async fn origin_member_delete(req: HttpRequest,
             }
         };
 
-    match OriginMember::delete(&origin, &user, &conn).map_err(Error::DieselError) {
+    match OriginMember::delete(&origin, &user, &mut conn).map_err(Error::DieselError) {
         Ok(_) => {
             state.memcache
                  .borrow_mut()
@@ -1392,12 +1398,12 @@ async fn fetch_origin_integrations(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match OriginIntegration::list_for_origin(&origin, &conn).map_err(Error::DieselError) {
+    match OriginIntegration::list_for_origin(&origin, &mut conn).map_err(Error::DieselError) {
         Ok(oir) => {
             let integrations_response: HashMap<String, Vec<String>> =
                 oir.iter().fold(HashMap::new(), |mut acc, i| {
@@ -1427,12 +1433,12 @@ async fn fetch_origin_integration_names(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match OriginIntegration::list_for_origin_integration(&origin, &integration, &conn)
+    match OriginIntegration::list_for_origin_integration(&origin, &integration, &mut conn)
         .map_err(Error::DieselError)
     {
         Ok(integrations) => {
@@ -1462,7 +1468,7 @@ async fn create_origin_integration(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -1481,7 +1487,7 @@ async fn create_origin_integration(req: HttpRequest,
                                      name:        &name,
                                      body:        &encrypted, };
 
-    match OriginIntegration::create(&noi, &conn).map_err(Error::DieselError) {
+    match OriginIntegration::create(&noi, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::Created().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -1501,12 +1507,12 @@ async fn delete_origin_integration(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match OriginIntegration::delete(&origin, &integration, &name, &conn).map_err(Error::DieselError)
+    match OriginIntegration::delete(&origin, &integration, &name, &mut conn).map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
@@ -1527,12 +1533,12 @@ async fn get_origin_integration(req: HttpRequest,
         return err.into();
     }
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match OriginIntegration::get(&origin, &integration, &name, &conn).map_err(Error::DieselError) {
+    match OriginIntegration::get(&origin, &integration, &name, &mut conn).map_err(Error::DieselError) {
         Ok(integration) => {
             match crypto::decrypt(&state.config.api.key_path, &integration.body)
                 .map_err(Error::BuilderCore)
@@ -1606,7 +1612,7 @@ fn key_as_http_response<K>(key: &K) -> HttpResponse
 fn generate_origin_encryption_keys(origin: &str,
                                    session_id: u64,
                                    key_cache: &KeyCache,
-                                   conn: &PgConnection)
+                                   conn: &mut PgConnection)
                                    -> Result<core_keys::OriginPublicEncryptionKey> {
     debug!("Generating encryption keys for {}", origin);
     let (public, secret) = generate_origin_encryption_key_pair(&origin.parse()?);
@@ -1621,7 +1627,7 @@ fn generate_origin_encryption_keys(origin: &str,
                                                 body: &pk_body };
 
     save_secret_origin_encryption_key(&secret, session_id, key_cache, conn)?;
-    db_keys::OriginPublicEncryptionKey::create(&new_pk, conn)?;
+    db_keys::OriginPublicEncryptionKey::create(&new_pk, &mut *conn)?;
 
     Ok(public)
 }
@@ -1629,7 +1635,7 @@ fn generate_origin_encryption_keys(origin: &str,
 pub fn save_secret_origin_encryption_key(key: &core_keys::OriginSecretEncryptionKey,
                                          owner_id: u64,
                                          key_cache: &KeyCache,
-                                         conn: &PgConnection)
+                                         conn: &mut PgConnection)
                                          -> Result<()> {
     let (encrypted, _bldr_key_rev) = crypto::encrypt(key_cache, key.to_key_string())?;
 
@@ -1642,7 +1648,7 @@ pub fn save_secret_origin_encryption_key(key: &core_keys::OriginSecretEncryption
                                                  revision:  key.named_revision().revision(),
                                                  body:      &encrypted, };
 
-    db_keys::OriginPrivateEncryptionKey::create(&new_sk, conn)?;
+    db_keys::OriginPrivateEncryptionKey::create(&new_sk, &mut *conn)?;
 
     Ok(())
 }
@@ -1650,9 +1656,9 @@ pub fn save_secret_origin_encryption_key(key: &core_keys::OriginSecretEncryption
 /// Retrieve an encryption key from the origin
 fn get_secret_origin_encryption_key(origin: &str,
                                     key_cache: &KeyCache,
-                                    conn: &PgConnection)
+                                    conn: &mut PgConnection)
                                     -> Result<core_keys::OriginSecretEncryptionKey> {
-    let db_record = db_keys::OriginPrivateEncryptionKey::latest(origin, conn)?;
+    let db_record = db_keys::OriginPrivateEncryptionKey::latest(origin, &mut *conn)?;
     let decrypted = crypto::decrypt(key_cache, &db_record.body)?;
     Ok(AsRef::<[u8]>::as_ref(&decrypted).try_into()?)
 }
@@ -1662,16 +1668,16 @@ fn get_secret_origin_encryption_key(origin: &str,
 // TODO (CM): NOTE - There doesn't appear to be a way to update origin
 // encryption keys, so "latest" is a distinction without a difference.
 fn get_latest_public_origin_encryption_key(origin: &str,
-                                           conn: &PgConnection)
+                                           conn: &mut PgConnection)
                                            -> Result<core_keys::OriginPublicEncryptionKey> {
-    let db_record = db_keys::OriginPublicEncryptionKey::latest(origin, conn)?;
+    let db_record = db_keys::OriginPublicEncryptionKey::latest(origin, &mut *conn)?;
     Ok(db_record.body.parse()?)
 }
 
 fn save_public_origin_signing_key(account_id: u64,
                                   origin: &str,
                                   key: &core_keys::PublicOriginSigningKey,
-                                  conn: &PgConnection)
+                                  conn: &mut PgConnection)
                                   -> Result<()> {
     let key_body = key.to_key_string();
 
@@ -1683,16 +1689,16 @@ fn save_public_origin_signing_key(account_id: u64,
                                                       revision: key.named_revision().revision(),
                                                       body: &key_body };
 
-    db_keys::OriginPublicSigningKey::create(&new_pk, conn)?;
+    db_keys::OriginPublicSigningKey::create(&new_pk, &mut *conn)?;
     Ok(())
 }
 
 /// Retrieve the latest available revision of the origin's public
 /// signing key from the database.
 fn get_latest_public_origin_signing_key(origin: &str,
-                                        conn: &PgConnection)
+                                        conn: &mut PgConnection)
                                         -> Result<core_keys::PublicOriginSigningKey> {
-    let db_record = db_keys::OriginPublicSigningKey::latest(origin, conn)?;
+    let db_record = db_keys::OriginPublicSigningKey::latest(origin, &mut *conn)?;
     Ok(db_record.body.parse()?)
 }
 
@@ -1700,9 +1706,9 @@ fn get_latest_public_origin_signing_key(origin: &str,
 /// signing key from the database.
 fn get_specific_public_origin_signing_key(origin: &str,
                                           revision: &str, // TODO (CM): KeyRevision
-                                          conn: &PgConnection)
+                                          conn: &mut PgConnection)
                                           -> Result<core_keys::PublicOriginSigningKey> {
-    let db_record = db_keys::OriginPublicSigningKey::get(origin, revision, conn)?;
+    let db_record = db_keys::OriginPublicSigningKey::get(origin, revision, &mut *conn)?;
     Ok(db_record.body.parse()?)
 }
 
@@ -1710,7 +1716,7 @@ fn save_secret_origin_signing_key(account_id: u64,
                                   origin: &str,
                                   key_cache: &KeyCache,
                                   key: &core_keys::SecretOriginSigningKey,
-                                  conn: &PgConnection)
+                                  conn: &mut PgConnection)
                                   -> Result<()> {
     // Here we want to encrypt the full contents of the secret signing
     // key (i.e., encrypt the full "file", not merely the
@@ -1727,7 +1733,7 @@ fn save_secret_origin_signing_key(account_id: u64,
                                                        body: &sk_encrypted,
                                                        encryption_key_rev: &bldr_key_rev };
 
-    db_keys::OriginPrivateSigningKey::create(&new_sk, conn)?;
+    db_keys::OriginPrivateSigningKey::create(&new_sk, &mut *conn)?;
     Ok(())
 }
 
@@ -1735,9 +1741,9 @@ fn save_secret_origin_signing_key(account_id: u64,
 /// decrypting it in the process.
 fn get_latest_secret_origin_signing_key(origin: &str,
                                         key_cache: &KeyCache,
-                                        conn: &PgConnection)
+                                        conn: &mut PgConnection)
                                         -> Result<core_keys::SecretOriginSigningKey> {
-    let db_record = db_keys::OriginPrivateSigningKey::get(origin, conn)?;
+    let db_record = db_keys::OriginPrivateSigningKey::get(origin, &mut *conn)?;
 
     let key = if db_record.encryption_key_rev.is_some() {
         let bytes = crypto::decrypt(key_cache, &db_record.body)?;

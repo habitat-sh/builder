@@ -66,14 +66,14 @@ pub struct UpdateProject<'a> {
 }
 
 impl Project {
-    pub fn get(name: &str, target: &str, conn: &PgConnection) -> QueryResult<Project> {
+    pub fn get(name: &str, target: &str, conn: &mut PgConnection) -> QueryResult<Project> {
         Counter::DBCall.increment();
         origin_projects::table.filter(origin_projects::name.eq(name))
                               .filter(origin_projects::target.eq(target))
                               .get_result(conn)
     }
 
-    pub fn delete(name: &str, target: &str, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(name: &str, target: &str, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_projects::table
@@ -83,32 +83,32 @@ impl Project {
         .execute(conn)
     }
 
-    pub fn create(project: &NewProject, conn: &PgConnection) -> QueryResult<Project> {
+    pub fn create(project: &NewProject, conn: &mut PgConnection) -> QueryResult<Project> {
         Counter::DBCall.increment();
         diesel::insert_into(origin_projects::table).values(project)
                                                    .get_result(conn)
     }
 
-    pub fn update(project: &UpdateProject, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn update(project: &UpdateProject, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origin_projects::table.find(project.id)).set(project)
                                                                .execute(conn)
     }
 
-    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<Project>> {
+    pub fn list(origin: &str, conn: &mut PgConnection) -> QueryResult<Vec<Project>> {
         Counter::DBCall.increment();
         origin_projects::table.filter(origin_projects::origin.eq(origin))
                               .get_results(conn)
     }
 
-    pub fn count_origin_projects(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+    pub fn count_origin_projects(origin: &str, conn: &mut PgConnection) -> QueryResult<i64> {
         Counter::DBCall.increment();
         origin_projects::table.select(count(origin_projects::id))
                               .filter(origin_projects::origin.eq(&origin))
                               .first(conn)
     }
 
-    pub fn get_by_id(project_id: i64, conn: &PgConnection) -> QueryResult<Project> {
+    pub fn get_by_id(project_id: i64, conn: &mut PgConnection) -> QueryResult<Project> {
         Counter::DBCall.increment();
         origin_projects::table.find(project_id).get_result(conn)
     }

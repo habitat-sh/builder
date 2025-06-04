@@ -20,7 +20,6 @@ use crate::{hab_core::{self,
             models::{channel::{Channel,
                                OriginChannelPackage,
                                OriginChannelPromote},
-                     pagination::*,
                      settings::OriginPackageSettings},
             schema::{channel::{origin_channel_packages,
                                origin_channels},
@@ -36,12 +35,13 @@ use diesel::{self,
              deserialize::{self,
                            FromSql},
              dsl::{count,
+                   count_star,
                    sql},
-             pg::{expression::dsl::any,
-                  upsert::{excluded,
+             pg::{upsert::{excluded,
                            on_constraint},
                   Pg,
-                  PgConnection},
+                  PgConnection,
+                  PgValue},
              prelude::*,
              result::QueryResult,
              serialize::{self,
@@ -57,11 +57,13 @@ use itertools::Itertools;
 
 use crate::{bldr_core::metrics::{CounterMetric,
                                  HistogramMetric},
+            // error::Error as CrateError,
             metrics::{Counter,
                       Histogram},
             protocol::originsrv::{OriginPackage,
                                   OriginPackageIdent,
                                   OriginPackageVisibility}};
+use diesel_derive_enum::DbEnum;
 
 #[derive(Debug,
          Serialize,
@@ -365,39 +367,14 @@ pub struct OriginPackageVersions {
     pub visibility:    PackageVisibility,
 }
 
-#[derive(DbEnum,
-         Debug,
-         Eq,
-         Hash,
-         Serialize,
-         Deserialize,
-         PartialEq,
-         Clone,
-         ToSql,
-         FromSql)]
-#[PgType = "origin_package_visibility"]
-#[postgres(name = "origin_package_visibility")]
+#[derive(DbEnum, Debug, Eq, Hash, Serialize, Deserialize, PartialEq, Clone)]
+#[ExistingTypePath = "crate::schema::sql_types::OriginPackageVisibility"]
+#[DbValueStyle = "snake_case"]
+#[serde(rename_all = "snake_case")]
 pub enum PackageVisibility {
-    #[postgres(name = "public")]
-    #[serde(rename = "public")]
     Public,
-    #[postgres(name = "private")]
-    #[serde(rename = "private")]
     Private,
-    #[postgres(name = "hidden")]
-    #[serde(rename = "hidden")]
     Hidden,
-}
-
-impl fmt::Display for PackageVisibility {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let value = match *self {
-            PackageVisibility::Public => "public",
-            PackageVisibility::Private => "private",
-            PackageVisibility::Hidden => "hidden",
-        };
-        write!(f, "{}", value)
-    }
 }
 
 impl FromStr for PackageVisibility {
@@ -410,6 +387,17 @@ impl FromStr for PackageVisibility {
             "hidden" => Ok(PackageVisibility::Hidden),
             _ => Err(()),
         }
+    }
+}
+
+impl fmt::Display for PackageVisibility {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let value = match *self {
+            PackageVisibility::Public => "public",
+            PackageVisibility::Private => "private",
+            PackageVisibility::Hidden => "hidden",
+        };
+        write!(f, "{}", value)
     }
 }
 
@@ -432,13 +420,13 @@ impl PackageWithVersionArray {
 impl Package {
     pub fn get_without_target(ident: BuilderPackageIdent,
                               visibility: Vec<PackageVisibility>,
-                              conn: &PgConnection)
+                              conn: &mut PgConnection)
                               -> QueryResult<Package> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
         let result = Self::all().filter(origin_packages::ident.eq(ident))
-                                .filter(origin_packages::visibility.eq(any(visibility)))
+                                .filter(origin_packages::visibility.eq_any(visibility))
                                 .filter(origin_packages::hidden.eq(false))
                                 .get_result(conn);
 
@@ -450,12 +438,12 @@ impl Package {
         result
     }
 
-    pub fn get(req: GetPackage, conn: &PgConnection) -> QueryResult<Package> {
+    pub fn get(req: GetPackage, conn: &mut PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
         let result = Self::all().filter(origin_packages::ident.eq(req.ident))
-                                .filter(origin_packages::visibility.eq(any(req.visibility)))
+                                .filter(origin_packages::visibility.eq_any(req.visibility))
                                 .filter(origin_packages::target.eq(req.target))
                                 .filter(origin_packages::hidden.eq(false))
                                 .get_result(conn);
@@ -467,7 +455,7 @@ impl Package {
         result
     }
 
-    pub fn delete(req: DeletePackage, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(req: DeletePackage, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_packages::table
@@ -477,12 +465,12 @@ impl Package {
         .execute(conn)
     }
 
-    pub fn get_group(req: GetPackageGroup, conn: &PgConnection) -> QueryResult<Vec<Package>> {
+    pub fn get_group(req: GetPackageGroup, conn: &mut PgConnection) -> QueryResult<Vec<Package>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let result = Self::all().filter(origin_packages::ident.eq(any(req.pkgs)))
-                                .filter(origin_packages::visibility.eq(any(req.visibility)))
+        let result = Self::all().filter(origin_packages::ident.eq_any(req.pkgs))
+                                .filter(origin_packages::visibility.eq_any(req.visibility))
                                 .filter(origin_packages::hidden.eq(false))
                                 .get_results(conn);
 
@@ -494,7 +482,7 @@ impl Package {
     }
 
     pub fn get_all(req_ident: &BuilderPackageIdent,
-                   conn: &PgConnection)
+                   conn: &mut PgConnection)
                    -> QueryResult<Vec<Package>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -514,7 +502,7 @@ impl Package {
     }
 
     pub fn get_latest(req: GetLatestPackage,
-                      conn: &PgConnection)
+                      conn: &mut PgConnection)
                       -> QueryResult<PackageWithVersionArray> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -524,8 +512,8 @@ impl Package {
             .filter(origin_packages_with_version_array::name.eq(&req.ident.name.clone()))
             .filter(origin_packages_with_version_array::ident_array.contains(req.ident.parts()))
             .filter(origin_packages_with_version_array::target.eq(req.target))
-            .filter(origin_packages_with_version_array::visibility.eq(any(req.visibility)))
-            .order(sql::<PackageWithVersionArray>(
+            .filter(origin_packages_with_version_array::visibility.eq_any(req.visibility))
+            .order(sql::<Text>(
                 "string_to_array(version_array[1],'.')::\
                  numeric[] desc, version_array[2] desc, \
                  ident_array[4] desc",
@@ -541,7 +529,7 @@ impl Package {
         result
     }
 
-    pub fn get_all_latest(conn: &PgConnection) -> QueryResult<Vec<PackageWithVersionArray>> {
+    pub fn get_all_latest(conn: &mut PgConnection) -> QueryResult<Vec<PackageWithVersionArray>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
         let result = origin_packages_with_version_array::table
@@ -550,9 +538,14 @@ impl Package {
                 origin_packages_with_version_array::name,
                 origin_packages_with_version_array::target,
             ))
-            .order(sql::<PackageWithVersionArray>(
+            .order((
+                origin_packages_with_version_array::origin,
+                origin_packages_with_version_array::name,
+                origin_packages_with_version_array::target,
+                sql::<Text>(
                 "origin, name, target, string_to_array(version_array[1],'.')::\
                 numeric[] desc, ident_array[4] desc",
+                ),
             ))
             .get_results(conn);
         let duration_millis = start_time.elapsed().as_millis();
@@ -563,7 +556,7 @@ impl Package {
         result
     }
 
-    pub fn create(package: &NewPackage, conn: &PgConnection) -> QueryResult<Package> {
+    pub fn create(package: &NewPackage, conn: &mut PgConnection) -> QueryResult<Package> {
         Counter::DBCall.increment();
         let pkg = diesel::insert_into(origin_packages::table)
             .values(package)
@@ -599,7 +592,7 @@ impl Package {
 
     pub fn update_visibility(vis: PackageVisibility,
                              idt: BuilderPackageIdent,
-                             conn: &PgConnection)
+                             conn: &mut PgConnection)
                              -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origin_packages::table.filter(origin_packages::ident.eq(idt)))
@@ -608,7 +601,7 @@ impl Package {
     }
 
     pub fn update_visibility_bulk(req: UpdatePackageVisibility,
-                                  conn: &PgConnection)
+                                  conn: &mut PgConnection)
                                   -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origin_packages::table.filter(origin_packages::id.eq_any(req.ids)))
@@ -616,42 +609,47 @@ impl Package {
             .execute(conn)
     }
 
-    pub fn list(pl: ListPackages,
-                conn: &PgConnection)
+    pub fn list(pl: &ListPackages,
+                conn: &mut PgConnection)
                 -> QueryResult<(Vec<PackageWithChannelPlatform>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
+        // Extract cloned copies out of pl
+        let origin_str = pl.ident.origin.clone();
+        let name_str = pl.ident.name.clone();
+        let parts = pl.ident.clone().parts();
+        let visibility = pl.visibility.clone();
+        let page = pl.page;
+        let limit = pl.limit;
+
         let mut query = packages_with_channel_platform::table
-            .filter(packages_with_channel_platform::origin.eq(&pl.ident.origin))
-            .into_boxed();
+        .filter(packages_with_channel_platform::origin.eq(origin_str))
+        .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
         if !pl.ident.name.is_empty() {
-            query = query.filter(packages_with_channel_platform::name.eq(&pl.ident.name))
+            query = query.filter(packages_with_channel_platform::name.eq(name_str))
         };
 
         let mut pkgs = if pl.limit < 0 {
             let query =
-                query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
-                                                                                    .clone()
-                                                                                    .parts()))
-                     .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
+                query.filter(packages_with_channel_platform::ident_array.contains(parts.clone()))
+                     .filter(packages_with_channel_platform::visibility.eq_any(visibility.clone()))
                      .order(packages_with_channel_platform::ident.desc());
             let pkgs: std::vec::Vec<PackageWithChannelPlatform> = query.get_results(conn)?;
             pkgs
         } else {
-            let query =
-                query.filter(packages_with_channel_platform::ident_array.contains(pl.ident
-                                                                                    .clone()
-                                                                                    .parts()))
-                     .filter(packages_with_channel_platform::visibility.eq(any(pl.visibility)))
+            let all_rows: Vec<PackageWithChannelPlatform> =
+                query.filter(packages_with_channel_platform::ident_array.contains(parts.clone()))
+                     .filter(packages_with_channel_platform::visibility.eq_any(visibility.clone()))
                      .order(packages_with_channel_platform::ident.desc())
-                     .paginate(pl.page)
-                     .per_page(pl.limit);
-            let (pkgs, _): (std::vec::Vec<PackageWithChannelPlatform>, i64) =
-                query.load_and_count_records(conn)?;
-            pkgs
+                     .load(conn)?;
+            let unique_rows: Vec<PackageWithChannelPlatform> =
+                all_rows.into_iter().unique().collect();
+            let start = ((page.saturating_sub(1)) * limit) as usize;
+            let end = (start + limit as usize).min(unique_rows.len());
+            unique_rows[start..end].to_vec()
         };
 
         // helpful trick when debugging queries, this has Debug trait:
@@ -680,36 +678,65 @@ impl Package {
         Ok((pkgs, new_count))
     }
 
-    pub fn list_distinct(pl: ListPackages,
-                         conn: &PgConnection)
+    pub fn list_distinct(pl: &ListPackages,
+                         conn: &mut PgConnection)
                          -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let mut query = origin_packages::table.select(sql("concat_ws('/', ident_array[1], \
-                                                           ident_array[2]) as ident"))
-                                              .filter(origin_packages::origin.eq(&pl.ident.origin))
-                                              .into_boxed();
+        // Extract cloned copies out of pl
+        let origin_str = pl.ident.origin.clone();
+        let name_str = pl.ident.name.clone();
+        let parts = pl.ident.clone().parts();
+        let visibility = pl.visibility.clone();
+        let page = pl.page;
+        let limit = pl.limit;
+
+        let mut count_query =
+            origin_packages::table.filter(origin_packages::origin.eq(origin_str.clone()))
+                                  .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
+        if !name_str.is_empty() {
+            count_query = count_query.filter(origin_packages::name.eq(name_str.clone()));
+        }
+        let total_count: i64 =
+            count_query.filter(origin_packages::ident_array.contains(parts.clone()))
+                       .filter(origin_packages::visibility.eq_any(visibility.clone()))
+                       .filter(origin_packages::hidden.eq(false))
+                       .select(sql::<diesel::sql_types::BigInt>("COUNT(DISTINCT \
+                                                                 (origin_packages.origin, \
+                                                                 origin_packages.name))"))
+                       .first(conn)?;
+
+        let mut page_query =
+            origin_packages::table.filter(origin_packages::origin.eq(origin_str.clone()))
+                                  .filter(origin_packages::ident_array.contains(parts))
+                                  .filter(origin_packages::visibility.eq_any(visibility))
+                                  .filter(origin_packages::hidden.eq(false))
+                                  .select((origin_packages::origin, origin_packages::name))
+                                  .distinct()
+                                  .order((origin_packages::name.asc(),
+                                          origin_packages::origin.asc()))
+                                  .into_boxed();
         if !pl.ident.name.is_empty() {
-            query = query.filter(origin_packages::name.eq(&pl.ident.name))
-        };
-        let query = query
-            .filter(origin_packages::ident_array.contains(pl.ident.clone().parts()))
-            .filter(origin_packages::visibility.eq(any(pl.visibility)))
-            .filter(origin_packages::hidden.eq(false))
-            // This is because diesel doesn't yet support group_by
-            // see: https://github.com/diesel-rs/diesel/issues/210
-            .filter(sql("TRUE GROUP BY ident_array[2], ident_array[1]"))
-            .order(sql::<BuilderPackageIdent>("ident ASC"))
-            .paginate(pl.page)
-            .per_page(pl.limit);
+            page_query = page_query.filter(origin_packages::name.eq(pl.ident.name.clone()));
+        }
 
-        // helpful trick when debugging queries, this has Debug trait:
-        // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query)
+        let limit_i64 = limit;
+        let offset_i64 = (page.saturating_sub(1)) * limit;
 
-        let result = query.load_and_count_records(conn);
+        let rows: Vec<(String, String)> =
+            page_query.limit(limit_i64).offset(offset_i64).load(conn)?;
+
+        let pkgs: Vec<BuilderPackageIdent> = rows.into_iter()
+                                                 .map(|(origin, name)| {
+                                                     BuilderPackageIdent(PackageIdent { origin,
+                                                       name,
+                                                       version: None,
+                                                       release: None })
+                                                 })
+                                                 .collect();
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::list_distinct time: {} ms", duration_millis);
@@ -723,38 +750,60 @@ impl Package {
             Histogram::PackageListDistinctOriginNameCallTime.set(duration_millis as f64);
         }
 
-        result
+        Ok((pkgs, total_count))
     }
 
-    pub fn distinct_for_origin(pl: ListPackages,
-                               conn: &PgConnection)
+    pub fn distinct_for_origin(pl: &ListPackages,
+                               conn: &mut PgConnection)
                                -> QueryResult<(Vec<OriginPackageSettings>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let result = origin_package_settings::table
-            .select(origin_package_settings::all_columns)
-            .filter(origin_package_settings::origin.eq(&pl.ident.origin))
-            .filter(origin_package_settings::visibility.eq(any(pl.visibility)))
+        // Extract cloned copies out of pl
+        let origin_str = pl.ident.origin.clone();
+        let visibility = pl.visibility.clone();
+        let page = pl.page;
+        let limit = pl.limit;
+
+        let  base_query = origin_package_settings::table
+            .filter(origin_package_settings::origin.eq(origin_str))
+            .filter(origin_package_settings::visibility.eq_any(visibility))
             .filter(origin_package_settings::hidden.eq(false))
             .order(origin_package_settings::origin.asc())
             .order(origin_package_settings::name.asc())
-            .paginate(pl.page)
-            .per_page(pl.limit)
-            .load_and_count_records(conn);
+            .into_boxed();
+
+        // helpful trick when debugging queries, this has Debug trait:
+        // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&base_query)
+
+        let all_rows: Vec<OriginPackageSettings> = base_query.load(conn)?;
+        let unique_by_name: Vec<OriginPackageSettings> = all_rows.into_iter()
+                                                                 .unique_by(|pkg| pkg.name.clone())
+                                                                 .collect();
+
+        let total_count = unique_by_name.len() as i64;
+        let start = ((page.saturating_sub(1)) * limit) as usize;
+        let end = (start + limit as usize).min(unique_by_name.len());
+        let results = if limit < 0 {
+            unique_by_name.clone()
+        } else if start >= unique_by_name.len() {
+            Vec::new()
+        } else {
+            unique_by_name[start..end].to_vec()
+        };
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::list_distinct_for_origin time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageListDistinctForOriginCallTime.set(duration_millis as f64);
-        result
+        Ok((results, total_count))
     }
 
     pub fn list_package_channels(ident: &BuilderPackageIdent,
                                  target: PackageTarget,
                                  visibility: Vec<PackageVisibility>,
-                                 conn: &PgConnection)
+                                 conn: &mut PgConnection)
                                  -> QueryResult<Vec<Channel>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -771,7 +820,7 @@ impl Package {
             ))
             .filter(origin_packages::ident.eq(ident))
             .filter(origin_packages::target.eq(target.to_string()))
-            .filter(origin_packages::visibility.eq(any(visibility)))
+            .filter(origin_packages::visibility.eq_any(visibility))
             .filter(origin_packages::hidden.eq(false))
             .order(origin_channels::name.desc())
             .get_results(conn);
@@ -786,7 +835,7 @@ impl Package {
 
     pub fn list_package_versions(ident: &BuilderPackageIdent,
                                  visibility: Vec<PackageVisibility>,
-                                 conn: &PgConnection)
+                                 conn: &mut PgConnection)
                                  -> QueryResult<Vec<OriginPackageVersions>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -794,8 +843,8 @@ impl Package {
         let result = origin_package_versions::table
             .filter(origin_package_versions::origin.eq(ident.origin()))
             .filter(origin_package_versions::name.eq(ident.name()))
-            .filter(origin_package_versions::visibility.eq(any(visibility)))
-            .order(sql::<OriginPackageVersions>(
+            .filter(origin_package_versions::visibility.eq_any(visibility))
+            .order(sql::<Text>(
                 "string_to_array(version_array[1],'.')::numeric[]desc, version_array[2] desc",
             ))
             .get_results(conn);
@@ -808,7 +857,7 @@ impl Package {
         result
     }
 
-    pub fn count_origin_packages(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+    pub fn count_origin_packages(origin: &str, conn: &mut PgConnection) -> QueryResult<i64> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -826,87 +875,144 @@ impl Package {
     }
 
     pub fn search(sp: &SearchPackages,
-                  conn: &PgConnection)
+                  conn: &mut PgConnection)
                   -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let mut query = origin_packages::table
-            .select(origin_packages::ident)
-            .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
-            .filter(origin_packages::hidden.eq(false))
-            .order(origin_packages::ident.asc())
-            .into_boxed();
+        let mut count_query = origin_packages::table.into_boxed();
+        count_query = count_query
+        .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+        .filter(origin_packages::hidden.eq(false));
 
         if let Some(session_id) = sp.account_id {
-            let origins = origin_members::table.select(origin_members::origin)
-                                               .filter(origin_members::account_id.eq(session_id));
-            query = query.filter(
-                origin_packages::visibility
-                    .eq(any(PackageVisibility::private()))
-                    .and(origin_packages::origin.eq_any(origins))
-                    .or(origin_packages::visibility.eq(PackageVisibility::Public)),
-            );
+            let owned_origins =
+                origin_members::table.select(origin_members::origin)
+                                     .filter(origin_members::account_id.eq(session_id));
+
+            count_query = count_query.filter(
+            origin_packages::visibility
+                .eq_any(PackageVisibility::private())
+                .and(origin_packages::origin.eq_any(owned_origins))
+                .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+        );
         } else {
-            query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+            count_query =
+                count_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
         }
 
-        let result = query.paginate(sp.page)
-                          .per_page(sp.limit)
-                          .load_and_count_records(conn);
+        let total_count: i64 = count_query.select(count_star()).first(conn)?;
+
+        let mut page_query = origin_packages::table.into_boxed();
+        page_query = page_query
+        .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+        .filter(origin_packages::hidden.eq(false));
+
+        if let Some(session_id) = sp.account_id {
+            let owned_origins =
+                origin_members::table.select(origin_members::origin)
+                                     .filter(origin_members::account_id.eq(session_id));
+
+            page_query = page_query.filter(
+            origin_packages::visibility
+                .eq_any(PackageVisibility::private())
+                .and(origin_packages::origin.eq_any(owned_origins))
+                .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+        );
+        } else {
+            page_query =
+                page_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+        }
+
+        let limit = sp.limit;
+        let offset = (sp.page.saturating_sub(1)) * sp.limit;
+
+        let packages: Vec<BuilderPackageIdent> = page_query.select(origin_packages::ident)
+                                                           .order(origin_packages::ident.asc())
+                                                           .limit(limit)
+                                                           .offset(offset)
+                                                           .load(conn)?;
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::search time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageSearchCallTime.set(duration_millis as f64);
-        result
+
+        Ok((packages, total_count))
     }
 
     // This is me giving up on fighting the typechecker and just duplicating a bunch of code
     pub fn search_distinct(sp: &SearchPackages,
-                           conn: &PgConnection)
+                           conn: &mut PgConnection)
                            -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let mut query = origin_packages::table
-            .inner_join(origins::table)
-            .select(sql("concat_ws('/', origins.name, origin_packages.name)"))
-            .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
-            .filter(origin_packages::hidden.eq(false))
-            .order(origin_packages::name.asc())
-            .into_boxed();
+        let mut count_query = origin_packages::table
+        .inner_join(origins::table)
+        .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+        .filter(origin_packages::hidden.eq(false))
+        .into_boxed();
 
         if let Some(session_id) = sp.account_id {
-            query = query.filter(
-                origin_packages::visibility
-                    .eq(any(PackageVisibility::private()))
-                    .and(origins::owner_id.eq(session_id))
-                    .or(origin_packages::visibility.eq(PackageVisibility::Public)),
-            );
+            count_query = count_query.filter(
+            origin_packages::visibility
+                .eq_any(PackageVisibility::private())
+                .and(origins::owner_id.eq(session_id))
+                .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+        );
         } else {
-            query = query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+            count_query =
+                count_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
         }
 
-        // Because of the filter hack it is very important that this be the last filter
-        query = query.filter(sql("TRUE GROUP BY origin_packages.name, origins.name"));
+        let total_count: i64 =
+            count_query.select(sql::<diesel::sql_types::BigInt>("COUNT(DISTINCT concat_ws('/', \
+                                                                 origins.name, \
+                                                                 origin_packages.name))"))
+                       .first(conn)?;
 
-        let result = query.paginate(sp.page)
-                          .per_page(sp.limit)
-                          .load_and_count_records(conn);
+        let mut page_query = origin_packages::table
+        .inner_join(origins::table)
+        .select(sql::<diesel::sql_types::Text>(
+            "concat_ws('/', origins.name, origin_packages.name)",
+        ))
+        .distinct_on((origin_packages::name, origins::name))
+        .order((origin_packages::name.asc(), origins::name.asc()))
+        .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+        .filter(origin_packages::hidden.eq(false))
+        .into_boxed();
+
+        if let Some(session_id) = sp.account_id {
+            page_query = page_query.filter(
+            origin_packages::visibility
+                .eq_any(PackageVisibility::private())
+                .and(origins::owner_id.eq(session_id))
+                .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+        );
+        } else {
+            page_query =
+                page_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
+        }
+
+        let limit = sp.limit;
+        let offset = (sp.page.saturating_sub(1)) * sp.limit;
+
+        let packages: Vec<BuilderPackageIdent> =
+            page_query.limit(limit).offset(offset).load(conn)?;
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::search time: {} ms", duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageSearchDistinctCallTime.set(duration_millis as f64);
-        result
+        Ok((packages, total_count))
     }
 
     pub fn all() -> All { origin_packages::table.select(ALL_COLUMNS) }
 
     pub fn list_package_platforms(ident: &BuilderPackageIdent,
                                   visibilities: Vec<PackageVisibility>,
-                                  conn: &PgConnection)
+                                  conn: &mut PgConnection)
                                   -> QueryResult<Vec<BuilderPackageTarget>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
@@ -916,7 +1022,7 @@ impl Package {
             .filter(origin_packages::origin.eq(&ident.origin))
             .filter(origin_packages::name.eq(&ident.name))
             .filter(origin_packages::ident_array.contains(&searchable_ident(ident)))
-            .filter(origin_packages::visibility.eq(any(visibilities)))
+            .filter(origin_packages::visibility.eq_any(visibilities))
             .filter(origin_packages::hidden.eq(false))
             .get_results(conn);
 
@@ -968,7 +1074,7 @@ fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
          PartialEq,
          Eq,
          Hash)]
-#[sql_type = "Text"]
+#[diesel(sql_type = Text)]
 pub struct BuilderPackageType(pub PackageType);
 
 impl FromStr for BuilderPackageType {
@@ -982,27 +1088,26 @@ impl FromStr for BuilderPackageType {
     }
 }
 
-impl FromSql<Text, Pg> for BuilderPackageType {
-    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
-        match bytes {
-            Some(text) => Ok(BuilderPackageType(
-                PackageType::from_str(str::from_utf8(text).unwrap()).unwrap(),
-            )),
-            None => Ok(BuilderPackageType(PackageType::Standard)),
-        }
-    }
-}
-
 impl ToSql<Text, Pg> for BuilderPackageType {
-    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+    fn to_sql<'a>(&'a self, out: &mut Output<'a, '_, Pg>) -> serialize::Result {
         out.write_all(self.to_string().as_bytes())
            .map(|_| IsNull::No)
            .map_err(Into::into)
     }
 }
 
-impl From<BuilderPackageType> for PackageType {
-    fn from(value: BuilderPackageType) -> PackageType { value.0 }
+impl FromSql<Text, Pg> for BuilderPackageType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        let s =
+            std::str::from_utf8(bytes.as_bytes()).map_err(|e| {
+                                                     std::io::Error::new(std::io::ErrorKind::Other,
+                                                                         e)
+                                                 })?;
+        Ok(BuilderPackageType::from_str(s).map_err(|_| {
+                                              std::io::Error::new(std::io::ErrorKind::Other,
+                                                                  format!("Invalid ident: {}", s))
+                                          })?)
+    }
 }
 
 impl Deref for BuilderPackageType {
@@ -1020,7 +1125,7 @@ impl Deref for BuilderPackageType {
          PartialEq,
          Eq,
          Hash)]
-#[sql_type = "Text"]
+#[diesel(sql_type = Text)]
 pub struct BuilderPackageIdent(pub PackageIdent);
 
 impl FromStr for BuilderPackageIdent {
@@ -1037,22 +1142,25 @@ impl FromStr for BuilderPackageIdent {
     }
 }
 
-impl FromSql<Text, Pg> for BuilderPackageIdent {
-    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
-        match bytes {
-            Some(text) => Ok(BuilderPackageIdent(
-                PackageIdent::from_str(str::from_utf8(text).unwrap()).unwrap(),
-            )),
-            None => Ok(BuilderPackageIdent(PackageIdent::default())),
-        }
-    }
-}
-
 impl ToSql<Text, Pg> for BuilderPackageIdent {
-    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+    fn to_sql<'a>(&'a self, out: &mut Output<'a, '_, Pg>) -> serialize::Result {
         out.write_all(self.to_string().as_bytes())
            .map(|_| IsNull::No)
            .map_err(Into::into)
+    }
+}
+
+impl FromSql<Text, Pg> for BuilderPackageIdent {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        let s =
+            std::str::from_utf8(bytes.as_bytes()).map_err(|e| {
+                                                     std::io::Error::new(std::io::ErrorKind::Other,
+                                                                         e)
+                                                 })?;
+        Ok(BuilderPackageIdent::from_str(s).map_err(|_| {
+                                               std::io::Error::new(std::io::ErrorKind::Other,
+                                                                   format!("Invalid ident: {}", s))
+                                           })?)
     }
 }
 
@@ -1089,7 +1197,7 @@ impl Deref for BuilderPackageIdent {
          Hash,
          Eq,
          Copy)]
-#[sql_type = "Text"]
+#[diesel(sql_type = Text)]
 pub struct BuilderPackageTarget(pub PackageTarget);
 
 impl FromStr for BuilderPackageTarget {
@@ -1105,24 +1213,25 @@ impl FromStr for BuilderPackageTarget {
     }
 }
 
-impl FromSql<Text, Pg> for BuilderPackageTarget {
-    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
-        match bytes {
-            Some(text) => Ok(BuilderPackageTarget(
-                PackageTarget::from_str(str::from_utf8(text).unwrap()).unwrap(),
-            )),
-            None => Ok(BuilderPackageTarget(
-                PackageTarget::from_str("x86_64").unwrap(),
-            )),
-        }
-    }
-}
-
 impl ToSql<Text, Pg> for BuilderPackageTarget {
-    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+    fn to_sql<'a>(&'a self, out: &mut Output<'a, '_, Pg>) -> serialize::Result {
         out.write_all(self.to_string().as_bytes())
            .map(|_| IsNull::No)
            .map_err(Into::into)
+    }
+}
+
+impl FromSql<Text, Pg> for BuilderPackageTarget {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        let s =
+            std::str::from_utf8(bytes.as_bytes()).map_err(|e| {
+                                                     std::io::Error::new(std::io::ErrorKind::Other,
+                                                                         e)
+                                                 })?;
+        Ok(BuilderPackageTarget::from_str(s).map_err(|_| {
+                                                std::io::Error::new(std::io::ErrorKind::Other,
+                                                                    format!("Invalid ident: {}", s))
+                                            })?)
     }
 }
 

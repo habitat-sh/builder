@@ -1,9 +1,9 @@
 use super::db_id_format;
 use chrono::NaiveDateTime;
-
 use diesel::{self,
              dsl::count,
-             pg::PgConnection,
+             pg::{Pg,
+                  PgConnection},
              prelude::*,
              result::{Error,
                       QueryResult},
@@ -40,6 +40,8 @@ use crate::{bldr_core::{metrics::CounterMetric,
 
 use std::{fmt,
           str::FromStr};
+
+use diesel_derive_enum::DbEnum;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
 #[table_name = "origins"]
@@ -79,29 +81,22 @@ pub struct OriginWithStats {
          Debug,
          Serialize,
          Deserialize,
-         ToSql,
-         FromSql,
          PartialEq,
          PartialOrd)]
-#[PgType = "origin_member_role"]
-#[postgres(name = "origin_member_role")]
+#[ExistingTypePath = "crate::schema::sql_types::OriginMemberRole"]
+#[DbValueStyle = "snake_case"]
 pub enum OriginMemberRole {
     // It is important to preserve the declaration order
     // here so that order comparisons work as expected.
     // The values are from least to greatest.
-    #[postgres(name = "readonly_member")]
     #[serde(rename = "readonly_member")]
     ReadonlyMember,
-    #[postgres(name = "member")]
     #[serde(rename = "member")]
     Member,
-    #[postgres(name = "maintainer")]
     #[serde(rename = "maintainer")]
     Maintainer,
-    #[postgres(name = "administrator")]
     #[serde(rename = "administrator")]
     Administrator,
-    #[postgres(name = "owner")]
     #[serde(rename = "owner")]
     Owner,
 }
@@ -160,6 +155,8 @@ pub struct NewOrigin<'a> {
 }
 
 #[derive(Clone, Copy, DbEnum, Debug, Serialize, Deserialize)]
+#[ExistingTypePath = "crate::schema::sql_types::OriginOperation"]
+#[DbValueStyle = "snake_case"]
 pub enum OriginOperation {
     OriginCreate,
     OriginDelete,
@@ -177,7 +174,7 @@ struct OriginAudit<'a> {
 }
 
 impl<'a> OriginAudit<'a> {
-    fn audit(origin_audit_record: &OriginAudit, conn: &PgConnection) -> QueryResult<usize> {
+    fn audit(origin_audit_record: &OriginAudit, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::insert_into(audit_origin::table).values(origin_audit_record)
                                                 .execute(conn)
@@ -189,7 +186,7 @@ pub fn origin_audit(origin: &str,
                     target: &str,
                     id: i64,
                     name: &str,
-                    conn: &PgConnection) {
+                    conn: &mut PgConnection) {
     if let Err(err) = OriginAudit::audit(&OriginAudit { operation: op,
                                                         origin,
                                                         target_object: target,
@@ -203,23 +200,22 @@ pub fn origin_audit(origin: &str,
 }
 
 impl Origin {
-    pub fn get(origin: &str, conn: &PgConnection) -> QueryResult<OriginWithSecretKey> {
+    pub fn get(origin: &str, conn: &mut PgConnection) -> QueryResult<OriginWithSecretKey> {
         Counter::DBCall.increment();
-        origins_with_secret_key::table.find(origin)
-                                      .limit(1)
-                                      .get_result(conn)
+        origins_with_secret_key::table.find(origin).first(conn)
     }
 
-    pub fn list(owner_id: i64, conn: &PgConnection) -> QueryResult<Vec<OriginWithStats>> {
+    pub fn list(owner_id: i64, conn: &mut PgConnection) -> QueryResult<Vec<OriginWithStats>> {
         Counter::DBCall.increment();
-        origins_with_stats::table.inner_join(origin_members::table)
-                                 .select(origins_with_stats::table::all_columns())
+        origins_with_stats::table.into_boxed::<Pg>()
+                                 .inner_join(origin_members::table)
                                  .filter(origin_members::account_id.eq(owner_id))
                                  .order(origins_with_stats::name.asc())
-                                 .get_results(conn)
+                                 .select(origins_with_stats::table::all_columns())
+                                 .load(conn)
     }
 
-    pub fn create(req: &NewOrigin, conn: &PgConnection) -> QueryResult<Origin> {
+    pub fn create(req: &NewOrigin, conn: &mut PgConnection) -> QueryResult<Origin> {
         Counter::DBCall.increment();
         let new_origin = diesel::insert_into(origins::table).values(req)
                                                             .get_result(conn)?;
@@ -237,13 +233,16 @@ impl Origin {
         Ok(new_origin)
     }
 
-    pub fn update(name: &str, dpv: PackageVisibility, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn update(name: &str,
+                  dpv: PackageVisibility,
+                  conn: &mut PgConnection)
+                  -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origins::table.find(name)).set(origins::default_package_visibility.eq(dpv))
                                                  .execute(conn)
     }
 
-    pub fn delete(origin: &str, conn: &PgConnection) -> QueryResult<()> {
+    pub fn delete(origin: &str, conn: &mut PgConnection) -> QueryResult<()> {
         // By this point, most of the associated origin data has already been manually deleted
         // by the user. We ensure this by double checking the most critical tables are already empty
         // via builder_api::server::resources::origins::origin_delete_preflight
@@ -251,73 +250,73 @@ impl Origin {
         // with the origin to ensure no vestigial data remains.
 
         Counter::DBCall.increment();
-        conn.transaction::<_, Error, _>(|| {
+        conn.transaction::<_, Error, _>(|txn_conn| {
             diesel::delete(origin_channels::table.filter(origin_channels::origin.eq(origin)))
-                .execute(conn)?;
+                .execute(txn_conn)?;
             diesel::delete(origin_secret_keys::table.filter(origin_secret_keys::origin.eq(origin)))
-                .execute(conn)?;
+                .execute(txn_conn)?;
             diesel::delete(origin_public_keys::table.filter(origin_public_keys::origin.eq(origin)))
-                .execute(conn)?;
+                .execute(txn_conn)?;
             diesel::delete(origin_members::table.filter(origin_members::origin.eq(origin)))
-                .execute(conn)?;
+                .execute(txn_conn)?;
             diesel::delete(
                 origin_package_settings::table.filter(origin_package_settings::origin.eq(origin)),
             )
-            .execute(conn)?;
+            .execute(txn_conn)?;
             diesel::delete(
                 origin_integrations::table.filter(origin_integrations::origin.eq(origin)),
             )
-            .execute(conn)?;
+            .execute(txn_conn)?;
             diesel::delete(origin_invitations::table.filter(origin_invitations::origin.eq(origin)))
-                .execute(conn)?;
+                .execute(txn_conn)?;
             diesel::delete(
                 origin_project_integrations::table
                     .filter(origin_project_integrations::origin.eq(origin)),
             )
-            .execute(conn)?;
+            .execute(txn_conn)?;
             diesel::delete(origin_projects::table.filter(origin_projects::origin.eq(origin)))
-                .execute(conn)?;
+                .execute(txn_conn)?;
             diesel::delete(origin_secrets::table.filter(origin_secrets::origin.eq(origin)))
-                .execute(conn)?;
+                .execute(txn_conn)?;
             diesel::delete(
                 origin_private_encryption_keys::table
                     .filter(origin_private_encryption_keys::origin.eq(origin)),
             )
-            .execute(conn)?;
+            .execute(txn_conn)?;
             diesel::delete(
                 origin_public_encryption_keys::table
                     .filter(origin_public_encryption_keys::origin.eq(origin)),
             )
-            .execute(conn)?;
+            .execute(txn_conn)?;
             diesel::delete(origin_packages::table.filter(origin_packages::origin.eq(origin)))
-                .execute(conn)?;
-            diesel::delete(origins::table.filter(origins::name.eq(origin))).execute(conn)?;
+                .execute(txn_conn)?;
+            diesel::delete(origins::table.filter(origins::name.eq(origin))).execute(txn_conn)?;
             Ok(())
         })
     }
 
-    pub fn transfer(origin: &str, account_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn transfer(origin: &str, account_id: i64, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
-        conn.transaction::<_, Error, _>(|| {
+        conn.transaction::<_, Error, _>(|txn_conn| {
                 let owner = OriginMemberRole::Owner;
                 let maintainer = OriginMemberRole::Maintainer;
 
                 diesel::update(origin_members::table.filter(origin_members::origin.eq(&origin)))
                 .filter(origin_members::member_role.eq(owner))
                 .set(origin_members::member_role.eq(maintainer))
-                .execute(conn)?;
+                .execute(txn_conn)?;
 
                 diesel::update(origin_members::table.filter(origin_members::origin.eq(&origin)))
                 .filter(origin_members::account_id.eq(account_id))
                 .set(origin_members::member_role.eq(owner))
-                .execute(conn)?;
+                .execute(txn_conn)?;
 
                 diesel::update(origins::table.find(origin)).set(origins::owner_id.eq(account_id))
-                                                           .execute(conn)
+                                                           .execute(txn_conn)
             })
     }
 
-    pub fn depart(origin: &str, account_id: i64, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn depart(origin: &str, account_id: i64, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_members::table
@@ -329,7 +328,7 @@ impl Origin {
 
     pub fn check_membership(origin: &str,
                             account_id: i64,
-                            conn: &PgConnection)
+                            conn: &mut PgConnection)
                             -> QueryResult<bool> {
         Counter::DBCall.increment();
         origin_members::table.filter(origin_members::origin.eq(origin))
@@ -340,7 +339,7 @@ impl Origin {
 }
 
 impl OriginMember {
-    pub fn list(origin: &str, conn: &PgConnection) -> QueryResult<Vec<String>> {
+    pub fn list(origin: &str, conn: &mut PgConnection) -> QueryResult<Vec<String>> {
         use crate::schema::account::accounts;
 
         Counter::DBCall.increment();
@@ -351,7 +350,7 @@ impl OriginMember {
                              .get_results(conn)
     }
 
-    pub fn delete(origin: &str, account_name: &str, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn delete(origin: &str, account_name: &str, conn: &mut PgConnection) -> QueryResult<usize> {
         use crate::schema::account::accounts;
 
         Counter::DBCall.increment();
@@ -370,7 +369,7 @@ impl OriginMember {
 
     pub fn add(origin: &str,
                account_id: i64,
-               conn: &PgConnection,
+               conn: &mut PgConnection,
                member_role: OriginMemberRole)
                -> QueryResult<usize> {
         diesel::insert_into(origin_members::table)
@@ -382,7 +381,7 @@ impl OriginMember {
             .execute(conn)
     }
 
-    pub fn count_origin_members(origin: &str, conn: &PgConnection) -> QueryResult<i64> {
+    pub fn count_origin_members(origin: &str, conn: &mut PgConnection) -> QueryResult<i64> {
         Counter::DBCall.increment();
         origin_members::table.select(count(origin_members::account_id))
                              .filter(origin_members::origin.eq(&origin))
@@ -391,7 +390,7 @@ impl OriginMember {
 
     pub fn member_role(origin: &str,
                        account_id: i64,
-                       conn: &PgConnection)
+                       conn: &mut PgConnection)
                        -> QueryResult<OriginMemberRole> {
         Counter::DBCall.increment();
         origin_members::table.select(origin_members::member_role)
@@ -402,7 +401,7 @@ impl OriginMember {
 
     pub fn update_member_role(origin: &str,
                               account_id: i64,
-                              conn: &PgConnection,
+                              conn: &mut PgConnection,
                               member_role: OriginMemberRole)
                               -> QueryResult<usize> {
         Counter::DBCall.increment();

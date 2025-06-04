@@ -21,7 +21,7 @@ impl db_keys::OriginPrivateEncryptionKey {
     /// Returns the number of updated rows for user feedback purposes.
     ///
     /// Should be run in a transaction!
-    pub fn encrypt_unencrypted_keys(conn: &PgConnection,
+    pub fn encrypt_unencrypted_keys(conn: &mut PgConnection,
                                     encryption_key: &core_keys::BuilderSecretEncryptionKey)
                                     -> QueryResult<u32> {
         use crate::schema::key::origin_private_encryption_keys::dsl::*;

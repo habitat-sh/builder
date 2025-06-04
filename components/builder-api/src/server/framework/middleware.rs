@@ -94,9 +94,10 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
 
             // If we can't find a token in the cache, we need to round-trip to the
             // db to see if we have a valid session token.
-            let conn = state.db.get_conn().map_err(error::Error::DbError)?;
+            let mut conn = state.db.get_conn().map_err(error::Error::DbError)?;
 
-            match AccountToken::list(session.get_id(), &conn).map_err(error::Error::DieselError) {
+            match AccountToken::list(session.get_id(), &mut conn).map_err(error::Error::DieselError)
+            {
                 Ok(access_tokens) => {
                     assert!(access_tokens.len() <= 1); // Can only have max of 1 for now
                     match access_tokens.first() {
@@ -107,7 +108,7 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
                                 return Err(error::Error::Authorization);
                             }
 
-                            let account = Account::get_by_id(session.get_id() as i64, &conn)
+                            let account = Account::get_by_id(session.get_id() as i64, &mut conn)
                                 .map_err(error::Error::DieselError)?;
                             trace!("Found account for token {} in database", token);
                             session.set_name(account.name);
@@ -140,7 +141,7 @@ pub fn session_create_oauth(oauth_token: &str,
                             -> error::Result<originsrv::Session> {
     let mut session = originsrv::Session::new();
     let mut session_token = originsrv::SessionToken::new();
-    let conn = state.db.get_conn().map_err(error::Error::DbError)?;
+    let mut conn = state.db.get_conn().map_err(error::Error::DbError)?;
 
     let email = match user.email {
         Some(ref email) => {
@@ -152,7 +153,7 @@ pub fn session_create_oauth(oauth_token: &str,
 
     match Account::find_or_create(&NewAccount { name: &user.username,
                                                 email },
-                                  &conn)
+                                  &mut conn)
     {
         Ok(account) => {
             session_token.set_account_id(account.id as u64);

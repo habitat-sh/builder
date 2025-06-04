@@ -55,12 +55,12 @@ async fn get_rdeps(req: HttpRequest,
                                 .clone()
                                 .unwrap_or_else(|| "x86_64-linux".to_string());
 
-    let connection = req_state(&req).db
-                                    .get_conn()
-                                    .map_err(Error::DbError)
-                                    .unwrap();
+    let mut connection = req_state(&req).db
+                                        .get_conn()
+                                        .map_err(Error::DbError)
+                                        .unwrap();
 
-    match reverse_dependencies::get_rdeps(&connection, &origin, &name, &target).await {
+    match reverse_dependencies::get_rdeps(&mut connection, &origin, &name, &target).await {
         Ok(reverse_dependencies) => {
             debug!("BEFORE FILTERING: reverse_dependencies: {:?}",
                    reverse_dependencies);
@@ -92,8 +92,8 @@ fn filtered_rdeps(req: &HttpRequest,
         let ident = OriginPackageIdent::from_str(rdep)?;
         let origin_name = ident.get_origin();
         let pv = if !origin_map.contains_key(origin_name) {
-            let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-            let origin = Origin::get(origin_name, &conn)?;
+            let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+            let origin = Origin::get(origin_name, &mut conn)?;
             origin_map.insert(origin_name.to_owned(),
                               origin.default_package_visibility.clone());
             origin.default_package_visibility

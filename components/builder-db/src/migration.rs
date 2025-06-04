@@ -12,28 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io;
-
 use diesel::{pg::PgConnection,
              query_dsl::RunQueryDsl,
-             result::Error as Dre,
+             result::{Error as Dre,
+                      QueryResult},
              sql_query,
              Connection};
+use diesel_migrations::{embed_migrations,
+                        EmbeddedMigrations,
+                        MigrationHarness};
 
-use crate::error::Result;
+/// Embed all migrations from src/migrations into a single constant
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("src/migrations");
 
-embed_migrations!("src/migrations");
-
-pub fn setup(conn: &PgConnection) -> Result<()> {
-    let _ = conn.transaction::<_, Dre, _>(|| {
-                    setup_ids(conn).unwrap();
-                    embedded_migrations::run_with_output(conn, &mut io::stdout()).unwrap();
-                    Ok(())
-                });
+/// Run setup and then all pending migrations
+pub fn setup(conn: &mut PgConnection) -> QueryResult<()> {
+    conn.transaction::<(), Dre, _>(|conn| {
+            setup_ids(conn)?;
+            conn.run_pending_migrations(MIGRATIONS)
+                .map_err(Dre::QueryBuilderError)?;
+            Ok(())
+        })?;
     Ok(())
 }
 
-pub fn setup_ids(conn: &PgConnection) -> Result<()> {
+pub fn setup_ids(conn: &mut PgConnection) -> QueryResult<()> {
     sql_query(
         r#"CREATE OR REPLACE FUNCTION next_id_v1(sequence_id regclass, OUT result bigint) AS $$
                 DECLARE
@@ -48,7 +51,6 @@ pub fn setup_ids(conn: &PgConnection) -> Result<()> {
                 END;
                 $$ LANGUAGE PLPGSQL;"#,
     )
-    .execute(conn)
-    .unwrap();
+    .execute(conn)?;
     Ok(())
 }

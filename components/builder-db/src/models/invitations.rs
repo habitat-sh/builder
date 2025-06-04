@@ -38,20 +38,24 @@ pub struct NewOriginInvitation<'a> {
 }
 
 impl OriginInvitation {
-    pub fn create(req: &NewOriginInvitation, conn: &PgConnection) -> QueryResult<OriginInvitation> {
+    pub fn create(req: &NewOriginInvitation,
+                  conn: &mut PgConnection)
+                  -> QueryResult<OriginInvitation> {
         Counter::DBCall.increment();
         diesel::insert_into(origin_invitations::table).values(req)
                                                       .get_result(conn)
     }
 
-    pub fn list_by_origin(origin: &str, conn: &PgConnection) -> QueryResult<Vec<OriginInvitation>> {
+    pub fn list_by_origin(origin: &str,
+                          conn: &mut PgConnection)
+                          -> QueryResult<Vec<OriginInvitation>> {
         Counter::DBCall.increment();
         origin_invitations::table.filter(origin_invitations::origin.eq(origin))
                                  .get_results(conn)
     }
 
     pub fn list_by_account(owner_id: u64,
-                           conn: &PgConnection)
+                           conn: &mut PgConnection)
                            -> QueryResult<Vec<OriginInvitation>> {
         Counter::DBCall.increment();
         origin_invitations::table.filter(origin_invitations::account_id.eq(owner_id as i64))
@@ -59,7 +63,7 @@ impl OriginInvitation {
                                  .get_results(conn)
     }
 
-    pub fn accept(invite_id: u64, ignore: bool, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn accept(invite_id: u64, ignore: bool, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         let invitation = origin_invitations::table.find(invite_id as i64);
         if ignore {
@@ -76,14 +80,14 @@ impl OriginInvitation {
         diesel::delete(invitation).execute(conn)
     }
 
-    pub fn ignore(invite_id: u64, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn ignore(invite_id: u64, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origin_invitations::table.find(invite_id as i64))
             .set(origin_invitations::ignored.eq(true))
             .execute(conn)
     }
 
-    pub fn rescind(invite_id: u64, conn: &PgConnection) -> QueryResult<usize> {
+    pub fn rescind(invite_id: u64, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(origin_invitations::table.find(invite_id as i64)).execute(conn)
     }

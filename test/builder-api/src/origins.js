@@ -55,6 +55,7 @@ describe("Origin API", function () {
         .send({ name: "neurosis", default_package_visibility: "private" })
         .expect(201)
         .end(function (err, res) {
+          console.log("Full response body:", res.body);
           expect(res.body.name).to.equal("neurosis");
           expect(res.body.default_package_visibility).to.equal("private");
           global.originNeurosis = res.body;

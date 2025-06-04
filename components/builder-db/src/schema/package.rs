@@ -1,5 +1,5 @@
 table! {
-    use crate::models::package::PackageVisibilityMapping;
+    use crate::schema::sql_types::OriginPackageVisibility;
     use diesel::sql_types::{Array, BigInt, Integer, Text, Nullable, Timestamptz};
     packages_with_channel_platform {
         id -> BigInt,
@@ -16,7 +16,7 @@ table! {
         build_deps -> Array<Text>,
         build_tdeps -> Array<Text>,
         exposes -> Array<Integer>,
-        visibility -> PackageVisibilityMapping,
+        visibility -> OriginPackageVisibility,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
         origin -> Text,
@@ -26,7 +26,7 @@ table! {
 }
 
 table! {
-    use crate::models::package::PackageVisibilityMapping;
+    use crate::schema::sql_types::OriginPackageVisibility;
     use diesel::sql_types::{Array, BigInt, Integer, Text,  Nullable, Timestamptz};
     origin_packages_with_version_array {
         id -> BigInt,
@@ -43,7 +43,7 @@ table! {
         exposes -> Array<Integer>,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
-        visibility -> PackageVisibilityMapping,
+        visibility -> OriginPackageVisibility,
         origin -> Text,
         build_deps -> Array<Text>,
         build_tdeps -> Array<Text>,
@@ -53,7 +53,7 @@ table! {
 }
 
 table! {
-    use crate::models::package::PackageVisibilityMapping;
+    use crate::schema::sql_types::OriginPackageVisibility;
     use diesel::sql_types::{Array, BigInt, Bool, Integer, Text, Nullable, Timestamptz};
     use diesel_full_text_search::TsVector;
     origin_packages {
@@ -71,7 +71,7 @@ table! {
         build_deps -> Array<Text>,
         build_tdeps -> Array<Text>,
         exposes -> Array<Integer>,
-        visibility -> PackageVisibilityMapping,
+        visibility -> OriginPackageVisibility,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
         origin -> Text,
@@ -82,7 +82,7 @@ table! {
 }
 
 table! {
-    use crate::models::package::PackageVisibilityMapping;
+    use crate::schema::sql_types::OriginPackageVisibility;
     use diesel::sql_types::{Array, BigInt, Text};
     origin_package_versions (origin, name) {
         origin -> Text,
@@ -91,7 +91,7 @@ table! {
         release_count -> BigInt,
         latest -> Text,
         platforms -> Array<Text>,
-        visibility -> PackageVisibilityMapping,
+        visibility -> OriginPackageVisibility,
     }
 }
 

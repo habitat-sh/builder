@@ -11,7 +11,6 @@ use crate::server::error::{Error,
                            Result};
 
 use r2d2::PooledConnection;
-
 #[derive(Clone, Debug, QueryableByName, Serialize, Deserialize)]
 pub(crate) struct Dependent {
     #[sql_type = "Text"]
@@ -26,7 +25,7 @@ pub(crate) struct ReverseDependencies {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub(crate) async fn get_rdeps(conn: &PooledConnection<ConnectionManager<PgConnection>>,
+pub(crate) async fn get_rdeps(conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
                               origin: &str,
                               name: &str,
                               target: &str)

@@ -107,12 +107,12 @@ async fn get_channels(path: Path<String>,
                       -> HttpResponse {
     let origin = path.into_inner();
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match Channel::list(&origin, sandbox.sandbox, &conn).map_err(Error::DieselError) {
+    match Channel::list(&origin, sandbox.sandbox, &mut conn).map_err(Error::DieselError) {
         Ok(list) => {
             // TED: This is to maintain backwards API compat while killing some proto definitions
             // currently the output looks like [{"name": "foo"}] when it probably should be ["foo"]
@@ -148,7 +148,7 @@ async fn create_channel(req: HttpRequest,
             Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
         };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -156,7 +156,7 @@ async fn create_channel(req: HttpRequest,
     match Channel::create(&CreateChannel { name:     &channel,
                                            origin:   &origin,
                                            owner_id: session_id as i64, },
-                          &conn)
+                          &mut conn)
     {
         Ok(channel) => HttpResponse::Created().json(channel),
         Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => {
@@ -189,12 +189,12 @@ async fn delete_channel(req: HttpRequest,
          .borrow_mut()
          .clear_cache_for_channel(&origin, &channel);
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match Channel::delete(&origin, &channel, &conn).map_err(Error::DieselError) {
+    match Channel::delete(&origin, &channel, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::new(StatusCode::OK),
         Err(err) => {
             debug!("Failed to delete channel, err={}", err);
@@ -216,7 +216,7 @@ async fn promote_channel_packages(req: HttpRequest,
         Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -243,7 +243,7 @@ async fn promote_channel_packages(req: HttpRequest,
                     requester_name: session.get_name(),
                     group_id: 0_i64,
                 },
-                &conn,
+                &mut conn,
             ) {
                 Ok(_) => {}
                 Err(e) => debug!("Failed to save rank change to audit log: {}", e),
@@ -264,7 +264,7 @@ async fn demote_channel_packages(req: HttpRequest,
                                  to_channel: Query<ToChannel>)
                                  -> HttpResponse {
     let (origin, channel) = path.into_inner();
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -296,7 +296,7 @@ async fn demote_channel_packages(req: HttpRequest,
                     requester_name: session.get_name(),
                     group_id: 0_i64,
                 },
-                &conn,
+                &mut conn,
             ) {
                 Ok(_) => {}
                 Err(e) => debug!("Failed to save rank change to audit log: {}", e),
@@ -318,7 +318,7 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
                                          session_id: i64)
                                          -> Result<Vec<i64>> {
     Counter::AtomicChannelRequests.increment();
-    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+    let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
     let mut pkg_ids = Vec::new();
 
     // Simple guards to protect users from bad decisioning
@@ -339,7 +339,7 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
     let pkgs = do_get_all_channel_packages(req, origin, ch_source)?;
 
     #[rustfmt::skip]
-    let channel = match Channel::get(origin, ch_target, &conn) {
+    let channel = match Channel::get(origin, ch_target, &mut conn) {
         Ok(channel) => channel,
         Err(NotFound) => {
             if (ch_target != &ChannelIdent::stable()) && (ch_target != &ChannelIdent::unstable()) {
@@ -349,7 +349,7 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
                         origin,
                         owner_id: session_id,
                     },
-                &conn)?
+                &mut conn)?
             } else {
                 warn!("Unable to retrieve target channel: {}", &ch_target);
                 return Err(Error::DieselError(NotFound));
@@ -367,7 +367,7 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
             pkgs,
             visibility: PackageVisibility::all()
         },
-    &conn)?;
+    &mut conn)?;
 
     let mut ids: Vec<i64> = op.iter().map(|x| x.id).collect();
 
@@ -375,10 +375,10 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
 
     if promote {
         debug!("Bulk promoting Pkg IDs: {:?}", &pkg_ids);
-        Channel::promote_packages(channel.id, &pkg_ids, &conn)?;
+        Channel::promote_packages(channel.id, &pkg_ids, &mut conn)?;
     } else {
         debug!("Bulk demoting Pkg IDs: {:?}", &pkg_ids);
-        Channel::demote_packages(channel.id, &pkg_ids, &conn)?;
+        Channel::demote_packages(channel.id, &pkg_ids, &mut conn)?;
     }
     Ok(pkg_ids)
 }
@@ -416,7 +416,7 @@ async fn promote_package(req: HttpRequest,
         None => helpers::target_from_headers(&req),
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -437,14 +437,14 @@ async fn promote_package(req: HttpRequest,
             origin: origin.clone(),
             channel: channel.clone(),
         },
-        &conn,
+        &mut conn,
     )
     .map_err(Error::DieselError)
     {
         Ok(promoted_count) => {
             // Note: promoted_count is 0 when attempting to promote a package to a channel where it already exists
             if promoted_count != 0 {
-                if let Err(e) = PackageChannelAudit::audit(&auditevent, &conn) {
+                if let Err(e) = PackageChannelAudit::audit(&auditevent, &mut conn) {
                     debug!("Failed to save rank change to audit log: {}", e);
                 };
             }
@@ -496,7 +496,7 @@ async fn demote_package(req: HttpRequest,
         None => helpers::target_from_headers(&req),
     };
 
-    let conn = match state.db.get_conn().map_err(Error::DbError) {
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
@@ -506,7 +506,7 @@ async fn demote_package(req: HttpRequest,
                                                              target,
                                                              origin: origin.clone(),
                                                              channel: channel.clone() },
-                                       &conn).map_err(Error::DieselError)
+                                       &mut conn).map_err(Error::DieselError)
     {
         Ok(0) => {
             debug!("Requested package {} for target {} not present in channel {}",
@@ -524,7 +524,7 @@ async fn demote_package(req: HttpRequest,
                     requester_name: session.get_name(),
                     origin: &origin,
                 },
-                &conn,
+                &mut conn,
             ) {
                 Ok(_) => {}
                 Err(err) => debug!("Failed to save rank change to audit log: {}", err),
@@ -738,7 +738,7 @@ fn do_get_latest_channel_packages(req: &HttpRequest,
         None => return Err(Error::BadRequest),
     };
 
-    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+    let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     Channel::list_latest_packages(
         &ListAllChannelPackagesForTarget {
@@ -747,7 +747,7 @@ fn do_get_latest_channel_packages(req: &HttpRequest,
             origin,
             target,
         },
-        &conn,
+        &mut conn,
     )
     .map_err(Error::DieselError)
 }
@@ -763,22 +763,22 @@ fn do_get_channel_packages(req: &HttpRequest,
     };
     let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
 
-    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+    let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     Channel::list_packages(
         &ListChannelPackages {
-            ident: &BuilderPackageIdent(ident.clone()),
-            visibility: &helpers::visibility_for_optional_session(
+            ident: BuilderPackageIdent(ident.clone()),
+            visibility: helpers::visibility_for_optional_session(
                 req,
                 opt_session_id,
                 &ident.origin,
             ),
-            origin: &ident.origin,
-            channel,
+            origin: ident.origin.clone(),
+            channel: channel.clone(),
             page: page as i64,
             limit: per_page as i64,
         },
-        &conn,
+        &mut conn,
     )
     .map_err(Error::DieselError)
 }
@@ -787,12 +787,12 @@ fn do_get_all_channel_packages(req: &HttpRequest,
                                origin: &str,
                                channel: &ChannelIdent)
                                -> Result<Vec<BuilderPackageIdent>> {
-    let conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
+    let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     Channel::list_all_packages(&ListAllChannelPackages { visibility: &PackageVisibility::all(),
                                                          origin,
                                                          channel },
-                               &conn).map_err(Error::DieselError)
+                               &mut conn).map_err(Error::DieselError)
 }
 
 fn do_get_channel_package(req: &HttpRequest,
@@ -860,7 +860,7 @@ fn do_get_channel_package(req: &HttpRequest,
         };
     }
 
-    let conn = match req_state(req).db.get_conn() {
+    let mut conn = match req_state(req).db.get_conn() {
         Ok(conn_ref) => conn_ref,
         Err(e) => return Err(e.into()),
     };
@@ -876,7 +876,7 @@ fn do_get_channel_package(req: &HttpRequest,
                 &ident.origin,
             ),
         },
-        &conn,
+        &mut conn,
     ) {
         Ok(pkg) => pkg.into(),
         Err(NotFound) => {
@@ -888,7 +888,7 @@ fn do_get_channel_package(req: &HttpRequest,
     };
 
     let mut pkg_json = serde_json::to_value(pkg.clone()).unwrap();
-    let channels = channels_for_package_ident(req, &pkg.ident, target, &conn)?;
+    let channels = channels_for_package_ident(req, &pkg.ident, target, &mut conn)?;
 
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
@@ -910,7 +910,7 @@ fn do_get_channel_package(req: &HttpRequest,
 pub fn channels_for_package_ident(req: &HttpRequest,
                                   package: &BuilderPackageIdent,
                                   target: PackageTarget,
-                                  conn: &PgConnection)
+                                  conn: &mut PgConnection)
                                   -> Result<Option<Vec<String>>> {
     let opt_session_id = match authorize_session(req, None, None) {
         Ok(session) => Some(session.get_id()),
@@ -922,7 +922,7 @@ pub fn channels_for_package_ident(req: &HttpRequest,
                                          visibility_for_optional_session(req,
                                                                          opt_session_id,
                                                                          &package.clone().origin),
-                                         conn).map_err(Error::DieselError)
+                                         &mut *conn).map_err(Error::DieselError)
     {
         Ok(channels) => {
             let list: Vec<String> = channels.iter()

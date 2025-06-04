@@ -30,17 +30,17 @@ pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error>
     // Get or Create Account
     let username = &app_state.config.provision.username;
     let email = &app_state.config.provision.email;
-    let conn = app_state.db.get_conn().map_err(Error::DbError)?;
+    let mut conn = app_state.db.get_conn().map_err(Error::DbError)?;
     let account = Account::find_or_create(&NewAccount { name: username,
                                                         email },
-                                          &conn).map_err(Error::DieselError)?;
+                                          &mut conn).map_err(Error::DieselError)?;
 
     for origin in &app_state.config.provision.origins {
         let new_origin = NewOrigin { name: origin,
                                      owner_id: account.id,
                                      default_package_visibility: &PackageVisibility::Public, };
 
-        match Origin::create(&new_origin, &conn) {
+        match Origin::create(&new_origin, &mut conn) {
             Ok(_) => {}
             Err(DieselError::DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => {
                 // If there is a unique violation error (conflict), log that the origin already
@@ -74,7 +74,7 @@ pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error>
                                           origin,
                                           owner_id: account.id };
 
-        match Channel::create(&new_channel, &conn) {
+        match Channel::create(&new_channel, &mut conn) {
             Ok(_) => {}
             Err(DieselError::DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => {
                 // If there is a unique violation error (conflict), log that the origin already
@@ -90,7 +90,7 @@ pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error>
         }
     }
 
-    let tokens = AccountToken::list(account.id as u64, &conn).map_err(Error::DieselError)?;
+    let tokens = AccountToken::list(account.id as u64, &mut conn).map_err(Error::DieselError)?;
     assert!(tokens.len() <= 1); // Can only have max of 1 token
 
     // If a token is already found, return it
@@ -105,7 +105,7 @@ pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error>
                                         FeatureFlags::all().bits())?;
     let new_token = NewAccountToken { account_id: account.id,
                                       token:      &token.to_string(), };
-    AccountToken::create(&new_token, &conn).map_err(Error::DieselError)?;
+    AccountToken::create(&new_token, &mut conn).map_err(Error::DieselError)?;
 
     // Store the token in a file
     fs::create_dir_all(&app_state.config.provision.token_path).map_err(Error::IO)?;
