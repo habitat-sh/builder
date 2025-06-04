@@ -38,15 +38,6 @@ impl<T> Paginated<T> {
         let total_pages = (total as f64 / per_page as f64).ceil() as i64;
         Ok((records, total_pages))
     }
-
-    pub fn load_and_count_records<U>(self, conn: &mut PgConnection) -> QueryResult<(Vec<U>, i64)>
-        where for<'a> Self: LoadQuery<'a, PgConnection, (U, i64)>
-    {
-        let results = self.load::<(U, i64)>(conn)?;
-        let total = results.first().map(|x| x.1).unwrap_or(0);
-        let records = results.into_iter().map(|x| x.0).collect();
-        Ok((records, total))
-    }
 }
 
 impl<T: Query> Query for Paginated<T> {
