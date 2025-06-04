@@ -222,47 +222,6 @@ async fn set_license(req: HttpRequest,
 
     match authorize_session(&req, None, None) {
         Ok(_session) => {
-            let base_url = &state.config.api.license_server_url;
-            let license_url = format!("{}/License/download?licenseId={}&version=2",
-                                      base_url.trim_end_matches('/'),
-                                      payload.license_key);
-
-            let response =
-                match reqwest::blocking::Client::new().get(license_url)
-                                                      .header("Accept", "application/json")
-                                                      .send()
-                {
-                    Ok(resp) => resp,
-                    Err(err) => {
-                        return HttpResponse::InternalServerError().body(format!("License API \
-                                                                                 error: {}",
-                                                                                err));
-                    }
-                };
-
-            let status = response.status();
-            let body =
-                match response.text() {
-                    Ok(text) => text,
-                    Err(err) => {
-                        return HttpResponse::InternalServerError()
-                    .body(format!("Failed to read license server response: {}", err));
-                    }
-                };
-
-            if !status.is_success() {
-                return HttpResponse::build(status).body(body);
-            }
-
-            let _json: serde_json::Value = match serde_json::from_str(&body) {
-                Ok(data) => data,
-                Err(err) => {
-                    return HttpResponse::InternalServerError().body(format!("JSON parse error: \
-                                                                             {}",
-                                                                            err));
-                }
-            };
-
             let expiration_date =
                 match fetch_license_expiration(&payload.license_key,
                                                &state.config.api.license_server_url)
