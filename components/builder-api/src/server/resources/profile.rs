@@ -288,8 +288,33 @@ async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
 
     match LicenseKey::get_by_account_id(account_id, &mut conn).map_err(Error::DieselError) {
         Ok(Some(license)) => {
+            let today: chrono::NaiveDate = chrono::Utc::now().date_naive();
+            if license.expiration_date < today {
+                match fetch_license_expiration(&license.license_key,
+                                               &state.config.api.license_server_url)
+                {
+                    Ok(new_expiration) => {
+                        let new_license = NewLicenseKey { account_id,
+                                                          license_key: &license.license_key,
+                                                          expiration_date: new_expiration };
+                        match LicenseKey::create(&new_license, &mut conn).map_err(Error::DieselError) {
+                                                            Ok(license) => {
+                                                                return HttpResponse::Ok().json(json!({
+                                                                    "license_key":     license.license_key,
+                                                                          "expiration_date": new_expiration.to_string()
+                                                                      }));
+                                                            }
+                                                            Err(err) => {
+                                                                debug!("{}", err);
+                                                                return err.into()
+                                                            }
+                                                        };
+                    }
+                    Err(resp) => return resp,
+                }
+            }
             HttpResponse::Ok().json(json!({
-                                        "license_key": license.license_key,
+                                        "license_key":     license.license_key,
                                         "expiration_date": license.expiration_date
                                     }))
         }
