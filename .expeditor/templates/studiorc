@@ -19,18 +19,21 @@ hab pkg exec core/openssl openssl genrsa \
 echo "--- Creating log directory"
 mkdir -p logs
 echo "--- Starting the supervisor"
-env HAB_FUNC_TEST=1 hab sup run > logs/sup.log 2>&1 &
+if pgrep hab-sup >/dev/null 2>&1; then
+  echo "Before attempting to start a hab-sup a hab-sup process was found, exiting"
+  exit 1
+fi
+env HAB_FUNC_TEST=1 hab sup run >logs/sup.log 2>&1 &
 
-until hab svc status >/dev/null 2>&1;
-  do echo "waiting for hab sup to start"
+until hab svc status >/dev/null 2>&1; do
+  echo "waiting for hab sup to start"
   sleep 1
 done
 
 echo "--- Starting builder"
 start-builder
 
-while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ];
-do
+while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ]; do
   echo "Waiting for builder-github-app.pem"
   ls /hab/svc/builder-api/files
   sleep 10
@@ -46,18 +49,16 @@ echo "--- Building changed builder components"
 # prevent it but things will self-correct and the script will continue.
 echo "--- Building builder-api"
 echo "Redirecting log output; See build artifact 'builder-api.build.log'"
-build-builder api > logs/builder-api.build.log 2>&1
+build-builder api >logs/builder-api.build.log 2>&1
 
 echo "--- Waiting for services to start"
-while hab svc status | grep --quiet down;
-do
+while hab svc status | grep --quiet down; do
   echo "Waiting for services to start..."
   sleep 10
 done
 
 echo "--- Waiting for builder-github-app.pem to arrive"
-while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ];
-do
+while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ]; do
   echo "Waiting for builder-github-app.pem"
   ls /hab/svc/builder-api/files
   sleep 10
