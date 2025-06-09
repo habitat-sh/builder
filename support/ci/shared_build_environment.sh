@@ -11,7 +11,7 @@ eval "$(hab pkg env core/rust/"$toolchain")"
 PATH=$PATH:$OG_PATH
 
 # install_hab_pkg core/rust/"$toolchain"
-sudo -E hab pkg install core/rust/1.79.0/20250527190509 --channel unstable
+sudo -E hab pkg install core/rust/1.79.0/20250606210134 --channel unstable
 install_hab_pkg core/glibc
 install_hab_pkg core/gcc-base
 install_hab_pkg core/binutils
@@ -102,7 +102,7 @@ prepend_path+=":$(hab pkg path core/pkg-config)/bin"
 prepend_path+=":$(hab pkg path core/postgresql17)/bin"
 prepend_path+=":$(hab pkg path core/protobuf)/bin"
 # prepend_path+=":$(hab pkg path core/rust/"$toolchain")/bin"
-prepend_path+=":$(hab pkg path core/rust/1.79.0/20250527190509)/bin"
+prepend_path+=":$(hab pkg path core/rust/1.79.0/20250606210134)/bin"
 prepend_path+=":$(hab pkg path core/sed)/bin"
 prepend_path+=":$(hab pkg path core/sudo)/bin"
 prepend_path+=":$(hab pkg path core/zeromq)/bin"
