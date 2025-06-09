@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# This cleanup-integration-tests.sh file seems to have been OBE as the comment
+# below seems to date to Nov 21st 2017 (based on git blame) but it references
+# stuff from our Makefile that seems to have been was removed on Sept 7th 2018
+# (based on looking at our git history). However, this I think this file may be
+# worth rehabbing at some point. -- Jason Heath
+
 # You might be asking yourself "Why does this file even exist?" The answer to that question lies
 # in the amount of time it takes to run 'test.sh'. Since test.sh is designed to be run in CI,
 # and requires a full compilation of the entire builder cluster, plus a spin-up of a temporary
@@ -27,13 +33,13 @@ set -eu
 base_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 dir="$base_dir/target/debug"
 depot=/root/habitat/tmp/depot
-origins=( neurosis xmen )
-users=( bobo mystique )
+origins=(neurosis xmen)
+users=(bobo mystique)
 
 # cleanup origins
-for origin in "${origins[@]}"
-do
-  sql=$(cat <<EOF
+for origin in "${origins[@]}"; do
+  sql=$(
+    cat <<EOF
 DELETE FROM origin_members WHERE origin_id=(SELECT id FROM origins WHERE name='$origin');
 DELETE FROM origin_channel_packages WHERE channel_id IN (SELECT id FROM origin_channels WHERE origin_id=(SELECT id FROM origins WHERE name='$origin'));
 DELETE FROM origin_channels WHERE origin_id=(SELECT id FROM origins WHERE name='$origin');
@@ -46,18 +52,18 @@ DELETE FROM origin_public_keys WHERE origin_id=(SELECT id FROM origins WHERE nam
 DELETE FROM origin_secret_keys WHERE origin_id=(SELECT id FROM origins WHERE name='$origin');
 DELETE FROM origins WHERE name='$origin';
 EOF
-)
-  echo "$sql" | hab pkg exec core/postgresql17 psql -U hab builder
+  )
+  echo "$sql" | hab pkg exec core/postgresql17-client psql -U hab builder
 done
 
 # cleanup users
-for user in "${users[@]}"
-do
-  sql=$(cat <<EOF
+for user in "${users[@]}"; do
+  sql=$(
+    cat <<EOF
 DELETE FROM accounts WHERE name='$user';
 EOF
-)
-  echo "$sql" | hab pkg exec core/postgresql17 psql -U hab builder
+  )
+  echo "$sql" | hab pkg exec core/postgresql17-client psql -U hab builder
 done
 
 # cleanup files
