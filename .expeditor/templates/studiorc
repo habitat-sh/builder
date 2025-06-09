@@ -40,6 +40,10 @@ done
 # Redirect the output into a file that is automatically uploaded
 # to buildkite so we can inspect if necessary
 echo "--- Building changed builder components"
+
+# NOTE: While building builder-api there is repeating error that can be
+# recognized by "Crypto error: No revisions found for bldr". We might be able
+# prevent it but things will self-correct and the script will continue.
 echo "--- Building builder-api"
 echo "Redirecting log output; See build artifact 'builder-api.build.log'"
 build-builder api > logs/builder-api.build.log 2>&1
