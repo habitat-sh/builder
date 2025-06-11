@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Added package metadata back [#1902](https://github.com/habitat-sh/builder/pull/1902) ([sougata-progress](https://github.com/sougata-progress))
 - Updated get license API [#1899](https://github.com/habitat-sh/builder/pull/1899) ([sougata-progress](https://github.com/sougata-progress))
 - diesel upgrade [#1898](https://github.com/habitat-sh/builder/pull/1898) ([sougata-progress](https://github.com/sougata-progress))
 - remove restricted channel settings in default toml [#1897](https://github.com/habitat-sh/builder/pull/1897) ([mwrock](https://github.com/mwrock))
