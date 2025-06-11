@@ -310,7 +310,15 @@ async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
                                                             }
                                                         };
                     }
-                    Err(resp) => return resp,
+                    Err(resp) => {
+                        if resp.status() == StatusCode::BAD_REQUEST {
+                            return HttpResponse::Ok().json(json!({
+                                             "license_key":     license.license_key,
+                                             "expiration_date": license.expiration_date.to_string()
+                                         }));
+                        }
+                        return resp;
+                    }
                 }
             }
             HttpResponse::Ok().json(json!({
