@@ -289,27 +289,34 @@ async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
     match LicenseKey::get_by_account_id(account_id, &mut conn).map_err(Error::DieselError) {
         Ok(Some(license)) => {
             let today = chrono::Utc::now().date_naive();
-            match fetch_license_expiration(&license.license_key,
-                                           &state.config.api.license_server_url)
-            {
-                Ok(expiration_date) => {
-                    if expiration_date >= today {
-                        let new_record = NewLicenseKey { account_id,
-                                                         license_key: &license.license_key,
-                                                         expiration_date };
-                        if let Err(err) =
-                            LicenseKey::create(&new_record, &mut conn).map_err(Error::DieselError)
-                        {
-                            debug!("Failed to update expiration in DB: {}", err);
-                            return err.into();
+            if license.expiration_date >= today {
+                HttpResponse::Ok().json(json!({
+                                            "license_key": license.license_key,
+                                            "expiration_date": license.expiration_date.to_string()
+                                        }))
+            } else {
+                match fetch_license_expiration(&license.license_key,
+                                               &state.config.api.license_server_url)
+                {
+                    Ok(expiration_date) => {
+                        if expiration_date >= today {
+                            let new_record = NewLicenseKey { account_id,
+                                                             license_key: &license.license_key,
+                                                             expiration_date };
+                            if let Err(err) = LicenseKey::create(&new_record, &mut conn)
+                                .map_err(Error::DieselError)
+                            {
+                                debug!("Failed to update expiration in DB: {}", err);
+                                return err.into();
+                            }
                         }
+                        HttpResponse::Ok().json(json!({
+                                                    "license_key": license.license_key,
+                                                    "expiration_date": expiration_date.to_string()
+                                                }))
                     }
-                    HttpResponse::Ok().json(json!({
-                                                "license_key":     license.license_key,
-                                                "expiration_date": expiration_date.to_string()
-                                            }))
+                    Err(resp) => resp,
                 }
-                Err(resp) => resp,
             }
         }
         Ok(None) => HttpResponse::Ok().json(json!({})),
