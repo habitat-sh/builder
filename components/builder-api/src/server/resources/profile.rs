@@ -288,43 +288,29 @@ async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
 
     match LicenseKey::get_by_account_id(account_id, &mut conn).map_err(Error::DieselError) {
         Ok(Some(license)) => {
-            let today: chrono::NaiveDate = chrono::Utc::now().date_naive();
-            if license.expiration_date < today {
-                match fetch_license_expiration(&license.license_key,
-                                               &state.config.api.license_server_url)
-                {
-                    Ok(new_expiration) => {
-                        let new_license = NewLicenseKey { account_id,
-                                                          license_key: &license.license_key,
-                                                          expiration_date: new_expiration };
-                        match LicenseKey::create(&new_license, &mut conn).map_err(Error::DieselError) {
-                                                            Ok(license) => {
-                                                                return HttpResponse::Ok().json(json!({
-                                                                    "license_key":     license.license_key,
-                                                                          "expiration_date": new_expiration.to_string()
-                                                                      }));
-                                                            }
-                                                            Err(err) => {
-                                                                debug!("{}", err);
-                                                                return err.into()
-                                                            }
-                                                        };
-                    }
-                    Err(resp) => {
-                        if resp.status() == StatusCode::BAD_REQUEST {
-                            return HttpResponse::Ok().json(json!({
-                                             "license_key":     license.license_key,
-                                             "expiration_date": license.expiration_date.to_string()
-                                         }));
+            let today = chrono::Utc::now().date_naive();
+            match fetch_license_expiration(&license.license_key,
+                                           &state.config.api.license_server_url)
+            {
+                Ok(expiration_date) => {
+                    if expiration_date >= today {
+                        let new_record = NewLicenseKey { account_id,
+                                                         license_key: &license.license_key,
+                                                         expiration_date };
+                        if let Err(err) =
+                            LicenseKey::create(&new_record, &mut conn).map_err(Error::DieselError)
+                        {
+                            debug!("Failed to update expiration in DB: {}", err);
+                            return err.into();
                         }
-                        return resp;
                     }
+                    HttpResponse::Ok().json(json!({
+                                                "license_key":     license.license_key,
+                                                "expiration_date": expiration_date.to_string()
+                                            }))
                 }
+                Err(resp) => resp,
             }
-            HttpResponse::Ok().json(json!({
-                                        "license_key":     license.license_key,
-                                        "expiration_date": license.expiration_date
-                                    }))
         }
         Ok(None) => HttpResponse::Ok().json(json!({})),
         Err(err) => {
