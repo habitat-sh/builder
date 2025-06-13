@@ -319,7 +319,7 @@ async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
                 }
             }
         }
-        Ok(None) => HttpResponse::Ok().json(json!({})),
+        Ok(None) => HttpResponse::new(StatusCode::NOT_FOUND),
         Err(err) => {
             debug!("{}", err);
             err.into()
