@@ -3,6 +3,8 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Fixed license not found response [#1906](https://github.com/habitat-sh/builder/pull/1906) ([sougata-progress](https://github.com/sougata-progress))
+- Removed config section [#1905](https://github.com/habitat-sh/builder/pull/1905) ([sougata-progress](https://github.com/sougata-progress))
 - Fixed license expiration response [#1904](https://github.com/habitat-sh/builder/pull/1904) ([sougata-progress](https://github.com/sougata-progress))
 - Bump brace-expansion from 2.0.1 to 2.0.2 in /test/builder-api [#1903](https://github.com/habitat-sh/builder/pull/1903) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Fixed license key expired response [#1901](https://github.com/habitat-sh/builder/pull/1901) ([sougata-progress](https://github.com/sougata-progress))
