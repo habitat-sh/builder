@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Update copyright year to 2025 [#1907](https://github.com/habitat-sh/builder/pull/1907) ([vkarve-chef](https://github.com/vkarve-chef))
 - Fixed license not found response [#1906](https://github.com/habitat-sh/builder/pull/1906) ([sougata-progress](https://github.com/sougata-progress))
 - Removed config section [#1905](https://github.com/habitat-sh/builder/pull/1905) ([sougata-progress](https://github.com/sougata-progress))
 - Fixed license expiration response [#1904](https://github.com/habitat-sh/builder/pull/1904) ([sougata-progress](https://github.com/sougata-progress))
