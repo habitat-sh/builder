@@ -21,7 +21,6 @@ pkg_deps=(
   core/openssl
   core/postgresql17-client
   core/zeromq
-  core/zlib
 )
 
 pkg_build_deps=(
