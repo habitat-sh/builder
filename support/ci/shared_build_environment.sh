@@ -65,11 +65,8 @@ printf "\nLD_RUN_PATH='%s'\n" "${LD_RUN_PATH:-UNSET}"
 
 unset LD_LIBRARY_PATH
 export LD_LIBRARY_PATH
-# LD_LIBRARY_PATH="$(hab pkg path core/glibc)/lib"
 LD_LIBRARY_PATH="$(hab pkg path core/gcc-base)/lib64"
 LD_LIBRARY_PATH+=":$(hab pkg path core/zlib)/lib"
-# LD_LIBRARY_PATH+=":$(hab pkg path core/binutils)/lib"
-# LD_LIBRARY_PATH+=":$(hab pkg path core/zeromq)/lib"
 printf "\nLD_LIBRARY_PATH='%s'\n" "${LD_LIBRARY_PATH:-UNSET}"
 
 unset PKG_CONFIG_PATH
@@ -101,7 +98,6 @@ prepend_path+=":$(hab pkg path core/openssl)/bin"
 prepend_path+=":$(hab pkg path core/pkg-config)/bin"
 prepend_path+=":$(hab pkg path core/postgresql17)/bin"
 prepend_path+=":$(hab pkg path core/protobuf)/bin"
-# prepend_path+=":$(hab pkg path core/rust/"$toolchain")/bin"
 prepend_path+=":$(hab pkg path core/rust/1.79.0/20250606210134)/bin"
 prepend_path+=":$(hab pkg path core/sed)/bin"
 prepend_path+=":$(hab pkg path core/sudo)/bin"
