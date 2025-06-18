@@ -28,8 +28,7 @@ pkg_build_deps=(
   core/pkg-config
   core/protobuf-cpp
   core/protobuf-rust
-  # core/rust/"$(tail -n 1 "../../../rust-toolchain" | cut -d'"' -f 2)"
-  core/rust/1.79.0/20250606210134
+  core/rust/"$(tail -n 1 "../../../rust-toolchain" | cut -d'"' -f 2)"
 )
 
 pkg_exports=(

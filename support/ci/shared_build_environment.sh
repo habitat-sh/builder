@@ -7,11 +7,10 @@ source ./support/ci/shared.sh
 
 readonly OG_PATH=$PATH
 toolchain=$(get_toolchain)
+sudo -E hab pkg install core/rust/"$toolchain" --force
 eval "$(hab pkg env core/rust/"$toolchain")"
 PATH=$PATH:$OG_PATH
 
-# install_hab_pkg core/rust/"$toolchain"
-sudo -E hab pkg install core/rust/1.79.0/20250606210134 --channel unstable
 install_hab_pkg core/glibc
 install_hab_pkg core/gcc-base
 install_hab_pkg core/binutils
@@ -23,6 +22,7 @@ install_hab_pkg core/diffutils
 install_hab_pkg core/gawk
 install_hab_pkg core/git
 install_hab_pkg core/grep
+install_hab_pkg core/hab-ld-wrapper
 install_hab_pkg core/libarchive
 install_hab_pkg core/libb2
 install_hab_pkg core/libsodium
@@ -91,6 +91,7 @@ prepend_path+=":$(hab pkg path core/diffutils)/bin"
 prepend_path+=":$(hab pkg path core/gawk)/bin"
 prepend_path+=":$(hab pkg path core/git)/bin"
 prepend_path+=":$(hab pkg path core/grep)/bin"
+prepend_path+=":$(hab pkg path core/hab-ld-wrapper)/bin"
 prepend_path+=":$(hab pkg path core/libarchive)/bin"
 prepend_path+=":$(hab pkg path core/make)/bin"
 prepend_path+=":$(hab pkg path core/cmake)/bin"
@@ -98,7 +99,7 @@ prepend_path+=":$(hab pkg path core/openssl)/bin"
 prepend_path+=":$(hab pkg path core/pkg-config)/bin"
 prepend_path+=":$(hab pkg path core/postgresql17)/bin"
 prepend_path+=":$(hab pkg path core/protobuf)/bin"
-prepend_path+=":$(hab pkg path core/rust/1.79.0/20250606210134)/bin"
+prepend_path+=":$(hab pkg path core/rust/"$toolchain")/bin"
 prepend_path+=":$(hab pkg path core/sed)/bin"
 prepend_path+=":$(hab pkg path core/sudo)/bin"
 prepend_path+=":$(hab pkg path core/zeromq)/bin"

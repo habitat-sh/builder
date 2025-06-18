@@ -70,8 +70,10 @@ else
 fi
 echo ""
 
-# CMD="$(hab pkg path core/rust/"$toolchain")/bin/cargo-clippy"
-CMD="$(hab pkg path core/rust/1.79.0/20250606210134)/bin/cargo-clippy"
+# shellcheck source=./shared.sh
+source ./support/ci/shared.s
+toolchain=$(get_toolchain)
+CMD="$(hab pkg path core/rust/"$toolchain")/bin/cargo-clippy"
 readonly CMD
 if command -v ldd >/dev/null 2>&1; then
 
