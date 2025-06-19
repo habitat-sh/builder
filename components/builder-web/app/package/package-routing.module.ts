@@ -26,56 +26,63 @@ import { BuilderEnabledGuard } from '../shared/guards/builder-enabled.guard';
 import { VisibilityEnabledGuard } from '../shared/guards/visibility-enabled.guard';
 import { OriginMemberGuard } from '../shared/guards/origin-member.guard';
 import { SignedInGuard } from '../shared/guards/signed-in.guard';
+import { LicenseRequiredGuard } from '../shared/guards/license-required.guard';
 
 const routes: Routes = [
   {
     path: 'pkgs/:origin/:name',
     component: PackageComponent,
+    canActivate: [LicenseRequiredGuard],
     children: [
       {
         path: '',
         component: PackageVersionsComponent,
+        canActivate: [LicenseRequiredGuard]
       },
       {
         path: 'latest',
-        component: PackageLatestComponent
+        component: PackageLatestComponent,
+        canActivate: [LicenseRequiredGuard]
       },
       {
         path: 'latest/:target',
-        component: PackageLatestComponent
+        component: PackageLatestComponent,
+        canActivate: [LicenseRequiredGuard]
       },
       {
         path: 'jobs',
         component: PackageJobsComponent,
-        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
+        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard, LicenseRequiredGuard]
       },
       {
         path: 'jobs/:id',
         component: PackageJobComponent,
-        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
+        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard, LicenseRequiredGuard]
       },
       {
         path: 'settings',
         component: PackageSettingsComponent,
-        canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard]
+        canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard, LicenseRequiredGuard]
       },
       {
         path: 'settings/:target',
         component: PackageSettingsComponent,
-        canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard]
+        canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard, LicenseRequiredGuard]
       },
       {
         path: ':version',
-        component: PackageVersionsComponent
+        component: PackageVersionsComponent,
+        canActivate: [LicenseRequiredGuard]
       },
       {
         path: ':version/:release',
-        component: PackageReleaseComponent
+        component: PackageReleaseComponent,
+        canActivate: [LicenseRequiredGuard]
       },
       {
         path: ':version/:release/settings',
         component: PackageReleaseSettingsComponent,
-        canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard]
+        canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard, LicenseRequiredGuard]
       }
     ]
   }

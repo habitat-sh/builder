@@ -32,6 +32,18 @@ export const SIGN_IN_FAILED = 'SIGN_IN_FAILED';
 export const SIGNING_IN = 'SIGNING_IN';
 export const TOGGLE_USER_NAV_MENU = 'TOGGLE_USER_NAV_MENU';
 
+export const FETCH_LICENSE_KEY_BEGIN = 'FETCH_LICENSE_KEY_BEGIN';
+export const FETCH_LICENSE_KEY_SUCCESS = 'FETCH_LICENSE_KEY_SUCCESS';
+export const FETCH_LICENSE_KEY_FAILURE = 'FETCH_LICENSE_KEY_FAILURE';
+
+export const SAVE_LICENSE_KEY_BEGIN = 'SAVE_LICENSE_KEY_BEGIN';
+export const SAVE_LICENSE_KEY_SUCCESS = 'SAVE_LICENSE_KEY_SUCCESS';
+export const SAVE_LICENSE_KEY_FAILURE = 'SAVE_LICENSE_KEY_FAILURE';
+
+export const DELETE_LICENSE_KEY_BEGIN = 'DELETE_LICENSE_KEY_BEGIN';
+export const DELETE_LICENSE_KEY_SUCCESS = 'DELETE_LICENSE_KEY_SUCCESS';
+export const DELETE_LICENSE_KEY_FAILURE = 'DELETE_LICENSE_KEY_FAILURE';
+
 export function fetchProfile(token: string) {
   return dispatch => {
     new BuilderApiClient(token).getProfile()
@@ -254,5 +266,61 @@ export function signOut(redirectToSignIn: boolean, pathAfterSignIn?: string) {
     if (redirectToSignIn) {
       dispatch(requestRoute(['/sign-in']));
     }
+  };
+}
+
+export function fetchLicenseKey(token: string) {
+  return dispatch => {
+    dispatch({ type: FETCH_LICENSE_KEY_BEGIN });
+    new BuilderApiClient(token).getLicenseKey()
+      .then(data => {
+        dispatch({
+          type: FETCH_LICENSE_KEY_SUCCESS,
+          payload: data
+        });
+      })
+      .catch(err => {
+        dispatch({
+          type: FETCH_LICENSE_KEY_FAILURE,
+          error: err.message
+        });
+      });
+  };
+}
+
+export function saveLicenseKey(licenseKey: string, token: string, accountId: string) {
+  return dispatch => {
+    dispatch({ type: SAVE_LICENSE_KEY_BEGIN });
+    new BuilderApiClient(token).saveLicenseKey(licenseKey, accountId)
+      .then(data => {
+        dispatch({
+          type: SAVE_LICENSE_KEY_SUCCESS,
+          payload: data
+        });
+      })
+      .catch(err => {
+        dispatch({
+          type: SAVE_LICENSE_KEY_FAILURE,
+          error: err.message
+        });
+      });
+  };
+}
+
+export function deleteLicenseKey(token: string) {
+  return dispatch => {
+    dispatch({ type: DELETE_LICENSE_KEY_BEGIN });
+    new BuilderApiClient(token).deleteLicenseKey()
+      .then(() => {
+        dispatch({
+          type: DELETE_LICENSE_KEY_SUCCESS
+        });
+      })
+      .catch(err => {
+        dispatch({
+          type: DELETE_LICENSE_KEY_FAILURE,
+          error: err.message
+        });
+      });
   };
 }

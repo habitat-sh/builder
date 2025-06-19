@@ -57,6 +57,56 @@ export default function users(state = initialState['users'], action) {
     case actionTypes.TOGGLE_USER_NAV_MENU:
       return state.setIn(['current', 'isUserNavOpen'], !state.getIn(['current', 'isUserNavOpen']));
 
+    case actionTypes.FETCH_LICENSE_KEY_BEGIN:
+      return state
+        .setIn(['current', 'license', 'validatingLicenseKey'], true)
+        .setIn(['current', 'license', 'licenseValidationMessage'], undefined);
+
+    case actionTypes.FETCH_LICENSE_KEY_SUCCESS:
+      return state
+        .setIn(['current', 'license', 'licenseKey'], action.payload.license_key || undefined)
+        .setIn(['current', 'license', 'licenseValid'], !!action.payload.license_key && (!action.payload.expiration_date || new Date(action.payload.expiration_date) >= new Date()))
+        .setIn(['current', 'license', 'licenseValidationMessage'], undefined)
+        .setIn(['current', 'license', 'validatingLicenseKey'], false);
+
+    case actionTypes.FETCH_LICENSE_KEY_FAILURE:
+      return state
+        .setIn(['current', 'license', 'licenseKey'], undefined)
+        .setIn(['current', 'license', 'licenseValid'], false)
+        .setIn(['current', 'license', 'licenseValidationMessage'], 'Unable to validate license key. Please try again later.')
+        .setIn(['current', 'license', 'validatingLicenseKey'], false);
+
+    case actionTypes.SAVE_LICENSE_KEY_BEGIN:
+      return state.setIn(['current', 'license', 'validatingLicenseKey'], true);
+
+    case actionTypes.SAVE_LICENSE_KEY_SUCCESS:
+      return state
+        .setIn(['current', 'license', 'licenseKey'], action.payload.license_key)
+        .setIn(['current', 'license', 'licenseValid'], !!action.payload.license_key && (!action.payload.expiration_date || new Date(action.payload.expiration_date) >= new Date()))
+        .setIn(['current', 'license', 'licenseValidationMessage'], undefined)
+        .setIn(['current', 'license', 'validatingLicenseKey'], false);
+
+    case actionTypes.SAVE_LICENSE_KEY_FAILURE:
+      return state
+        .setIn(['current', 'license', 'licenseValid'], false)
+        .setIn(['current', 'license', 'licenseValidationMessage'], 'Key validation failed. Please try again later.')
+        .setIn(['current', 'license',  'validatingLicenseKey'], false);
+
+    case actionTypes.DELETE_LICENSE_KEY_BEGIN:
+      return state.setIn(['current', 'license', 'validatingLicenseKey'], true);
+
+    case actionTypes.DELETE_LICENSE_KEY_SUCCESS:
+      return state
+        .setIn(['current', 'license', 'licenseKey'], undefined)
+        .setIn(['current', 'license', 'licenseValid'], false)
+        .setIn(['current', 'license', 'licenseValidationMessage'], undefined)
+        .setIn(['current', 'license', 'validatingLicenseKey'], false);
+
+    case actionTypes.DELETE_LICENSE_KEY_FAILURE:
+      return state
+        .setIn(['current', 'license', 'licenseValidationMessage'], action.error)
+        .setIn(['current', 'license', 'validatingLicenseKey'], false);
+
     default:
       return state;
   }

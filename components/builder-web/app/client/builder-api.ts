@@ -934,6 +934,63 @@ export class BuilderApiClient {
     });
   }
 
+  public getLicenseKey() {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/profile/license`, {
+        headers: this.headers,
+        method: 'GET',
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            response.json().then(resolve).catch(() => resolve({}));
+          } else if (response.status === 404) {
+            resolve({}); // No license set
+          } else {
+            response.text().then(msg => reject(new Error(msg)));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
+  public saveLicenseKey(licenseKey: string, accountId: string) {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/profile/license`, {
+        headers: this.jsonHeaders,
+        method: 'PUT',
+        body: JSON.stringify({ license_key: licenseKey, account_id: accountId })
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            response.json().then(resolve).catch(() => resolve({}));
+          } else {
+            response.text().then(msg => reject(new Error(msg)));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
+  public deleteLicenseKey() {
+    return new Promise((resolve, reject) => {
+      fetch(`${this.urlPrefix}/profile/license`, {
+        headers: this.headers,
+        method: 'DELETE',
+      })
+        .then(response => this.handleUnauthorized(response, reject))
+        .then(response => {
+          if (response.ok) {
+            resolve(undefined);
+          } else {
+            response.text().then(msg => reject(new Error(msg)));
+          }
+        })
+        .catch(error => this.handleError(error, reject));
+    });
+  }
+
   private handleError(error, reject) {
     const store = this.store;
     const state = store.getState();

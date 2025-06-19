@@ -263,6 +263,12 @@ export default Record({
         name: undefined,
         email: undefined
       })(),
+      license: Record({
+        licenseKey: undefined,
+        licenseValid: false,
+        licenseValidationMessage: undefined,
+        validatingLicenseKey: false,
+      })(),
       ui: Record({
         accessTokens: Record({
           deleting: false,

@@ -12,23 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit, OnDestroy} from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { MatDialog } from '@angular/material';
 import { Title } from '@angular/platform-browser';
 import { AppStore } from '../../app.store';
 import { SimpleConfirmDialog } from '../../shared/dialog/simple-confirm/simple-confirm.dialog';
-import { clearAccessTokens, clearNewAccessToken, deleteAccessToken, fetchProfile, fetchAccessTokens, generateAccessToken, saveProfile } from '../../actions/index';
+import { clearAccessTokens, clearNewAccessToken, deleteAccessToken, fetchProfile, fetchAccessTokens, generateAccessToken, saveProfile, fetchLicenseKey, saveLicenseKey, deleteLicenseKey } from '../../actions/index';
 import config from '../../config';
+import { ValidLicenseConfirmDialog } from '../../shared/dialog/valid-license-confirm/valid-license-confirm.dialog';
 
 @Component({
   template: require('./profile.component.html')
 })
 export class ProfileComponent implements OnInit, OnDestroy {
-
-  licenseKey = '';
-  licenseValid = false;
-  licenseValidationMessage = '';
-  validatingLicenseKey = false;
+  licenseKeyInput: string;
 
   constructor(
     private confirmDialog: MatDialog,
@@ -40,7 +37,23 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.fetch();
-    this.fetchLicenseKey();
+    this.store.dispatch(fetchLicenseKey(this.token));
+    if (!this.store.getState().user?.license.licenseValid) {
+      this.confirmDialog.open(ValidLicenseConfirmDialog, {
+        width: '480px',
+        data: {
+          heading: 'A Valid key is required for viewing and downloading the packages on the builder.',
+          body: ``,
+          action: `Proceed`
+        }
+      })
+        .afterClosed()
+        .subscribe((confirmed) => {
+          if (confirmed) {
+            this.saveLicenseKeyToBackend();
+          }
+      });
+    }
   }
 
   ngOnDestroy() {
@@ -94,88 +107,28 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   saveLicenseKeyToBackend() {
-    this.validatingLicenseKey = true;
-    this.licenseValidationMessage = '';
-    this.licenseValid = false;
-
-    const body = {
-      account_id: this.profile.id,
-      license_key: this.licenseKey
-    };
-
-    fetch('/v1/profile/license', {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    })
-      .then(async res => {
-        this.validatingLicenseKey = false;
-        if (!res.ok) {
-          const errorText = (await res.text()).trim();
-          throw new Error(errorText || 'License validation failed.');
-        }
-        return res.json();
-      })
-      .then(data => {
-        this.licenseValid = true;
-        this.licenseValidationMessage = `License valid till ${data.expiration_date}`;
-      })
-      .catch(err => {
-        this.licenseValid = false;
-        this.licenseValidationMessage = err.message || 'License validation failed.';
-      });
+    this.store.dispatch(saveLicenseKey(this.licenseKeyInput, this.token, this.profile.id));
+    this.licenseKeyInput = '';
   }
 
   deleteLicenseKey() {
-    fetch('/v1/profile/license', {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${this.token}`
-      }
-    })
-      .then(res => {
-        if (!res.ok) {
-          throw new Error('Failed to delete license key.');
-        }
-        return res.text();
-      })
-      .then(() => {
-        this.clearLicenseKey();
-        console.log('License key deleted successfully.');
-      })
-      .catch(err => {
-        this.licenseValidationMessage = err.message || 'License deletion failed.';
-        console.error('Error deleting license key:', err);
-      });
+    this.store.dispatch(deleteLicenseKey(this.token));
   }
 
-  clearLicenseKey() {
-    this.licenseKey = '';
-    this.licenseValidationMessage = '';
-    this.licenseValid = false;
+  get licenseKey() {
+    return this.store.getState().users.current.license.licenseKey;
   }
 
-  private fetchLicenseKey() {
-    fetch('/v1/profile/license', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${this.token}`
-      }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.license_key) {
-          this.licenseKey = data.license_key;
-          this.licenseValid = true;
-          this.licenseValidationMessage = `License valid till ${data.expiration_date}`;
-        }
-      })
-      .catch(err => {
-        console.error('Error fetching license key from backend:', err);
-      });
+  get licenseValid() {
+    return this.store.getState().users.current.license.licenseValid;
+  }
+
+  get licenseValidationMessage() {
+    return this.store.getState().users.current.license.licenseValidationMessage;
+  }
+
+  get validatingLicenseKey() {
+    return this.store.getState().users.current.license.validatingLicenseKey;
   }
 
   get accessToken() {
