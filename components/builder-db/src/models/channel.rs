@@ -620,7 +620,7 @@ pub struct PackageChannelAudit<'a> {
     pub origin:         &'a str,
 }
 
-impl<'a> PackageChannelAudit<'a> {
+impl PackageChannelAudit<'_> {
     pub fn audit(pca: &PackageChannelAudit, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::insert_into(audit_package::table).values(pca)
@@ -642,7 +642,7 @@ pub struct PackageGroupChannelAudit<'a> {
     pub group_id:       i64,
 }
 
-impl<'a> PackageGroupChannelAudit<'a> {
+impl PackageGroupChannelAudit<'_> {
     pub fn audit(req: PackageGroupChannelAudit, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::insert_into(audit_package_group::table).values(req)
