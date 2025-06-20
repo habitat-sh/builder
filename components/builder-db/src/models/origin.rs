@@ -173,7 +173,7 @@ struct OriginAudit<'a> {
     target_object:  &'a str,
 }
 
-impl<'a> OriginAudit<'a> {
+impl OriginAudit<'_> {
     fn audit(origin_audit_record: &OriginAudit, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::insert_into(audit_origin::table).values(origin_audit_record)

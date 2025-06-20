@@ -123,7 +123,7 @@ impl fmt::Display for DataStoreCfg {
     }
 }
 
-impl<'a> IntoConnectParams for &'a DataStoreCfg {
+impl IntoConnectParams for &DataStoreCfg {
     fn into_connect_params(self) -> Result<ConnectParams, Box<dyn Error + Sync + Send>> {
         let mut builder = ConnectParams::builder();
         builder.port(self.port);
