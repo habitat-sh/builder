@@ -31,18 +31,11 @@ export const SET_CURRENT_USERNAME = 'SET_CURRENT_USERNAME';
 export const SIGN_IN_FAILED = 'SIGN_IN_FAILED';
 export const SIGNING_IN = 'SIGNING_IN';
 export const TOGGLE_USER_NAV_MENU = 'TOGGLE_USER_NAV_MENU';
-
 export const FETCH_LICENSE_KEY_BEGIN = 'FETCH_LICENSE_KEY_BEGIN';
 export const FETCH_LICENSE_KEY_SUCCESS = 'FETCH_LICENSE_KEY_SUCCESS';
-export const FETCH_LICENSE_KEY_FAILURE = 'FETCH_LICENSE_KEY_FAILURE';
-
-export const SAVE_LICENSE_KEY_BEGIN = 'SAVE_LICENSE_KEY_BEGIN';
 export const SAVE_LICENSE_KEY_SUCCESS = 'SAVE_LICENSE_KEY_SUCCESS';
-export const SAVE_LICENSE_KEY_FAILURE = 'SAVE_LICENSE_KEY_FAILURE';
-
 export const DELETE_LICENSE_KEY_BEGIN = 'DELETE_LICENSE_KEY_BEGIN';
 export const DELETE_LICENSE_KEY_SUCCESS = 'DELETE_LICENSE_KEY_SUCCESS';
-export const DELETE_LICENSE_KEY_FAILURE = 'DELETE_LICENSE_KEY_FAILURE';
 
 export function fetchProfile(token: string) {
   return dispatch => {
@@ -280,29 +273,35 @@ export function fetchLicenseKey(token: string) {
         });
       })
       .catch(err => {
-        dispatch({
-          type: FETCH_LICENSE_KEY_FAILURE,
-          error: err.message
-        });
+        dispatch(addNotification({
+          title: 'Error fetching license key',
+          body: `${err.message}`,
+          type: DANGER
+        }));
       });
   };
 }
 
 export function saveLicenseKey(licenseKey: string, token: string, accountId: string) {
   return dispatch => {
-    dispatch({ type: SAVE_LICENSE_KEY_BEGIN });
     new BuilderApiClient(token).saveLicenseKey(licenseKey, accountId)
       .then(data => {
         dispatch({
           type: SAVE_LICENSE_KEY_SUCCESS,
           payload: data
         });
+        dispatch(addNotification({
+          type: SUCCESS,
+          body: 'License Saved.',
+        }));
+        dispatch(fetchLicenseKey(token));
       })
       .catch(err => {
-        dispatch({
-          type: SAVE_LICENSE_KEY_FAILURE,
-          error: err.message
-        });
+        dispatch(addNotification({
+          title: 'License validation failed.',
+          body: `${err.message}`,
+          type: DANGER
+        }));
       });
   };
 }
@@ -315,12 +314,18 @@ export function deleteLicenseKey(token: string) {
         dispatch({
           type: DELETE_LICENSE_KEY_SUCCESS
         });
+        dispatch(addNotification({
+          type: SUCCESS,
+          body: 'License Deleted.',
+        }));
+        dispatch(fetchLicenseKey(token));
       })
       .catch(err => {
-        dispatch({
-          type: DELETE_LICENSE_KEY_FAILURE,
-          error: err.message
-        });
+        dispatch(addNotification({
+          title: 'License deletion failed.',
+          body: `${err.message}`,
+          type: DANGER
+        }));
       });
   };
 }

@@ -264,10 +264,8 @@ export default Record({
         email: undefined
       })(),
       license: Record({
-        licenseKey: undefined,
-        licenseValid: false,
-        licenseValidationMessage: undefined,
-        validatingLicenseKey: false,
+        licenseKey: null,
+        expirationDate: null
       })(),
       ui: Record({
         accessTokens: Record({

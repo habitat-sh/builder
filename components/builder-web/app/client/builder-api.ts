@@ -945,7 +945,7 @@ export class BuilderApiClient {
           if (response.ok) {
             response.json().then(resolve).catch(() => resolve({}));
           } else if (response.status === 404) {
-            resolve({}); // No license set
+            resolve({});
           } else {
             response.text().then(msg => reject(new Error(msg)));
           }

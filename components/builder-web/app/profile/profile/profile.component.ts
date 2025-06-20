@@ -20,12 +20,16 @@ import { SimpleConfirmDialog } from '../../shared/dialog/simple-confirm/simple-c
 import { clearAccessTokens, clearNewAccessToken, deleteAccessToken, fetchProfile, fetchAccessTokens, generateAccessToken, saveProfile, fetchLicenseKey, saveLicenseKey, deleteLicenseKey } from '../../actions/index';
 import config from '../../config';
 import { ValidLicenseConfirmDialog } from '../../shared/dialog/valid-license-confirm/valid-license-confirm.dialog';
+import { Subscription } from 'rxjs';
 
 @Component({
   template: require('./profile.component.html')
 })
 export class ProfileComponent implements OnInit, OnDestroy {
   licenseKeyInput: string;
+  licenseValidationMessage: string;
+  private licenseSubscription: Subscription;
+  private dialogRef: any;
 
   constructor(
     private confirmDialog: MatDialog,
@@ -38,25 +42,51 @@ export class ProfileComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.fetch();
     this.store.dispatch(fetchLicenseKey(this.token));
-    if (!this.store.getState().user?.license.licenseValid) {
-      this.confirmDialog.open(ValidLicenseConfirmDialog, {
-        width: '480px',
-        data: {
-          heading: 'A Valid key is required for viewing and downloading the packages on the builder.',
-          body: ``,
-          action: `Proceed`
+    this.licenseSubscription = this.store.observe('users.current.license').subscribe(({licenseKey, expirationDate}) => {
+      if (expirationDate) {
+        const now = new Date();
+        const exp = new Date(expirationDate);
+        if (exp < now) {
+          this.licenseValidationMessage = 'Your license has expired. Re-enter a new license key to download packages';
+        } else {
+          this.licenseValidationMessage = `License valid till ${expirationDate}`;
         }
-      })
-        .afterClosed()
-        .subscribe((confirmed) => {
-          if (confirmed) {
+      } else {
+        this.licenseValidationMessage = '';
+      }
+
+      if (!licenseKey && !this.dialogRef) {
+        this.dialogRef = this.confirmDialog.open(ValidLicenseConfirmDialog, {
+          width: '480px',
+          data: {
+            heading: 'A Valid key is required for viewing and downloading the packages on the builder.',
+            body: ``,
+            action: `Proceed`
+          }
+        });
+        this.dialogRef.afterClosed().subscribe((data) => {
+          this.dialogRef = null;
+          if (!data) {
+            return;
+          }
+          const { licenseKey } = data || {};
+          if (licenseKey) {
+            this.licenseKeyInput = licenseKey;
             this.saveLicenseKeyToBackend();
           }
-      });
-    }
+        });
+      } else if (licenseKey && this.dialogRef) {
+        this.dialogRef.close();
+        this.dialogRef = null;
+      }
+    });
   }
 
   ngOnDestroy() {
+    if (this.licenseSubscription) {
+      this.licenseSubscription.unsubscribe();
+    }
+    this.dialogRef = null;
     this.clearAccessTokens();
   }
 
@@ -117,18 +147,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   get licenseKey() {
     return this.store.getState().users.current.license.licenseKey;
-  }
-
-  get licenseValid() {
-    return this.store.getState().users.current.license.licenseValid;
-  }
-
-  get licenseValidationMessage() {
-    return this.store.getState().users.current.license.licenseValidationMessage;
-  }
-
-  get validatingLicenseKey() {
-    return this.store.getState().users.current.license.validatingLicenseKey;
   }
 
   get accessToken() {

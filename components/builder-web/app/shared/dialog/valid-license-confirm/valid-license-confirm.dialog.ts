@@ -44,11 +44,11 @@ export class ValidLicenseConfirmDialog {
   }
 
   proceed() {
-    this.ref.close(this.licenseKey);
+    this.ref.close({licenseKey: this.licenseKey , close: true});
   }
 
   cancel() {
-    this.ref.close('cancel');
+    this.ref.close({close: true});
   }
 
   togglePasswordVisibility() {
