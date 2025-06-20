@@ -75,7 +75,6 @@ install-packages() {
     core/procps-ng \
     core/sccache \
     core/shadow \
-    --channel LTS-2024 \
     --binlink
 }
 
@@ -181,7 +180,7 @@ _load-if-not-loaded() {
   if hab svc status "$pkg_ident" >/dev/null 2>&1; then
     echo "$pkg_ident is already loaded"
   else
-    hab svc load --channel "${HAB_BLDR_CHANNEL:-LTS-2024}" "$@"
+    hab svc load "$@"
   fi
 }
 load-if-not-loaded() { stop-on-failure _load-if-not-loaded "$@"; }
@@ -192,7 +191,7 @@ start-datastore() {
     echo "habitat/builder-datastore is already loaded"
   else
     init-datastore
-    hab svc load --channel "${HAB_BLDR_CHANNEL:-LTS-2024}" habitat/builder-datastore
+    hab svc load habitat/builder-datastore
   fi
 }
 
@@ -251,8 +250,7 @@ generate_bldr_keys() {
 }
 
 load_package() {
-  # JAH:  Should there really be a --channel option here at all?
-  hab pkg upload --url http://localhost --auth "${HAB_AUTH_TOKEN}" "$@" --channel "${HAB_BLDR_CHANNEL:-LTS-2024}"
+  hab pkg upload --url http://localhost --auth "${HAB_AUTH_TOKEN}" "$@"
 }
 
 load_packages() {
@@ -310,7 +308,7 @@ test-builder() {
   fi
 
   echo "Starting supervisor in test mode. Logs saved to ${logs}"
-  HAB_BLDR_CHANNEL="${HAB_BLDR_CHANNEL:-LTS-2024}" HAB_FUNC_TEST=1 RUST_LOG=debug HAB_NONINTERACTIVE=true HAB_NOCOLORING=true hab sup run --no-color >${logs} 2>&1 &
+  HAB_FUNC_TEST=1 RUST_LOG=debug HAB_NONINTERACTIVE=true HAB_NOCOLORING=true hab sup run --no-color >${logs} 2>&1 &
   sleep 8
 
   start-builder

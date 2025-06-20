@@ -10,7 +10,7 @@ component=${1?component argument required}
 
 # Accept hab license
 sudo hab license accept
-sudo hab pkg install core/rust/"$toolchain"
+sudo hab pkg install core/rust/"$toolchain" --channel LTS-2024
 sudo hab pkg install core/libarchive
 sudo hab pkg install core/openssl
 sudo hab pkg install core/zeromq
