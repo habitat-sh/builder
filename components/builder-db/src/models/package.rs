@@ -198,7 +198,6 @@ pub struct PackageIdentWithChannelPlatform {
 
 /// We literally never want to select `ident_vector`
 /// so we provide this type and constant to pass to `.select`
-
 type AllColumns = (origin_packages::id,
                    origin_packages::owner_id,
                    origin_packages::name,
