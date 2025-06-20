@@ -34,7 +34,6 @@ export const TOGGLE_USER_NAV_MENU = 'TOGGLE_USER_NAV_MENU';
 export const FETCH_LICENSE_KEY_BEGIN = 'FETCH_LICENSE_KEY_BEGIN';
 export const FETCH_LICENSE_KEY_SUCCESS = 'FETCH_LICENSE_KEY_SUCCESS';
 export const SAVE_LICENSE_KEY_SUCCESS = 'SAVE_LICENSE_KEY_SUCCESS';
-export const DELETE_LICENSE_KEY_BEGIN = 'DELETE_LICENSE_KEY_BEGIN';
 export const DELETE_LICENSE_KEY_SUCCESS = 'DELETE_LICENSE_KEY_SUCCESS';
 
 export function fetchProfile(token: string) {
@@ -308,7 +307,6 @@ export function saveLicenseKey(licenseKey: string, token: string, accountId: str
 
 export function deleteLicenseKey(token: string) {
   return dispatch => {
-    dispatch({ type: DELETE_LICENSE_KEY_BEGIN });
     new BuilderApiClient(token).deleteLicenseKey()
       .then(() => {
         dispatch({
