@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, ChangeDetectorRef} from '@angular/core';
 import { Location } from '@angular/common';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
 
@@ -24,9 +24,11 @@ export class ValidLicenseConfirmDialog {
 
   licenseKey: string;
   hide = true;
+  errorMessage: string;
 
   constructor(
     private ref: MatDialogRef<ValidLicenseConfirmDialog>,
+    private cdr: ChangeDetectorRef,
     @Inject(MAT_DIALOG_DATA) private data: any,
     private location: Location
   ) { }
@@ -43,8 +45,12 @@ export class ValidLicenseConfirmDialog {
     return this.data.action || 'do it';
   }
 
+  get mode() {
+    return this.data.mode || 'add';
+  }
+
   proceed() {
-    this.ref.close({licenseKey: this.licenseKey , close: true});
+    // this.ref.close({licenseKey: this.licenseKey , close: true});
   }
 
   cancel() {
@@ -58,5 +64,10 @@ export class ValidLicenseConfirmDialog {
     } else {
       passwordField.type = 'password';
     }
+  }
+
+  setErrorMessage(msg: string) {
+    this.errorMessage = msg;
+    this.cdr.detectChanges();
   }
 }

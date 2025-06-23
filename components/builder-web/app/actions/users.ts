@@ -35,6 +35,8 @@ export const FETCH_LICENSE_KEY_BEGIN = 'FETCH_LICENSE_KEY_BEGIN';
 export const FETCH_LICENSE_KEY_SUCCESS = 'FETCH_LICENSE_KEY_SUCCESS';
 export const SAVE_LICENSE_KEY_SUCCESS = 'SAVE_LICENSE_KEY_SUCCESS';
 export const DELETE_LICENSE_KEY_SUCCESS = 'DELETE_LICENSE_KEY_SUCCESS';
+export const SAVE_LICENSE_KEY_BEGIN = 'SAVE_LICENSE_KEY_BEGIN';
+export const SAVE_LICENSE_KEY_FAILED = 'SAVE_LICENSE_KEY_FAILED';
 
 export function fetchProfile(token: string) {
   return dispatch => {
@@ -283,6 +285,7 @@ export function fetchLicenseKey(token: string) {
 
 export function saveLicenseKey(licenseKey: string, token: string, accountId: string) {
   return dispatch => {
+    dispatch({ type: SAVE_LICENSE_KEY_BEGIN });
     new BuilderApiClient(token).saveLicenseKey(licenseKey, accountId)
       .then(data => {
         dispatch({
@@ -296,6 +299,10 @@ export function saveLicenseKey(licenseKey: string, token: string, accountId: str
         dispatch(fetchLicenseKey(token));
       })
       .catch(err => {
+        dispatch({
+          type: SAVE_LICENSE_KEY_FAILED,
+          payload: { errorMessage: err.message }
+        });
         dispatch(addNotification({
           title: 'License validation failed.',
           body: `${err.message}`,

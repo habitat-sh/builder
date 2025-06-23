@@ -1,7 +1,7 @@
 <div class="dialog simple-confirm">
   <section class="header custom-header">
     <h2>{{ heading }}</h2>
-    <a class="close-button" (click)="cancel()">
+    <a *ngIf="mode != 'add'" class="close-button" (click)="cancel()">
       <h2>
         <hab-icon symbol="close"></hab-icon>
       </h2>
@@ -17,6 +17,10 @@
       <input matInput placeholder="License Key" name="licenseKey" [(ngModel)]="licenseKey" [type]="hide ? 'password' : 'text'" autocomplete="off" required>
       <hab-icon class="show-icon" symbol="{{hide ? 'visibility-off' : 'visibility'}}" (click)="hide = !hide" (keydown)="hide = !hide"></hab-icon>
     </div>
+    <span *ngIf="errorMessage" class="error-message">
+      <hab-icon symbol="warning"></hab-icon>
+      {{errorMessage}}
+    </span>
   </section>
   <section class="controls">
     <button mat-raised-button color="primary" class="button proceed-button" (click)="proceed()">

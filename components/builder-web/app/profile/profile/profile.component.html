@@ -105,7 +105,7 @@
               [disabled]="!!licenseKey"
             />
             <div class="actions">
-              <a class="generate" (click)="saveLicenseKeyToBackend()" *ngIf="!licenseKey">Submit</a>
+              <a class="generate" (click)="updateKey()" *ngIf="licenseKey">Update</a>
               <a class="delete" (click)="deleteLicenseKey()" *ngIf="licenseKey">Delete</a>
             </div>
           </div> 

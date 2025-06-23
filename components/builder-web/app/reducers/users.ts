@@ -64,13 +64,25 @@ export default function users(state = initialState['users'], action) {
 
     case actionTypes.FETCH_LICENSE_KEY_SUCCESS:
       return state
-        .setIn(['current', 'license', 'licenseKey'], action.payload.licenseKey || null)
-        .setIn(['current', 'license', 'expirationDate'], action.payload.expirationDate || null);
+        .setIn(['current', 'license', 'licenseKey'], action.payload.license_key || null)
+        .setIn(['current', 'license', 'expirationDate'], action.payload.expiration_date || null);
+
+    case actionTypes.SAVE_LICENSE_KEY_BEGIN:
+      return state
+        .setIn(['current', 'license', 'saveLicenseKeyErrorMessage'], null);
 
     case actionTypes.SAVE_LICENSE_KEY_SUCCESS:
       return state
-        .setIn(['current', 'license', 'licenseKey'], action.payload.licenseKey || null)
-        .setIn(['current', 'license', 'expirationDate'], action.payload.expirationDate || null);
+        .setIn(['current', 'license', 'saveLicenseKeyErrorMessage'], null);
+
+    case actionTypes.SAVE_LICENSE_KEY_FAILED:
+      // Remove double quotes if errorMessage is a quoted string
+      let msg = action.payload.errorMessage;
+      if (typeof msg === 'string' && msg.length > 1 && msg[0] === '"' && msg[msg.length - 1] === '"') {
+        msg = msg.substring(1, msg.length - 1);
+      }
+      return state
+        .setIn(['current', 'license', 'saveLicenseKeyErrorMessage'], msg || 'Please Enter a valid license key.');
 
     case actionTypes.DELETE_LICENSE_KEY_SUCCESS:
       return state
