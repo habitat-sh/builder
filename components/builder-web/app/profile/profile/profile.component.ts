@@ -19,8 +19,8 @@ import { AppStore } from '../../app.store';
 import { SimpleConfirmDialog } from '../../shared/dialog/simple-confirm/simple-confirm.dialog';
 import { clearAccessTokens, clearNewAccessToken, deleteAccessToken, fetchProfile, fetchAccessTokens, generateAccessToken, saveProfile, fetchLicenseKey, saveLicenseKey, signOut } from '../../actions/index';
 import { ValidLicenseConfirmDialog } from '../../shared/dialog/valid-license-confirm/valid-license-confirm.dialog';
-import { Location } from '@angular/common';
 import { Router } from '@angular/router';
+import config from '../../config';
 
 @Component({
   template: require('./profile.component.html')
@@ -34,7 +34,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
     private confirmDialog: MatDialog,
     private store: AppStore,
     private title: Title,
-    private location: Location,
     private router: Router
   ) {
     this.title.setTitle(`My Profile | ${store.getState().app.name}`);
