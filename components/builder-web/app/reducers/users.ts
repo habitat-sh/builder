@@ -84,11 +84,6 @@ export default function users(state = initialState['users'], action) {
       return state
         .setIn(['current', 'license', 'saveLicenseKeyErrorMessage'], msg || 'Please Enter a valid license key.');
 
-    case actionTypes.DELETE_LICENSE_KEY_SUCCESS:
-      return state
-        .setIn(['current', 'license', 'licenseKey'], null)
-        .setIn(['current', 'license', 'expirationDate'], null);
-
     default:
       return state;
   }
