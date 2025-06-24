@@ -1,28 +1,25 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { CanActivate, Router, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
 import { AppStore } from '../../app.store';
-import { Subscription } from 'rxjs';
 
 @Injectable()
-export class LicenseRequiredGuard implements CanActivate, OnDestroy {
-private licenseSubscription: Subscription;
+export class LicenseRequiredGuard implements CanActivate {
 
   constructor(private store: AppStore, private router: Router) {}
 
   canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean {
-    this.licenseSubscription = this.store.observe('users.current.license.licenseKey').subscribe((licenseKey) => {
-        if (!licenseKey) {
-            this.router.navigate(['/profile']);
-            return false;
-        }
-    });
+    const license = this.store.getState().users.current.license;
+    if (!license || !license.licenseKey || this.expiredLicense(license.expirationDate)) {
+      this.router.navigate(['/profile']);
+      return false;
+    }
     return true;
   }
 
-  ngOnDestroy() {
-    if (this.licenseSubscription) {
-      this.licenseSubscription.unsubscribe();
-    }
+  expiredLicense(expirationDate): boolean {
+    const now = new Date();
+    const exp = new Date(expirationDate);
+    return exp < now;
   }
 
 }

@@ -239,7 +239,7 @@ export function signingIn(payload) {
   };
 }
 
-export function signOut(redirectToSignIn: boolean, pathAfterSignIn?: string) {
+export function signOut(redirectToSignIn: boolean, pathAfterSignIn?: string, signInMessage?: string) {
   return (dispatch, getState) => {
 
     if (getState().session.token) {
@@ -258,7 +258,12 @@ export function signOut(redirectToSignIn: boolean, pathAfterSignIn?: string) {
     dispatch(loadOAuthProvider());
 
     if (redirectToSignIn) {
-      dispatch(requestRoute(['/sign-in']));
+      // If a signInMessage is provided, navigate with the message param
+      if (signInMessage) {
+        dispatch(requestRoute(['/sign-in?message=' + encodeURIComponent(signInMessage)]));
+      } else {
+        dispatch(requestRoute(['/sign-in']));
+      }
     }
   };
 }
@@ -305,29 +310,6 @@ export function saveLicenseKey(licenseKey: string, token: string, accountId: str
         });
         dispatch(addNotification({
           title: 'License validation failed.',
-          body: `${err.message}`,
-          type: DANGER
-        }));
-      });
-  };
-}
-
-export function deleteLicenseKey(token: string) {
-  return dispatch => {
-    new BuilderApiClient(token).deleteLicenseKey()
-      .then(() => {
-        dispatch({
-          type: DELETE_LICENSE_KEY_SUCCESS
-        });
-        dispatch(addNotification({
-          type: SUCCESS,
-          body: 'License Deleted.',
-        }));
-        dispatch(fetchLicenseKey(token));
-      })
-      .catch(err => {
-        dispatch(addNotification({
-          title: 'License deletion failed.',
           body: `${err.message}`,
           type: DANGER
         }));

@@ -17,6 +17,7 @@ import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot } from
 import { AppStore } from '../../app.store';
 import { Browser } from '../../browser';
 import { requestRoute, signOut } from '../../actions/index';
+import config from '../../config';
 
 @Injectable()
 export class SignedInGuard implements CanActivate {
@@ -82,6 +83,12 @@ export class SignedInGuard implements CanActivate {
   }
 
   private redirectToSignIn(url?: string) {
-    this.store.dispatch(signOut(true, url));
+    // Only show the sign-in message for SaaS mode
+    if (config['is_saas']) {
+      this.router.navigate(['/sign-in'], { queryParams: { message: 'You need to sign-in to access Public Builder' } });
+      this.store.dispatch(signOut(false)); // Only clear session, do not navigate
+    } else {
+      this.store.dispatch(signOut(true, url));
+    }
   }
 }

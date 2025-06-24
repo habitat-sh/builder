@@ -241,7 +241,6 @@ export {
   toggleUserNavMenu,
   fetchLicenseKey,
   saveLicenseKey,
-  deleteLicenseKey,
   FETCH_LICENSE_KEY_BEGIN,
   FETCH_LICENSE_KEY_SUCCESS,
   SAVE_LICENSE_KEY_BEGIN,

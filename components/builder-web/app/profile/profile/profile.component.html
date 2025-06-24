@@ -98,15 +98,12 @@
             <input
               type="password"
               name="licenseKey"
-              [(ngModel)]="licenseKeyInput"
-              placeholder="Enter your license key"
               autocomplete="off"
-              value="{{ licenseKey || 'No license key found' }}"
-              [disabled]="!!licenseKey"
+              value="{{ licenseKey }}"
+              [disabled]="true"
             />
             <div class="actions">
               <a class="generate" (click)="updateKey()" *ngIf="licenseKey">Update</a>
-              <a class="delete" (click)="deleteLicenseKey()" *ngIf="licenseKey">Delete</a>
             </div>
           </div> 
           <p class="footnote notice" *ngIf="licenseValidationMessage">

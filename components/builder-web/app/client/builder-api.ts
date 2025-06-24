@@ -973,24 +973,6 @@ export class BuilderApiClient {
     });
   }
 
-  public deleteLicenseKey() {
-    return new Promise((resolve, reject) => {
-      fetch(`${this.urlPrefix}/profile/license`, {
-        headers: this.headers,
-        method: 'DELETE',
-      })
-        .then(response => this.handleUnauthorized(response, reject))
-        .then(response => {
-          if (response.ok) {
-            resolve(undefined);
-          } else {
-            response.text().then(msg => reject(new Error(msg)));
-          }
-        })
-        .catch(error => this.handleError(error, reject));
-    });
-  }
-
   private handleError(error, reject) {
     const store = this.store;
     const state = store.getState();
