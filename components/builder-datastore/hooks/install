@@ -34,33 +34,33 @@ set_installed_pg_ident_and_active_ident() {
 
 postgres_running() {
 
-  sudo -u hab hab pkg exec "$ACTIVE_IDENT" pg_ctl -- status \
+  hab pkg exec "$ACTIVE_IDENT" pg_ctl -- status \
     --pgdata={{pkg.svc_data_path}} \
     --silent
 
   local -ri exit_status=$?
-    local what_happened=""
-    case $exit_status in
-    0)
-      what_happened="success (server running in specified directory)"
-      ;;
-    3)
-      what_happened="server is not running"
-      ;;
-    4)
-      what_happened="accessible data directory not specified"
-      ;;
-    *)
-      what_happened="unexpected exit status"
-      ;;
-    esac
-    printf "%s: exit status: %s (%s)\n" "${FUNCNAME[0]}" $exit_status "$what_happened"
+  local what_happened=""
+  case $exit_status in
+  0)
+    what_happened="success (server running in specified directory)"
+    ;;
+  3)
+    what_happened="server is not running"
+    ;;
+  4)
+    what_happened="accessible data directory not specified"
+    ;;
+  *)
+    what_happened="unexpected exit status"
+    ;;
+  esac
+  printf "%s: exit status: %s (%s)\n" "${FUNCNAME[0]}" $exit_status "$what_happened"
   return "$exit_status"
 }
 
 postgres_ready() {
 
-  sudo -u hab hab pkg exec "$ACTIVE_IDENT" pg_isready -- \
+  hab pkg exec "$ACTIVE_IDENT" pg_isready -- \
     --host={{cfg.datastore.host}} \
     --port={{cfg.datastore.port}} \
     --username={{cfg.datastore.user}} \
@@ -68,31 +68,31 @@ postgres_ready() {
     --quiet
 
   local -ri exit_status=$?
-    local what_happened=""
-    case $exit_status in
-    0)
-      what_happened="success"
-      ;;
-    1)
-      what_happened="connection rejected"
-      ;;
-    2)
-      what_happened="no response to connection attempt"
-      ;;
-    3)
-      what_happened="no attempt made"
-      ;;
-    *)
-      what_happened="unexpected exit status"
-      ;;
-    esac
-    printf "%s: exit status: %s (%s)\n" "${FUNCNAME[0]}" $exit_status "$what_happened"
+  local what_happened=""
+  case $exit_status in
+  0)
+    what_happened="success"
+    ;;
+  1)
+    what_happened="connection rejected"
+    ;;
+  2)
+    what_happened="no response to connection attempt"
+    ;;
+  3)
+    what_happened="no attempt made"
+    ;;
+  *)
+    what_happened="unexpected exit status"
+    ;;
+  esac
+  printf "%s: exit status: %s (%s)\n" "${FUNCNAME[0]}" $exit_status "$what_happened"
   return $exit_status
 }
 
 builder_db_exists() {
 
-  sudo -E hab pkg exec "$ACTIVE_IDENT" psql -- \
+  hab pkg exec "$ACTIVE_IDENT" psql -- \
     --host={{cfg.datastore.host}} \
     --port={{cfg.datastore.port}} \
     --username={{cfg.datastore.user}} \
@@ -102,25 +102,25 @@ builder_db_exists() {
     --quiet
 
   local -ri exit_status=$?
-    local what_happened=""
-    case $exit_status in
-    0)
-      what_happened="success"
-      ;;
-    1)
-      what_happened="fatal psql error"
-      ;;
-    2)
-      what_happened="bad server connection, session not interactive"
-      ;;
-    3)
-      what_happened="sql script error"
-      ;;
-    *)
-      what_happened="unexpected exit status"
-      ;;
-    esac
-    printf "%s: exit status: %s (%s)\n" "${FUNCNAME[0]}" $exit_status "$what_happened"
+  local what_happened=""
+  case $exit_status in
+  0)
+    what_happened="success"
+    ;;
+  1)
+    what_happened="fatal psql error"
+    ;;
+  2)
+    what_happened="bad server connection, session not interactive"
+    ;;
+  3)
+    what_happened="sql script error"
+    ;;
+  *)
+    what_happened="unexpected exit status"
+    ;;
+  esac
+  printf "%s: exit status: %s (%s)\n" "${FUNCNAME[0]}" $exit_status "$what_happened"
   return $exit_status
 }
 
@@ -169,22 +169,22 @@ create_postgres_cluster() {
   mkdir -p {{pkg.svc_config_path}}/conf.d
   mkdir -p {{pkg.svc_var_path}}/pg_stat_tmp
 
-  sudo chown -R hab:hab {{pkg.svc_var_path}}
-  sudo touch $randfile
+  chown -R hab:hab {{pkg.svc_var_path}}
+  touch $randfile
 
   if [[ ! -f "$PWFILE" ]]; then
     if [[ -z "$DB_PASSWORD" ]]; then
       openssl rand -base64 32 >"$PWFILE"
     else
-      echo "${DB_PASSWORD}" | sudo -u hab tee "$PWFILE" >/dev/null
+      echo "${DB_PASSWORD}" | tee "$PWFILE" >/dev/null
     fi
   fi
 
-  sudo mkdir -p {{pkg.svc_data_path}}
-  sudo chown hab:hab -R {{pkg.svc_data_path}}
+  mkdir -p {{pkg.svc_data_path}}
+  chown hab:hab -R {{pkg.svc_data_path}}
 
   # JAH: do I need to take some sort of collation into account here because of that one plugin?
-  output=$(sudo -u hab hab pkg exec "$ACTIVE_IDENT" initdb -- \
+  output=$(hab pkg exec "$ACTIVE_IDENT" initdb -- \
     --username {{cfg.datastore.user}} \
     --encoding {{cfg.init.encoding}} \
     --pgdata {{pkg.svc_data_path}} \
@@ -225,7 +225,7 @@ start_postgres() {
   fi
 
   echo "Starting PostgreSQL (waiting ~${PG_TIMEOUT}s, current time: $(date +"%H:%M:%S"))"
-  sudo -u hab hab pkg exec "$ACTIVE_IDENT" pg_ctl -- start \
+  hab pkg exec "$ACTIVE_IDENT" pg_ctl -- start \
     --pgdata={{pkg.svc_data_path}} \
     --timeout=$PG_TIMEOUT \
     -w \
@@ -246,7 +246,7 @@ create_builder_database() {
     echo The builder database already exists
   else
     echo Creating the builder database
-    sudo -u hab hab pkg exec "$ACTIVE_IDENT" createdb \
+    hab pkg exec "$ACTIVE_IDENT" createdb \
       --host={{cfg.datastore.host}} \
       --port={{cfg.datastore.port}} \
       --username={{cfg.datastore.user}} \
@@ -264,7 +264,7 @@ stop_postgres() {
   fi
 
   echo "Stopping PostgreSQL (waiting ~${PG_TIMEOUT}s, current time: $(date +"%H:%M:%S"))"
-  sudo -u hab hab pkg exec "$ACTIVE_IDENT" pg_ctl -- stop \
+  hab pkg exec "$ACTIVE_IDENT" pg_ctl -- stop \
     --pgdata {{pkg.svc_data_path}} \
     --mode=fast \
     --timeout=$PG_TIMEOUT \
@@ -275,7 +275,7 @@ stop_postgres() {
   for ((i = 0; i < PG_TIMEOUT; i++)); do
     if postgres_running; then
       echo "Waiting for PostgreSQL to stop ($((i + 1))/$PG_TIMEOUT)"
-       sleep 1
+      sleep 1
     elif ((i >= PG_TIMEOUT)); then
       echo "PostgreSQL failed to stop in ${PG_TIMEOUT}s"
       echo "$output"
@@ -323,13 +323,13 @@ postgres_needs_upgraded() {
   # https://www.postgresql.org/support/versioning/
   # https://endoflife.date/postgresql
 
-  read -ra installed_version <<<"$(sudo -u hab hab pkg exec "$INSTALLED_PG_IDENT" pg_config -- --version | awk '{print $2}')"
+  read -ra installed_version <<<"$(hab pkg exec "$INSTALLED_PG_IDENT" pg_config -- --version | awk '{print $2}')"
   if [[ ! (${installed_version[0]} =~ [[:digit:]]+ && ${installed_version[1]} =~ [[:digit:]]+) ]]; then
     echo "Failed to parse the version of the installed PostgreSQL: We detected ${installed_version[*]}"
     exit 14
   fi
 
-  read -ra packaged_version <<<"$(sudo -u hab hab pkg exec "$PACKAGED_DATASTORE_IDENT" pg_config -- --version | awk '{print $2}')"
+  read -ra packaged_version <<<"$(hab pkg exec "$PACKAGED_DATASTORE_IDENT" pg_config -- --version | awk '{print $2}')"
   if [[ ! (${packaged_version[0]} =~ [[:digit:]]+ && ${packaged_version[1]} =~ [[:digit:]]+) ]]; then
     echo "Failed to parse the version of the packaged PostgreSQL: We detected ${packaged_version[*]}"
     exit 15
@@ -359,7 +359,7 @@ dump_postgres_database() {
   # newer version of PostgreSQL, to take advantage of enhancements that might
   # have been made in these programs. Current releases of the dump programs can
   # read data from any server version back to 9.2."
-  sudo -E hab pkg exec $PACKAGED_DATASTORE_IDENT pg_dump -- \
+  hab pkg exec $PACKAGED_DATASTORE_IDENT pg_dump -- \
     --host={{cfg.datastore.host}} \
     --port={{cfg.datastore.port}} \
     --username={{cfg.datastore.user}} \
@@ -381,7 +381,7 @@ load_postgres_database() {
 
   echo Loading the builder database from file generated via pg_dump using psql
 
-  sudo -E hab pkg exec "$ACTIVE_IDENT" psql -- \
+  hab pkg exec "$ACTIVE_IDENT" psql -- \
     --host={{cfg.datastore.host}} \
     --port={{cfg.datastore.port}} \
     --username={{cfg.datastore.user}} \
@@ -390,25 +390,25 @@ load_postgres_database() {
     --file="$pg_dump_file"
 
   local -ri exit_status=$?
-    local what_happened=""
-    case $exit_status in
-    0)
-      what_happened="success"
-      ;;
-    1)
-      what_happened="fatal psql error"
-      ;;
-    2)
-      what_happened="bad server connection, session not interactive"
-      ;;
-    3)
-      what_happened="sql script error"
-      ;;
-    *)
-      what_happened="unexpected exit status"
-      ;;
-    esac
-    printf "%s: exit status: %s (%s)\n" "${FUNCNAME[0]}" $exit_status "$what_happened"
+  local what_happened=""
+  case $exit_status in
+  0)
+    what_happened="success"
+    ;;
+  1)
+    what_happened="fatal psql error"
+    ;;
+  2)
+    what_happened="bad server connection, session not interactive"
+    ;;
+  3)
+    what_happened="sql script error"
+    ;;
+  *)
+    what_happened="unexpected exit status"
+    ;;
+  esac
+  printf "%s: exit status: %s (%s)\n" "${FUNCNAME[0]}" $exit_status "$what_happened"
   if [[ $exit_status -eq 0 ]]; then
     echo "Succeeded in loading the builder database from the pg_dump file"
   else
@@ -424,8 +424,8 @@ upgrade_postgres() {
 
   local -r work_dir="{{pkg.svc_var_path}}/tmp/upgrades/$MOMENT"
   local -r pg_dump_file="$work_dir/pg_dump.sql"
-  local -r previous_dir="$work_dir/previous"
-  mkdir -p "$work_dir"
+  local -r previous_data_dir="$work_dir/previous/data"
+  mkdir -p "$previous_data_dir"
 
   PGPASSWORD="$(cat "$PWFILE")"
   export PGPASSWORD
@@ -433,9 +433,6 @@ upgrade_postgres() {
   manage_upgrade_readme "$work_dir"
 
   ACTIVE_IDENT=$INSTALLED_PG_IDENT
-  if ! hab pkg list "$INSTALLED_PG_IDENT" >/dev/null ; then
-    sudo hab pkg install "$INSTALLED_PG_IDENT"
-  fi
 
   start_postgres
 
@@ -447,7 +444,12 @@ upgrade_postgres() {
   stop_postgres
 
   # STEP 3) Rename the old installation directory
-  sudo mv "{{pkg.svc_data_path}}" "$previous_dir"
+  # One day someone may wonder why this isn't just a call to mv. The answer is
+  # because of ownership and permissions making things difficult.
+  cp -r {{pkg.svc_data_path}} "$previous_data_dir"
+  for x in /hab/svc/builder-datastore/data/*; do
+    rm -rf "$x"
+  done
 
   # STEP 4) Install the new version of PostgreSQL (as outlined in Chapter 17)
   # This is a mostly a noop for us as this is accomplished as part of the hab
