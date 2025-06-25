@@ -71,7 +71,7 @@ fi
 echo ""
 
 # shellcheck source=./shared.sh
-source ./support/ci/shared.s
+source ./support/ci/shared.sh
 toolchain=$(get_toolchain)
 CMD="$(hab pkg path core/rust/"$toolchain")/bin/cargo-clippy"
 readonly CMD
