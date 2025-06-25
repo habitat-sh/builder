@@ -325,9 +325,8 @@ test-builder() {
   fi
 }
 
-PSQL_POSTGRES_IDENT=''
-export PSQL_POSTGRES_IDENT
-set_postgres_ident() {
+export PSQL_POSTGRES_IDENT=''
+ensure_postgres() {
   if [[ -z $PSQL_POSTGRES_IDENT ]]; then
     s="$(hab pkg list core/postgresql17-client)"
     if [[ -n $s ]]; then
@@ -337,21 +336,30 @@ set_postgres_ident() {
       if [[ -n $s ]]; then
         PSQL_POSTGRES_IDENT='core/postgresql17'
       else
-        hab pkg install core/postgresql17-client
+        hab pkg install core/postgresql17-client || return 1
         PSQL_POSTGRES_IDENT='core/postgresql17-client'
+        hab pkg install core/postgresql17-client
       fi
     fi
   fi
 }
 
-export -f set_postgres_ident
+export -f ensure_postgres
 
 function psql() {
-  local config_dir port
-  config_dir="/hab/svc/builder-datastore/config"
-  port=$(grep port $config_dir/postgresql.conf | grep -oE '[[:digit:]]+')
-  set_postgres_ident
-  PGPASSWORD=$(cat $config_dir/pwfile) hab pkg exec "$PSQL_POSTGRES_IDENT" psql -U hab -h 127.0.0.1 -p "$port" "$@"
+  ensure_postgres || {
+    echo "Failed while ensuring availability of postgres binaries"
+    return 1
+  }
+  local config_dir='/hab/svc/builder-datastore/config'
+  local postgresql_conf="$config_dir/postgresql.conf"
+  local pwfile="$config_dir/pwfile"
+  local port
+  port=$(grep port $postgresql_conf | grep -oE '[[:digit:]]+') || {
+    echo "Failed getting postgres port"
+    return 1
+  }
+  PGPASSWORD=$(cat $pwfile) hab pkg exec "$PSQL_POSTGRES_IDENT" psql -U hab -d builder -h 127.0.0.1 -p "$port" "$@"
 }
 
 export -f psql
