@@ -7,6 +7,7 @@ pkg_name=builder-api
 pkg_origin=habitat
 pkg_maintainer="The Habitat Maintainers <humans@habitat.sh>"
 pkg_license=('Apache-2.0')
+pkg_bin_dirs=(bin)
 
 pkg_deps=(
   core/coreutils
