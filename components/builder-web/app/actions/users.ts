@@ -36,6 +36,7 @@ export const FETCH_LICENSE_KEY_SUCCESS = 'FETCH_LICENSE_KEY_SUCCESS';
 export const SAVE_LICENSE_KEY_SUCCESS = 'SAVE_LICENSE_KEY_SUCCESS';
 export const SAVE_LICENSE_KEY_BEGIN = 'SAVE_LICENSE_KEY_BEGIN';
 export const SAVE_LICENSE_KEY_FAILED = 'SAVE_LICENSE_KEY_FAILED';
+export const FETCH_LICENSE_KEY_FAILED = 'FETCH_LICENSE_KEY_FAILED';
 
 export function fetchProfile(token: string) {
   return dispatch => {
@@ -278,11 +279,10 @@ export function fetchLicenseKey(token: string) {
         });
       })
       .catch(err => {
-        dispatch(addNotification({
-          title: 'Error fetching license key',
-          body: `${err.message}`,
-          type: DANGER
-        }));
+        dispatch({
+          type: FETCH_LICENSE_KEY_FAILED,
+          payload: { errorMessage: err.message }
+        });
       });
   };
 }

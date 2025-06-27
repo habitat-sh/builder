@@ -267,6 +267,7 @@ export default Record({
         licenseKey: null,
         expirationDate: null,
         saveLicenseKeyErrorMessage: null,
+        licenseFetchInProgress: false,
       })(),
       ui: Record({
         accessTokens: Record({

@@ -15,15 +15,15 @@ export class LicenseRequiredGuard implements CanActivate {
     }
     const license = this.store.getState().users.current.license;
     const isInvalid = !license || !license.licenseKey || this.expiredLicense(license.expirationDate);
-    const isAlreadyOnProfile = this.router.url.startsWith('/profile');
-    if (isInvalid && !isAlreadyOnProfile) {
-      this.router.navigate(['/profile']);
+
+    // If license is invalid, redirect to profile page
+    if (isInvalid) {
+      if (this.router.url !== '/profile') {
+        this.router.navigate(['/profile']);
+      }
       return false;
     }
-    // If already on /profile, just block navigation but don't redirect again
-    if (isInvalid && isAlreadyOnProfile) {
-      return false;
-    }
+
     // If license is valid, allow navigation
     return true;
   }

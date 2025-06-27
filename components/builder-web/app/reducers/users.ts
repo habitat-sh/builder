@@ -60,12 +60,15 @@ export default function users(state = initialState['users'], action) {
     case actionTypes.FETCH_LICENSE_KEY_BEGIN:
       return state
         .setIn(['current', 'license', 'licenseKey'], null)
-        .setIn(['current', 'license', 'expirationDate'], null);
+        .setIn(['current', 'license', 'expirationDate'], null)
+        .setIn(['current', 'license', 'licenseFetchInProgress'], true);
 
     case actionTypes.FETCH_LICENSE_KEY_SUCCESS:
+      console.log('FETCH_LICENSE_KEY_SUCCESS payload:', action.payload);
       return state
         .setIn(['current', 'license', 'licenseKey'], action.payload.license_key || null)
-        .setIn(['current', 'license', 'expirationDate'], action.payload.expiration_date || null);
+        .setIn(['current', 'license', 'expirationDate'], action.payload.expiration_date || null)
+        .setIn(['current', 'license', 'licenseFetchInProgress'], false);
 
     case actionTypes.SAVE_LICENSE_KEY_BEGIN:
       return state
@@ -83,6 +86,12 @@ export default function users(state = initialState['users'], action) {
       }
       return state
         .setIn(['current', 'license', 'saveLicenseKeyErrorMessage'], msg || 'Please Enter a valid license key.');
+
+    case actionTypes.FETCH_LICENSE_KEY_FAILED:
+      return state
+        .setIn(['current', 'license', 'licenseFetchInProgress'], false)
+        .setIn(['current', 'license', 'licenseKey'], null)
+        .setIn(['current', 'license', 'expirationDate'], null);
 
     default:
       return state;

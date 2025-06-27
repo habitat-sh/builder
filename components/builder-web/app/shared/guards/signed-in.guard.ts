@@ -16,11 +16,12 @@ import { Injectable } from '@angular/core';
 import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot } from '@angular/router';
 import { AppStore } from '../../app.store';
 import { Browser } from '../../browser';
-import { requestRoute, signOut } from '../../actions/index';
+import { fetchLicenseKey, requestRoute, signOut } from '../../actions/index';
 import config from '../../config';
 
 @Injectable()
 export class SignedInGuard implements CanActivate {
+  private fetchAttempted = false;
 
   constructor(private store: AppStore, private router: Router) { }
 
@@ -58,18 +59,53 @@ export class SignedInGuard implements CanActivate {
 
   private handleSigningIn(resolve, reject) {
     const unsub = this.store.subscribe(state => {
-
       if (state.oauth.token && state.session.token) {
         const name = 'redirectPath';
         const path = Browser.getCookie(name);
         Browser.removeCookie(name);
+        if (config.is_saas) {
+          // License validation and fetch logic for SaaS mode
+          const license = state.users.current.license;
+          const licenseKey = license && license.get ? license.get('licenseKey') : license.licenseKey;
+          const expirationDate = license && license.get ? license.get('expirationDate') : license.expirationDate;
+          const licenseFetchInProgress = license && license.get ? license.get('licenseFetchInProgress') : license.licenseFetchInProgress;
 
-        if (path) {
-          this.router.navigate([path]);
+          // If license fetch is in progress, wait for it to complete
+          if (licenseFetchInProgress) {
+            return;
+          }
+
+          // If license is missing and fetch has not been attempted, fetch it
+          if (!licenseKey && !this.fetchAttempted) {
+            this.fetchAttempted = true;
+            this.store.dispatch(fetchLicenseKey(state.session.token));
+            return;
+          }
+
+          // If license is still missing after fetch attempt, redirect to profile
+          if (!licenseKey && this.fetchAttempted) {
+            this.router.navigate(['/profile']);
+            resolve(false);
+            unsub();
+            return;
+          }
+
+          // If license exists, check validity and route accordingly
+          const isLicenseValid = licenseKey && (!expirationDate || new Date(expirationDate) >= new Date());
+          if (isLicenseValid) {
+            this.router.navigate(['/origins']);
+          } else {
+            this.router.navigate(['/profile']);
+          }
+          resolve(true);
+          unsub();
+        } else {
+          if (path) {
+            this.router.navigate([path]);
+          }
+          resolve(true);
+          unsub();
         }
-
-        resolve(true);
-        unsub();
       }
       else if (state.users.current.failedSignIn) {
         reject(() => this.redirectToSignIn());
