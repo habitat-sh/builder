@@ -16,12 +16,14 @@ import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
 import { ProfileComponent } from './profile/profile.component';
 import { SignedInGuard } from '../shared/guards/signed-in.guard';
+import { LicenseCanDeactivateGuard } from '../shared/guards/license-candeactivate.guard';
 
 const routes: Routes = [
   {
     path: 'profile',
     component: ProfileComponent,
-    canActivate: [SignedInGuard]
+    canActivate: [SignedInGuard],
+    canDeactivate: [LicenseCanDeactivateGuard]
   }
 ];
 

@@ -99,16 +99,16 @@
               type="password"
               name="licenseKey"
               autocomplete="off"
-              value="{{ licenseKey }}"
+              value="{{ licenseKey$ | async }}"
               [disabled]="true"
             />
             <div class="actions">
               <a class="generate" (click)="updateKey()" *ngIf="licenseKey">Update</a>
             </div>
-          </div> 
-          <p class="footnote notice" *ngIf="licenseValidationMessage">
-            <hab-icon [symbol]="licenseValidationMessage.includes('expired') ? 'warning' : 'check'"></hab-icon>
-            {{ licenseValidationMessage }}
+          </div>
+          <p class="footnote notice" *ngIf="(isLicenseValid$ | async) === true">
+            <hab-icon symbol="check"></hab-icon>
+            License is valid till {{ expirationDate$ | async }}.
           </p>
         </ng-container>
       </section>

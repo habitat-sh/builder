@@ -59,39 +59,53 @@ export default function users(state = initialState['users'], action) {
 
     case actionTypes.FETCH_LICENSE_KEY_BEGIN:
       return state
+        .setIn(['current', 'license', 'isValid'], false)
         .setIn(['current', 'license', 'licenseKey'], null)
         .setIn(['current', 'license', 'expirationDate'], null)
-        .setIn(['current', 'license', 'licenseFetchInProgress'], true);
+        .setIn(['current', 'license', 'isLoading'], true)
+        .setIn(['current', 'license', 'error'], null);
 
     case actionTypes.FETCH_LICENSE_KEY_SUCCESS:
-      console.log('FETCH_LICENSE_KEY_SUCCESS payload:', action.payload);
+      console.log('FETCH_LICENSE_KEY_SUCCESS', action.payload);
       return state
         .setIn(['current', 'license', 'licenseKey'], action.payload.license_key || null)
         .setIn(['current', 'license', 'expirationDate'], action.payload.expiration_date || null)
-        .setIn(['current', 'license', 'licenseFetchInProgress'], false);
-
-    case actionTypes.SAVE_LICENSE_KEY_BEGIN:
-      return state
-        .setIn(['current', 'license', 'saveLicenseKeyErrorMessage'], null);
-
-    case actionTypes.SAVE_LICENSE_KEY_SUCCESS:
-      return state
-        .setIn(['current', 'license', 'saveLicenseKeyErrorMessage'], null);
-
-    case actionTypes.SAVE_LICENSE_KEY_FAILED:
-      // Remove double quotes if errorMessage is a quoted string
-      let msg = action.payload.errorMessage;
-      if (typeof msg === 'string' && msg.length > 1 && msg[0] === '"' && msg[msg.length - 1] === '"') {
-        msg = msg.substring(1, msg.length - 1);
-      }
-      return state
-        .setIn(['current', 'license', 'saveLicenseKeyErrorMessage'], msg || 'Please Enter a valid license key.');
+        .setIn(['current', 'license', 'isValid'], action.payload.isValid || false)
+        .setIn(['current', 'license', 'isLoading'], false)
+        .setIn(['current', 'license', 'error'], action.payload.errorMessage || null);
 
     case actionTypes.FETCH_LICENSE_KEY_FAILED:
       return state
-        .setIn(['current', 'license', 'licenseFetchInProgress'], false)
+        .setIn(['current', 'license', 'isLoading'], false)
+        .setIn(['current', 'license', 'isValid'], false)
+        .setIn(['current', 'license', 'error'], action.payload.errorMessage || 'Failed to fetch license key.')
         .setIn(['current', 'license', 'licenseKey'], null)
         .setIn(['current', 'license', 'expirationDate'], null);
+
+    case actionTypes.SAVE_LICENSE_KEY_BEGIN:
+      return state
+        .setIn(['current', 'license', 'isValid'], false)
+        .setIn(['current', 'license', 'licenseKey'], null)
+        .setIn(['current', 'license', 'expirationDate'], null)
+        .setIn(['current', 'license', 'isLoading'], true)
+        .setIn(['current', 'license', 'error'], null);
+
+    case actionTypes.SAVE_LICENSE_KEY_SUCCESS:
+      return state
+        .setIn(['current', 'license', 'isLoading'], false)
+        .setIn(['current', 'license', 'error'], null);
+
+    case actionTypes.SAVE_LICENSE_KEY_FAILED:
+      return state
+        .setIn(['current', 'license', 'isLoading'], false)
+        .setIn(['current', 'license', 'isValid'], false)
+        .setIn(['current', 'license', 'licenseKey'], null)
+        .setIn(['current', 'license', 'expirationDate'], null)
+        .setIn(['current', 'license', 'error'], action.payload.errorMessage || 'Please Enter a valid license key.');
+
+    case actionTypes.CLEAR_LICENSE_KEY:
+      return state
+        .setIn(['current', 'license', 'error'], null);
 
     default:
       return state;

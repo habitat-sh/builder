@@ -13,22 +13,29 @@
 // limitations under the License.
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { MatDialog } from '@angular/material';
+import { MatDialog, MatDialogRef } from '@angular/material';
 import { Title } from '@angular/platform-browser';
 import { AppStore } from '../../app.store';
 import { SimpleConfirmDialog } from '../../shared/dialog/simple-confirm/simple-confirm.dialog';
 import { clearAccessTokens, clearNewAccessToken, deleteAccessToken, fetchProfile, fetchAccessTokens, generateAccessToken, saveProfile, fetchLicenseKey, saveLicenseKey, signOut } from '../../actions/index';
 import { ValidLicenseConfirmDialog } from '../../shared/dialog/valid-license-confirm/valid-license-confirm.dialog';
-import { Router, NavigationEnd } from '@angular/router';
+import { Router } from '@angular/router';
 import config from '../../config';
+import { Observable } from 'rxjs';
+import { filter, tap, map } from 'rxjs/operators';
 
 @Component({
   template: require('./profile.component.html')
 })
 export class ProfileComponent implements OnInit, OnDestroy {
-  licenseValidationMessage: string;
-  private dialogRef: any;
+
+  isLicenseValid$: Observable<boolean> | null;
+  licenseError$: Observable<string> | null;
+  expirationDate$: Observable<string> | null;
+  licenseKey$: Observable<string> | null;
+
   private allSubscriptions: any[] = [];
+  private currentDialogRef: MatDialogRef<ValidLicenseConfirmDialog> | null = null;
 
   constructor(
     private confirmDialog: MatDialog,
@@ -37,89 +44,84 @@ export class ProfileComponent implements OnInit, OnDestroy {
     private router: Router
   ) {
     this.title.setTitle(`My Profile | ${store.getState().app.name}`);
+    this.isLicenseValid$ = this.store.observe('users.current.license').pipe(
+      filter(license => !!license),
+      map(license => license.isValid)
+    );
+    this.licenseError$ = this.store.observe('users.current.license.error');
+    this.expirationDate$ = this.store.observe('users.current.license.expirationDate');
+    this.licenseKey$ = this.store.observe('users.current.license.licenseKey');
   }
 
   ngOnInit() {
     this.fetch();
 
-    if (this.config.is_saas) {
-      this.store.dispatch(fetchLicenseKey(this.token));
-
-      // Always subscribe to router events
-      this.allSubscriptions.push(
-        this.router.events.subscribe(event => {
-          if (event instanceof NavigationEnd) {
-            console.log('Router event:', event);
-            if (this.router.url.startsWith('/profile')) {
-              this.checkAndShowLicenseDialog();
-            } else if (this.dialogRef) {
-              this.dialogRef.close();
-              this.dialogRef = null;
-            }
-          }
-        })
-      );
-      // Listen for license state changes
-      this.allSubscriptions.push(
-        this.store.observe('users.current.license').subscribe((license) => {
-          if (this.router.url.startsWith('/profile')) {
-            // Always check and show dialog if license is invalid or error
-            this.checkAndShowLicenseDialog();
-          } else if (this.dialogRef) {
-            // If user leaves /profile, close dialog
-            this.dialogRef.close();
-            this.dialogRef = null;
-          }
-        })
-      );
-    }
+    // if (this.config.is_saas) {
+    //   // If the user is on /profile, we need to check license state
+    //   this.store.dispatch(fetchLicenseKey(this.token));
+    //   console.log('Fetching license key for profile component');
+    //   console.log(this.isLicenseValid$.pipe( filter(isValid => isValid !== null)));
+    //   // Listen for license state changes
+    //   this.allSubscriptions.push(
+    //     this.isLicenseValid$.pipe(
+    //       filter(isValid => isValid !== null), // Ensure we only react to valid state changes
+    //       tap(isValid => {
+    //         if (!isValid) {
+    //           if (!this.currentDialogRef) {
+    //             this.openAndSetupDialog();
+    //           } else if (isValid) {
+    //             if (this.currentDialogRef) {
+    //               this.currentDialogRef.close();
+    //               this.currentDialogRef = null;
+    //             }
+    //           }
+    //         }
+    //       })
+    //     )
+    //   );
+    // }
   }
 
   // Extract dialog logic to a method
-  checkAndShowLicenseDialog() {
-    const { licenseKey, expirationDate, saveLicenseKeyErrorMessage, licenseFetchInProgress } =
-      this.store.getState().users.current.license;
-    if (licenseFetchInProgress) {
-      return;
-    }
+  // checkAndShowLicenseDialog() {
+  //   const { licenseKey, expirationDate, saveLicenseKeyErrorMessage, licenseFetchInProgress } =
+  //     this.store.getState().users.current.license;
+  //   if (licenseFetchInProgress) {
+  //     return;
+  //   }
 
-    const isExpired = expirationDate ? new Date(expirationDate) < new Date() : false;
-    let errorMsg = '';
-    let showDialog = false;
-    let mode = 'add';
+  //   const isExpired = expirationDate ? new Date(expirationDate) < new Date() : false;
+  //   let errorMsg = '';
+  //   let showDialog = false;
+  //   let mode = 'add';
 
-    if (expirationDate && isExpired) {
-      errorMsg = 'Your license has expired. Re-enter a new license key to download packages';
-      this.licenseValidationMessage = errorMsg;
-      showDialog = true;
-    } else if (!licenseKey && this.token) {
-      errorMsg = saveLicenseKeyErrorMessage || '';
-      this.licenseValidationMessage = '';
-      showDialog = true;
-    } else if (licenseKey && (!expirationDate || !isExpired)) {
-      this.licenseValidationMessage = expirationDate ? `License valid till ${expirationDate}` : '';
-      if (this.dialogRef) {
-        this.dialogRef.close();
-        this.dialogRef = null;
-      }
-      return;
-    }
+  //   if (expirationDate && isExpired) {
+  //     errorMsg = 'Your license has expired. Re-enter a new license key to download packages';
+  //     this.licenseValidationMessage = errorMsg;
+  //     showDialog = true;
+  //   } else if (!licenseKey && this.token) {
+  //     errorMsg = saveLicenseKeyErrorMessage || '';
+  //     this.licenseValidationMessage = '';
+  //     showDialog = true;
+  //   } else if (licenseKey && (!expirationDate || !isExpired)) {
+  //     this.licenseValidationMessage = expirationDate ? `License valid till ${expirationDate}` : '';
+  //     if (this.dialogRef) {
+  //       this.dialogRef.close();
+  //       this.dialogRef = null;
+  //     }
+  //     return;
+  //   }
 
-    // Always close any open dialog before opening a new one if showDialog is true
-    if (showDialog) {
-      // If dialog is already open with the same error message and mode, do nothing
-      const currentMsg = this.dialogRef?.componentInstance?.errorMessage;
-      const currentMode = this.dialogRef?.componentInstance?.mode;
-      if (!this.dialogRef) {
-        this.openAndSetupDialog(errorMsg, mode);
-      } else if (currentMsg !== errorMsg || currentMode !== mode) {
-        this.dialogRef.close();
-        this.dialogRef = null;
-        this.openAndSetupDialog(errorMsg, mode);
-      }
-      // else: dialog is already open with correct message and mode, do nothing
-    }
-  }
+  //   // Always close any open dialog before opening a new one if showDialog is true
+  //   if (showDialog) {
+  //     if (!this.dialogRef) {
+  //       this.openAndSetupDialog(errorMsg, mode);
+  //     } else {
+  //       // Always update error message if dialog is open
+  //       this.dialogRef.componentInstance.setErrorMessage(errorMsg);
+  //     }
+  //   }
+  // }
 
   // Opens and sets up the license dialog for entering or updating a license key.
   // - Only opens if on /profile route.
@@ -127,40 +129,59 @@ export class ProfileComponent implements OnInit, OnDestroy {
   // - Handles proceed action: validates input and saves license key.
   // - Ensures dialog cannot be closed unless a valid license is entered (in 'add' mode).
   // - If dialog is closed without a valid license, reopens dialog if still on /profile and license is missing.
-  openAndSetupDialog(saveLicenseKeyErrorMessage: string = '', mode: string = 'add') {
-    if (!this.router.url.startsWith('/profile')) return;
-    if (this.dialogRef) return; // Don't open multiple dialogs
-    const dialogRef = this.confirmDialog.open(ValidLicenseConfirmDialog, {
+  openAndSetupDialog(mode: string = 'add') {
+
+    this.currentDialogRef = this.confirmDialog.open(ValidLicenseConfirmDialog, {
       width: '480px',
       disableClose: mode === 'add' ? true : false, // Prevent closing by clicking outside
       data: {
         heading: 'A Valid key is required for viewing and downloading the packages on the builder.',
         body: ``,
         action: `Proceed`,
-        mode: mode
+        mode: mode,
       }
     });
-    this.dialogRef = dialogRef;
-    dialogRef.componentInstance.setErrorMessage(saveLicenseKeyErrorMessage || '');
-    dialogRef.componentInstance.proceed = () => {
-      const licenseKey = dialogRef.componentInstance.licenseKey?.trim();
-      if (!licenseKey) {
-        dialogRef.componentInstance.setErrorMessage('Please enter a license key.');
-        return;
+    if (this.licenseError$) {
+      const sub = this.licenseError$.subscribe((msg: string) => {
+        this.currentDialogRef?.componentInstance.setErrorMessage(msg || '');
+      });
+      this.allSubscriptions.push(sub);
+    } else {
+      this.currentDialogRef.componentInstance.setErrorMessage('');
+    }
+    this.allSubscriptions.push(
+      this.currentDialogRef.afterClosed().subscribe((result) => {
+        this.currentDialogRef = null;
+    }));
+
+    this.currentDialogRef.componentInstance.proceed = () => {
+      this.currentDialogRef?.componentInstance.setErrorMessage('');
+      const licenseKey = this.currentDialogRef?.componentInstance.licenseKey || '';
+      // Validate license key input
+      // If mode is 'add', ensure license key is not empty
+      // If mode is 'update', allow empty input to update the key
+      if (licenseKey && licenseKey.trim().length > 0) {
+        this.saveLicenseKeyToBackend({ licenseKey });
+      } else {
+        // If license key is empty, show error message
+        this.currentDialogRef?.componentInstance.setErrorMessage('Please enter a valid license key.');
       }
-      this.saveLicenseKeyToBackend({ licenseKey });
     };
-    dialogRef.afterClosed().subscribe(() => {
-      if (this.dialogRef === dialogRef) {
-        this.dialogRef = null;
-      }
-    });
+    // this.allSubscriptions.push(dialogRef.afterClosed().subscribe(() => {
+    //   if (this.dialogRef === dialogRef) {
+    //     this.dialogRef = null;
+    //   }
+    //   // If dialog was closed without a valid license, reopen if still on /profile
+    //   if (this.router.url.startsWith('/profile')) {
+    //     this.checkAndShowLicenseDialog();
+    //   }
+    // }));
   }
 
   ngOnDestroy() {
     // Guard against missing unsubscribe method
     this.allSubscriptions.forEach(sub => sub && typeof sub.unsubscribe === 'function' && sub.unsubscribe());
-    this.dialogRef = null;
+    this.currentDialogRef = null;
     this.clearAccessTokens();
   }
 
@@ -215,25 +236,11 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   updateKey() {
-    this.openAndSetupDialog('', 'update');
-  }
-
-  openConfirmDialog({mode = 'add'}) {
-    this.dialogRef = this.confirmDialog.open(ValidLicenseConfirmDialog, {
-      width: '480px',
-      disableClose: mode === 'add' ? true : false, // Prevent closing by clicking outside
-      data: {
-        heading: 'A Valid key is required for viewing and downloading the packages on the builder.',
-        body: ``,
-        action: `Proceed`,
-        mode: mode
-      }
-    });
-    console.log('this.dialogRef:', this.dialogRef);
+    this.openAndSetupDialog('update');
   }
 
   get licenseKey() {
-    return this.store.getState().users.current.license.licenseKey;
+    return this.store.getState().users.current.license?.licenseKey ?? null;
   }
 
   get accessToken() {

@@ -37,6 +37,7 @@ export const SAVE_LICENSE_KEY_SUCCESS = 'SAVE_LICENSE_KEY_SUCCESS';
 export const SAVE_LICENSE_KEY_BEGIN = 'SAVE_LICENSE_KEY_BEGIN';
 export const SAVE_LICENSE_KEY_FAILED = 'SAVE_LICENSE_KEY_FAILED';
 export const FETCH_LICENSE_KEY_FAILED = 'FETCH_LICENSE_KEY_FAILED';
+export const CLEAR_LICENSE_KEY = 'CLEAR_LICENSE_KEY';
 
 export function fetchProfile(token: string) {
   return dispatch => {
@@ -272,16 +273,27 @@ export function fetchLicenseKey(token: string) {
   return dispatch => {
     dispatch({ type: FETCH_LICENSE_KEY_BEGIN });
     new BuilderApiClient(token).getLicenseKey()
-      .then(data => {
-        dispatch({
-          type: FETCH_LICENSE_KEY_SUCCESS,
-          payload: data
-        });
+      .then((data: any) => {
+        if (data) {
+          // Check validity here
+          const isValid = data && data.licenseKey && (!data.expirationDate || new Date(data.expirationDate) >= new Date());
+          const errorMessage = isValid ? null : 'License key is invalid or expired. Please enter a valid license key.';
+
+          dispatch({
+            type: FETCH_LICENSE_KEY_SUCCESS,
+            payload: {...data, isValid, errorMessage}
+          });
+        }
       })
       .catch(err => {
+        // Remove double quotes if errorMessage is a quoted string
+        let msg = err.errorMessage;
+        if (typeof msg === 'string' && msg.length > 1 && msg[0] === '"' && msg[msg.length - 1] === '"') {
+          msg = msg.substring(1, msg.length - 1);
+        }
         dispatch({
           type: FETCH_LICENSE_KEY_FAILED,
-          payload: { errorMessage: err.message }
+          payload: { errorMessage: msg || 'Failed to fetch license key.' }
         });
       });
   };
@@ -292,20 +304,24 @@ export function saveLicenseKey(licenseKey: string, token: string, accountId: str
     dispatch({ type: SAVE_LICENSE_KEY_BEGIN });
     new BuilderApiClient(token).saveLicenseKey(licenseKey, accountId)
       .then(data => {
+        dispatch(fetchLicenseKey(token));
         dispatch({
-          type: SAVE_LICENSE_KEY_SUCCESS,
-          payload: data
+          type: SAVE_LICENSE_KEY_SUCCESS
         });
         dispatch(addNotification({
           type: SUCCESS,
           body: 'License Saved.',
         }));
-        dispatch(fetchLicenseKey(token));
       })
       .catch(err => {
+        // Remove double quotes if errorMessage is a quoted string
+        let msg = err.errorMessage;
+        if (typeof msg === 'string' && msg.length > 1 && msg[0] === '"' && msg[msg.length - 1] === '"') {
+          msg = msg.substring(1, msg.length - 1);
+        }
         dispatch({
           type: SAVE_LICENSE_KEY_FAILED,
-          payload: { errorMessage: err.message }
+          payload: { errorMessage: msg || 'Please Enter a valid license key.' }
         });
         dispatch(addNotification({
           title: 'License validation failed.',
