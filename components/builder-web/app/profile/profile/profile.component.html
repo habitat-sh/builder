@@ -93,30 +93,21 @@
         <p>
           A Valid license key is required for viewing and downloading packages on the Builder.
         </p>
-        <ng-container *ngIf="validatingLicenseKey">
-          <div class="controls processing">
-            <div class="loading">
-              <input type="text" value="Validating license..." disabled="disabled">
-              <hab-icon symbol="loading" class="spinning"></hab-icon>
-            </div>
-          </div>
-        </ng-container>
-        <ng-container *ngIf="!validatingLicenseKey">
+        <ng-container>
           <div class="controls">
             <input
-              type="text"
+              type="password"
               name="licenseKey"
-              [(ngModel)]="licenseKey"
-              placeholder="Enter your license key"
               autocomplete="off"
+              value="{{ licenseKey }}"
+              [disabled]="true"
             />
             <div class="actions">
-              <a class="generate" (click)="saveLicenseKeyToBackend()">Submit</a>
-              <a class="delete" (click)="deleteLicenseKey()">Delete</a>
+              <a class="generate" (click)="updateKey()" *ngIf="licenseKey">Update</a>
             </div>
           </div> 
           <p class="footnote notice" *ngIf="licenseValidationMessage">
-            <hab-icon symbol="{{ licenseValid ? 'check' : 'warning' }}"></hab-icon>
+            <hab-icon [symbol]="licenseValidationMessage.includes('expired') ? 'warning' : 'check'"></hab-icon>
             {{ licenseValidationMessage }}
           </p>
         </ng-container>

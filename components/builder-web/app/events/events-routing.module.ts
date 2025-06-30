@@ -17,15 +17,18 @@ import { Routes, RouterModule } from '@angular/router';
 
 import { EventsComponent } from './events/events.component';
 import { EventsSaaSComponent } from './events-saas/events-saas.component';
+import { LicenseRequiredGuard } from '../shared/guards/license-required.guard';
 
 const routes: Routes = [
   {
     path: 'events',
     component: EventsComponent,
+    canActivate: [LicenseRequiredGuard]
   },
   {
     path: 'events/saas',
     component: EventsSaaSComponent,
+    canActivate: [LicenseRequiredGuard]
   }
 ];
 

@@ -1,0 +1,57 @@
+<div class="dialog simple-confirm">
+  <section class="header custom-header">
+    <h2>{{ heading }}</h2>
+    <a *ngIf="mode != 'add'" class="close-button" (click)="cancel()">
+      <h2>
+        <hab-icon symbol="close"></hab-icon>
+      </h2>
+    </a>
+  </section>
+  <section class="body">
+    <div class="message">
+      <span>
+        Kindly Enter the license key to proceed
+      </span>
+    </div>
+    <div class="input-container">
+      <input matInput placeholder="License Key" name="licenseKey" [(ngModel)]="licenseKey" [type]="hide ? 'password' : 'text'" autocomplete="off" required>
+      <hab-icon class="show-icon" symbol="{{hide ? 'visibility-off' : 'visibility'}}" (click)="hide = !hide" (keydown)="hide = !hide"></hab-icon>
+    </div>
+    <span *ngIf="errorMessage" class="error-message">
+      <hab-icon symbol="warning"></hab-icon>
+      {{errorMessage}}
+    </span>
+  </section>
+  <section class="controls">
+    <button mat-raised-button color="primary" class="button proceed-button" (click)="proceed()">
+      {{ action }}
+    </button>
+  </section>
+</div>
+
+<style>
+    .custom-header {
+      display: flex;
+    }
+
+    .proceed-button {
+      width: 100%; 
+      height: 3rem;
+    }
+
+    .message {
+      margin-bottom: 8px;
+    }
+
+    .input-container {
+      display: flex;
+      justify-content: flex-start;
+      flex-direction: row-reverse;
+
+      .show-icon {
+        position: absolute;
+        margin-right: 1rem;
+        margin-top: 0.6rem;
+      }
+    }
+</style>

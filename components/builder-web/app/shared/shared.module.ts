@@ -51,6 +51,8 @@ import { VisibilityEnabledGuard } from './guards/visibility-enabled.guard';
 import { OriginMemberGuard } from './guards/origin-member.guard';
 import { SignedInGuard } from './guards/signed-in.guard';
 import { JobNoticeComponent } from './job-notice/job-notice.component';
+import { ValidLicenseConfirmDialog } from './dialog/valid-license-confirm/valid-license-confirm.dialog';
+import { LicenseRequiredGuard } from './guards/license-required.guard';
 
 @NgModule({
   imports: [
@@ -93,8 +95,9 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     SimpleConfirmDialog,
     PromoteConfirmDialog,
     EulaConfirmDialog,
+    ValidLicenseConfirmDialog,
     JobNoticeComponent,
-    KeysPipe
+    KeysPipe,
   ],
   entryComponents: [
     DisconnectConfirmDialog,
@@ -102,7 +105,8 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     JobCancelDialog,
     SimpleConfirmDialog,
     PromoteConfirmDialog,
-    EulaConfirmDialog
+    EulaConfirmDialog,
+    ValidLicenseConfirmDialog
   ],
   exports: [
     MatMenuModule,
@@ -135,7 +139,8 @@ import { JobNoticeComponent } from './job-notice/job-notice.component';
     BuilderEnabledGuard,
     VisibilityEnabledGuard,
     OriginMemberGuard,
-    SignedInGuard
+    SignedInGuard,
+    LicenseRequiredGuard
   ]
 })
 export class SharedModule {

@@ -57,6 +57,41 @@ export default function users(state = initialState['users'], action) {
     case actionTypes.TOGGLE_USER_NAV_MENU:
       return state.setIn(['current', 'isUserNavOpen'], !state.getIn(['current', 'isUserNavOpen']));
 
+    case actionTypes.FETCH_LICENSE_KEY_BEGIN:
+      return state
+        .setIn(['current', 'license', 'licenseKey'], null)
+        .setIn(['current', 'license', 'expirationDate'], null)
+        .setIn(['current', 'license', 'licenseFetchInProgress'], true);
+
+    case actionTypes.FETCH_LICENSE_KEY_SUCCESS:
+      return state
+        .setIn(['current', 'license', 'licenseKey'], action.payload.license_key || null)
+        .setIn(['current', 'license', 'expirationDate'], action.payload.expiration_date || null)
+        .setIn(['current', 'license', 'licenseFetchInProgress'], false);
+
+    case actionTypes.SAVE_LICENSE_KEY_BEGIN:
+      return state
+        .setIn(['current', 'license', 'saveLicenseKeyErrorMessage'], null);
+
+    case actionTypes.SAVE_LICENSE_KEY_SUCCESS:
+      return state
+        .setIn(['current', 'license', 'saveLicenseKeyErrorMessage'], null);
+
+    case actionTypes.SAVE_LICENSE_KEY_FAILED:
+      // Remove double quotes if errorMessage is a quoted string
+      let msg = action.payload.errorMessage;
+      if (typeof msg === 'string' && msg.length > 1 && msg[0] === '"' && msg[msg.length - 1] === '"') {
+        msg = msg.substring(1, msg.length - 1);
+      }
+      return state
+        .setIn(['current', 'license', 'saveLicenseKeyErrorMessage'], msg || 'Please Enter a valid license key.');
+
+    case actionTypes.FETCH_LICENSE_KEY_FAILED:
+      return state
+        .setIn(['current', 'license', 'licenseFetchInProgress'], false)
+        .setIn(['current', 'license', 'licenseKey'], null)
+        .setIn(['current', 'license', 'expirationDate'], null);
+
     default:
       return state;
   }

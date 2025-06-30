@@ -31,6 +31,12 @@ export const SET_CURRENT_USERNAME = 'SET_CURRENT_USERNAME';
 export const SIGN_IN_FAILED = 'SIGN_IN_FAILED';
 export const SIGNING_IN = 'SIGNING_IN';
 export const TOGGLE_USER_NAV_MENU = 'TOGGLE_USER_NAV_MENU';
+export const FETCH_LICENSE_KEY_BEGIN = 'FETCH_LICENSE_KEY_BEGIN';
+export const FETCH_LICENSE_KEY_SUCCESS = 'FETCH_LICENSE_KEY_SUCCESS';
+export const SAVE_LICENSE_KEY_SUCCESS = 'SAVE_LICENSE_KEY_SUCCESS';
+export const SAVE_LICENSE_KEY_BEGIN = 'SAVE_LICENSE_KEY_BEGIN';
+export const SAVE_LICENSE_KEY_FAILED = 'SAVE_LICENSE_KEY_FAILED';
+export const FETCH_LICENSE_KEY_FAILED = 'FETCH_LICENSE_KEY_FAILED';
 
 export function fetchProfile(token: string) {
   return dispatch => {
@@ -233,7 +239,7 @@ export function signingIn(payload) {
   };
 }
 
-export function signOut(redirectToSignIn: boolean, pathAfterSignIn?: string) {
+export function signOut(redirectToSignIn: boolean, pathAfterSignIn?: string, signInMessage?: string) {
   return (dispatch, getState) => {
 
     if (getState().session.token) {
@@ -252,7 +258,60 @@ export function signOut(redirectToSignIn: boolean, pathAfterSignIn?: string) {
     dispatch(loadOAuthProvider());
 
     if (redirectToSignIn) {
-      dispatch(requestRoute(['/sign-in']));
+      // If a signInMessage is provided, navigate with the message param
+      if (signInMessage) {
+        dispatch(requestRoute(['/sign-in?message=' + encodeURIComponent(signInMessage)]));
+      } else {
+        dispatch(requestRoute(['/sign-in']));
+      }
     }
+  };
+}
+
+export function fetchLicenseKey(token: string) {
+  return dispatch => {
+    dispatch({ type: FETCH_LICENSE_KEY_BEGIN });
+    new BuilderApiClient(token).getLicenseKey()
+      .then(data => {
+        dispatch({
+          type: FETCH_LICENSE_KEY_SUCCESS,
+          payload: data
+        });
+      })
+      .catch(err => {
+        dispatch({
+          type: FETCH_LICENSE_KEY_FAILED,
+          payload: { errorMessage: err.message }
+        });
+      });
+  };
+}
+
+export function saveLicenseKey(licenseKey: string, token: string, accountId: string) {
+  return dispatch => {
+    dispatch({ type: SAVE_LICENSE_KEY_BEGIN });
+    new BuilderApiClient(token).saveLicenseKey(licenseKey, accountId)
+      .then(data => {
+        dispatch({
+          type: SAVE_LICENSE_KEY_SUCCESS,
+          payload: data
+        });
+        dispatch(addNotification({
+          type: SUCCESS,
+          body: 'License Saved.',
+        }));
+        dispatch(fetchLicenseKey(token));
+      })
+      .catch(err => {
+        dispatch({
+          type: SAVE_LICENSE_KEY_FAILED,
+          payload: { errorMessage: err.message }
+        });
+        dispatch(addNotification({
+          title: 'License validation failed.',
+          body: `${err.message}`,
+          type: DANGER
+        }));
+      });
   };
 }
