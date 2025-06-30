@@ -14,7 +14,7 @@ while [ $running -eq 0 ]; do
   if [ -f $pwfile ]; then
     PGPASSWORD=$(cat $pwfile)
     export PGPASSWORD
-    if hab pkg exec core/postgresql psql -w -lqt --host 127.0.0.1 -U hab; then
+    if hab pkg exec core/postgresql17 psql -w -lqt --host 127.0.0.1 -U hab; then
       running=1
     fi
   fi

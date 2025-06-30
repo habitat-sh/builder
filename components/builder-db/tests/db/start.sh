@@ -21,7 +21,7 @@ mkdir -p /hab/svc/postgresql
 mkdir -p /hab/user/postgresql
 cp "$DB_TEST_DIR"/pg_hba.conf /hab/svc/postgresql
 cp "$DB_TEST_DIR"/user.toml /hab/user/postgresql
-hab sup run core/postgresql &
+hab sup run core/postgresql17 &
 hab_pid=$!
 
 read -r sudo_ppid < <(ps -p $$ -o 'ppid=')
@@ -29,7 +29,7 @@ read -r original_gpid < <(ps -p "$sudo_ppid" -o 'ppid=')
 while true; do
   read -r current_gpid < <(ps -p "$sudo_ppid" -o 'ppid=')
   if [ "$original_gpid" != "$current_gpid" ]; then
-    echo "Stopping core/postgresql"
+    echo "Stopping core/postgresql17"
     kill $hab_pid
     exit 0
   fi

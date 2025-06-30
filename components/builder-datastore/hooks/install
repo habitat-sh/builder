@@ -1,0 +1,498 @@
+#!/bin/bash
+# shellcheck disable=SC1083
+# handlebars templating triggers SC1083
+
+exec 2>&1
+set -uo pipefail
+
+mkdir -p {{pkg.svc_path}} || exit 10
+cd {{pkg.svc_path}} || exit 11
+
+readonly OIFS=$IFS
+IFS='.'
+readonly PG_VERSION_FILE={{pkg.svc_data_path}}/PG_VERSION
+MOMENT="$(date '+%Y%m%d%H%M%S')"
+readonly MOMENT
+readonly PWFILE="{{pkg.svc_config_path}}/pwfile"
+readonly PACKAGED_DATASTORE_IDENT={{pkg.ident}}
+ACTIVE_IDENT=$PACKAGED_DATASTORE_IDENT
+readonly PG_TIMEOUT=30
+
+set_installed_pg_ident_and_active_ident() {
+  if [[ -f $PG_VERSION_FILE ]]; then
+    local installed_pg_version
+    installed_pg_version=$(cat $PG_VERSION_FILE | sed 's/\.//')
+    INSTALLED_PG_IDENT="core/postgresql${installed_pg_version}"
+    ACTIVE_IDENT=$INSTALLED_PG_IDENT
+  else
+    INSTALLED_PG_IDENT=""
+    ACTIVE_IDENT=$PACKAGED_DATASTORE_IDENT
+  fi
+  # The pkg ident of the currently installed version in upgrade scenarios
+  readonly INSTALLED_PG_IDENT
+}
+
+postgres_running() {
+
+  hab pkg exec "$ACTIVE_IDENT" pg_ctl -- status \
+    --pgdata={{pkg.svc_data_path}} \
+    --silent
+
+  local -ri exit_status=$?
+  local what_happened=""
+  case $exit_status in
+  0)
+    what_happened="success (server running in specified directory)"
+    ;;
+  3)
+    what_happened="server is not running"
+    ;;
+  4)
+    what_happened="accessible data directory not specified"
+    ;;
+  *)
+    what_happened="unexpected exit status"
+    ;;
+  esac
+  printf "%s: exit status: %s (%s)\n" "${FUNCNAME[0]}" $exit_status "$what_happened"
+  return "$exit_status"
+}
+
+postgres_ready() {
+
+  hab pkg exec "$ACTIVE_IDENT" pg_isready -- \
+    --host={{cfg.datastore.host}} \
+    --port={{cfg.datastore.port}} \
+    --username={{cfg.datastore.user}} \
+    --dbname={{cfg.datastore.database}} \
+    --quiet
+
+  local -ri exit_status=$?
+  local what_happened=""
+  case $exit_status in
+  0)
+    what_happened="success"
+    ;;
+  1)
+    what_happened="connection rejected"
+    ;;
+  2)
+    what_happened="no response to connection attempt"
+    ;;
+  3)
+    what_happened="no attempt made"
+    ;;
+  *)
+    what_happened="unexpected exit status"
+    ;;
+  esac
+  printf "%s: exit status: %s (%s)\n" "${FUNCNAME[0]}" $exit_status "$what_happened"
+  return $exit_status
+}
+
+builder_db_exists() {
+
+  hab pkg exec "$ACTIVE_IDENT" psql -- \
+    --host={{cfg.datastore.host}} \
+    --port={{cfg.datastore.port}} \
+    --username={{cfg.datastore.user}} \
+    --dbname={{cfg.datastore.database}} \
+    --no-password \
+    --command ";" \
+    --quiet
+
+  local -ri exit_status=$?
+  local what_happened=""
+  case $exit_status in
+  0)
+    what_happened="success"
+    ;;
+  1)
+    what_happened="fatal psql error"
+    ;;
+  2)
+    what_happened="bad server connection, session not interactive"
+    ;;
+  3)
+    what_happened="sql script error"
+    ;;
+  *)
+    what_happened="unexpected exit status"
+    ;;
+  esac
+  printf "%s: exit status: %s (%s)\n" "${FUNCNAME[0]}" $exit_status "$what_happened"
+  return $exit_status
+}
+
+postgres_running_ours() {
+  if [[ -f {{pkg.svc_pid_file}} ]]; then
+    pgrep -P "$(cat {{pkg.svc_pid_file}})" -f postgres >/dev/null
+  fi
+}
+
+readonly PG_NOT_RUNNING=0
+readonly PG_RUNNING_OURS_HAS_BLDR=1
+readonly PG_RUNNING_OURS_NO_BLDR=2
+readonly PG_RUNNING_NOT_OURS=3
+PG_STATUS=-1
+
+postgres_status() {
+  if postgres_ready; then
+    if builder_db_exists; then
+      PG_STATUS=$PG_RUNNING_OURS_HAS_BLDR
+    elif postgres_running_ours; then
+      PG_STATUS=$PG_RUNNING_OURS_NO_BLDR
+    else
+      PG_STATUS=$PG_RUNNING_NOT_OURS
+    fi
+  else
+    PG_STATUS=$PG_NOT_RUNNING
+  fi
+}
+
+postgres_installed() {
+  if [[ ! -f "$PG_VERSION_FILE" ]]; then
+    echo PostgreSQL is not installed
+    return 1
+  fi
+  echo PostgreSQL has been installed previously
+  echo "Detected PostgreSQL $(cat "$PG_VERSION_FILE")"
+}
+
+create_postgres_cluster() {
+
+  echo Creating PostgreSQL Cluster
+
+  export randfile="{{pkg.svc_var_path}}/.rnd"
+  local -r DB_PASSWORD="{{cfg.init.superuser_password}}"
+
+  mkdir -p {{pkg.svc_config_path}}/conf.d
+  mkdir -p {{pkg.svc_var_path}}/pg_stat_tmp
+
+  chown -R hab:hab {{pkg.svc_var_path}}
+  touch $randfile
+
+  if [[ ! -f "$PWFILE" ]]; then
+    if [[ -z "$DB_PASSWORD" ]]; then
+      openssl rand -base64 32 >"$PWFILE"
+    else
+      echo "${DB_PASSWORD}" | tee "$PWFILE" >/dev/null
+    fi
+  fi
+
+  mkdir -p {{pkg.svc_data_path}}
+  chown hab:hab -R {{pkg.svc_data_path}}
+
+  # JAH: do I need to take some sort of collation into account here because of that one plugin?
+  output=$(hab pkg exec "$ACTIVE_IDENT" initdb -- \
+    --username {{cfg.datastore.user}} \
+    --encoding {{cfg.init.encoding}} \
+    --pgdata {{pkg.svc_data_path}} \
+    --pwfile $PWFILE \
+    --no-locale 2>&1)
+
+  local exit_code=$?
+  if [[ $exit_code -eq 0 ]]; then
+    echo "Created PostgreSQL cluster"
+  else
+    echo "Failure while creating PostgreSQL cluster"
+    echo "$output"
+  fi
+
+  chmod 400 "$PWFILE"
+}
+
+postgres_healthy() {
+  echo Allowing ~${PG_TIMEOUT}s for PostgreSQL to become healthy
+  for ((i = 0; i < PG_TIMEOUT; i++)); do
+    if postgres_running && postgres_ready; then
+      echo PostgreSQL is healthy
+      return
+    elif ((i >= PG_TIMEOUT)); then
+      echo "PostgreSQL failed to become healthy within ${PG_TIMEOUT}s"
+      exit 12
+    else
+      echo "Waiting for PostgreSQL to be healthy ($((i + 1))/$PG_TIMEOUT)"
+      sleep 1
+    fi
+  done
+}
+
+start_postgres() {
+  if postgres_running; then
+    echo PostgreSQL is already running, will not try to start
+    return
+  fi
+
+  echo "Starting PostgreSQL (waiting ~${PG_TIMEOUT}s, current time: $(date +"%H:%M:%S"))"
+  hab pkg exec "$ACTIVE_IDENT" pg_ctl -- start \
+    --pgdata={{pkg.svc_data_path}} \
+    --timeout=$PG_TIMEOUT \
+    -w \
+    --silent
+
+  if postgres_healthy; then
+    echo PostgreSQL started successfully
+    return
+  else
+    echo PostgreSQL failed to started
+    return 1
+  fi
+}
+
+create_builder_database() {
+  echo Checking that the builder database exists in the PostgreSQL cluster
+  if builder_db_exists; then
+    echo The builder database already exists
+  else
+    echo Creating the builder database
+    hab pkg exec "$ACTIVE_IDENT" createdb \
+      --host={{cfg.datastore.host}} \
+      --port={{cfg.datastore.port}} \
+      --username={{cfg.datastore.user}} \
+      --no-password \
+      --echo \
+      {{cfg.datastore.database}}
+  fi
+}
+
+stop_postgres() {
+
+  if ! postgres_running; then
+    echo PostgreSQL not running, will not issue stop
+    return
+  fi
+
+  echo "Stopping PostgreSQL (waiting ~${PG_TIMEOUT}s, current time: $(date +"%H:%M:%S"))"
+  hab pkg exec "$ACTIVE_IDENT" pg_ctl -- stop \
+    --pgdata {{pkg.svc_data_path}} \
+    --mode=fast \
+    --timeout=$PG_TIMEOUT \
+    -w \
+    --silent
+
+  echo Allowing ~${PG_TIMEOUT}s for PostgreSQL to stop
+  for ((i = 0; i < PG_TIMEOUT; i++)); do
+    if postgres_running; then
+      echo "Waiting for PostgreSQL to stop ($((i + 1))/$PG_TIMEOUT)"
+      sleep 1
+    elif ((i >= PG_TIMEOUT)); then
+      echo "PostgreSQL failed to stop in ${PG_TIMEOUT}s"
+      echo "$output"
+      exit 13
+    else
+      echo PostgreSQL successfully stopped
+      return
+    fi
+  done
+}
+
+install_postgres() {
+  echo Installing PostgreSQL
+  create_postgres_cluster
+  start_postgres
+  create_builder_database
+  stop_postgres
+}
+
+manage_upgrade_readme() {
+  local -r readme="$1/README.txt"
+  if [[ ! -f "$readme" ]]; then
+    cat <<-EOF >"$readme"
+			This directory contains subdirectories used when upgrading PostgreSQL from
+			one version to another. The subdirectories are named using the date and time
+			of the upgrades. When you feel comfortable with the success of the upgrade
+			you may delete these files.
+		EOF
+  fi
+  echo "Created $readme, please review at your convenience"
+}
+
+postgres_needs_upgraded() {
+
+  echo Checking if PostgreSQL needs to be upgraded
+
+  # Prior to PostgreSQL 10 the version scheme was 3 parts (9.6.24, for example).
+  # Starting with PostgreSQL 10 the versioning scheme PostgreSQL versions are 2
+  # parts (for example, 17.4). We do have some 3 part 9.x.x PostgreSQL packages
+  # to account for migration from but given that 9.6.24 has been EOL since Nov
+  # 11th 2021 hopefully no one has a reason to continue using such packages in a
+  # context where they would be might migrate from from x.x.x to y.y.y.  Even if
+  # some did I think this will likely work acceptably
+  #
+  # https://www.postgresql.org/support/versioning/
+  # https://endoflife.date/postgresql
+
+  read -ra installed_version <<<"$(hab pkg exec "$INSTALLED_PG_IDENT" pg_config -- --version | awk '{print $2}')"
+  if [[ ! (${installed_version[0]} =~ [[:digit:]]+ && ${installed_version[1]} =~ [[:digit:]]+) ]]; then
+    echo "Failed to parse the version of the installed PostgreSQL: We detected ${installed_version[*]}"
+    exit 14
+  fi
+
+  read -ra packaged_version <<<"$(hab pkg exec "$PACKAGED_DATASTORE_IDENT" pg_config -- --version | awk '{print $2}')"
+  if [[ ! (${packaged_version[0]} =~ [[:digit:]]+ && ${packaged_version[1]} =~ [[:digit:]]+) ]]; then
+    echo "Failed to parse the version of the packaged PostgreSQL: We detected ${packaged_version[*]}"
+    exit 15
+  fi
+
+  declare -i retval=1
+  if ((installed_version[0] < packaged_version[0])); then
+    echo "PostgreSQL upgrade needed: ${installed_version[*]} < ${packaged_version[*]}"
+    retval=0
+  else
+    if ((installed_version[0] == packaged_version[0])); then
+      if ((installed_version[1] < packaged_version[1])); then
+        echo "PostgreSQL upgrade needed: ${installed_version[*]} < ${packaged_version[*]}"
+        retval=0
+      fi
+    fi
+  fi
+  return $retval
+}
+
+dump_postgres_database() {
+
+  echo Dumping the builder database to a file via pg_dump
+
+  # https://www.postgresql.org/docs/17/upgrading.html#UPGRADING-VIA-PGDUMPALL
+  # "It is recommended that you use the pg_dump and pg_dumpall programs from the
+  # newer version of PostgreSQL, to take advantage of enhancements that might
+  # have been made in these programs. Current releases of the dump programs can
+  # read data from any server version back to 9.2."
+  hab pkg exec $PACKAGED_DATASTORE_IDENT pg_dump -- \
+    --host={{cfg.datastore.host}} \
+    --port={{cfg.datastore.port}} \
+    --username={{cfg.datastore.user}} \
+    --dbname={{cfg.datastore.database}} \
+    --no-password \
+    --quote-all-identifiers \
+    --file="$pg_dump_file"
+
+  # shellcheck disable=SC2181
+  if [[ $? == 0 ]]; then
+    echo "pg_dump was successful"
+  else
+    echo "pg_dump FAILED"
+    exit 16
+  fi
+}
+
+load_postgres_database() {
+
+  echo Loading the builder database from file generated via pg_dump using psql
+
+  hab pkg exec "$ACTIVE_IDENT" psql -- \
+    --host={{cfg.datastore.host}} \
+    --port={{cfg.datastore.port}} \
+    --username={{cfg.datastore.user}} \
+    --dbname={{cfg.datastore.database}} \
+    --no-password \
+    --file="$pg_dump_file"
+
+  local -ri exit_status=$?
+  local what_happened=""
+  case $exit_status in
+  0)
+    what_happened="success"
+    ;;
+  1)
+    what_happened="fatal psql error"
+    ;;
+  2)
+    what_happened="bad server connection, session not interactive"
+    ;;
+  3)
+    what_happened="sql script error"
+    ;;
+  *)
+    what_happened="unexpected exit status"
+    ;;
+  esac
+  printf "%s: exit status: %s (%s)\n" "${FUNCNAME[0]}" $exit_status "$what_happened"
+  if [[ $exit_status -eq 0 ]]; then
+    echo "Succeeded in loading the builder database from the pg_dump file"
+  else
+    echo "Failed to load the pg_dump file"
+    exit 17
+  fi
+  return $exit_status
+}
+
+upgrade_postgres() {
+
+  echo Upgrading PostgreSQL
+
+  local -r work_dir="{{pkg.svc_var_path}}/tmp/upgrades/$MOMENT"
+  local -r pg_dump_file="$work_dir/pg_dump.sql"
+  local -r previous_data_dir="$work_dir/previous/data"
+  mkdir -p "$previous_data_dir"
+
+  PGPASSWORD="$(cat "$PWFILE")"
+  export PGPASSWORD
+
+  manage_upgrade_readme "$work_dir"
+
+  ACTIVE_IDENT=$INSTALLED_PG_IDENT
+
+  start_postgres
+
+  # https://www.postgresql.org/docs/17/upgrading.html
+  # STEP 1) Making a backup, making sure that your database is not being updated
+  dump_postgres_database
+
+  # STEP 2) Shut down the old server
+  stop_postgres
+
+  # STEP 3) Rename the old installation directory
+  # One day someone may wonder why this isn't just a call to mv. The answer is
+  # because of ownership and permissions making things difficult.
+  cp -r {{pkg.svc_data_path}} "$previous_data_dir"
+  for x in /hab/svc/builder-datastore/data/*; do
+    rm -rf "$x"
+  done
+
+  # STEP 4) Install the new version of PostgreSQL (as outlined in Chapter 17)
+  # This is a mostly a noop for us as this is accomplished as part of the hab
+  # svc but we do need to manage the active_ident
+  ACTIVE_IDENT=$PACKAGED_DATASTORE_IDENT
+
+  # STEP 5) If needed, create a new database cluster. Remember you must be logged in as the special database user account
+  install_postgres
+
+  # STEP 6) Restore your previous pg_hba.conf and any postgresql.conf modifications
+
+  # STEP 7) Start the database server (again using the special database user account)
+  start_postgres
+
+  # step 8) finally, restore your data from backup
+  load_postgres_database
+  stop_postgres # because the run method is going to start it again
+
+  # JAH: password upgrade would go here but would we even need it?
+  # JAH: will this method of upgrade address it?
+  # JAH: scram-sha-256 isn't supported until 10.x
+}
+
+#-------------------------------------------------------------------------------
+# BEGIN "main"
+#-------------------------------------------------------------------------------
+
+echo The builder-datastore install hook is starting
+
+set_installed_pg_ident_and_active_ident
+
+postgres_status
+if [[ "$PG_STATUS" -eq "$PG_RUNNING_NOT_OURS" ]]; then
+  echo "The builder-datastore install hook is exiting because a PostgreSQL instance is running but it's not managed by us"
+  exit 19
+fi
+
+if ! postgres_installed; then
+  install_postgres
+elif postgres_needs_upgraded; then
+  upgrade_postgres
+else
+  echo PostgreSQL is installed and no upgrade is needed
+fi
+
+IFS="$OIFS"
