@@ -338,7 +338,6 @@ ensure_postgres() {
       else
         hab pkg install core/postgresql17-client || return 1
         PSQL_POSTGRES_IDENT='core/postgresql17-client'
-        hab pkg install core/postgresql17-client
       fi
     fi
   fi
