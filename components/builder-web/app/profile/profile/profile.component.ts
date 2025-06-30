@@ -44,21 +44,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
     if (this.config.is_saas) {
       this.store.dispatch(fetchLicenseKey(this.token));
-
-      // Always subscribe to router events
-      this.allSubscriptions.push(
-        this.router.events.subscribe(event => {
-          if (event instanceof NavigationEnd) {
-            console.log('Router event:', event);
-            if (this.router.url.startsWith('/profile')) {
-              this.checkAndShowLicenseDialog();
-            } else if (this.dialogRef) {
-              this.dialogRef.close();
-              this.dialogRef = null;
-            }
-          }
-        })
-      );
       // Listen for license state changes
       this.allSubscriptions.push(
         this.store.observe('users.current.license').subscribe((license) => {
@@ -107,17 +92,20 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
     // Always close any open dialog before opening a new one if showDialog is true
     if (showDialog) {
-      // If dialog is already open with the same error message and mode, do nothing
-      const currentMsg = this.dialogRef?.componentInstance?.errorMessage;
-      const currentMode = this.dialogRef?.componentInstance?.mode;
+      // Only open a new dialog if none is currently open
       if (!this.dialogRef) {
         this.openAndSetupDialog(errorMsg, mode);
-      } else if (currentMsg !== errorMsg || currentMode !== mode) {
-        this.dialogRef.close();
-        this.dialogRef = null;
-        this.openAndSetupDialog(errorMsg, mode);
+      } else {
+        // If dialog is open with the same mode, just update the error message if it changed
+        const currentMode = this.dialogRef?.componentInstance?.mode;
+        if (currentMode === mode) {
+          const currentMsg = this.dialogRef?.componentInstance?.errorMessage;
+          if (currentMsg !== errorMsg) {
+            this.dialogRef.componentInstance.setErrorMessage(errorMsg);
+          }
+        }
+        // else: dialog is open with a different mode, do nothing
       }
-      // else: dialog is already open with correct message and mode, do nothing
     }
   }
 
@@ -153,6 +141,10 @@ export class ProfileComponent implements OnInit, OnDestroy {
     dialogRef.afterClosed().subscribe(() => {
       if (this.dialogRef === dialogRef) {
         this.dialogRef = null;
+      }
+      // If dialog is closed without a valid license, reopen if still on /profile
+      if (this.router.url.startsWith('/profile')) {
+        this.checkAndShowLicenseDialog();
       }
     });
   }
@@ -229,7 +221,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
         mode: mode
       }
     });
-    console.log('this.dialogRef:', this.dialogRef);
   }
 
   get licenseKey() {

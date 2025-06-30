@@ -64,7 +64,6 @@ export default function users(state = initialState['users'], action) {
         .setIn(['current', 'license', 'licenseFetchInProgress'], true);
 
     case actionTypes.FETCH_LICENSE_KEY_SUCCESS:
-      console.log('FETCH_LICENSE_KEY_SUCCESS payload:', action.payload);
       return state
         .setIn(['current', 'license', 'licenseKey'], action.payload.license_key || null)
         .setIn(['current', 'license', 'expirationDate'], action.payload.expiration_date || null)
