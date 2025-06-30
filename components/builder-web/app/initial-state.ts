@@ -263,6 +263,14 @@ export default Record({
         name: undefined,
         email: undefined
       })(),
+      license: Record({
+        licenseKey: null,
+        expirationDate: null,
+        saveLicenseKeyErrorMessage: null,
+        fetchedLicenseMessage: null,
+        licenseFetchInProgress: false,
+        isValid: null
+      })(),
       ui: Record({
         accessTokens: Record({
           deleting: false,

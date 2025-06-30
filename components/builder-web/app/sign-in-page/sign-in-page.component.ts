@@ -19,16 +19,21 @@ import { setLayout, signOut } from '../actions/index';
 import config from '../config';
 import { EulaConfirmDialog } from '../shared/dialog/eula-confirm/eula-confirm.dialog';
 import { MatDialog } from '@angular/material';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   template: require('./sign-in-page.component.html')
 })
 export class SignInPageComponent implements OnDestroy {
+  message: string;
 
-  constructor(private store: AppStore, private title: Title, private confirmDialog: MatDialog) {
+  constructor(private store: AppStore, private title: Title, private confirmDialog: MatDialog, private route: ActivatedRoute) {
     store.dispatch(signOut(false));
     this.title.setTitle(`Sign In | ${store.getState().app.name}`);
     this.store.dispatch(setLayout('sign-in'));
+    this.route.queryParams.subscribe(params => {
+      this.message = params['message'];
+    });
   }
 
   get providerType() {

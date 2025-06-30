@@ -5,6 +5,9 @@
   <div class="body">
     <div class="content">
       <section class="upper">
+        <p *ngIf="message">
+          {{ message }}
+        </p>
         <a mat-raised-button color="primary" class="button" (click)="showEulaPopup(loginUrl)">
           <hab-icon [symbol]="providerType"></hab-icon>
           <span>Sign In with {{ providerName }}</span>
