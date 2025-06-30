@@ -13,11 +13,10 @@ export class LicenseRequiredGuard implements CanActivate {
     if (!config.is_saas) {
       return true;
     }
-    const license = this.store.getState().users.current.license;
-    const isInvalid = !license || !license.licenseKey || this.expiredLicense(license.expirationDate);
+    const licenseValid = this.store.getState().users.current.license.isValid;
 
     // If license is invalid, redirect to profile page
-    if (isInvalid) {
+    if (!licenseValid) {
       if (this.router.url !== '/profile') {
         this.router.navigate(['/profile']);
       }
@@ -27,11 +26,4 @@ export class LicenseRequiredGuard implements CanActivate {
     // If license is valid, allow navigation
     return true;
   }
-
-  expiredLicense(expirationDate): boolean {
-    const now = new Date();
-    const exp = new Date(expirationDate);
-    return exp < now;
-  }
-
 }

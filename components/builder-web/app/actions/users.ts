@@ -272,16 +272,23 @@ export function fetchLicenseKey(token: string) {
   return dispatch => {
     dispatch({ type: FETCH_LICENSE_KEY_BEGIN });
     new BuilderApiClient(token).getLicenseKey()
-      .then(data => {
+      .then((data: any) => {
+        // Check validity here
+        const isValid = data && data.license_key && (!data.expiration_date || new Date(data.expiration_date) >= new Date());
+
         dispatch({
           type: FETCH_LICENSE_KEY_SUCCESS,
-          payload: data
+          payload: {...data, isValid : isValid}
         });
       })
       .catch(err => {
+        let msg = err.message;
+        if (typeof msg === 'string' && msg.length > 1 && msg[0] === '"' && msg[msg.length - 1] === '"') {
+          msg = msg.substring(1, msg.length - 1);
+        }
         dispatch({
           type: FETCH_LICENSE_KEY_FAILED,
-          payload: { errorMessage: err.message }
+          payload: { errorMessage: msg }
         });
       });
   };
@@ -303,13 +310,18 @@ export function saveLicenseKey(licenseKey: string, token: string, accountId: str
         dispatch(fetchLicenseKey(token));
       })
       .catch(err => {
+        // Remove double quotes if errorMessage is a quoted string
+        let msg = err.message;
+        if (typeof msg === 'string' && msg.length > 1 && msg[0] === '"' && msg[msg.length - 1] === '"') {
+          msg = msg.substring(1, msg.length - 1);
+        }
         dispatch({
           type: SAVE_LICENSE_KEY_FAILED,
-          payload: { errorMessage: err.message }
+          payload: { errorMessage: msg }
         });
         dispatch(addNotification({
           title: 'License validation failed.',
-          body: `${err.message}`,
+          body: `${msg}`,
           type: DANGER
         }));
       });

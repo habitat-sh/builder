@@ -64,26 +64,25 @@ export class SignedInGuard implements CanActivate {
         const path = Browser.getCookie(name);
         Browser.removeCookie(name);
         if (config.is_saas) {
-          // License validation and fetch logic for SaaS mode
+          // Use isValid directly from store for license validation
           const license = state.users.current.license;
-          const licenseKey = license && license.get ? license.get('licenseKey') : license.licenseKey;
-          const expirationDate = license && license.get ? license.get('expirationDate') : license.expirationDate;
-          const licenseFetchInProgress = license && license.get ? license.get('licenseFetchInProgress') : license.licenseFetchInProgress;
+          const isValid = license && (license.get ? license.get('isValid') : license.isValid);
+          const licenseFetchInProgress = license && (license.get ? license.get('licenseFetchInProgress') : license.licenseFetchInProgress);
 
           // If license fetch is in progress, wait for it to complete
           if (licenseFetchInProgress) {
             return;
           }
 
-          // If license is missing and fetch has not been attempted, fetch it
-          if (!licenseKey && !this.fetchAttempted) {
+          // If license validity is unknown and fetch has not been attempted, fetch it
+          if (isValid === null && !this.fetchAttempted) {
             this.fetchAttempted = true;
             this.store.dispatch(fetchLicenseKey(state.session.token));
             return;
           }
 
-          // If license is still missing after fetch attempt, redirect to profile
-          if (!licenseKey && this.fetchAttempted) {
+          // If license is still unknown after fetch attempt, redirect to profile
+          if (isValid === null && this.fetchAttempted) {
             this.router.navigate(['/profile']);
             resolve(false);
             unsub();
@@ -91,8 +90,7 @@ export class SignedInGuard implements CanActivate {
           }
 
           // If license exists, check validity and route accordingly
-          const isLicenseValid = licenseKey && (!expirationDate || new Date(expirationDate) >= new Date());
-          if (isLicenseValid) {
+          if (isValid) {
             this.router.navigate(['/origins']);
           } else {
             this.router.navigate(['/profile']);

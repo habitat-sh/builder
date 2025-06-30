@@ -62,27 +62,34 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   // Extract dialog logic to a method
   checkAndShowLicenseDialog() {
-    const { licenseKey, expirationDate, saveLicenseKeyErrorMessage, licenseFetchInProgress } =
-      this.store.getState().users.current.license;
+    const { expirationDate, saveLicenseKeyErrorMessage, licenseFetchInProgress, isValid } = this.store.getState().users.current.license;
+
+    let showDialog = false;
+    let errorMsg = saveLicenseKeyErrorMessage || '';
+    let mode = 'add';
+
     if (licenseFetchInProgress) {
       return;
     }
 
-    const isExpired = expirationDate ? new Date(expirationDate) < new Date() : false;
-    let errorMsg = '';
-    let showDialog = false;
-    let mode = 'add';
+    const isExpired = expirationDate && new Date(expirationDate) < new Date();
 
-    if (expirationDate && isExpired) {
-      errorMsg = 'Your license has expired. Re-enter a new license key to download packages';
-      this.licenseValidationMessage = errorMsg;
+    if (!isValid && this.token) {
+      if (isExpired && !saveLicenseKeyErrorMessage) {
+        // First time expired: show the expired message
+        errorMsg = 'Your license has expired. Re-enter a new license key to download packages.';
+      } else {
+        // Later, show backend error message (if any)
+        errorMsg = saveLicenseKeyErrorMessage || '';
+      }
+      if (isExpired) {
+        this.licenseValidationMessage = 'Your license has expired. Re-enter a new license key to download packages.';
+      }
       showDialog = true;
-    } else if (!licenseKey && this.token) {
-      errorMsg = saveLicenseKeyErrorMessage || '';
-      this.licenseValidationMessage = '';
-      showDialog = true;
-    } else if (licenseKey && (!expirationDate || !isExpired)) {
-      this.licenseValidationMessage = expirationDate ? `License valid till ${expirationDate}` : '';
+      mode = 'add';
+    } else {
+      this.licenseValidationMessage = `License valid till ${expirationDate}`;
+      showDialog = false;
       if (this.dialogRef) {
         this.dialogRef.close();
         this.dialogRef = null;
@@ -115,7 +122,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
   // - Handles proceed action: validates input and saves license key.
   // - Ensures dialog cannot be closed unless a valid license is entered (in 'add' mode).
   // - If dialog is closed without a valid license, reopens dialog if still on /profile and license is missing.
-  openAndSetupDialog(saveLicenseKeyErrorMessage: string = '', mode: string = 'add') {
+  openAndSetupDialog(error: string = '', mode: string = 'add') {
     if (!this.router.url.startsWith('/profile')) return;
     if (this.dialogRef) return; // Don't open multiple dialogs
     const dialogRef = this.confirmDialog.open(ValidLicenseConfirmDialog, {
@@ -129,7 +136,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
       }
     });
     this.dialogRef = dialogRef;
-    dialogRef.componentInstance.setErrorMessage(saveLicenseKeyErrorMessage || '');
+    dialogRef.componentInstance.setErrorMessage(error || '');
     dialogRef.componentInstance.proceed = () => {
       const licenseKey = dialogRef.componentInstance.licenseKey?.trim();
       if (!licenseKey) {
@@ -138,6 +145,10 @@ export class ProfileComponent implements OnInit, OnDestroy {
       }
       this.saveLicenseKeyToBackend({ licenseKey });
     };
+
+    // Handle dialog close event
+    // If dialog is closed without a valid license, reopen if still on /profile
+    // This ensures that if the user navigates away and comes back, they are prompted again
     dialogRef.afterClosed().subscribe(() => {
       if (this.dialogRef === dialogRef) {
         this.dialogRef = null;
@@ -208,19 +219,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   updateKey() {
     this.openAndSetupDialog('', 'update');
-  }
-
-  openConfirmDialog({mode = 'add'}) {
-    this.dialogRef = this.confirmDialog.open(ValidLicenseConfirmDialog, {
-      width: '480px',
-      disableClose: mode === 'add' ? true : false, // Prevent closing by clicking outside
-      data: {
-        heading: 'A Valid key is required for viewing and downloading the packages on the builder.',
-        body: ``,
-        action: `Proceed`,
-        mode: mode
-      }
-    });
   }
 
   get licenseKey() {
