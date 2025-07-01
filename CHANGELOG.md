@@ -3,6 +3,9 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Updates diesel.rs attributes that were triggering compile warnings [#1914](https://github.com/habitat-sh/builder/pull/1914) ([jasonheath](https://github.com/jasonheath))
+- Upgrade builder-datastore to use core/postgresql17 [#1892](https://github.com/habitat-sh/builder/pull/1892) ([jasonheath](https://github.com/jasonheath))
+- Rust version update to 1.85 [#1911](https://github.com/habitat-sh/builder/pull/1911) ([sougata-progress](https://github.com/sougata-progress))
 - License related changes added [#1912](https://github.com/habitat-sh/builder/pull/1912) ([AadeshNichite](https://github.com/AadeshNichite))
 - Update copyright year to 2025 [#1907](https://github.com/habitat-sh/builder/pull/1907) ([vkarve-chef](https://github.com/vkarve-chef))
 - Fixed license not found response [#1906](https://github.com/habitat-sh/builder/pull/1906) ([sougata-progress](https://github.com/sougata-progress))
