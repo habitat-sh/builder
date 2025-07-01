@@ -22,7 +22,7 @@ use crate::{bldr_core::metrics::CounterMetric,
          QueryableByName,
          Queryable,
          Identifiable)]
-#[table_name = "origin_project_integrations"]
+#[diesel(table_name = origin_project_integrations)]
 pub struct ProjectIntegration {
     #[serde(with = "db_id_format")]
     pub id:             i64,

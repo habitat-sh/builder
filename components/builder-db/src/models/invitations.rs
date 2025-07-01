@@ -29,7 +29,7 @@ pub struct OriginInvitation {
 }
 
 #[derive(Insertable)]
-#[table_name = "origin_invitations"]
+#[diesel(table_name = origin_invitations)]
 pub struct NewOriginInvitation<'a> {
     pub origin:       &'a str,
     pub account_id:   i64,

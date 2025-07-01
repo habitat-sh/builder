@@ -11,7 +11,7 @@ use diesel::{self,
              RunQueryDsl};
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
-#[table_name = "origin_public_encryption_keys"]
+#[diesel(table_name = origin_public_encryption_keys)]
 pub struct OriginPublicEncryptionKey {
     #[serde(with = "db_id_format")]
     pub id:         i64,
@@ -27,7 +27,7 @@ pub struct OriginPublicEncryptionKey {
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
-#[table_name = "origin_private_encryption_keys"]
+#[diesel(table_name = origin_private_encryption_keys)]
 pub struct OriginPrivateEncryptionKey {
     #[serde(with = "db_id_format")]
     pub id:         i64,
@@ -43,7 +43,7 @@ pub struct OriginPrivateEncryptionKey {
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
-#[table_name = "origin_secret_keys"]
+#[diesel(table_name = origin_secret_keys)]
 pub struct OriginPrivateSigningKey {
     #[serde(with = "db_id_format")]
     pub id:                 i64,
@@ -60,7 +60,7 @@ pub struct OriginPrivateSigningKey {
 }
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
-#[table_name = "origin_public_keys"]
+#[diesel(table_name = origin_public_keys)]
 pub struct OriginPublicSigningKey {
     #[serde(with = "db_id_format")]
     pub id:         i64,
@@ -76,7 +76,7 @@ pub struct OriginPublicSigningKey {
 }
 
 #[derive(Insertable)]
-#[table_name = "origin_public_encryption_keys"]
+#[diesel(table_name = origin_public_encryption_keys)]
 pub struct NewOriginPublicEncryptionKey<'a> {
     pub owner_id:  i64,
     pub name:      &'a str,
@@ -87,7 +87,7 @@ pub struct NewOriginPublicEncryptionKey<'a> {
 }
 
 #[derive(Insertable)]
-#[table_name = "origin_private_encryption_keys"]
+#[diesel(table_name = origin_private_encryption_keys)]
 pub struct NewOriginPrivateEncryptionKey<'a> {
     pub owner_id:  i64,
     pub name:      &'a str,
@@ -98,7 +98,7 @@ pub struct NewOriginPrivateEncryptionKey<'a> {
 }
 
 #[derive(Insertable)]
-#[table_name = "origin_secret_keys"]
+#[diesel(table_name = origin_secret_keys)]
 pub struct NewOriginPrivateSigningKey<'a> {
     pub owner_id:           i64,
     pub name:               &'a str,
@@ -110,7 +110,7 @@ pub struct NewOriginPrivateSigningKey<'a> {
 }
 
 #[derive(Insertable)]
-#[table_name = "origin_public_keys"]
+#[diesel(table_name = origin_public_keys)]
 pub struct NewOriginPublicSigningKey<'a> {
     pub owner_id:  i64,
     pub name:      &'a str,

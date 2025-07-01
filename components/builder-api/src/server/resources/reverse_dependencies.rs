@@ -13,7 +13,7 @@ use crate::server::error::{Error,
 use r2d2::PooledConnection;
 #[derive(Clone, Debug, QueryableByName, Serialize, Deserialize)]
 pub(crate) struct Dependent {
-    #[sql_type = "Text"]
+    #[diesel(sql_type = Text)]
     pub short_id: String, // "origin/name"
 }
 
