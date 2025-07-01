@@ -60,7 +60,7 @@ pub struct ChannelWithPromotion {
 }
 
 #[derive(Insertable)]
-#[table_name = "origin_channels"]
+#[diesel(table_name = origin_channels)]
 pub struct CreateChannel<'a> {
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
     pub name:     &'a str,
@@ -608,7 +608,7 @@ impl From<Channel> for ChannelWithPromotion {
 }
 
 #[derive(Debug, Serialize, Deserialize, Insertable)]
-#[table_name = "audit_package"]
+#[diesel(table_name = audit_package)]
 pub struct PackageChannelAudit<'a> {
     pub package_ident:  BuilderPackageIdent,
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
@@ -629,7 +629,7 @@ impl PackageChannelAudit<'_> {
 }
 
 #[derive(Debug, Serialize, Deserialize, Insertable)]
-#[table_name = "audit_package_group"]
+#[diesel(table_name = audit_package_group)]
 pub struct PackageGroupChannelAudit<'a> {
     pub origin:         &'a str,
     // This would be ChannelIdent, but Insertable requires implementing diesel::Expression
