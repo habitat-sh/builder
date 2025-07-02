@@ -16,10 +16,12 @@ import { Injectable } from '@angular/core';
 import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot } from '@angular/router';
 import { AppStore } from '../../app.store';
 import { Browser } from '../../browser';
-import { requestRoute, signOut } from '../../actions/index';
+import { fetchLicenseKey, requestRoute, signOut } from '../../actions/index';
+import config from '../../config';
 
 @Injectable()
 export class SignedInGuard implements CanActivate {
+  private fetchAttempted = false;
 
   constructor(private store: AppStore, private router: Router) { }
 
@@ -57,18 +59,51 @@ export class SignedInGuard implements CanActivate {
 
   private handleSigningIn(resolve, reject) {
     const unsub = this.store.subscribe(state => {
-
       if (state.oauth.token && state.session.token) {
         const name = 'redirectPath';
         const path = Browser.getCookie(name);
         Browser.removeCookie(name);
+        if (config.is_saas) {
+          // Use isValid directly from store for license validation
+          const license = state.users.current.license;
+          const isValid = license && (license.get ? license.get('isValid') : license.isValid);
+          const licenseFetchInProgress = license && (license.get ? license.get('licenseFetchInProgress') : license.licenseFetchInProgress);
 
-        if (path) {
-          this.router.navigate([path]);
+          // If license fetch is in progress, wait for it to complete
+          if (licenseFetchInProgress) {
+            return;
+          }
+
+          // If license validity is unknown and fetch has not been attempted, fetch it
+          if (isValid === null && !this.fetchAttempted) {
+            this.fetchAttempted = true;
+            this.store.dispatch(fetchLicenseKey(state.session.token));
+            return;
+          }
+
+          // If license is still unknown after fetch attempt, redirect to profile
+          if (isValid === null && this.fetchAttempted) {
+            this.router.navigate(['/profile']);
+            resolve(false);
+            unsub();
+            return;
+          }
+
+          // If license exists, check validity and route accordingly
+          if (isValid) {
+            this.router.navigate(['/origins']);
+          } else {
+            this.router.navigate(['/profile']);
+          }
+          resolve(true);
+          unsub();
+        } else {
+          if (path) {
+            this.router.navigate([path]);
+          }
+          resolve(true);
+          unsub();
         }
-
-        resolve(true);
-        unsub();
       }
       else if (state.users.current.failedSignIn) {
         reject(() => this.redirectToSignIn());
@@ -82,6 +117,12 @@ export class SignedInGuard implements CanActivate {
   }
 
   private redirectToSignIn(url?: string) {
-    this.store.dispatch(signOut(true, url));
+    // Only show the sign-in message for SaaS mode
+    if (config['is_saas']) {
+      this.router.navigate(['/sign-in'], { queryParams: { message: 'You need to sign-in to access Public Builder' } });
+      this.store.dispatch(signOut(false)); // Only clear session, do not navigate
+    } else {
+      this.store.dispatch(signOut(true, url));
+    }
   }
 }

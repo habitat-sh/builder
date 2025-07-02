@@ -23,7 +23,7 @@ pub struct Account {
 }
 
 #[derive(Identifiable, Debug, Serialize, Queryable)]
-#[table_name = "account_tokens"]
+#[diesel(table_name = account_tokens)]
 pub struct AccountToken {
     #[serde(with = "db_id_format")]
     pub id:         i64,
@@ -34,7 +34,7 @@ pub struct AccountToken {
 }
 
 #[derive(Insertable)]
-#[table_name = "accounts"]
+#[diesel(table_name = accounts)]
 pub struct NewAccount<'a> {
     pub email: &'a str,
     pub name:  &'a str,
@@ -81,7 +81,7 @@ impl Account {
 }
 
 #[derive(Insertable)]
-#[table_name = "account_tokens"]
+#[diesel(table_name = account_tokens)]
 pub struct NewAccountToken<'a> {
     pub account_id: i64,
     pub token:      &'a str,

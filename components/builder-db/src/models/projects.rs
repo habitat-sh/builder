@@ -15,7 +15,7 @@ use crate::{bldr_core::metrics::CounterMetric,
             metrics::Counter};
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
-#[table_name = "origin_projects"]
+#[diesel(table_name = origin_projects)]
 pub struct Project {
     #[serde(with = "db_id_format")]
     pub id:                  i64,
@@ -36,7 +36,7 @@ pub struct Project {
 }
 
 #[derive(Insertable)]
-#[table_name = "origin_projects"]
+#[diesel(table_name = origin_projects)]
 pub struct NewProject<'a> {
     pub owner_id:            i64,
     pub origin:              &'a str,
@@ -51,7 +51,7 @@ pub struct NewProject<'a> {
 }
 
 #[derive(AsChangeset)]
-#[table_name = "origin_projects"]
+#[diesel(table_name = origin_projects)]
 pub struct UpdateProject<'a> {
     pub id:                  i64,
     pub owner_id:            i64,

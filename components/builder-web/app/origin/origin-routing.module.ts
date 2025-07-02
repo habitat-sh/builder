@@ -17,17 +17,18 @@ import { Routes, RouterModule } from '@angular/router';
 import { OriginsPageComponent } from './origins-page/origins-page.component';
 import { OriginCreatePageComponent } from './origin-create-page/origin-create-page.component';
 import { SignedInGuard } from '../shared/guards/signed-in.guard';
+import { LicenseRequiredGuard } from '../shared/guards/license-required.guard';
 
 const routes: Routes = [
   {
     path: 'origins',
     component: OriginsPageComponent,
-    canActivate: [SignedInGuard]
+    canActivate: [SignedInGuard, LicenseRequiredGuard]
   },
   {
     path: 'origins/create',
     component: OriginCreatePageComponent,
-    canActivate: [SignedInGuard]
+    canActivate: [SignedInGuard, LicenseRequiredGuard]
   }
 ];
 

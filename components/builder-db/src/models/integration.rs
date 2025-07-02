@@ -25,7 +25,7 @@ pub struct OriginIntegration {
 }
 
 #[derive(Insertable)]
-#[table_name = "origin_integrations"]
+#[diesel(table_name = origin_integrations)]
 pub struct NewOriginIntegration<'a> {
     pub origin:      &'a str,
     pub integration: &'a str,

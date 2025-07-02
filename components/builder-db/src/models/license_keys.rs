@@ -48,13 +48,6 @@ impl LicenseKey {
         .get_result(conn)
     }
 
-    pub fn delete_by_account_id(account_id: i64, conn: &mut PgConnection) -> QueryResult<usize> {
-        Counter::DBCall.increment();
-
-        diesel::delete(license_keys::table.filter(license_keys::account_id.eq(account_id)))
-            .execute(conn)
-    }
-
     pub fn get_by_account_id(account_id: i64,
                              conn: &mut PgConnection)
                              -> QueryResult<Option<LicenseKey>> {

@@ -35,7 +35,7 @@ pub struct OriginSecretWithOriginId {
 }
 
 #[derive(Insertable)]
-#[table_name = "origin_secrets"]
+#[diesel(table_name = origin_secrets)]
 pub struct NewOriginSecret<'a> {
     pub owner_id: i64,
     pub origin:   &'a str,

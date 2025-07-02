@@ -44,7 +44,7 @@ use std::{fmt,
 use diesel_derive_enum::DbEnum;
 
 #[derive(Debug, Serialize, Deserialize, QueryableByName, Queryable)]
-#[table_name = "origins"]
+#[diesel(table_name = origins)]
 pub struct Origin {
     #[serde(with = "db_id_format")]
     pub owner_id: i64,
@@ -136,7 +136,7 @@ impl FromStr for OriginMemberRole {
 }
 
 #[derive(Debug, Serialize, Deserialize, Queryable, QueryableByName, Insertable)]
-#[table_name = "origin_members"]
+#[diesel(table_name = origin_members)]
 pub struct OriginMember {
     #[serde(with = "db_id_format")]
     pub account_id:  i64,
@@ -147,7 +147,7 @@ pub struct OriginMember {
 }
 
 #[derive(Insertable)]
-#[table_name = "origins"]
+#[diesel(table_name = origins)]
 pub struct NewOrigin<'a> {
     pub name: &'a str,
     pub owner_id: i64,
@@ -164,7 +164,7 @@ pub enum OriginOperation {
 }
 
 #[derive(Debug, Serialize, Deserialize, Insertable)]
-#[table_name = "audit_origin"]
+#[diesel(table_name = audit_origin)]
 struct OriginAudit<'a> {
     operation:      OriginOperation,
     origin:         &'a str,
@@ -173,7 +173,7 @@ struct OriginAudit<'a> {
     target_object:  &'a str,
 }
 
-impl<'a> OriginAudit<'a> {
+impl OriginAudit<'_> {
     fn audit(origin_audit_record: &OriginAudit, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::insert_into(audit_origin::table).values(origin_audit_record)

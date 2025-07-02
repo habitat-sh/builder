@@ -72,7 +72,7 @@ use diesel_derive_enum::DbEnum;
          Queryable,
          Clone,
          Identifiable)]
-#[table_name = "origin_packages"]
+#[diesel(table_name = origin_packages)]
 pub struct Package {
     #[serde(with = "db_id_format")]
     pub id:           i64,
@@ -104,7 +104,7 @@ pub struct Package {
          Queryable,
          Clone,
          Identifiable)]
-#[table_name = "origin_packages_with_version_array"]
+#[diesel(table_name = origin_packages_with_version_array)]
 pub struct PackageWithVersionArray {
     #[serde(with = "db_id_format")]
     pub id:            i64,
@@ -138,7 +138,7 @@ pub struct PackageWithVersionArray {
          Clone,
          Identifiable,
          Eq)]
-#[table_name = "packages_with_channel_platform"]
+#[diesel(table_name = packages_with_channel_platform)]
 pub struct PackageWithChannelPlatform {
     #[serde(with = "db_id_format")]
     pub id:          i64,
@@ -198,7 +198,6 @@ pub struct PackageIdentWithChannelPlatform {
 
 /// We literally never want to select `ident_vector`
 /// so we provide this type and constant to pass to `.select`
-
 type AllColumns = (origin_packages::id,
                    origin_packages::owner_id,
                    origin_packages::name,
@@ -288,7 +287,7 @@ type AllWithVersion =
     diesel::dsl::Select<origin_packages_with_version_array::table, AllColumnsWithVersion>;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Insertable)]
-#[table_name = "origin_packages"]
+#[diesel(table_name = origin_packages)]
 pub struct NewPackage {
     pub origin:       String,
     #[serde(with = "db_id_format")]

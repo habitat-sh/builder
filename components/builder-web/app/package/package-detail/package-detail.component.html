@@ -18,4 +18,57 @@
       </li>
     </div>
   </ul>
+  <div class="package-manifest">
+    <div class="package-manifest-title">
+      <h2>Package Manifest</h2>
+    </div>
+    <div class="package-manifest-body">
+      <h3 *ngIf="fullName">
+        <hab-copyable [text]="fullName"></hab-copyable>
+      </h3>
+      <section class="metadata">
+        <dl>
+          <div>
+            <dt>Version</dt>
+            <dd>
+              {{ package.ident.version }}
+            </dd>
+          </div>
+          <div>
+            <dt>Release</dt>
+            <dd>
+              {{ package.ident.release }} - {{ titleFrom(package.target) }}
+            </dd>
+          </div>
+          <div>
+            <dt>Checksum</dt>
+            <dd>
+              {{ package.checksum }}
+            </dd>
+          </div>
+          <div>
+            <dt>HART Size</dt>
+            <dd>
+              <hab-text [text]="toDisplaySize(package.hart_size)" [title]="package.hart_size + ' bytes'"></hab-text>
+            </dd>
+          </div>
+        </dl>
+      </section>
+      <section class="manifest" [innerHTML]="package.manifest"></section>
+      <section class="config" *ngIf="package.config">
+        <h2>Configuration</h2>
+        <pre>{{ package.config }}</pre>
+      </section>
+      <section class="deps">
+        <div class="direct-deps">
+          <h2>Dependencies</h2>
+          <hab-package-list [currentPackage]="package" [packages]="package.deps"></hab-package-list>
+        </div>
+        <div class="transitive-deps">
+          <h2>Transitive Dependencies</h2>
+          <hab-package-list [currentPackage]="package" [packages]="package.tdeps"></hab-package-list>
+        </div>
+      </section>
+    </div>
+  </div>
 </div>

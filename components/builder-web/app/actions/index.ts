@@ -238,7 +238,15 @@ export {
   signInFailed,
   signOut,
   TOGGLE_USER_NAV_MENU,
-  toggleUserNavMenu
+  toggleUserNavMenu,
+  fetchLicenseKey,
+  saveLicenseKey,
+  FETCH_LICENSE_KEY_BEGIN,
+  FETCH_LICENSE_KEY_SUCCESS,
+  FETCH_LICENSE_KEY_FAILED,
+  SAVE_LICENSE_KEY_BEGIN,
+  SAVE_LICENSE_KEY_SUCCESS,
+  SAVE_LICENSE_KEY_FAILED,
 } from './users';
 
 export {

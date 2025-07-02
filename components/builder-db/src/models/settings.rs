@@ -24,7 +24,7 @@ use crate::{bldr_core::metrics::CounterMetric,
          Clone,
          PartialEq,
          Identifiable)]
-#[table_name = "origin_package_settings"]
+#[diesel(table_name = origin_package_settings)]
 pub struct OriginPackageSettings {
     #[serde(with = "db_id_format")]
     pub id:         i64,
@@ -39,7 +39,7 @@ pub struct OriginPackageSettings {
 }
 
 #[derive(Debug, Insertable)]
-#[table_name = "origin_package_settings"]
+#[diesel(table_name = origin_package_settings)]
 pub struct NewOriginPackageSettings<'a> {
     pub origin:     &'a str,
     pub name:       &'a str,
@@ -48,7 +48,7 @@ pub struct NewOriginPackageSettings<'a> {
 }
 
 #[derive(AsChangeset, Debug)]
-#[table_name = "origin_package_settings"]
+#[diesel(table_name = origin_package_settings)]
 pub struct UpdateOriginPackageSettings<'a> {
     pub origin:     &'a str,
     pub name:       &'a str,

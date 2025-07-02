@@ -180,7 +180,7 @@ pub fn fetch_license_expiration(license_key: &str,
 
     if !status.is_success() {
         debug!("License server returned error: {}", body);
-        return Err(HttpResponse::BadRequest().body(body));
+        return Err(HttpResponse::build(status).body(body));
     }
 
     let json: Value = serde_json::from_str(&body).map_err(|e| {
@@ -196,20 +196,22 @@ pub fn fetch_license_expiration(license_key: &str,
                                                                                 key.")
                                            })?;
 
-    let today = chrono::Utc::now().date_naive();
+    let expiration = entitlements.iter()
+                                 .filter_map(|ent| {
+                                     ent.get("period")?
+                                        .get("end")?
+                                        .as_str()?
+                                        .parse::<NaiveDate>()
+                                        .ok()
+                                 })
+                                 .max()
+                                 .ok_or_else(|| {
+                                     debug!("No entitlement end dates found in license payload");
+                                     HttpResponse::BadRequest().body("No valid entitlement end \
+                                                                      date found.")
+                                 })?;
 
-    let expiration = entitlements.iter().find_map(|ent| {
-                                            let end_str = ent.get("period")?.get("end")?.as_str()?;
-                                            match NaiveDate::parse_from_str(end_str, "%Y-%m-%d") {
-                                                Ok(end_date) if end_date >= today => Some(end_date),
-                                                _ => None,
-                                            }
-                                        });
-
-    expiration.ok_or_else(|| {
-                  debug!("No valid (non-expired) entitlement found in license");
-                  HttpResponse::BadRequest().body("License key has expired.")
-              })
+    Ok(expiration)
 }
 
 pub fn visibility_for_optional_session(req: &HttpRequest,

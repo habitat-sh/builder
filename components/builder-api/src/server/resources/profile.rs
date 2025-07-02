@@ -47,7 +47,6 @@ impl Profile {
            .route("/profile/access-tokens/{id}",
                   web::delete().to(revoke_access_token))
            .route("/profile/license", web::put().to(set_license))
-           .route("/profile/license", web::delete().to(delete_license))
            .route("/profile/license", web::get().to(get_license));
     }
 }
@@ -254,27 +253,6 @@ async fn set_license(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn delete_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
-    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
-        Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    let account_id = match authorize_session(&req, None, None) {
-        Ok(session) => session.get_id() as i64,
-        Err(err) => return err.into(),
-    };
-
-    match LicenseKey::delete_by_account_id(account_id, &mut conn).map_err(Error::DieselError) {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
-        }
-    }
-}
-
-#[allow(clippy::needless_pass_by_value)]
 async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -288,37 +266,38 @@ async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
 
     match LicenseKey::get_by_account_id(account_id, &mut conn).map_err(Error::DieselError) {
         Ok(Some(license)) => {
-            let today: chrono::NaiveDate = chrono::Utc::now().date_naive();
-            if license.expiration_date < today {
+            let today = chrono::Utc::now().date_naive();
+            if license.expiration_date >= today {
+                HttpResponse::Ok().json(json!({
+                                            "license_key": license.license_key,
+                                            "expiration_date": license.expiration_date.to_string()
+                                        }))
+            } else {
                 match fetch_license_expiration(&license.license_key,
                                                &state.config.api.license_server_url)
                 {
-                    Ok(new_expiration) => {
-                        let new_license = NewLicenseKey { account_id,
-                                                          license_key: &license.license_key,
-                                                          expiration_date: new_expiration };
-                        match LicenseKey::create(&new_license, &mut conn).map_err(Error::DieselError) {
-                                                            Ok(license) => {
-                                                                return HttpResponse::Ok().json(json!({
-                                                                    "license_key":     license.license_key,
-                                                                          "expiration_date": new_expiration.to_string()
-                                                                      }));
-                                                            }
-                                                            Err(err) => {
-                                                                debug!("{}", err);
-                                                                return err.into()
-                                                            }
-                                                        };
+                    Ok(expiration_date) => {
+                        if expiration_date >= today {
+                            let new_record = NewLicenseKey { account_id,
+                                                             license_key: &license.license_key,
+                                                             expiration_date };
+                            if let Err(err) = LicenseKey::create(&new_record, &mut conn)
+                                .map_err(Error::DieselError)
+                            {
+                                debug!("Failed to update expiration in DB: {}", err);
+                                return err.into();
+                            }
+                        }
+                        HttpResponse::Ok().json(json!({
+                                                    "license_key": license.license_key,
+                                                    "expiration_date": expiration_date.to_string()
+                                                }))
                     }
-                    Err(resp) => return resp,
+                    Err(resp) => resp,
                 }
             }
-            HttpResponse::Ok().json(json!({
-                                        "license_key":     license.license_key,
-                                        "expiration_date": license.expiration_date
-                                    }))
         }
-        Ok(None) => HttpResponse::Ok().json(json!({})),
+        Ok(None) => HttpResponse::new(StatusCode::NOT_FOUND),
         Err(err) => {
             debug!("{}", err);
             err.into()

@@ -47,7 +47,7 @@ pub mod postgres {
                                             .env("DB_TEST_DIR", root_path)
                                             .current_dir("/tmp")
                                             .spawn()
-                                            .expect("Failed to launch core/postgresql");
+                                            .expect("Failed to launch core/postgresql17");
             Postgres { inner: child }
         }
     }
