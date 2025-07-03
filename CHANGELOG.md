@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- CHEF-19669 Update doc link as shared by IanM [#1915](https://github.com/habitat-sh/builder/pull/1915) ([vkarve-chef](https://github.com/vkarve-chef))
 - Removed delete license key API [#1913](https://github.com/habitat-sh/builder/pull/1913) ([sougata-progress](https://github.com/sougata-progress))
 - Updates diesel.rs attributes that were triggering compile warnings [#1914](https://github.com/habitat-sh/builder/pull/1914) ([jasonheath](https://github.com/jasonheath))
 - Upgrade builder-datastore to use core/postgresql17 [#1892](https://github.com/habitat-sh/builder/pull/1892) ([jasonheath](https://github.com/jasonheath))
