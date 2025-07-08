@@ -51,6 +51,7 @@ jobs:
       if: always()
       uses: chef/common-github-actions/.github/actions/update-firewall-rule@main
       with:
+          perform-sonar-build: true
           action-to-execute: remove
 
     - name: logout
