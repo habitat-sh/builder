@@ -1,8 +1,9 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release unreleased -->
-## Unreleased
+<!-- latest_release 20250709 -->
+## [20250709](https://github.com/habitat-sh/builder/tree/20250709) (2025-07-09)
 
 #### Merged Pull Requests
+- bump version for license restriction release [#1916](https://github.com/habitat-sh/builder/pull/1916) ([mwrock](https://github.com/mwrock))
 - CHEF-19669 Update doc link as shared by IanM [#1915](https://github.com/habitat-sh/builder/pull/1915) ([vkarve-chef](https://github.com/vkarve-chef))
 - Removed delete license key API [#1913](https://github.com/habitat-sh/builder/pull/1913) ([sougata-progress](https://github.com/sougata-progress))
 - Updates diesel.rs attributes that were triggering compile warnings [#1914](https://github.com/habitat-sh/builder/pull/1914) ([jasonheath](https://github.com/jasonheath))
