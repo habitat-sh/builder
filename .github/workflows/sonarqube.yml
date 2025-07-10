@@ -9,7 +9,74 @@ on:
   pull_request:
       types: [opened, synchronize, reopened]
 
+  on:
+  workflow_call:
+    inputs:
+      perform-build: 
+        required: false
+        type: boolean
+      build-profile:
+        required: false
+        type: string
+      language: 
+        required: false
+        type: string
+      report-unit-test-coverage: 
+        required: false
+        type: boolean
+      report-to-atlassian-dashboard: 
+        required: false
+        type: boolean
+      quality-product-name:
+        required: false
+        type: string
+      quality-sonar-app-name:
+        required: false
+        type: string
+      quality-testing-type:
+        required: false
+        type: string
+      quality-service-name:
+        required: false
+        type: string
+      quality-junit-report:
+        required: false
+        type: string
+      visibility:
+        required: false
+        type: string
+      udf1:
+        required: false
+        type: string
+      udf2:
+        required: false
+        type: string
+      udf3:
+        required: false
+        type: string
+
+
 jobs:
+  echo-inputs:
+    name: 'Echo inputs'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Echo inputs
+      run: |
+        echo "Sonarqube scan for PRIVATE repositories, running on ubuntu-latest-4-cores runner"
+        echo "Perform build set to ${{ inputs.perform-build }}"
+        echo "Build profile set to ${{ inputs.build-profile }}"
+        echo "Language set to ${{ inputs.language }} "
+        echo "Visibility set to ${{ inputs.visibility }} [ ${{ github.event.repository.visibility }} ]"
+        echo "Perform unit test coverage set to ${{ inputs.report-unit-test-coverage }}"
+        echo "Report to Atlassian dashboard set to ${{ inputs.report-to-atlassian-dashboard }}"
+        echo "Quality product name set to ${{ inputs.quality-product-name }}" 
+        echo "Quality sonar application name set to ${{ inputs.quality-sonar-app-name }}"
+        echo "Quality testing type set to ${{ inputs.quality-testing-type }}"
+        echo "Quality service name set to ${{ inputs.quality-service-name }}"
+        echo "Quality JUnit report set to ${{ inputs.quality-junit-report }}"
+        echo "Go private modules set to ${{ inputs.go-private-modules }}" 
+        
   SonarQube:
     runs-on: ubuntu-latest
     permissions: 
@@ -39,25 +106,30 @@ jobs:
         echo "##[warning]Waiting for 30 seconds to allow the firewall rule to take effect"
         sleep 30
 
-    - name: Install native deps for protobuf & ZeroMQ
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y protobuf-compiler pkg-config libzmq3-dev
-
-    - name: Install cargo-tarpaulin
-      run: cargo install cargo-tarpaulin
-
-    - name: Run coverage with Tarpaulin
-      run: |
-        # produce an lcov report under ./coverage/
-        cargo tarpaulin --out Lcov --output-dir coverage
-
     - name: SonarQube Scan
+      if: ${{ inputs.visibility == 'public' }}
       uses: sonarsource/sonarqube-scan-action@v5.1.0
       continue-on-error: true
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+    - name: Run SonarQube report generation
+      if: ${{ inputs.report-to-atlassian-dashboard == true }}
+      uses: Progress-I360/github-action-reporting/sonarqube@main
+      with:
+        PRODUCT_NAME: ${{ inputs.quality-product-name }}
+        SONAR_APP_NAME: ${{ inputs.quality-sonar-app-name }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    - name: Run report generation
+      if: ${{ inputs.report-to-atlassian-dashboard == true && inputs.report-unit-test-coverage == true }}
+      uses: Progress-I360/github-action-reporting/automation@main
+      with:
+        PRODUCT_NAME: ${{ inputs.quality-product-name }}
+        TESTING_TYPE: ${{ inputs.quality-testing-type }}
+        SERVICE_NAME: ${{ inputs.quality-service-name }}
+        JUNIT_REPORT: ${{ inputs.quality-junit-report }}
         
     - name: Remove Storage Firewall Rule
       if: always()
