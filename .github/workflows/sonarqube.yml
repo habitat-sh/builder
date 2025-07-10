@@ -38,7 +38,15 @@ jobs:
       run: |
         echo "##[warning]Waiting for 30 seconds to allow the firewall rule to take effect"
         sleep 30
-      
+
+    - name: Install cargo-tarpaulin
+      run: cargo install cargo-tarpaulin
+
+    - name: Run coverage with Tarpaulin
+      run: |
+        # produce an lcov report under ./coverage/
+        cargo tarpaulin --out Lcov --output-dir coverage
+        
     - name: SonarQube Scan
       uses: sonarsource/sonarqube-scan-action@v5.1.0
       continue-on-error: true
