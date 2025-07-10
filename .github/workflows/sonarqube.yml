@@ -8,8 +8,6 @@ on:
       - 'release/**'
   pull_request:
       types: [opened, synchronize, reopened]
-
-  on:
   workflow_call:
     inputs:
       perform-build: 
