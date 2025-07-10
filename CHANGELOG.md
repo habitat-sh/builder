@@ -1,5 +1,11 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release 20250709 -->
+<!-- latest_release unreleased -->
+## Unreleased
+
+#### Merged Pull Requests
+- Onboard onto Sonar [#1900](https://github.com/habitat-sh/builder/pull/1900) ([dikshagupta1](https://github.com/dikshagupta1))
+<!-- latest_release -->
+
 ## [20250709](https://github.com/habitat-sh/builder/tree/20250709) (2025-07-09)
 
 #### Merged Pull Requests
@@ -27,7 +33,6 @@
 - soft delete origins [#1886](https://github.com/habitat-sh/builder/pull/1886) ([mwrock](https://github.com/mwrock))
 - license key [#1883](https://github.com/habitat-sh/builder/pull/1883) ([sougata-progress](https://github.com/sougata-progress))
 - Removed Plan content from UI and API [#1884](https://github.com/habitat-sh/builder/pull/1884) ([sougata-progress](https://github.com/sougata-progress))
-<!-- latest_release -->
 
 ## [20250403](https://github.com/habitat-sh/builder/tree/20250403) (2025-05-01)
 
