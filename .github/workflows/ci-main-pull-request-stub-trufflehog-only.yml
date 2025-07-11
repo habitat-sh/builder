@@ -83,7 +83,7 @@ jobs:
       # generate and export Software Bill of Materials (SBOM) in various formats
       generate-sbom: true
       export-github-sbom: true      # SPDX JSON artifact on job instance  
-      generate-blackduck-sbom: false   # requires BlackDuck secrets and inputs as above for SAST scanning
+      generate-blackduck-sbom: true # requires BlackDuck secrets and inputs as above for SAST scanning
       generate-msft-sbom: false
       license_scout: false      # Run license scout for license compliance (uses .license_scout.yml)
       
