@@ -19,25 +19,16 @@ export class LicenseRequiredGuard implements CanActivate {
     const licenseFetchInProgress = license && (license.get ? license.get('licenseFetchInProgress') : license.licenseFetchInProgress);
     const isSigningIn = appState.users.current.isSigningIn;
     const isSignedIn = !!appState.session.token;
-    console.log('LicenseRequiredGuard: Checking license for route:', state.url, {
-      isValid: isValid,
-      licenseFetchInProgress: licenseFetchInProgress,
-      isSigningIn: isSigningIn,
-      isSignedIn: isSignedIn
-    });
     // If license fetch is in progress or user is signing in, allow navigation (SignedInGuard handles the redirect)
     if (licenseFetchInProgress || isSigningIn) {
-      console.log('LicenseRequiredGuard: Allowing navigation - license fetch in progress or signing in');
       return true;
     }
     // If user is signed in but license is null, allow navigation (SignedInGuard will fetch license)
     if (isSignedIn && isValid === null) {
-      console.log('LicenseRequiredGuard: User signed in but license not yet fetched - allowing navigation');
       return true;
     }
     // If license is explicitly invalid (false), redirect to profile page
     if (isValid === false) {
-      console.log('LicenseRequiredGuard: License invalid, redirecting to profile');
       if (this.router.url !== '/profile') {
         this.router.navigate(['/profile']);
       }
@@ -45,11 +36,14 @@ export class LicenseRequiredGuard implements CanActivate {
     }
     // If license is valid, allow navigation
     if (isValid === true) {
-      console.log('LicenseRequiredGuard: License valid, allowing navigation');
       return true;
     }
-    // If not signed in and license is null, allow navigation (SignedInGuard will handle redirect to sign-in)
-    console.log('LicenseRequiredGuard: Not signed in - allowing navigation for SignedInGuard to handle');
-    return true;
+
+    // If not signed in, deny navigation (SignedInGuard will handle redirect to sign-in)
+    if (!isSignedIn) {
+      return false;
+    }
+    // Default: deny navigation for unexpected states
+    return false;
   }
 }

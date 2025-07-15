@@ -23,6 +23,7 @@ import config from '../../config';
 export class SignedInGuard implements CanActivate {
   private fetchAttempted = false;
   private signingInPromise: Promise<boolean> = null;
+  private licenseFetchPromise: Promise<void> = null;
 
   constructor(private store: AppStore, private router: Router) { }
 
@@ -31,15 +32,12 @@ export class SignedInGuard implements CanActivate {
     const signedIn = !!state.session.token;
     const signingIn = state.users.current.isSigningIn;
     const signInFailed = state.users.current.failedSignIn;
-    console.log('Guard canActivate called:', {
-      url: routerState.url,
-      signedIn: signedIn,
-      signingIn: signingIn,
-      signInFailed: signInFailed
-    });
-    // Reset fetchAttempted flag to ensure fresh license check on each navigation
-    console.log('Resetting fetchAttempted flag for URL:', routerState.url);
-    this.fetchAttempted = false;
+    // Don't reset fetchAttempted if license fetch is in progress to prevent multiple API calls
+    const license = state.users.current.license;
+    const licenseFetchInProgress = license && (license.get ? license.get('licenseFetchInProgress') : license.licenseFetchInProgress);
+    if (!licenseFetchInProgress && !this.licenseFetchPromise) {
+      this.fetchAttempted = false;
+    }
     if (signedIn) {
       // In SaaS mode, also check license validity for already signed-in users
       if (config.is_saas) {
@@ -64,18 +62,14 @@ export class SignedInGuard implements CanActivate {
         // Get the actual current route from browser location hash
         const hash = window.location.hash;
         const currentPath = hash.replace('#', '');
-        console.log('SigningIn: Checking browser location hash:', hash, 'extracted path:', currentPath);
         if (currentPath && currentPath !== '/' && currentPath !== '/sign-in' && !currentPath.includes('access_token')) {
-          console.log('SigningIn: Saving browser location path as redirect path:', currentPath);
           Browser.setCookie(key, currentPath);
         } else if (routerState.url && routerState.url !== '/' && routerState.url !== '/sign-in') {
-          console.log('SigningIn: Saving router URL as redirect path:', routerState.url);
           Browser.setCookie(key, routerState.url);
         }
       }
       // If already handling sign-in, return the existing promise
       if (this.signingInPromise) {
-        console.log('SignIn already in progress, returning existing promise');
         return this.signingInPromise;
       }
       // Create new promise for sign-in process
@@ -92,11 +86,9 @@ export class SignedInGuard implements CanActivate {
     else {
       return Promise.reject(() => {
         if (routerState.url === '/origins') {
-          console.log('User not signed in, sending home instead of redirecting to sign-in');
           this.sendHome();
         }
         else {
-          console.log('User not signed in, redirecting to sign-in with URL:', routerState.url);
           this.redirectToSignIn(routerState.url);
         }
       })
@@ -110,14 +102,6 @@ export class SignedInGuard implements CanActivate {
     const license = state.users.current.license;
     const isValid = license && (license.get ? license.get('isValid') : license.isValid);
     const licenseFetchInProgress = license && (license.get ? license.get('licenseFetchInProgress') : license.licenseFetchInProgress);
-    // Debug logging
-    console.log('License validation debug:', {
-      license: license,
-      isValid: isValid,
-      licenseFetchInProgress: licenseFetchInProgress,
-      requestedUrl: requestedUrl,
-      fetchAttempted: this.fetchAttempted
-    });
     // If license fetch is in progress, wait for it to complete
     if (licenseFetchInProgress) {
       const unsub = this.store.subscribe(newState => {
@@ -135,27 +119,70 @@ export class SignedInGuard implements CanActivate {
     }
     // If license validity is unknown, fetch it
     if (isValid === null) {
-      console.log('License is null - fetching license');
-      this.fetchAttempted = true;
-      this.store.dispatch(fetchLicenseKey(state.session.token));
-      // Wait for license fetch to complete
-      const unsub = this.store.subscribe(newState => {
-        const newLicense = newState.users.current.license;
-        const newLicenseFetchInProgress = newLicense && (newLicense.get ? newLicense.get('licenseFetchInProgress') : newLicense.licenseFetchInProgress);
-        console.log('License fetch progress changed:', newLicenseFetchInProgress);
-        if (!newLicenseFetchInProgress) {
-          unsub();
-          // Small delay to ensure state is properly updated
+      // If license fetch promise already exists, wait for it
+      if (this.licenseFetchPromise) {
+        this.licenseFetchPromise.then(() => {
           setTimeout(() => {
             this.handleLicenseValidation(resolve, reject, requestedUrl);
           }, 0);
-        }
-      });
-      return;
+        }).catch((error) => {
+          // If license fetch failed, redirect to profile to show license dialog
+          if (requestedUrl !== '/profile') {
+            this.router.navigate(['/profile']);
+          }
+          resolve(true);
+        });
+        return;
+      }
+      if (!this.fetchAttempted) {
+        this.fetchAttempted = true;
+        // Create promise to track license fetch and prevent multiple calls
+        this.licenseFetchPromise = new Promise<void>((resolveFetch, rejectFetch) => {
+          this.store.dispatch(fetchLicenseKey(state.session.token));
+          // Set timeout to prevent infinite waiting
+          const timeout = setTimeout(() => {
+            this.licenseFetchPromise = null;
+            rejectFetch(new Error('License fetch timeout'));
+          }, 10000);
+          // Wait for license fetch to complete
+          const unsub = this.store.subscribe(newState => {
+            const newLicense = newState.users.current.license;
+            const newLicenseFetchInProgress = newLicense && (newLicense.get ? newLicense.get('licenseFetchInProgress') : newLicense.licenseFetchInProgress);
+            if (!newLicenseFetchInProgress) {
+              clearTimeout(timeout);
+              unsub();
+              this.licenseFetchPromise = null;
+              // Check if fetch failed (404 case)
+              const fetchedMessage = newLicense && (newLicense.get ? newLicense.get('fetchedLicenseMessage') : newLicense.fetchedLicenseMessage);
+              const newIsValid = newLicense && (newLicense.get ? newLicense.get('isValid') : newLicense.isValid);
+              // If there's an error message (like 404), treat as no license
+              if (fetchedMessage) {
+                // Mark as invalid to prevent further fetches
+                this.fetchAttempted = true;
+                rejectFetch(new Error(fetchedMessage));
+              } else {
+                resolveFetch();
+              }
+            }
+          });
+        });
+        // Wait for fetch completion then re-validate
+        this.licenseFetchPromise.then(() => {
+          setTimeout(() => {
+            this.handleLicenseValidation(resolve, reject, requestedUrl);
+          }, 0);
+        }).catch((error) => {
+          // If license fetch failed (404), redirect to profile to show license dialog
+          if (requestedUrl !== '/profile') {
+            this.router.navigate(['/profile']);
+          }
+          resolve(true);
+        });
+        return;
+      }
     }
     // If license is still unknown after fetch attempt, redirect to profile
     if (isValid === null && this.fetchAttempted) {
-      console.log('License unknown after fetch - redirecting to profile');
       // Only redirect if not already on profile page
       if (requestedUrl !== '/profile') {
         this.router.navigate(['/profile']);
@@ -165,29 +192,16 @@ export class SignedInGuard implements CanActivate {
     }
     // If license exists, check validity and route accordingly
     if (isValid) {
-      console.log('License is valid - allowing navigation', {
-        requestedUrl: requestedUrl,
-        shouldAllow: requestedUrl && requestedUrl !== '/',
-        willRedirect: !requestedUrl || requestedUrl === '/'
-      });
       // If requesting a specific URL, allow navigation to proceed
       if (requestedUrl && requestedUrl !== '/') {
-        console.log('License valid - allowing navigation to requested URL:', requestedUrl);
         resolve(true);
       } else {
         // Only redirect to /origins when accessing root route
-        console.log('License valid - no specific URL requested, redirecting to /origins');
         this.router.navigate(['/origins']);
         resolve(true);
       }
     } else {
-      // Invalid or expired license, redirect to profile
-      console.log('License is invalid/expired - redirecting to profile', {
-        requestedUrl: requestedUrl,
-        currentUrl: this.router.url,
-        shouldRedirect: requestedUrl !== '/profile'
-      });
-      // Only redirect if not already on profile page
+      // Invalid or expired license, redirect to profile only if not already on profile page
       if (requestedUrl !== '/profile') {
         this.router.navigate(['/profile']);
       }
@@ -200,42 +214,33 @@ export class SignedInGuard implements CanActivate {
       if (state.oauth.token && state.session.token) {
         const name = 'redirectPath';
         let path = Browser.getCookie(name);
-        console.log('HandleSigningIn: Retrieved redirect path from cookie:', path);
         // If no path in cookie, try to get it from browser location first, then current URL
         if (!path) {
           // First try to get the intended destination from browser location hash
           const hash = window.location.hash;
           const hashPath = hash.replace('#', '');
-          console.log('HandleSigningIn: No cookie path, checking browser hash:', hash, 'extracted:', hashPath);
           if (hashPath && hashPath !== '/' && hashPath !== '/sign-in' && !hashPath.includes('access_token')) {
             path = hashPath;
-            console.log('HandleSigningIn: Using browser hash path as redirect path:', path);
           } else {
             // Fallback to current router URL
             const currentUrl = this.router.url;
-            console.log('HandleSigningIn: No valid hash, using current URL:', currentUrl);
             if (currentUrl && currentUrl !== '/' && currentUrl !== '/sign-in') {
               path = currentUrl;
-              console.log('HandleSigningIn: Using current URL as redirect path:', path);
             }
           }
         }
         if (config.is_saas) {
-          console.log('HandleSigningIn: Calling handleLicenseValidation with path:', path);
           // Create wrapper functions that handle navigation and remove the cookie after processing
           const resolveWrapper = (result) => {
             Browser.removeCookie(name);
-            console.log('HandleSigningIn: Cookie removed after successful resolution');
             // If we have a valid redirect path, navigate to it
             if (path && path !== '/') {
-              console.log('HandleSigningIn: Navigating to saved redirect path:', path);
               this.router.navigate([path]);
             }
             resolve(result);
           };
           const rejectWrapper = (error) => {
             Browser.removeCookie(name);
-            console.log('HandleSigningIn: Cookie removed after rejection');
             reject(error);
           };
           this.handleLicenseValidation(resolveWrapper, rejectWrapper, path);
@@ -261,21 +266,14 @@ export class SignedInGuard implements CanActivate {
   }
 
   private redirectToSignIn(url?: string) {
-    console.log('RedirectToSignIn called with URL:', url);
     // Only show the sign-in message for SaaS mode
     if (config['is_saas']) {
       // Save the redirect path for after sign-in
       if (url) {
         const key = 'redirectPath';
-        console.log('RedirectToSignIn: Saving redirect path to cookie:', url);
         if (!Browser.getCookie(key)) {
           Browser.setCookie(key, url);
-          console.log('RedirectToSignIn: Cookie set successfully');
-        } else {
-          console.log('RedirectToSignIn: Cookie already exists:', Browser.getCookie(key));
         }
-      } else {
-        console.log('RedirectToSignIn: No URL provided, not saving redirect path');
       }
       this.router.navigate(['/sign-in'], { queryParams: { message: 'You need to sign-in to access Public Builder' } });
       this.store.dispatch(signOut(false)); // Only clear session, do not navigate

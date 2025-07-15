@@ -90,7 +90,7 @@ export default function users(state = initialState['users'], action) {
         .setIn(['current', 'license', 'licenseKey'], null)
         .setIn(['current', 'license', 'expirationDate'], null)
         .setIn(['current', 'license', 'fetchedLicenseMessage'], action.payload.errorMessage || null)
-        .setIn(['current', 'license', 'isValid'], null);
+        .setIn(['current', 'license', 'isValid'], false); // Set to false instead of null to prevent refetch
 
     default:
       return state;
