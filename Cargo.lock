@@ -351,13 +351,13 @@ dependencies = [
  "habitat_core",
  "lazy_static",
  "log",
- "protobuf",
+ "protobuf 3.7.2",
  "reqwest",
  "serde",
  "serde_derive",
  "serde_json",
  "tempfile",
- "toml 0.5.9",
+ "toml 0.8.19",
  "url",
  "zmq",
 ]
@@ -1174,7 +1174,7 @@ name = "habitat-builder-protocol"
 version = "0.0.0"
 dependencies = [
  "habitat_core",
- "protobuf",
+ "protobuf 3.7.2",
  "protoc-rust",
  "serde",
 ]
@@ -1206,7 +1206,7 @@ dependencies = [
  "oauth-client",
  "openssl",
  "percent-encoding",
- "protobuf",
+ "protobuf 3.7.2",
  "r2d2",
  "rand",
  "regex",
@@ -1241,7 +1241,7 @@ dependencies = [
  "postgres",
  "postgres-shared",
  "postgres-types",
- "protobuf",
+ "protobuf 3.7.2",
  "r2d2",
  "r2d2_postgres",
  "serde",
@@ -1261,7 +1261,7 @@ dependencies = [
  "ctrlc",
  "dirs",
  "dns-lookup",
- "errno 0.2.8",
+ "errno 0.3.9",
  "glob",
  "habitat_win_users",
  "hex 0.4.3",
@@ -1288,7 +1288,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-rustls",
- "toml 0.5.9",
+ "toml 0.8.19",
  "url",
  "webpki",
  "widestring 0.5.1",
@@ -2207,12 +2207,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47c327e191621a2158159df97cdbc2e7074bb4e940275e35abf38eb3d2595754"
 
 [[package]]
+name = "protobuf"
+version = "3.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d65a1d4ddae7d8b5de68153b48f6aa3bba8cb002b243dbdbc55a5afbc98f99f4"
+dependencies = [
+ "once_cell",
+ "protobuf-support",
+ "thiserror",
+]
+
+[[package]]
 name = "protobuf-codegen"
 version = "2.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3df8c98c08bd4d6653c2dbae00bd68c1d1d82a360265a5b0bbc73d48c63cb853"
 dependencies = [
- "protobuf",
+ "protobuf 2.25.2",
+]
+
+[[package]]
+name = "protobuf-support"
+version = "3.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e36c2f31e0a47f9280fb347ef5e461ffcd2c52dd520d8e216b52f93b0b0d7d6"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]
@@ -2231,7 +2251,7 @@ version = "2.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bad71c8404e3e09024fccbab55aae36e3662662167dc4530a242c8cc8ef8d20"
 dependencies = [
- "protobuf",
+ "protobuf 2.25.2",
  "protobuf-codegen",
  "protoc",
  "tempfile",
@@ -3141,7 +3161,6 @@ version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d82e1a7758622a465f8cee077614c73484dac5b836c02ff6a40d5d1010324d7"
 dependencies = [
- "indexmap 1.9.2",
  "serde",
 ]
 
@@ -3151,6 +3170,7 @@ version = "0.8.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1ed1f98e3fdc28d6d910e6737ae6ab1a93bf1985935a1193e68f93eeb68d24e"
 dependencies = [
+ "indexmap 2.2.6",
  "serde",
  "serde_spanned",
  "toml_datetime",
