@@ -26,49 +26,54 @@ import { BuilderEnabledGuard } from '../../shared/guards/builder-enabled.guard';
 import { VisibilityEnabledGuard } from '../../shared/guards/visibility-enabled.guard';
 import { OriginMemberGuard } from '../../shared/guards/origin-member.guard';
 import { SignedInGuard } from '../../shared/guards/signed-in.guard';
+import { LicenseRequiredGuard } from '../../shared/guards/license-required.guard';
 
 const routes: Routes = [
   {
     path: 'origins/:origin',
     component: OriginPageComponent,
+    canActivate: [SignedInGuard, LicenseRequiredGuard],
     children: [
       {
         path: '',
         redirectTo: 'packages',
-        pathMatch: 'full'
+        pathMatch: 'full',
+        canActivate: [SignedInGuard, LicenseRequiredGuard]
       },
       {
         path: 'packages',
-        component: OriginPackagesTabComponent
+        component: OriginPackagesTabComponent,
+        canActivate: [SignedInGuard, LicenseRequiredGuard]
       },
       {
         path: 'keys',
-        component: OriginKeysTabComponent
+        component: OriginKeysTabComponent,
+        canActivate: [SignedInGuard, LicenseRequiredGuard]
       },
       {
         path: 'members',
         component: OriginMembersTabComponent,
-        canActivate: [SignedInGuard, OriginMemberGuard],
+        canActivate: [SignedInGuard, OriginMemberGuard, LicenseRequiredGuard],
       },
       {
         path: 'settings',
         component: OriginSettingsTabComponent,
-        canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard],
+        canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard, LicenseRequiredGuard],
       },
       {
         path: 'integrations',
         component: OriginIntegrationsTabComponent,
-        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
+        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard, LicenseRequiredGuard]
       },
       {
         path: 'jobs',
         component: OriginJobsTabComponent,
-        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
+        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard, LicenseRequiredGuard]
       },
       {
         path: 'jobs/:id',
         component: OriginJobDetailComponent,
-        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard]
+        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard, LicenseRequiredGuard]
       },
       {
         path: '**',

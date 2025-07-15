@@ -37,17 +37,17 @@ const routes: Routes = [
       {
         path: '',
         component: PackageVersionsComponent,
-        canActivate: [LicenseRequiredGuard]
+        canActivate: [SignedInGuard, LicenseRequiredGuard]
       },
       {
         path: 'latest',
         component: PackageLatestComponent,
-        canActivate: [LicenseRequiredGuard]
+        canActivate: [SignedInGuard, LicenseRequiredGuard]
       },
       {
         path: 'latest/:target',
         component: PackageLatestComponent,
-        canActivate: [LicenseRequiredGuard]
+        canActivate: [SignedInGuard, LicenseRequiredGuard]
       },
       {
         path: 'jobs',
@@ -72,12 +72,12 @@ const routes: Routes = [
       {
         path: ':version',
         component: PackageVersionsComponent,
-        canActivate: [LicenseRequiredGuard]
+        canActivate: [SignedInGuard, LicenseRequiredGuard]
       },
       {
         path: ':version/:release',
         component: PackageReleaseComponent,
-        canActivate: [LicenseRequiredGuard]
+        canActivate: [SignedInGuard, LicenseRequiredGuard]
       },
       {
         path: ':version/:release/settings',

@@ -30,7 +30,8 @@ export const routes: Routes = [
   },
   {
     path: '*',
-    redirectTo: '/pkgs/core'
+    redirectTo: '/pkgs/core',
+    canActivate: [SignedInGuard, LicenseRequiredGuard]
   }
 ];
 
