@@ -2,12 +2,12 @@ format_version = 1
 file_descriptor = "Packages needed to run an instance of Builder"
 
 [[x86_64-linux]]
-channel = "stable"
+channel = "acceptance"
 packages = [
   # Supervisor and prerequisites
-  "core/hab-launcher",
-  "core/hab",
-  "core/hab-sup",
+  "chef/hab-launcher",
+  "chef/hab",
+  "chef/hab-sup",
 ]
 
 [[x86_64-linux]]
