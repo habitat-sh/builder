@@ -32,7 +32,7 @@ const routes: Routes = [
   {
     path: 'pkgs/:origin/:name',
     component: PackageComponent,
-    canActivate: [LicenseRequiredGuard],
+    canActivate: [SignedInGuard, LicenseRequiredGuard],
     children: [
       {
         path: '',
