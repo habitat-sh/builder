@@ -38,7 +38,6 @@ export class LicenseRequiredGuard implements CanActivate {
     if (isValid === true) {
       return true;
     }
-
     // If not signed in, deny navigation (SignedInGuard will handle redirect to sign-in)
     if (!isSignedIn) {
       return false;

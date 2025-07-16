@@ -49,13 +49,11 @@ export class SignedInGuard implements CanActivate {
       } else {
         return Promise.resolve(true);
       }
-    }
-    else if (signInFailed) {
+    } else if (signInFailed) {
       return Promise.reject(() => this.redirectToSignIn())
         .catch(next => next())
         .then(() => true);
-    }
-    else if (signingIn) {
+    } else if (signingIn) {
       // Save current URL as potential redirect path if none exists
       const key = 'redirectPath';
       if (!Browser.getCookie(key)) {
@@ -82,13 +80,11 @@ export class SignedInGuard implements CanActivate {
           return true;
         });
       return this.signingInPromise;
-    }
-    else {
+    } else {
       return Promise.reject(() => {
         if (routerState.url === '/origins') {
           this.sendHome();
-        }
-        else {
+        } else {
           this.redirectToSignIn(routerState.url);
         }
       })
