@@ -3,18 +3,14 @@ expeditor:
     buildkite:
       timeout_in_minutes: 30
       env:
-          HAB_BLDR_CHANNEL: LTS-2024
-          HAB_REFRESH_CHANNEL: LTS-2024
-          HAB_FALLBACK_CHANNEL: LTS-2024
-          HAB_STUDIO_SECRET_HAB_BLDR_CHANNEL: LTS-2024
-          HAB_STUDIO_SECRET_HAB_REFRESH_CHANNEL: LTS-2024
-          HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL: LTS-2024
+        HAB_BLDR_CHANNEL: LTS-2024
+        HAB_REFRESH_CHANNEL: LTS-2024
+        HAB_FALLBACK_CHANNEL: LTS-2024
+        HAB_STUDIO_SECRET_HAB_BLDR_CHANNEL: LTS-2024
+        HAB_STUDIO_SECRET_HAB_REFRESH_CHANNEL: LTS-2024
+        HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL: LTS-2024
 
 steps:
-#######################################################################
-# Linting!
-#######################################################################
-
   - label: "[lint] :linux: :bash: Shellcheck"
     command:
       - ./test/shellcheck.sh
@@ -52,10 +48,6 @@ steps:
     expeditor:
       executor:
         docker:
-
-#######################################################################
-# Unit Tests - Linux!
-#######################################################################
 
   - label: "[unit] :linux: builder-api"
     command:
@@ -125,6 +117,7 @@ steps:
         docker:
           privileged: true
           environment:
+            - HAB_AUTH_TOKEN
             - HAB_ORIGIN=habitat
             - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
@@ -141,7 +134,4 @@ steps:
           privileged: true
           environment:
             - HAB_ORIGIN=habitat
-            # The following variables are only set inside `studio` and how we enter
-            # `studio` should not matter.
-            # test test
             - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
