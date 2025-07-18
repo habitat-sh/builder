@@ -1,4 +1,6 @@
-#!/usr/bin/env bash
+# This file (.expeditor/templates/studiorc) is concatenated onto .studiorc when
+# .expeditor/scripts/verify/builder-api-functional.sh runs.  
+
 cd /src || exit
 
 echo "--- Installing prerequisites"
