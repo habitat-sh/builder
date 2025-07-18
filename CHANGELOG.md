@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Fixes verify pipeline and a bit of hygeine [#1919](https://github.com/habitat-sh/builder/pull/1919) ([jasonheath](https://github.com/jasonheath))
 - Onboard onto Sonar [#1900](https://github.com/habitat-sh/builder/pull/1900) ([dikshagupta1](https://github.com/dikshagupta1))
 <!-- latest_release -->
 
