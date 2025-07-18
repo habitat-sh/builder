@@ -14,12 +14,15 @@
 
 import { Routes, RouterModule } from '@angular/router';
 import { SignInPageComponent } from './sign-in-page/sign-in-page.component';
+import { SignedInGuard } from './shared/guards/signed-in.guard';
+import { LicenseRequiredGuard } from './shared/guards/license-required.guard';
 
 export const routes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    redirectTo: 'origins'
+    redirectTo: 'origins',
+    canActivate: [SignedInGuard, LicenseRequiredGuard]
   },
   {
     path: 'sign-in',
@@ -27,7 +30,8 @@ export const routes: Routes = [
   },
   {
     path: '*',
-    redirectTo: '/pkgs/core'
+    redirectTo: '/pkgs/core',
+    canActivate: [SignedInGuard, LicenseRequiredGuard]
   }
 ];
 

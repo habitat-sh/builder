@@ -286,6 +286,11 @@ export function fetchLicenseKey(token: string) {
         if (typeof msg === 'string' && msg.length > 1 && msg[0] === '"' && msg[msg.length - 1] === '"') {
           msg = msg.substring(1, msg.length - 1);
         }
+        // Handle 404 errors specifically for license API
+        if (msg.includes('404') || msg.includes('Not Found')) {
+          // For 404s, we don't need to show an error message to user
+          msg = null;
+        }
         dispatch({
           type: FETCH_LICENSE_KEY_FAILED,
           payload: { errorMessage: msg }
