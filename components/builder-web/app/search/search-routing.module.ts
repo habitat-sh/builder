@@ -16,22 +16,23 @@ import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
 import { SearchComponent } from './search/search.component';
 import { LicenseRequiredGuard } from '../shared/guards/license-required.guard';
+import { SignedInGuard } from '../shared/guards/signed-in.guard';
 
 const routes: Routes = [
   {
     path: 'search',
     component: SearchComponent,
-    canActivate: [LicenseRequiredGuard]
+    canActivate: [SignedInGuard, LicenseRequiredGuard]
   },
   {
     path: 'pkgs/:origin',
     component: SearchComponent,
-    canActivate: [LicenseRequiredGuard]
+    canActivate: [SignedInGuard, LicenseRequiredGuard]
   },
   {
     path: 'pkgs',
     redirectTo: '/pkgs/core',
-    canActivate: [LicenseRequiredGuard]
+    canActivate: [SignedInGuard, LicenseRequiredGuard]
   }
 ];
 
