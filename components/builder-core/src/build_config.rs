@@ -22,6 +22,8 @@ use std::{collections::{HashMap,
           str::FromStr,
           string::ToString};
 
+use serde_json::from_slice;
+
 use serde::{de,
             Deserialize,
             Deserializer,
@@ -41,8 +43,10 @@ pub struct BuildCfg(HashMap<String, ProjectCfg>);
 
 impl BuildCfg {
     pub fn from_slice(bytes: &[u8]) -> Result<Self> {
-        let inner = toml::from_slice::<HashMap<String, ProjectCfg>>(bytes)
-            .map_err(|e| Error::DecryptError(e.to_string()))?;
+        let inner =
+            from_slice::<HashMap<String, ProjectCfg>>(bytes).map_err(|e| {
+                                                                Error::DecryptError(e.to_string())
+                                                            })?;
         Ok(BuildCfg(inner))
     }
 
