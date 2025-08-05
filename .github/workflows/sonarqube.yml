@@ -9,7 +9,7 @@ on:
   pull_request:
       types: [opened, synchronize, reopened]
 
-jobs:
+jobs:   
   SonarQube:
     runs-on: ubuntu-latest
     permissions: 
@@ -38,13 +38,26 @@ jobs:
       run: |
         echo "##[warning]Waiting for 30 seconds to allow the firewall rule to take effect"
         sleep 30
-      
+
     - name: SonarQube Scan
       uses: sonarsource/sonarqube-scan-action@v5.1.0
       continue-on-error: true
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+    - name: Run SonarQube report generation
+      uses: Progress-I360/github-action-reporting/sonarqube@main
+      with:
+        PRODUCT_NAME: Builder
+        SONAR_APP_NAME: Builder
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    - name: Run report generation
+      uses: Progress-I360/github-action-reporting/automation@main
+      with:
+        PRODUCT_NAME: Builder
+        TESTING_TYPE: Unit
         
     - name: Remove Storage Firewall Rule
       if: always()
