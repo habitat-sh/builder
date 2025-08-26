@@ -1,5 +1,3 @@
-# Contributing to Habitat Builder
+# Contributing to a Progress Chef Habitat Project
 
-Thank you for your interest in contributing to Habitat Builder! There are many ways to contribute, and we appreciate all of them.
-
-Please refer to the general contribution guidelines at the [Habitat repo](https://github.com/habitat-sh/habitat/blob/master/CONTRIBUTING.md)
+Thank you for your interest in contributing to this project! It is part of the larger Progress Chef Habitat project. Contribution guidelines can be found at [Contributing to Progress Chef Habitat](https://chef.github.io/chef-oss-practices/projects/habitat/contributing/).
