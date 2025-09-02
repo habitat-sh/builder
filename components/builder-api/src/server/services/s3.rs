@@ -37,20 +37,13 @@ use std::{fmt::Display,
 
 use futures::StreamExt;
 
-use rusoto_s3::{CompleteMultipartUploadRequest,
-                CompletedMultipartUpload,
-                CompletedPart,
-                CreateBucketRequest,
-                CreateMultipartUploadRequest,
-                GetObjectRequest,
-                HeadObjectRequest,
-                PutObjectRequest,
-                S3Client,
-                UploadPartRequest,
-                S3};
-
-use rusoto_core::{HttpClient,
-                  RusotoError};
+use aws_config::meta::region::RegionProviderChain;
+use aws_sdk_s3::{config::{Credentials,
+                          Region},
+                 primitives::ByteStream,
+                 types::{CompletedMultipartUpload,
+                         CompletedPart},
+                 Client as S3Client};
 
 use super::metrics::Counter;
 use crate::{bldr_core::metrics::CounterMetric,
@@ -59,8 +52,6 @@ use crate::{bldr_core::metrics::CounterMetric,
             hab_core::package::{PackageArchive,
                                 PackageIdent,
                                 PackageTarget},
-            rusoto::{credential::StaticProvider,
-                     Region},
             server::error::{Error,
                             Result}};
 
@@ -79,21 +70,41 @@ impl S3Handler {
     // and target information that we should need to perfom
     // any backend operations
     pub fn new(config: S3Cfg) -> Self {
-        let region = match config.backend {
-            S3Backend::Minio => {
-                Region::Custom { name:     "minio_s3".to_owned(),
-                                 endpoint: config.endpoint.to_string(), }
-            }
-            S3Backend::Aws => Region::from_str(config.endpoint.as_str()).unwrap(),
-        };
-        let aws_id = config.key_id;
-        let aws_secret = config.secret_key;
-        let cred_provider = StaticProvider::new_minimal(aws_id, aws_secret);
-        let http_client = match HttpClient::new() {
-            Ok(client) => client,
-            Err(err) => panic!("Unable to create Rusoto http client, err = {}", err),
-        };
-        let client = S3Client::new_with(http_client, cred_provider, region);
+        let client = tokio::runtime::Handle::current().block_on(async {
+                         let (region_name, endpoint_url, force_path_style) = match config.backend {
+                             S3Backend::Minio => {
+                                 ("minio_s3".to_owned(), Some(config.endpoint.to_string()), true)
+                             }
+                             S3Backend::Aws => {
+                                 (String::from_str(config.endpoint.as_str()).unwrap(), None, false)
+                             }
+                         };
+
+                         let creds = Credentials::new(config.key_id.clone(),
+                                                      config.secret_key.clone(),
+                                                      None,
+                                                      None,
+                                                      "static");
+
+                         let region_provider =
+                             RegionProviderChain::first_try(Region::new(region_name.clone()));
+                         let shared = aws_config::from_env().region(region_provider)
+                                                            .credentials_provider(creds)
+                                                            .load()
+                                                            .await;
+
+                         let mut s3_conf_builder = aws_sdk_s3::config::Builder::from(&shared);
+                         if let Some(url) = endpoint_url {
+                             s3_conf_builder = s3_conf_builder.endpoint_url(url);
+                         }
+                         if force_path_style {
+                             s3_conf_builder = s3_conf_builder.force_path_style(true);
+                         }
+                         let s3_conf = s3_conf_builder.build();
+
+                         S3Client::from_conf(s3_conf)
+                     });
+
         let bucket = config.bucket_name;
 
         S3Handler { client, bucket }
@@ -105,7 +116,7 @@ impl S3Handler {
     #[allow(dead_code)]
     async fn bucket_exists(&self) -> Result<bool> {
         let artifactbucket = self.bucket.to_owned();
-        match self.client.list_buckets().await {
+        match self.client.list_buckets().send().await {
             Ok(bucket_list) => {
                 match bucket_list.buckets {
                     Some(buckets) => {
@@ -126,11 +137,12 @@ impl S3Handler {
     // exists in the configured s3 bucket. It should
     // only get called from within an upload future.
     async fn object_exists(&self, object_key: &str) -> Result<()> {
-        let request = HeadObjectRequest { bucket: self.bucket.clone(),
-                                          key: object_key.to_string(),
-                                          ..Default::default() };
+        let request = self.client
+                          .head_object()
+                          .bucket(self.bucket.clone())
+                          .key(object_key.to_string());
 
-        match self.client.head_object(request).await {
+        match request.send().await {
             Ok(object) => {
                 info!("Verified {} was written to minio!", object_key);
                 debug!("Head Object check returned: {:?}", object);
@@ -142,13 +154,12 @@ impl S3Handler {
 
     #[allow(dead_code)]
     pub async fn create_bucket(&self) -> Result<()> {
-        let request = CreateBucketRequest { bucket: self.bucket.clone(),
-                                            ..Default::default() };
+        let request = self.client.create_bucket().bucket(self.bucket.clone());
 
         match self.bucket_exists().await {
             Ok(_) => Ok(()),
             Err(_) => {
-                match self.client.create_bucket(request).await {
+                match request.send().await {
                     Ok(_response) => Ok(()),
                     Err(e) => {
                         debug!("{:?}", e);
@@ -187,12 +198,13 @@ impl S3Handler {
                           target: PackageTarget)
                           -> Result<PackageArchive> {
         Counter::DownloadRequests.increment();
-        let mut request = GetObjectRequest::default();
         let key = s3_key(ident, target)?;
-        self.bucket.clone_into(&mut request.bucket);
-        request.key = key;
+        let request = self.client
+                          .get_object()
+                          .bucket(self.bucket.clone())
+                          .key(key);
 
-        let payload = self.client.get_object(request).await;
+        let payload = request.send().await;
         let body = match payload {
             Ok(response) => response.body,
             Err(e) => {
@@ -201,9 +213,8 @@ impl S3Handler {
                 return Err(Error::PackageDownload(e));
             }
         };
-        let mut body = body.expect("Downloaded object is empty");
 
-        match write_archive(loc, &mut body).await {
+        match write_archive(loc, body).await {
             Ok(result) => Ok(result),
             Err(e) => {
                 warn!("Unable to write file {:?} to archive, err={:?}", loc, e);
@@ -214,20 +225,15 @@ impl S3Handler {
 
     pub async fn size_of(&self, ident: &PackageIdent, target: PackageTarget) -> Result<i64> {
         Counter::SizeRequests.increment();
-        let mut request = HeadObjectRequest::default();
         let key = s3_key(ident, target)?;
-        self.bucket.clone_into(&mut request.bucket);
-        request.key = key;
+        let request = self.client
+                          .head_object()
+                          .bucket(self.bucket.clone())
+                          .key(key);
 
-        let payload = self.client.head_object(request).await;
+        let payload = request.send().await;
         match payload {
-            Ok(response) => {
-                response.content_length.ok_or_else(|| {
-                                           Error::HeadObject(RusotoError::ParseError(String::from(
-                    "Content length parse error",
-                )))
-                                       })
-            }
+            Ok(response) => Ok(response.content_length),
             Err(e) => {
                 warn!("Failed to retrieve object metadata from S3, ident={}: {:?}",
                       ident, e);
@@ -248,12 +254,13 @@ impl S3Handler {
         let bucket = self.bucket.clone();
         let _complete = reader.read_to_end(&mut object).map_err(Error::IO);
 
-        let request = PutObjectRequest { key: key.to_string(),
-                                         bucket,
-                                         body: Some(object.into()),
-                                         ..Default::default() };
+        let request = self.client
+                          .put_object()
+                          .key(key.to_string())
+                          .bucket(bucket)
+                          .body(ByteStream::from(object));
 
-        match self.client.put_object(request).await {
+        match request.send().await {
             Ok(_) => {
                 info!("Upload completed for {} (in {} sec):",
                       path_attr,
@@ -276,11 +283,12 @@ impl S3Handler {
         Counter::MultipartUploadRequests.increment();
         let start_time = Instant::now();
         let mut p: Vec<CompletedPart> = Vec::new();
-        let mprequest = CreateMultipartUploadRequest { key: key.to_string(),
-                                                       bucket: self.bucket.clone(),
-                                                       ..Default::default() };
+        let mprequest = self.client
+                            .create_multipart_upload()
+                            .key(key.to_string())
+                            .bucket(self.bucket.clone());
 
-        match self.client.create_multipart_upload(mprequest).await {
+        match mprequest.send().await {
             Ok(output) => {
                 let mut reader = BufReader::with_capacity(MINLIMIT, hart);
                 let mut part_num: i64 = 0;
@@ -295,18 +303,19 @@ impl S3Handler {
                         }
                         part_num += 1;
 
-                        let request =
-                            UploadPartRequest { key: key.to_string(),
-                                                bucket: self.bucket.clone(),
-                                                upload_id: output.upload_id.clone().unwrap(),
-                                                body: Some(buffer.to_vec().into()),
-                                                part_number: part_num,
-                                                ..Default::default() };
+                        let request = self.client
+                                          .upload_part()
+                                          .key(key.to_string())
+                                          .bucket(self.bucket.clone())
+                                          .upload_id(output.upload_id.clone().unwrap())
+                                          .body(ByteStream::from(buffer.to_vec()))
+                                          .part_number(part_num as i32);
 
-                        match self.client.upload_part(request).await {
+                        match request.send().await {
                             Ok(upo) => {
-                                p.push(CompletedPart { e_tag:       upo.e_tag,
-                                                       part_number: Some(part_num), });
+                                p.push(CompletedPart::builder().set_e_tag(upo.e_tag)
+                                                               .part_number(part_num as i32)
+                                                               .build());
                             }
                             Err(e) => {
                                 debug!("{:?}", e);
@@ -321,17 +330,15 @@ impl S3Handler {
                 }
 
                 let completion =
-                    CompleteMultipartUploadRequest { key:                   key.to_string(),
-                                                     bucket:                self.bucket.clone(),
-                                                     expected_bucket_owner: None,
-                                                     multipart_upload:
-                                                         Some(CompletedMultipartUpload { parts:
-                                                                                             Some(p), }),
-                                                     upload_id:             output.upload_id
-                                                                                  .unwrap(),
-                                                     request_payer:         None, };
+                    self.client
+                        .complete_multipart_upload()
+                        .key(key.to_string())
+                        .bucket(self.bucket.clone())
+                        .upload_id(output.upload_id.unwrap())
+                        .multipart_upload(CompletedMultipartUpload::builder().set_parts(Some(p))
+                                                                             .build());
 
-                match self.client.complete_multipart_upload(completion).await {
+                match completion.send().await {
                     Ok(_) => {
                         info!("Upload completed for {} (in {} sec):",
                               path_attr,
@@ -366,9 +373,7 @@ fn s3_key(ident: &PackageIdent, target: PackageTarget) -> Result<String> {
                hart_name))
 }
 
-async fn write_archive(filename: &Path,
-                       body: &mut rusoto_core::ByteStream)
-                       -> Result<PackageArchive> {
+async fn write_archive(filename: &Path, body: ByteStream) -> Result<PackageArchive> {
     // TODO This is a blocking call, used in async functions
     let mut file = match File::create(filename) {
         Ok(f) => f,
@@ -378,13 +383,21 @@ async fn write_archive(filename: &Path,
             return Err(Error::IO(e));
         }
     };
-    while let Some(bytes) = body.next().await {
-        let bytes = bytes?;
-        if let Err(e) = file.write_all(&bytes) {
-            warn!("Unable to write archive for {:?}, err={:?}", filename, e);
-            return Err(Error::IO(e));
+
+    match body.collect().await {
+        Ok(aggregated) => {
+            let bytes = aggregated.into_bytes();
+            if let Err(e) = file.write_all(&bytes) {
+                warn!("Unable to write archive for {:?}, err={:?}", filename, e);
+                return Err(Error::IO(e));
+            }
+        }
+        Err(e) => {
+            warn!("Failed to read S3 body stream, err={:?}", e);
+            return Err(Error::IO(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())));
         }
     }
+
     Ok(PackageArchive::new(filename)?)
 }
 

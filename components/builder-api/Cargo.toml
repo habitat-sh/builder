@@ -37,10 +37,12 @@ futures = "*"
 rand = "*"
 r2d2 = "*"
 regex = "*"
-rusoto_core = "*"
-rusoto_s3 = "*"
+aws-config = "*"
+aws-sdk-s3 = "*"
 tempfile = "*"
 uuid = { version = "*", features = ["v4"] }
+tokio = { version = "*", features = ["rt", "time"] }
+aws-smithy-types = "*"
 
 [dependencies.actix-web]
 version = "*"

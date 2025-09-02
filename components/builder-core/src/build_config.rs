@@ -32,7 +32,6 @@ use crate::{error::{Error,
                     Result},
             hab_core::package::target::{self,
                                         PackageTarget}};
-
 /// Default branch
 const DEFAULT_BRANCH: &str = "main";
 
@@ -41,8 +40,10 @@ pub struct BuildCfg(HashMap<String, ProjectCfg>);
 
 impl BuildCfg {
     pub fn from_slice(bytes: &[u8]) -> Result<Self> {
-        let inner = toml::from_slice::<HashMap<String, ProjectCfg>>(bytes)
-            .map_err(|e| Error::DecryptError(e.to_string()))?;
+        let inner = toml::from_str::<HashMap<String, ProjectCfg>>(
+            std::str::from_utf8(bytes).map_err(|e| Error::DecryptError(e.to_string()))?,
+        ).map_err(|e| Error::DecryptError(e.to_string()))?;
+
         Ok(BuildCfg(inner))
     }
 
