@@ -15,6 +15,7 @@ use habitat_core as hab_core;
 
 pub mod error;
 pub mod message;
+#[allow(mismatched_lifetime_syntaxes)]
 pub mod originsrv;
 
 pub use crate::error::{ProtocolError,
