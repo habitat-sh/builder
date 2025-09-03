@@ -48,23 +48,23 @@ pub enum Error {
     BadRequest,
     BuilderCore(bldr_core::Error),
     Conflict,
-    CreateBucketError(SdkError<CreateBucketError>),
+    CreateBucketError(Box<SdkError<CreateBucketError>>),
     DbError(db::error::Error),
     DieselError(diesel::result::Error),
     Github(HubError),
     HabitatCore(hab_core::Error),
-    HeadObject(SdkError<HeadObjectError>),
+    HeadObject(Box<SdkError<HeadObjectError>>),
     HttpClient(reqwest::Error),
     InnerError(io::IntoInnerError<io::BufWriter<fs::File>>),
     IO(io::Error),
-    ListBuckets(SdkError<ListBucketsError>),
-    MultipartCompletion(SdkError<CompleteMultipartUploadError>),
-    MultipartUploadReq(SdkError<CreateMultipartUploadError>),
+    ListBuckets(Box<SdkError<ListBucketsError>>),
+    MultipartCompletion(Box<SdkError<CompleteMultipartUploadError>>),
+    MultipartUploadReq(Box<SdkError<CreateMultipartUploadError>>),
     NotFound,
     OAuth(OAuthError),
-    PackageDownload(SdkError<GetObjectError>),
-    PackageUpload(SdkError<PutObjectError>),
-    PartialUpload(SdkError<UploadPartError>),
+    PackageDownload(Box<SdkError<GetObjectError>>),
+    PackageUpload(Box<SdkError<PutObjectError>>),
+    PartialUpload(Box<SdkError<UploadPartError>>),
     PayloadError(actix_web::error::PayloadError),
     Protobuf(protobuf::ProtobufError),
     SerdeJson(serde_json::Error),
@@ -246,4 +246,40 @@ impl From<string::FromUtf8Error> for Error {
 
 impl From<actix_web::error::BlockingError> for Error {
     fn from(err: actix_web::error::BlockingError) -> Error { Error::BlockingError(err) }
+}
+
+impl From<SdkError<CreateBucketError>> for Error {
+    fn from(e: SdkError<CreateBucketError>) -> Self { Error::CreateBucketError(Box::new(e)) }
+}
+
+impl From<SdkError<HeadObjectError>> for Error {
+    fn from(e: SdkError<HeadObjectError>) -> Self { Error::HeadObject(Box::new(e)) }
+}
+
+impl From<SdkError<ListBucketsError>> for Error {
+    fn from(e: SdkError<ListBucketsError>) -> Self { Error::ListBuckets(Box::new(e)) }
+}
+
+impl From<SdkError<CompleteMultipartUploadError>> for Error {
+    fn from(e: SdkError<CompleteMultipartUploadError>) -> Self {
+        Error::MultipartCompletion(Box::new(e))
+    }
+}
+
+impl From<SdkError<CreateMultipartUploadError>> for Error {
+    fn from(e: SdkError<CreateMultipartUploadError>) -> Self {
+        Error::MultipartUploadReq(Box::new(e))
+    }
+}
+
+impl From<SdkError<GetObjectError>> for Error {
+    fn from(e: SdkError<GetObjectError>) -> Self { Error::PackageDownload(Box::new(e)) }
+}
+
+impl From<SdkError<PutObjectError>> for Error {
+    fn from(e: SdkError<PutObjectError>) -> Self { Error::PackageUpload(Box::new(e)) }
+}
+
+impl From<SdkError<UploadPartError>> for Error {
+    fn from(e: SdkError<UploadPartError>) -> Self { Error::PartialUpload(Box::new(e)) }
 }

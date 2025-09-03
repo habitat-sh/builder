@@ -35,8 +35,6 @@ use std::{fmt::Display,
           str::FromStr,
           time::Instant};
 
-use futures::StreamExt;
-
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_s3::{config::{Credentials,
                           Region},
@@ -128,7 +126,7 @@ impl S3Handler {
             }
             Err(e) => {
                 debug!("{:?}", e);
-                Err(Error::ListBuckets(e))
+                Err(e.into())
             }
         }
     }
@@ -148,7 +146,7 @@ impl S3Handler {
                 debug!("Head Object check returned: {:?}", object);
                 Ok(())
             }
-            Err(e) => Err(Error::HeadObject(e)),
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -163,7 +161,7 @@ impl S3Handler {
                     Ok(_response) => Ok(()),
                     Err(e) => {
                         debug!("{:?}", e);
-                        Err(Error::CreateBucketError(e))
+                        Err(e.into())
                     }
                 }
             }
@@ -210,7 +208,7 @@ impl S3Handler {
             Err(e) => {
                 warn!("Failed to retrieve object from S3, ident={}: {:?}",
                       ident, e);
-                return Err(Error::PackageDownload(e));
+                return Err(e.into());
             }
         };
 
@@ -237,7 +235,7 @@ impl S3Handler {
             Err(e) => {
                 warn!("Failed to retrieve object metadata from S3, ident={}: {:?}",
                       ident, e);
-                Err(Error::HeadObject(e))
+                Err(e.into())
             }
         }
     }
@@ -270,7 +268,7 @@ impl S3Handler {
             Err(e) => {
                 Counter::UploadFailures.increment();
                 warn!("Upload failed for {}: ({:?})", path_attr, e);
-                Err(Error::PackageUpload(e))
+                Err(e.into())
             }
         }
     }
@@ -319,7 +317,7 @@ impl S3Handler {
                             }
                             Err(e) => {
                                 debug!("{:?}", e);
-                                return Err(Error::PartialUpload(e));
+                                return Err(e.into());
                             }
                         }
                     }
@@ -347,13 +345,13 @@ impl S3Handler {
                     }
                     Err(e) => {
                         warn!("Upload failed for {}: ({:?})", path_attr, e);
-                        Err(Error::MultipartCompletion(e))
+                        Err(e.into())
                     }
                 }
             }
             Err(e) => {
                 debug!("{:?}", e);
-                Err(Error::MultipartUploadReq(e))
+                Err(e.into())
             }
         }
     }
@@ -394,7 +392,7 @@ async fn write_archive(filename: &Path, body: ByteStream) -> Result<PackageArchi
         }
         Err(e) => {
             warn!("Failed to read S3 body stream, err={:?}", e);
-            return Err(Error::IO(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())));
+            return Err(Error::IO(std::io::Error::other(e.to_string())));
         }
     }
 

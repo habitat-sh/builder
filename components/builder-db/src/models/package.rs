@@ -1097,14 +1097,9 @@ impl ToSql<Text, Pg> for BuilderPackageType {
 
 impl FromSql<Text, Pg> for BuilderPackageType {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
-        let s =
-            std::str::from_utf8(bytes.as_bytes()).map_err(|e| {
-                                                     std::io::Error::new(std::io::ErrorKind::Other,
-                                                                         e)
-                                                 })?;
+        let s = std::str::from_utf8(bytes.as_bytes()).map_err(std::io::Error::other)?;
         Ok(BuilderPackageType::from_str(s).map_err(|_| {
-                                              std::io::Error::new(std::io::ErrorKind::Other,
-                                                                  format!("Invalid ident: {}", s))
+                                              std::io::Error::other(format!("Invalid ident: {}", s))
                                           })?)
     }
 }
@@ -1151,14 +1146,10 @@ impl ToSql<Text, Pg> for BuilderPackageIdent {
 
 impl FromSql<Text, Pg> for BuilderPackageIdent {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
-        let s =
-            std::str::from_utf8(bytes.as_bytes()).map_err(|e| {
-                                                     std::io::Error::new(std::io::ErrorKind::Other,
-                                                                         e)
-                                                 })?;
+        let s = std::str::from_utf8(bytes.as_bytes()).map_err(std::io::Error::other)?;
         Ok(BuilderPackageIdent::from_str(s).map_err(|_| {
-                                               std::io::Error::new(std::io::ErrorKind::Other,
-                                                                   format!("Invalid ident: {}", s))
+                                               std::io::Error::other(format!("Invalid ident: {}",
+                                                                             s))
                                            })?)
     }
 }
@@ -1222,14 +1213,10 @@ impl ToSql<Text, Pg> for BuilderPackageTarget {
 
 impl FromSql<Text, Pg> for BuilderPackageTarget {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
-        let s =
-            std::str::from_utf8(bytes.as_bytes()).map_err(|e| {
-                                                     std::io::Error::new(std::io::ErrorKind::Other,
-                                                                         e)
-                                                 })?;
+        let s = std::str::from_utf8(bytes.as_bytes()).map_err(std::io::Error::other)?;
         Ok(BuilderPackageTarget::from_str(s).map_err(|_| {
-                                                std::io::Error::new(std::io::ErrorKind::Other,
-                                                                    format!("Invalid ident: {}", s))
+                                                std::io::Error::other(format!("Invalid ident: {}",
+                                                                              s))
                                             })?)
     }
 }
