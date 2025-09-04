@@ -23,7 +23,7 @@ To learn more about Habitat, please visit the [Habitat website](https://www.habi
 
 ## Building
 
-See [DEVELOPING.md](DEVELOPING.md) for information on setting up a Builder Dev Environment
+See [DEVELOPING.md](dev-docs/dev-environment.md) for information on setting up a Builder Dev Environment
 
 ## Contribute
 
