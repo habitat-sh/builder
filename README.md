@@ -13,8 +13,6 @@ If you are looking for on-premise installation, please visit [On-Premise Builder
 
 To learn more about Habitat, please visit the [Habitat website](https://www.habitat.sh).
 
-**Umbrella Project**: [Habitat](https://github.com/habitat-sh/habitat)
-
 ## Building
 
 See [DEVELOPING.md](dev-docs/dev-environment.md) for information on setting up a Builder Dev Environment
