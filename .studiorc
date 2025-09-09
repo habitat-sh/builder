@@ -235,8 +235,7 @@ _stop-builder() {
 stop-builder() { stop-on-failure _stop-builder "$@"; }
 
 generate_bldr_keys() {
-  ls "/hab/cache/keys/hab"
-  printenv
+  hab --version
   mapfile -t keys < <(find /hab/cache/keys -name "bldr-*.pub")
 
   if [ "${#keys[@]}" -gt 0 ]; then
