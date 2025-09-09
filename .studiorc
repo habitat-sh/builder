@@ -235,7 +235,7 @@ _stop-builder() {
 stop-builder() { stop-on-failure _stop-builder "$@"; }
 
 generate_bldr_keys() {
-  ls "/hab/cache/keys"
+  ls "/hab/cache/keys/hab"
   printenv
   mapfile -t keys < <(find /hab/cache/keys -name "bldr-*.pub")
 
@@ -248,7 +248,7 @@ generate_bldr_keys() {
   fi
 
   echo "uploading keys"
-  ls "/hab/cache/keys"
+  ls "/hab/cache/keys/hab"
   hab file upload "builder-api.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.pub"
   hab file upload "builder-api.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.box.key"
 }
