@@ -245,6 +245,8 @@ generate_bldr_keys() {
     echo "Generated new builder key: $KEY_NAME"
   fi
 
+  echo "uploading keys"
+  ls "/hab/cache/keys"
   hab file upload "builder-api.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.pub"
   hab file upload "builder-api.default" "$(date +%s)" "/hab/cache/keys/${KEY_NAME}.box.key"
 }
