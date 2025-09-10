@@ -35,7 +35,6 @@ use std::{fmt::Display,
           str::FromStr,
           time::Instant};
 
-use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_s3::{config::{Credentials,
                           Region},
                  primitives::ByteStream,
@@ -68,41 +67,34 @@ impl S3Handler {
     // and target information that we should need to perfom
     // any backend operations
     pub fn new(config: S3Cfg) -> Self {
-        let client = tokio::runtime::Handle::current().block_on(async {
-                         let (region_name, endpoint_url, force_path_style) = match config.backend {
-                             S3Backend::Minio => {
-                                 ("minio_s3".to_owned(), Some(config.endpoint.to_string()), true)
-                             }
-                             S3Backend::Aws => {
-                                 (String::from_str(config.endpoint.as_str()).unwrap(), None, false)
-                             }
-                         };
+        let (region_name, endpoint_url, force_path_style) = match config.backend {
+            S3Backend::Minio => ("minio_s3".to_owned(), Some(config.endpoint.to_string()), true),
+            S3Backend::Aws => (String::from_str(config.endpoint.as_str()).unwrap(), None, false),
+        };
 
-                         let creds = Credentials::new(config.key_id.clone(),
-                                                      config.secret_key.clone(),
-                                                      None,
-                                                      None,
-                                                      "static");
+        let creds = Credentials::new(config.key_id.clone(),
+                                     config.secret_key.clone(),
+                                     None,
+                                     None,
+                                     "static");
 
-                         let region_provider =
-                             RegionProviderChain::first_try(Region::new(region_name.clone()));
-                         let shared = aws_config::from_env().region(region_provider)
-                                                            .credentials_provider(creds)
-                                                            .load()
-                                                            .await;
+        // Create a specific Region instance instead of using RegionProviderChain
+        let region = Region::new(region_name);
 
-                         let mut s3_conf_builder = aws_sdk_s3::config::Builder::from(&shared);
-                         if let Some(url) = endpoint_url {
-                             s3_conf_builder = s3_conf_builder.endpoint_url(url);
-                         }
-                         if force_path_style {
-                             s3_conf_builder = s3_conf_builder.force_path_style(true);
-                         }
-                         let s3_conf = s3_conf_builder.build();
+        // Create configuration synchronously
+        let mut s3_conf_builder = aws_sdk_s3::config::Builder::new().region(region)
+                                                                    .credentials_provider(creds);
 
-                         S3Client::from_conf(s3_conf)
-                     });
+        // Apply endpoint URL and path style settings if needed
+        if let Some(url) = endpoint_url {
+            s3_conf_builder = s3_conf_builder.endpoint_url(url);
+        }
+        if force_path_style {
+            s3_conf_builder = s3_conf_builder.force_path_style(true);
+        }
 
+        let s3_conf = s3_conf_builder.build();
+        let client = S3Client::from_conf(s3_conf);
         let bucket = config.bucket_name;
 
         S3Handler { client, bucket }
