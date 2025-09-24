@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- CODEOWNERS maintainence [#1930](https://github.com/habitat-sh/builder/pull/1930) ([jasonheath](https://github.com/jasonheath))
 - Bump form-data from 2.3.1 to 2.5.5 in /test/builder-api [#1921](https://github.com/habitat-sh/builder/pull/1921) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - replaced rusoto with aws-sdk [#1926](https://github.com/habitat-sh/builder/pull/1926) ([sougata-progress](https://github.com/sougata-progress))
 - CHEF-23586: Update license handling for SaaS users [#1920](https://github.com/habitat-sh/builder/pull/1920) ([agmathur](https://github.com/agmathur))
