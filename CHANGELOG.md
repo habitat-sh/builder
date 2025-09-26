@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- CHEF-25524 - Standardize - spurious_file_check - modify [#1925](https://github.com/habitat-sh/builder/pull/1925) ([Saburesh07](https://github.com/Saburesh07))
 - CODEOWNERS maintainence [#1930](https://github.com/habitat-sh/builder/pull/1930) ([jasonheath](https://github.com/jasonheath))
 - Bump form-data from 2.3.1 to 2.5.5 in /test/builder-api [#1921](https://github.com/habitat-sh/builder/pull/1921) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - replaced rusoto with aws-sdk [#1926](https://github.com/habitat-sh/builder/pull/1926) ([sougata-progress](https://github.com/sougata-progress))
