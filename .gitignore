@@ -8,7 +8,8 @@
 *.swp
 .tags*
 .vagrant/
-.vscode
+.vscode/*
+!.vscode/mcp.json
 /target
 dump.rdb
 log/
