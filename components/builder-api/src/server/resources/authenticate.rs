@@ -49,11 +49,12 @@ async fn authenticate(path: Path<String>, state: Data<AppState>) -> HttpResponse
 
     match do_authenticate(&code, &state).await {
         Ok(session) => HttpResponse::Ok().json(session),
-        Err(Error::OAuth(OAuthError::HttpResponse(_code, _response))) => {
-            HttpResponse::new(StatusCode::UNAUTHORIZED)
+        Err(Error::OAuth(OAuthError::HttpResponse(_code, response))) => {
+            // Include the oauth provider error response in the HTTP response
+            HttpResponse::build(StatusCode::UNAUTHORIZED).body(response)
         }
         Err(e) => {
-            warn!("Oauth client error, {:?}", e);
+            warn!("OAuth client error, {:?}", e);
             e.into()
         }
     }
