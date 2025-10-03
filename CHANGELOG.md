@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- do not swallow oauth provider errors. let their light shine [#1932](https://github.com/habitat-sh/builder/pull/1932) ([mwrock](https://github.com/mwrock))
 - copilot instructions [#1931](https://github.com/habitat-sh/builder/pull/1931) ([dikshagupta1](https://github.com/dikshagupta1))
 - CHEF-25524 - Standardize - spurious_file_check - modify [#1925](https://github.com/habitat-sh/builder/pull/1925) ([Saburesh07](https://github.com/Saburesh07))
 - CODEOWNERS maintainence [#1930](https://github.com/habitat-sh/builder/pull/1930) ([jasonheath](https://github.com/jasonheath))
