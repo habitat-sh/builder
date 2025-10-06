@@ -1,8 +1,9 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release unreleased -->
-## Unreleased
+<!-- latest_release 20251009 -->
+## [20251009](https://github.com/habitat-sh/builder/tree/20251009) (2025-10-06)
 
 #### Merged Pull Requests
+- bump release version to 20251009 [#1933](https://github.com/habitat-sh/builder/pull/1933) ([mwrock](https://github.com/mwrock))
 - do not swallow oauth provider errors. let their light shine [#1932](https://github.com/habitat-sh/builder/pull/1932) ([mwrock](https://github.com/mwrock))
 - copilot instructions [#1931](https://github.com/habitat-sh/builder/pull/1931) ([dikshagupta1](https://github.com/dikshagupta1))
 - CHEF-25524 - Standardize - spurious_file_check - modify [#1925](https://github.com/habitat-sh/builder/pull/1925) ([Saburesh07](https://github.com/Saburesh07))
