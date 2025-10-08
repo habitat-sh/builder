@@ -1,5 +1,0 @@
-logs:
-  - type: file
-    path: /var/log/syslog
-    service: syslog
-    source: syslog
