@@ -1,14 +1,9 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release unreleased -->
-## Unreleased
+<!-- latest_release 20251014 -->
+## [20251014](https://github.com/habitat-sh/builder/tree/20251014) (2025-10-13)
 
 #### Merged Pull Requests
 - updated the footer with text provided by legal [#1934](https://github.com/habitat-sh/builder/pull/1934) ([mwrock](https://github.com/mwrock))
-<!-- latest_release -->
-
-## [20251009](https://github.com/habitat-sh/builder/tree/20251009) (2025-10-06)
-
-#### Merged Pull Requests
 - bump release version to 20251009 [#1933](https://github.com/habitat-sh/builder/pull/1933) ([mwrock](https://github.com/mwrock))
 - do not swallow oauth provider errors. let their light shine [#1932](https://github.com/habitat-sh/builder/pull/1932) ([mwrock](https://github.com/mwrock))
 - copilot instructions [#1931](https://github.com/habitat-sh/builder/pull/1931) ([dikshagupta1](https://github.com/dikshagupta1))
@@ -19,6 +14,7 @@
 - CHEF-23586: Update license handling for SaaS users [#1920](https://github.com/habitat-sh/builder/pull/1920) ([agmathur](https://github.com/agmathur))
 - Fixes verify pipeline and a bit of hygeine [#1919](https://github.com/habitat-sh/builder/pull/1919) ([jasonheath](https://github.com/jasonheath))
 - Onboard onto Sonar [#1900](https://github.com/habitat-sh/builder/pull/1900) ([dikshagupta1](https://github.com/dikshagupta1))
+<!-- latest_release -->
 
 ## [20250709](https://github.com/habitat-sh/builder/tree/20250709) (2025-07-09)
 
