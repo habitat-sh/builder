@@ -1,5 +1,26 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release 20251014 -->
+<!-- latest_release unreleased -->
+## Unreleased
+
+#### Merged Pull Requests
+- bump crossbeam to eliminate CVE [#1938](https://github.com/habitat-sh/builder/pull/1938) ([mwrock](https://github.com/mwrock))
+<!-- latest_release -->
+
+## Unreleased
+
+#### Merged Pull Requests
+- bump version to 20251014 [#1935](https://github.com/habitat-sh/builder/pull/1935) ([mwrock](https://github.com/mwrock))
+
+## Unreleased
+
+#### Merged Pull Requests
+- also bump version in the GH action stub [#1936](https://github.com/habitat-sh/builder/pull/1936) ([mwrock](https://github.com/mwrock))
+
+## Unreleased
+
+#### Merged Pull Requests
+- update changelog [#1937](https://github.com/habitat-sh/builder/pull/1937) ([mwrock](https://github.com/mwrock))
+
 ## [20251014](https://github.com/habitat-sh/builder/tree/20251014) (2025-10-13)
 
 #### Merged Pull Requests
@@ -14,7 +35,6 @@
 - CHEF-23586: Update license handling for SaaS users [#1920](https://github.com/habitat-sh/builder/pull/1920) ([agmathur](https://github.com/agmathur))
 - Fixes verify pipeline and a bit of hygeine [#1919](https://github.com/habitat-sh/builder/pull/1919) ([jasonheath](https://github.com/jasonheath))
 - Onboard onto Sonar [#1900](https://github.com/habitat-sh/builder/pull/1900) ([dikshagupta1](https://github.com/dikshagupta1))
-<!-- latest_release -->
 
 ## [20250709](https://github.com/habitat-sh/builder/tree/20250709) (2025-07-09)
 
