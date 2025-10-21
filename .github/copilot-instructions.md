@@ -61,7 +61,12 @@ When a Jira ID is provided, use the **atlassian-mcp-server** MCP server to:
 
 ### Branch Creation and PR Process
 1. **Branch Naming**: Use the Jira ID as the branch name (e.g., `JIRA-1234`)
-2. **Use GitHub CLI for all Git operations**:
+2. **Create ai-assisted label**: Ensure the ai-assisted label exists in the repository:
+   ```bash
+   gh label create "ai-assisted" --color "9A4DFF" --description "Work completed with AI assistance following Progress AI policies" --force
+   ```
+
+3. **Use GitHub CLI for all Git operations**:
    ```bash
    # Create and switch to new branch
    gh repo clone habitat-sh/builder
@@ -77,7 +82,7 @@ When a Jira ID is provided, use the **atlassian-mcp-server** MCP server to:
    gh pr create --title "JIRA-1234: Brief description" --body "$(cat pr_description.html)"
    ```
 
-3. **PR Description Format**: Use HTML tags for formatting:
+4. **PR Description Format**: Use HTML tags for formatting:
    ```html
    <h2>Summary</h2>
    <p>Brief summary of changes made</p>
@@ -94,11 +99,15 @@ When a Jira ID is provided, use the **atlassian-mcp-server** MCP server to:
    
    <h2>Jira Issue</h2>
    <p>Implements requirements from JIRA-1234</p>
+   
+   <h2>AI Assistance</h2>
+   <p>This work was completed with AI assistance following Progress AI policies</p>
    ```
 
-4. **Add PR Label**: Always add the label `runtest:all:stable` to the PR:
+5. **Add PR Labels**: Always add the required labels to the PR:
    ```bash
    gh pr edit --add-label "runtest:all:stable"
+   gh pr edit --add-label "ai-assisted"
    ```
 
 ## Prompt-Based Development Workflow
@@ -136,7 +145,14 @@ All tasks must be performed using a prompt-based approach with user confirmation
 - Push to remote repository
 - Create PR with HTML-formatted description
 - Add required labels
-- **Prompt**: "PR created successfully: [PR URL]. Workflow complete. Any additional steps needed?"
+- **Prompt**: "PR created successfully: [PR URL]. Next step: Update JIRA Ticket. Continue?"
+
+#### Step 6: Update JIRA Ticket (Mandatory)
+- Use atlassian-mcp-server to update the JIRA ticket
+- Set customfield_11170 ("Does this Work Include AI Assisted Code?") to "Yes"
+- Use correct field format: `{"customfield_11170": {"value": "Yes"}}`
+- Verify the field update was successful
+- **Prompt**: "JIRA ticket updated successfully with AI assistance field. Workflow complete. Any additional steps needed?"
 
 ### Ask for Continuation
 After each step, always:
@@ -201,6 +217,7 @@ All tasks will be performed on the local repository. Use the following for setup
 4. **Test** → Create comprehensive tests (>80% coverage)
 5. **Review** → Ensure no prohibited files modified
 6. **PR** → Create branch, commit, push, and create PR with proper labels
-7. **Validate** → Confirm all requirements met
+7. **Update JIRA** → Set AI assistance field using atlassian-mcp-server (Mandatory)
+8. **Validate** → Confirm all requirements met
 
 Remember: Always ask for user confirmation before proceeding to the next step, and provide clear summaries of progress and remaining work.
