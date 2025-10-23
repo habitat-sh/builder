@@ -137,12 +137,7 @@ main {
 
   .full &, .sign-in & {
     background: transparent;
-  }
-
-  @include tablet-up {
-    .sign-in & {
-      margin-top: 192px;
-    }
+    overflow-y: unset;
   }
 
   .menu-toggle {
