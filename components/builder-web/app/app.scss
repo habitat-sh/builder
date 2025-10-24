@@ -134,16 +134,10 @@ main {
   left: 0;
   background-color: $white;
   overflow-y: auto;
-  margin-bottom: 30px;
 
   .full &, .sign-in & {
     background: transparent;
-  }
-
-  @include tablet-up {
-    .sign-in & {
-      margin-top: 192px;
-    }
+    overflow-y: unset;
   }
 
   .menu-toggle {
@@ -221,11 +215,7 @@ main {
 }
 
 footer {
-  $menu-width: 224px;
-  position: fixed;
-  left: $menu-width;
   z-index: 100;
-  right: 0;
   bottom: 0;
   color: currentcolor;
   text-align: left;
