@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- fix footer styling [#1939](https://github.com/habitat-sh/builder/pull/1939) ([mwrock](https://github.com/mwrock))
 - bump crossbeam to eliminate CVE [#1938](https://github.com/habitat-sh/builder/pull/1938) ([mwrock](https://github.com/mwrock))
 <!-- latest_release -->
 
