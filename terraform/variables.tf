@@ -111,8 +111,8 @@ variable "connection_private_key" {
   description = "File path to AWS keypair private key"
 }
 
-variable "datadog_api_key" {
-  description = "API key for the DataDog agent"
+variable "automox_api_key" {
+  description = "API key for the Automox agent"
 }
 
 variable "instance_size_api" {
@@ -167,4 +167,9 @@ variable "enabled_features" {
 
 variable "connection_public_key" {
   description = "Content of public key to use for SSH authentication to windows builder"
+}
+variable "production" {
+  description = "Is this the production environment?"
+  type        = bool
+  default     = false
 }

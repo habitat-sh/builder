@@ -25,6 +25,11 @@ resource "aws_security_group" "datastore" {
     X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
+    X-Production  = var.production
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
   }
 }
 
@@ -38,6 +43,11 @@ resource "aws_security_group" "datastore_client" {
     X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
+    X-Production  = var.production
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
   }
 }
 
@@ -85,6 +95,11 @@ resource "aws_security_group" "gateway" {
     X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
+    X-Production  = var.production
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
   }
 }
 
@@ -112,6 +127,11 @@ resource "aws_security_group" "gateway_elb" {
     X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
+    X-Production  = var.production
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
   }
 }
 
@@ -145,6 +165,11 @@ resource "aws_security_group" "jobsrv" {
     X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
+    X-Production  = var.production
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
   }
 }
 
@@ -158,6 +183,11 @@ resource "aws_security_group" "jobsrv_client" {
     X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
+    X-Production  = var.production
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
   }
 }
 
@@ -177,6 +207,11 @@ resource "aws_security_group" "service" {
     X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
+    X-Production  = var.production
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
   }
 }
 
@@ -196,6 +231,11 @@ resource "aws_security_group" "worker" {
     X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
+    X-Production  = var.production
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
   }
 }
 
@@ -215,6 +255,11 @@ resource "aws_security_group" "worker_studio" {
     X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
+    X-Production  = var.production
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
   }
 }
 

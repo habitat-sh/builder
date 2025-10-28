@@ -31,6 +31,11 @@ resource "aws_elb" "api" {
     X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
+    X-Production  = var.production
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
   }
 
   access_logs {

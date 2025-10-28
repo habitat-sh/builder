@@ -1,11 +1,6 @@
 ////////////////////////////////
 // Front-end Instances
 
-provider "aws" {
-  region  = var.aws_region
-  profile = "habitat"
-}
-
 locals {
   # We have a few instances that run on Linux, and all should have the
   # same SystemD unit file. We declare it here to keep things DRY.
@@ -38,7 +33,6 @@ locals {
       worker_release_channel = var.worker_release_channel
       enabled_features       = var.enabled_features
       authorized_keys        = var.connection_public_key
-      datadog_api_key        = var.datadog_api_key
     })
 }
 
@@ -79,7 +73,7 @@ resource "aws_instance" "api" {
   ebs_block_device {
     device_name = "/dev/xvdf"
     volume_size = 100
-    volume_type = "gp2"
+    volume_type = "gp3"
   }
 
   provisioner "file" {
@@ -95,10 +89,22 @@ resource "aws_instance" "api" {
 
   provisioner "remote-exec" {
     inline = [
+      "sudo apt install awscli -y",
       "wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -O /tmp/amazon-cloudwatch-agent.deb",
       "sudo dpkg -i -E /tmp/amazon-cloudwatch-agent.deb",
       "sudo systemctl enable amazon-cloudwatch-agent",
-      "sudo systemctl start amazon-cloudwatch-agent"
+      "sudo systemctl start amazon-cloudwatch-agent",
+      "wget https://console.automox.com/installers/amagent_latest_amd64.systemd.deb -O /tmp/amagent_latest_amd64.deb",
+      "sudo dpkg -i -E /tmp/amagent_latest_amd64.deb",
+      "AutomoxKey=${var.automox_api_key}",
+      "/opt/amagent/amagent --setkey $AutomoxKey",
+      "/opt/amagent/amagent --setgrp \"Default Group/Builder\"",
+      "systemctl restart amagent",
+      "sleep 10",
+      "systemctl stop amagent",
+      "sleep 10",
+      "/opt/amagent/amagent --deregister",
+      "systemctl start amagent"
     ]
   }
 
@@ -165,6 +171,11 @@ resource "aws_instance" "api" {
     X-Environment = var.env
     X-Application = "builder"
     X-ManagedBy   = "Terraform"
+    X-Production  = var.production
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
   }
 }
 
