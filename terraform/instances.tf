@@ -73,6 +73,7 @@ resource "aws_instance" "api" {
   ebs_block_device {
     device_name = "/dev/xvdf"
     volume_size = 100
+    encrypted   = true
     volume_type = "gp3"
   }
 
