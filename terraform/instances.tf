@@ -36,12 +36,57 @@ locals {
     })
 }
 
+resource "aws_iam_role" "builder_role" {
+  name = "builder_iam_role"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Action": "sts:AssumeRole",
+    "Principal": {
+      "Service": "ec2.amazonaws.com"
+    },
+    "Effect": "Allow"
+  }]
+}
+EOF
+
+  tags = {
+    Name          = "builder-role"
+    X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
+    X-Environment = var.env
+    X-Application = "builder"
+    X-ManagedBy   = "Terraform"
+    X-Production  = var.production
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
+
+  }
+}
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role = aws_iam_role.builder_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+resource "aws_iam_role_policy_attachment" "cloudwatch" {
+  role = aws_iam_role.builder_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "builder_profile" {
+  name = "builder_profile"
+  role = aws_iam_role.builder_role.name
+}
+
 resource "aws_instance" "api" {
   ami           = var.aws_ami[var.aws_region]
   instance_type = var.instance_size_api
   key_name      = var.aws_key_pair
-  subnet_id     = var.public_subnet_id
+  subnet_id     = var.private_subnet_id
   count         = var.api_count
+  iam_instance_profile = aws_iam_instance_profile.builder_profile.name
 
   lifecycle {
     ignore_changes = ["ami", "tags", "instance_type"]
@@ -68,6 +113,8 @@ resource "aws_instance" "api" {
 
   root_block_device {
     volume_size = 20
+    volume_type = "gp3"
+    encrypted = true
   }
 
   ebs_block_device {
@@ -89,26 +136,10 @@ resource "aws_instance" "api" {
   }
 
   provisioner "remote-exec" {
-    inline = [
-      "sudo apt install awscli -y",
-      "wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -O /tmp/amazon-cloudwatch-agent.deb",
-      "sudo dpkg -i -E /tmp/amazon-cloudwatch-agent.deb",
-      "sudo systemctl enable amazon-cloudwatch-agent",
-      "sudo systemctl start amazon-cloudwatch-agent",
-      "wget https://console.automox.com/installers/amagent_latest_amd64.systemd.deb -O /tmp/amagent_latest_amd64.deb",
-      "sudo dpkg -i -E /tmp/amagent_latest_amd64.deb",
-      "AutomoxKey=${var.automox_api_key}",
-      "/opt/amagent/amagent --setkey $AutomoxKey",
-      "/opt/amagent/amagent --setgrp \"Default Group/Builder\"",
-      "systemctl restart amagent",
-      "sleep 10",
-      "systemctl stop amagent",
-      "sleep 10",
-      "/opt/amagent/amagent --deregister",
-      "systemctl start amagent"
-    ]
+    scripts = [ 
+      "${path.module}/scripts/monitoring.sh"
+     ]
   }
-
   provisioner "file" {
     source      = "${path.module}/files/cloudwatch-agent-config.json"
     destination = "/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json"
@@ -121,6 +152,7 @@ resource "aws_instance" "api" {
   provisioner "remote-exec" {
     inline = [
       "sudo cp /tmp/nginx.logrotate /etc/logrotate.d/nginx",
+      "AutomoxKey=${var.automox_api_key}",
       "/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json",
       "sudo systemctl restart amazon-cloudwatch-agent"
     ]
