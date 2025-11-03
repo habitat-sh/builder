@@ -36,57 +36,13 @@ locals {
     })
 }
 
-resource "aws_iam_role" "builder_role" {
-  name = "builder_iam_role"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Action": "sts:AssumeRole",
-    "Principal": {
-      "Service": "ec2.amazonaws.com"
-    },
-    "Effect": "Allow"
-  }]
-}
-EOF
-
-  tags = {
-    Name          = "builder-role"
-    X-Contact     = "The Habitat Maintainers <humans@habitat.sh>"
-    X-Environment = var.env
-    X-Application = "builder"
-    X-ManagedBy   = "Terraform"
-    X-Production  = var.production
-    team          = "cloudclub"
-    application   = "builder"
-    owner         = "chef-ops-list@progress.com"
-    expiration    = "2025.12.31"
-
-  }
-}
-resource "aws_iam_role_policy_attachment" "ssm" {
-  role = aws_iam_role.builder_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-resource "aws_iam_role_policy_attachment" "cloudwatch" {
-  role = aws_iam_role.builder_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-resource "aws_iam_instance_profile" "builder_profile" {
-  name = "builder_profile"
-  role = aws_iam_role.builder_role.name
-}
-
 resource "aws_instance" "api" {
   ami           = var.aws_ami[var.aws_region]
   instance_type = var.instance_size_api
   key_name      = var.aws_key_pair
   subnet_id     = var.private_subnet_id
   count         = var.api_count
-  iam_instance_profile = aws_iam_instance_profile.builder_profile.name
+  iam_instance_profile = var.aws_instance_profile.name
 
   lifecycle {
     ignore_changes = ["ami", "tags", "instance_type"]

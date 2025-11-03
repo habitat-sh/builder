@@ -173,3 +173,7 @@ variable "production" {
   type        = bool
   default     = false
 }
+
+variable "aws_instance_profile" {
+  description = "AWS IAM instance profile for instances"
+}

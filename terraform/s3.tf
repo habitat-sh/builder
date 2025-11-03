@@ -24,6 +24,10 @@ resource "aws_s3_bucket" "jobs" {
     Name          = "habitat-jobs-${var.env}"
     X-Environment = var.env
     X-ManagedBy   = "Terraform"
+    team          = "cloudclub"
+    application   = "builder"
+    owner         = "chef-ops-list@progress.com"
+    expiration    = "2025.12.31"
   }
 }
 
