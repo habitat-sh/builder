@@ -648,7 +648,11 @@ impl Package {
                 all_rows.into_iter().unique().collect();
             let start = ((page.saturating_sub(1)) * limit) as usize;
             let end = (start + limit as usize).min(unique_rows.len());
-            unique_rows[start..end].to_vec()
+            if start >= unique_rows.len() {
+                vec![]
+            } else {
+                unique_rows[start..end].to_vec()
+            }
         };
 
         // helpful trick when debugging queries, this has Debug trait:
@@ -881,8 +885,8 @@ impl Package {
 
         let mut count_query = origin_packages::table.into_boxed();
         count_query = count_query
-        .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
-        .filter(origin_packages::hidden.eq(false));
+            .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+            .filter(origin_packages::hidden.eq(false));
 
         if let Some(session_id) = sp.account_id {
             let owned_origins =
@@ -890,11 +894,11 @@ impl Package {
                                      .filter(origin_members::account_id.eq(session_id));
 
             count_query = count_query.filter(
-            origin_packages::visibility
-                .eq_any(PackageVisibility::private())
-                .and(origin_packages::origin.eq_any(owned_origins))
-                .or(origin_packages::visibility.eq(PackageVisibility::Public)),
-        );
+                origin_packages::visibility
+                    .eq_any(PackageVisibility::private())
+                    .and(origin_packages::origin.eq_any(owned_origins))
+                    .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+            );
         } else {
             count_query =
                 count_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
@@ -904,8 +908,8 @@ impl Package {
 
         let mut page_query = origin_packages::table.into_boxed();
         page_query = page_query
-        .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
-        .filter(origin_packages::hidden.eq(false));
+            .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+            .filter(origin_packages::hidden.eq(false));
 
         if let Some(session_id) = sp.account_id {
             let owned_origins =
@@ -913,11 +917,11 @@ impl Package {
                                      .filter(origin_members::account_id.eq(session_id));
 
             page_query = page_query.filter(
-            origin_packages::visibility
-                .eq_any(PackageVisibility::private())
-                .and(origin_packages::origin.eq_any(owned_origins))
-                .or(origin_packages::visibility.eq(PackageVisibility::Public)),
-        );
+                origin_packages::visibility
+                    .eq_any(PackageVisibility::private())
+                    .and(origin_packages::origin.eq_any(owned_origins))
+                    .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+            );
         } else {
             page_query =
                 page_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
@@ -948,18 +952,18 @@ impl Package {
         let start_time = Instant::now();
 
         let mut count_query = origin_packages::table
-        .inner_join(origins::table)
-        .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
-        .filter(origin_packages::hidden.eq(false))
-        .into_boxed();
+            .inner_join(origins::table)
+            .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+            .filter(origin_packages::hidden.eq(false))
+            .into_boxed();
 
         if let Some(session_id) = sp.account_id {
             count_query = count_query.filter(
-            origin_packages::visibility
-                .eq_any(PackageVisibility::private())
-                .and(origins::owner_id.eq(session_id))
-                .or(origin_packages::visibility.eq(PackageVisibility::Public)),
-        );
+                origin_packages::visibility
+                    .eq_any(PackageVisibility::private())
+                    .and(origins::owner_id.eq(session_id))
+                    .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+            );
         } else {
             count_query =
                 count_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
@@ -972,23 +976,23 @@ impl Package {
                        .first(conn)?;
 
         let mut page_query = origin_packages::table
-        .inner_join(origins::table)
-        .select(sql::<diesel::sql_types::Text>(
-            "concat_ws('/', origins.name, origin_packages.name)",
-        ))
-        .distinct_on((origin_packages::name, origins::name))
-        .order((origin_packages::name.asc(), origins::name.asc()))
-        .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
-        .filter(origin_packages::hidden.eq(false))
-        .into_boxed();
+            .inner_join(origins::table)
+            .select(sql::<diesel::sql_types::Text>(
+                "concat_ws('/', origins.name, origin_packages.name)",
+            ))
+            .distinct_on((origin_packages::name, origins::name))
+            .order((origin_packages::name.asc(), origins::name.asc()))
+            .filter(to_tsquery(format!("{}:*", sp.query)).matches(origin_packages::ident_vector))
+            .filter(origin_packages::hidden.eq(false))
+            .into_boxed();
 
         if let Some(session_id) = sp.account_id {
             page_query = page_query.filter(
-            origin_packages::visibility
-                .eq_any(PackageVisibility::private())
-                .and(origins::owner_id.eq(session_id))
-                .or(origin_packages::visibility.eq(PackageVisibility::Public)),
-        );
+                origin_packages::visibility
+                    .eq_any(PackageVisibility::private())
+                    .and(origins::owner_id.eq(session_id))
+                    .or(origin_packages::visibility.eq(PackageVisibility::Public)),
+            );
         } else {
             page_query =
                 page_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
@@ -1194,12 +1198,9 @@ impl FromStr for BuilderPackageTarget {
     type Err = crate::error::Error;
 
     fn from_str(s: &str) -> Result<Self, crate::error::Error> {
-        Ok(BuilderPackageTarget(PackageTarget::from_str(s).map_err(|_| {
-                                    crate::error::Error::ParseError(format!(
-                "BuilderPackageTarget {}",
-                s
-            ))
-                                })?))
+        Ok(BuilderPackageTarget(PackageTarget::from_str(s).map_err(
+            |_| crate::error::Error::ParseError(format!("BuilderPackageTarget {}", s)),
+        )?))
     }
 }
 
