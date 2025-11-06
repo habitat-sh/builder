@@ -817,7 +817,11 @@ pub fn postprocess_package_list<T: Serialize>(_req: &HttpRequest,
                                               count: i64,
                                               pagination: &Query<Pagination>)
                                               -> HttpResponse {
-    let (start, _) = helpers::extract_pagination(pagination);
+    let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
+    let safe_page = page.max(1);
+    let start = safe_page.checked_sub(1)
+                         .and_then(|p| p.checked_mul(per_page))
+                         .unwrap_or_default();
     let pkg_count = packages.len() as isize;
     let stop = match pkg_count {
         0 => count,
@@ -848,8 +852,11 @@ pub fn postprocess_extended_package_list(_req: &HttpRequest,
     let start = if pagination.range < 0 {
         0
     } else {
-        let (start, _) = helpers::extract_pagination(pagination);
-        start
+        let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
+        let safe_page = page.max(1);
+        safe_page.checked_sub(1)
+                 .and_then(|p| p.checked_mul(per_page))
+                 .unwrap_or_default()
     };
     let pkg_count = packages.len() as isize;
     let stop = match pkg_count {
