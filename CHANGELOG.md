@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Fixed pagination bug [#1941](https://github.com/habitat-sh/builder/pull/1941) ([sougata-progress](https://github.com/sougata-progress))
 - Fixed gateway error on pkg list page [#1940](https://github.com/habitat-sh/builder/pull/1940) ([sougata-progress](https://github.com/sougata-progress))
 - fix footer styling [#1939](https://github.com/habitat-sh/builder/pull/1939) ([mwrock](https://github.com/mwrock))
 - bump crossbeam to eliminate CVE [#1938](https://github.com/habitat-sh/builder/pull/1938) ([mwrock](https://github.com/mwrock))
