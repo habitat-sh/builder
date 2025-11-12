@@ -344,7 +344,7 @@ pub struct UpdatePackageVisibility {
 pub struct ListPackages {
     pub ident:      BuilderPackageIdent,
     pub visibility: Vec<PackageVisibility>,
-    pub page:       i64,
+    pub offset:     i64,
     pub limit:      i64,
 }
 
@@ -619,72 +619,82 @@ impl Package {
         let name_str = pl.ident.name.clone();
         let parts = pl.ident.clone().parts();
         let visibility = pl.visibility.clone();
-        let page = pl.page;
+        let offset_val = pl.offset;
         let limit = pl.limit;
 
-        let mut query = packages_with_channel_platform::table
-            .filter(packages_with_channel_platform::origin.eq(origin_str))
+        let mut base_query = packages_with_channel_platform::table
+            .filter(packages_with_channel_platform::origin.eq(origin_str.clone()))
             .into_boxed();
+
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
         if !pl.ident.name.is_empty() {
-            query = query.filter(packages_with_channel_platform::name.eq(name_str))
+            base_query =
+                base_query.filter(packages_with_channel_platform::name.eq(name_str.clone()))
         };
 
-        let mut pkgs = if pl.limit < 0 {
-            let query =
-                query.filter(packages_with_channel_platform::ident_array.contains(parts.clone()))
-                     .filter(packages_with_channel_platform::visibility.eq_any(visibility.clone()))
-                     .order(packages_with_channel_platform::ident.desc());
-            let pkgs: std::vec::Vec<PackageWithChannelPlatform> = query.get_results(conn)?;
-            pkgs
+        base_query = base_query
+            .filter(packages_with_channel_platform::ident_array.contains(parts.clone()))
+            .filter(packages_with_channel_platform::visibility.eq_any(visibility.clone()));
+
+        if pl.limit < 0 {
+            // No pagination - return all records
+            let query = base_query.order(packages_with_channel_platform::ident.desc());
+            let mut pkgs: std::vec::Vec<PackageWithChannelPlatform> = query.get_results(conn)?;
+
+            // Apply deduplication
+            pkgs = pkgs.into_iter().unique().collect();
+            let count = pkgs.len() as i64;
+            Ok((pkgs, count))
         } else {
-            // Use window function with COUNT(*) OVER() for efficient pagination
-            // This prevents loading all data into memory and avoids slice index panics
-            let offset_val = (page.saturating_sub(1)) * limit;
+            // First get the total count before pagination and deduplication
+            // We need to rebuild the query instead of cloning because BoxedSelectStatement doesn't
+            // implement Clone
+            let mut count_query = packages_with_channel_platform::table
+                .filter(packages_with_channel_platform::origin.eq(origin_str.clone()))
+                .into_boxed();
 
+            if !pl.ident.name.is_empty() {
+                count_query =
+                    count_query.filter(packages_with_channel_platform::name.eq(name_str.clone()));
+            }
+
+            let total_count: i64 = count_query
+                .filter(packages_with_channel_platform::ident_array.contains(parts.clone()))
+                .filter(packages_with_channel_platform::visibility.eq_any(visibility.clone()))
+                .select(count_star())
+                .first(conn)?;
+
+            // Then get the paginated results using direct offset
             let query_with_pagination =
-                query.filter(packages_with_channel_platform::ident_array.contains(parts.clone()))
-                     .filter(packages_with_channel_platform::visibility.eq_any(visibility.clone()))
-                     .order(packages_with_channel_platform::ident.desc())
-                     .limit(limit)
-                     .offset(offset_val);
+                base_query.order(packages_with_channel_platform::ident.desc())
+                          .limit(limit)
+                          .offset(offset_val);
 
-            let paginated_rows: Vec<PackageWithChannelPlatform> = query_with_pagination.load(conn)?;
+            let mut paginated_rows: Vec<PackageWithChannelPlatform> =
+                query_with_pagination.load(conn)?;
 
             // Apply deduplication consistently using unique_by for package identity
-            let unique_rows: Vec<PackageWithChannelPlatform> =
-                paginated_rows.into_iter()
-                              .unique_by(|p| (p.ident.clone(), p.origin.clone()))
-                              .collect();
+            paginated_rows = paginated_rows.into_iter()
+                                           .unique_by(|p| (p.ident.clone(), p.origin.clone()))
+                                           .collect();
 
-            unique_rows
-        };
+            let duration_millis = start_time.elapsed().as_millis();
+            Histogram::DbCallTime.set(duration_millis as f64);
+            Histogram::PackageListCallTime.set(duration_millis as f64);
 
-        // helpful trick when debugging queries, this has Debug trait:
-        // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&query)
+            // Package list for a whole origin is still not very
+            // performant, and we want to track that
+            if !pl.ident.name.is_empty() {
+                Histogram::PackageListOriginOnlyCallTime.set(duration_millis as f64);
+            } else {
+                Histogram::PackageListOriginNameCallTime.set(duration_millis as f64);
+            }
 
-        let duration_millis = start_time.elapsed().as_millis();
-        Histogram::DbCallTime.set(duration_millis as f64);
-        Histogram::PackageListCallTime.set(duration_millis as f64);
+            trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "Package::list for {:?}, returned {} items out of {} total", pl.ident, paginated_rows.len(), total_count);
 
-        // Package list for a whole origin is still not very
-        // performant, and we want to track that
-        if !pl.ident.name.is_empty() {
-            Histogram::PackageListOriginOnlyCallTime.set(duration_millis as f64);
-        } else {
-            Histogram::PackageListOriginNameCallTime.set(duration_millis as f64);
+            Ok((paginated_rows, total_count))
         }
-
-        trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "Package::list for {:?}, returned {} items", pl.ident, pkgs.len());
-
-        // TODO: Look for a performant Postgresql fix
-        // and possibly rethink the channels design
-        pkgs = pkgs.into_iter().unique().collect();
-        trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "Package::list for {:?} after de-dup has {} items", pl.ident, pkgs.len());
-
-        let new_count = pkgs.len() as i64;
-        Ok((pkgs, new_count))
     }
 
     pub fn list_distinct(pl: &ListPackages,
@@ -698,7 +708,7 @@ impl Package {
         let name_str = pl.ident.name.clone();
         let parts = pl.ident.clone().parts();
         let visibility = pl.visibility.clone();
-        let page = pl.page;
+        let offset_val = pl.offset;
         let limit = pl.limit;
 
         let mut count_query =
@@ -733,7 +743,7 @@ impl Package {
         }
 
         let limit_i64 = limit;
-        let offset_i64 = (page.saturating_sub(1)) * limit;
+        let offset_i64 = offset_val;
 
         let rows: Vec<(String, String)> =
             page_query.limit(limit_i64).offset(offset_i64).load(conn)?;
@@ -771,7 +781,7 @@ impl Package {
         // Extract cloned copies out of pl
         let origin_str = pl.ident.origin.clone();
         let visibility = pl.visibility.clone();
-        let page = pl.page;
+        let offset_val = pl.offset;
         let limit = pl.limit;
 
         let base_query = origin_package_settings::table
@@ -791,7 +801,7 @@ impl Package {
                                                                  .collect();
 
         let total_count = unique_by_name.len() as i64;
-        let start = ((page.saturating_sub(1)) * limit) as usize;
+        let start = offset_val as usize;
         let end = (start + limit as usize).min(unique_by_name.len());
         let results = if limit < 0 {
             unique_by_name.clone()
