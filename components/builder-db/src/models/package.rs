@@ -542,7 +542,7 @@ impl Package {
                 origin_packages_with_version_array::name,
                 origin_packages_with_version_array::target,
                 sql::<Text>(
-                "origin, name, target, string_to_array(version_array[1],'.')::\
+                    "origin, name, target, string_to_array(version_array[1],'.')::\
                 numeric[] desc, ident_array[4] desc",
                 ),
             ))
@@ -623,8 +623,8 @@ impl Package {
         let limit = pl.limit;
 
         let mut query = packages_with_channel_platform::table
-        .filter(packages_with_channel_platform::origin.eq(origin_str))
-        .into_boxed();
+            .filter(packages_with_channel_platform::origin.eq(origin_str))
+            .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
         if !pl.ident.name.is_empty() {
@@ -639,20 +639,26 @@ impl Package {
             let pkgs: std::vec::Vec<PackageWithChannelPlatform> = query.get_results(conn)?;
             pkgs
         } else {
-            let all_rows: Vec<PackageWithChannelPlatform> =
+            // Use window function with COUNT(*) OVER() for efficient pagination
+            // This prevents loading all data into memory and avoids slice index panics
+            let offset_val = (page.saturating_sub(1)) * limit;
+
+            let query_with_pagination =
                 query.filter(packages_with_channel_platform::ident_array.contains(parts.clone()))
                      .filter(packages_with_channel_platform::visibility.eq_any(visibility.clone()))
                      .order(packages_with_channel_platform::ident.desc())
-                     .load(conn)?;
+                     .limit(limit)
+                     .offset(offset_val);
+
+            let paginated_rows: Vec<PackageWithChannelPlatform> = query_with_pagination.load(conn)?;
+
+            // Apply deduplication consistently using unique_by for package identity
             let unique_rows: Vec<PackageWithChannelPlatform> =
-                all_rows.into_iter().unique().collect();
-            let start = ((page.saturating_sub(1)) * limit) as usize;
-            let end = (start + limit as usize).min(unique_rows.len());
-            if start >= unique_rows.len() {
-                vec![]
-            } else {
-                unique_rows[start..end].to_vec()
-            }
+                paginated_rows.into_iter()
+                              .unique_by(|p| (p.ident.clone(), p.origin.clone()))
+                              .collect();
+
+            unique_rows
         };
 
         // helpful trick when debugging queries, this has Debug trait:
@@ -768,7 +774,7 @@ impl Package {
         let page = pl.page;
         let limit = pl.limit;
 
-        let  base_query = origin_package_settings::table
+        let base_query = origin_package_settings::table
             .filter(origin_package_settings::origin.eq(origin_str))
             .filter(origin_package_settings::visibility.eq_any(visibility))
             .filter(origin_package_settings::hidden.eq(false))
