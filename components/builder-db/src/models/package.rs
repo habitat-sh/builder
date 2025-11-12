@@ -647,15 +647,15 @@ impl Package {
                 query.filter(packages_with_channel_platform::ident_array.contains(parts.clone()))
                      .filter(packages_with_channel_platform::visibility.eq_any(visibility.clone()))
                      .order(packages_with_channel_platform::ident.desc())
-                     .limit(limit as i64)
-                     .offset(offset_val as i64);
+                     .limit(limit)
+                     .offset(offset_val);
 
             let paginated_rows: Vec<PackageWithChannelPlatform> = query_with_pagination.load(conn)?;
 
             // Apply deduplication consistently using unique_by for package identity
             let unique_rows: Vec<PackageWithChannelPlatform> =
                 paginated_rows.into_iter()
-                              .unique_by(|p| (&p.ident, &p.origin))
+                              .unique_by(|p| (p.ident.clone(), p.origin.clone()))
                               .collect();
 
             unique_rows
@@ -738,15 +738,14 @@ impl Package {
         let rows: Vec<(String, String)> =
             page_query.limit(limit_i64).offset(offset_i64).load(conn)?;
 
-        let pkgs: Vec<BuilderPackageIdent> =
-            rows.into_iter()
-                .map(|(origin, name)| {
-                    BuilderPackageIdent(PackageIdent { origin,
+        let pkgs: Vec<BuilderPackageIdent> = rows.into_iter()
+                                                 .map(|(origin, name)| {
+                                                     BuilderPackageIdent(PackageIdent { origin,
                                                        name,
                                                        version: None,
                                                        release: None })
-                })
-                .collect();
+                                                 })
+                                                 .collect();
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::list_distinct time: {} ms", duration_millis);
