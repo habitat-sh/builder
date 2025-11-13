@@ -647,37 +647,32 @@ impl Package {
             let count = pkgs.len() as i64;
             Ok((pkgs, count))
         } else {
-            // First get the total count before pagination and deduplication
-            // We need to rebuild the query instead of cloning because BoxedSelectStatement doesn't
-            // implement Clone
-            let mut count_query = packages_with_channel_platform::table
-                .filter(packages_with_channel_platform::origin.eq(origin_str.clone()))
-                .into_boxed();
+            // First get ALL records and deduplicate to get accurate counts and consistent
+            // pagination
+            let query_all = base_query.order(packages_with_channel_platform::ident.desc());
+            let all_rows: Vec<PackageWithChannelPlatform> = query_all.load(conn)?;
 
-            if !pl.ident.name.is_empty() {
-                count_query =
-                    count_query.filter(packages_with_channel_platform::name.eq(name_str.clone()));
-            }
+            // Apply deduplication BEFORE pagination to ensure consistent page sizes
+            let deduplicated_rows: Vec<PackageWithChannelPlatform> =
+                all_rows.into_iter()
+                        .unique_by(|p| (p.ident.clone(), p.origin.clone()))
+                        .collect();
 
-            let total_count: i64 = count_query
-                .filter(packages_with_channel_platform::ident_array.contains(parts.clone()))
-                .filter(packages_with_channel_platform::visibility.eq_any(visibility.clone()))
-                .select(count_star())
-                .first(conn)?;
+            let total_count = deduplicated_rows.len() as i64;
 
-            // Then get the paginated results using direct offset
-            let query_with_pagination =
-                base_query.order(packages_with_channel_platform::ident.desc())
-                          .limit(limit)
-                          .offset(offset_val);
+            // Now apply pagination to deduplicated results
+            let start = offset_val as usize;
+            let end = if limit > 0 {
+                (start + limit as usize).min(deduplicated_rows.len())
+            } else {
+                deduplicated_rows.len()
+            };
 
-            let mut paginated_rows: Vec<PackageWithChannelPlatform> =
-                query_with_pagination.load(conn)?;
-
-            // Apply deduplication consistently using unique_by for package identity
-            paginated_rows = paginated_rows.into_iter()
-                                           .unique_by(|p| (p.ident.clone(), p.origin.clone()))
-                                           .collect();
+            let paginated_rows = if start >= deduplicated_rows.len() {
+                Vec::new()
+            } else {
+                deduplicated_rows[start..end].to_vec()
+            };
 
             let duration_millis = start_time.elapsed().as_millis();
             Histogram::DbCallTime.set(duration_millis as f64);
@@ -784,6 +779,8 @@ impl Package {
         let offset_val = pl.offset;
         let limit = pl.limit;
 
+        // This method already properly deduplicates BEFORE pagination
+        // which is the correct approach. Keep the existing logic but with cleaner implementation.
         let base_query = origin_package_settings::table
             .filter(origin_package_settings::origin.eq(origin_str))
             .filter(origin_package_settings::visibility.eq_any(visibility))
@@ -792,20 +789,23 @@ impl Package {
             .order(origin_package_settings::name.asc())
             .into_boxed();
 
-        // helpful trick when debugging queries, this has Debug trait:
-        // diesel::query_builder::debug_query::<diesel::pg::Pg, _>(&base_query)
-
+        // Get all records and deduplicate in memory (this ensures consistent pagination)
         let all_rows: Vec<OriginPackageSettings> = base_query.load(conn)?;
         let unique_by_name: Vec<OriginPackageSettings> = all_rows.into_iter()
                                                                  .unique_by(|pkg| pkg.name.clone())
                                                                  .collect();
 
         let total_count = unique_by_name.len() as i64;
+
+        // Apply pagination to deduplicated results
         let start = offset_val as usize;
-        let end = (start + limit as usize).min(unique_by_name.len());
-        let results = if limit < 0 {
-            unique_by_name.clone()
-        } else if start >= unique_by_name.len() {
+        let end = if limit < 0 {
+            unique_by_name.len()
+        } else {
+            (start + limit as usize).min(unique_by_name.len())
+        };
+
+        let results = if start >= unique_by_name.len() {
             Vec::new()
         } else {
             unique_by_name[start..end].to_vec()
