@@ -852,22 +852,19 @@ pub fn postprocess_extended_package_list(_req: &HttpRequest,
     let start = if pagination.range < 0 {
         0
     } else {
-        let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
-        let safe_page = page.max(1);
-        safe_page.checked_sub(1)
-                 .and_then(|p| p.checked_mul(per_page))
-                 .unwrap_or_default()
+        pagination.range as i64
     };
-    let pkg_count = packages.len() as isize;
+    let pkg_count = packages.len() as i64;
     let stop = match pkg_count {
         0 => count,
-        _ => (start + pkg_count - 1) as i64,
+        _ => start + pkg_count - 1,
     };
 
     debug!("postprocessing extended package list, start: {}, stop: {}, total_count: {}",
            start, stop, count);
 
-    let body = helpers::package_results_json(packages, count as isize, start, stop as isize);
+    let body =
+        helpers::package_results_json(packages, count as isize, start as isize, stop as isize);
 
     let mut response = if count as isize > (stop as isize + 1) {
         HttpResponse::PartialContent()
@@ -891,17 +888,23 @@ fn do_get_packages(req: &HttpRequest,
         Err(_) => None,
     };
 
-    let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
-    let limit = if pagination.range < 0 { -1 } else { per_page };
+    let (offset, limit) = if pagination.range < 0 {
+        // When range is negative, return all packages
+        (0i64, -1i64)
+    } else {
+        // Use range directly as offset
+        (pagination.range as i64, helpers::PAGINATION_RANGE_MAX as i64)
+    };
 
     let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
-    let lpr = ListPackages { ident:      BuilderPackageIdent(ident.clone()),
-                             visibility: helpers::visibility_for_optional_session(req,
-                                                                                  opt_session_id,
-                                                                                  &ident.origin),
-                             page:       page as i64,
-                             limit:      limit as i64, };
+    let lpr = ListPackages { ident: BuilderPackageIdent(ident.clone()),
+                             visibility:
+                                 helpers::visibility_for_optional_session(req,
+                                                                          opt_session_id,
+                                                                          &ident.origin),
+                             offset,
+                             limit };
 
     if pagination.distinct {
         match Package::list_distinct(&lpr, &mut conn).map_err(Error::DieselError) {

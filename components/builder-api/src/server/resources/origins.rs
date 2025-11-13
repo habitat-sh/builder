@@ -842,7 +842,7 @@ async fn list_unique_packages(req: HttpRequest,
                              visibility: helpers::visibility_for_optional_session(&req,
                                                                                   opt_session_id,
                                                                                   &origin),
-                             page:       page as i64,
+                             offset:     ((page as i64).saturating_sub(1)) * (per_page as i64),
                              limit:      per_page as i64, };
 
     match Package::distinct_for_origin(&lpr, &mut conn) {
