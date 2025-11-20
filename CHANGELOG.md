@@ -3,6 +3,7 @@
 ## [20251124](https://github.com/habitat-sh/builder/tree/20251124) (2025-11-20)
 
 #### Merged Pull Requests
+- Revert "bump crossbeam to eliminate CVE" [#1946](https://github.com/habitat-sh/builder/pull/1946) ([mwrock](https://github.com/mwrock))
 - bump version [#1945](https://github.com/habitat-sh/builder/pull/1945) ([mwrock](https://github.com/mwrock))
 - fixed offset [#1943](https://github.com/habitat-sh/builder/pull/1943) ([sougata-progress](https://github.com/sougata-progress))
 - Fixed pagination bug [#1942](https://github.com/habitat-sh/builder/pull/1942) ([sougata-progress](https://github.com/sougata-progress))
@@ -11,21 +12,6 @@
 - fix footer styling [#1939](https://github.com/habitat-sh/builder/pull/1939) ([mwrock](https://github.com/mwrock))
 - bump crossbeam to eliminate CVE [#1938](https://github.com/habitat-sh/builder/pull/1938) ([mwrock](https://github.com/mwrock))
 <!-- latest_release -->
-
-## Unreleased
-
-#### Merged Pull Requests
-- bump version to 20251014 [#1935](https://github.com/habitat-sh/builder/pull/1935) ([mwrock](https://github.com/mwrock))
-
-## Unreleased
-
-#### Merged Pull Requests
-- also bump version in the GH action stub [#1936](https://github.com/habitat-sh/builder/pull/1936) ([mwrock](https://github.com/mwrock))
-
-## Unreleased
-
-#### Merged Pull Requests
-- update changelog [#1937](https://github.com/habitat-sh/builder/pull/1937) ([mwrock](https://github.com/mwrock))
 
 ## [20251014](https://github.com/habitat-sh/builder/tree/20251014) (2025-10-13)
 
