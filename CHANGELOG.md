@@ -1,8 +1,9 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release unreleased -->
-## Unreleased
+<!-- latest_release 20251124 -->
+## [20251124](https://github.com/habitat-sh/builder/tree/20251124) (2025-11-20)
 
 #### Merged Pull Requests
+- bump version [#1945](https://github.com/habitat-sh/builder/pull/1945) ([mwrock](https://github.com/mwrock))
 - fixed offset [#1943](https://github.com/habitat-sh/builder/pull/1943) ([sougata-progress](https://github.com/sougata-progress))
 - Fixed pagination bug [#1942](https://github.com/habitat-sh/builder/pull/1942) ([sougata-progress](https://github.com/sougata-progress))
 - Fixed pagination bug [#1941](https://github.com/habitat-sh/builder/pull/1941) ([sougata-progress](https://github.com/sougata-progress))
