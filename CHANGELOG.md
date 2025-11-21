@@ -1,5 +1,16 @@
 # Habitat Builder CHANGELOG
-<!-- latest_release 20251124 -->
+<!-- latest_release unreleased -->
+## Unreleased
+
+#### Merged Pull Requests
+- cleanup changelog [#1948](https://github.com/habitat-sh/builder/pull/1948) ([mwrock](https://github.com/mwrock))
+<!-- latest_release -->
+
+## Unreleased
+
+#### Merged Pull Requests
+- Revert &quot;bump crossbeam to eliminate CVE&quot; [#1946](https://github.com/habitat-sh/builder/pull/1946) ([mwrock](https://github.com/mwrock))
+
 ## [20251124](https://github.com/habitat-sh/builder/tree/20251124) (2025-11-20)
 
 #### Merged Pull Requests
@@ -11,7 +22,6 @@
 - Fixed gateway error on pkg list page [#1940](https://github.com/habitat-sh/builder/pull/1940) ([sougata-progress](https://github.com/sougata-progress))
 - fix footer styling [#1939](https://github.com/habitat-sh/builder/pull/1939) ([mwrock](https://github.com/mwrock))
 - bump crossbeam to eliminate CVE [#1938](https://github.com/habitat-sh/builder/pull/1938) ([mwrock](https://github.com/mwrock))
-<!-- latest_release -->
 
 ## [20251014](https://github.com/habitat-sh/builder/tree/20251014) (2025-10-13)
 
