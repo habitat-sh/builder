@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Restore &quot;bump crossbeam to eliminate CVE&quot; [#1949](https://github.com/habitat-sh/builder/pull/1949) ([mwrock](https://github.com/mwrock))
 - cleanup changelog [#1948](https://github.com/habitat-sh/builder/pull/1948) ([mwrock](https://github.com/mwrock))
 <!-- latest_release -->
 
