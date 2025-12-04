@@ -83,7 +83,7 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
                     error::Error::Authorization
                 })?;
 
-            trace!("Found valid session for {}", token);
+            trace!("Found valid session for {} tied to account {}", token, session.get_id());
 
             if session.get_id() == BUILDER_ACCOUNT_ID {
                 trace!("Builder token identified");
@@ -99,17 +99,26 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
             match AccountToken::list(session.get_id(), &mut conn).map_err(error::Error::DieselError)
             {
                 Ok(access_tokens) => {
-                    assert!(access_tokens.len() <= 1); // Can only have max of 1 for now
+                    if access_tokens.len() <= 1 {
+                        trace!("Found {} tokens for user {}", access_tokens.len(), session.get_id());
+                        return Err(error::Error::Authorization);
+                    }
                     match access_tokens.first() {
                         Some(access_token) => {
                             let new_token = access_token.token.clone();
                             if token.trim_end_matches('=') != new_token.trim_end_matches('=') {
-                                // Token is valid but revoked or otherwise expired
+                                trace!("Different token {} found for user {}. Token is valid but revoked or otherwise expired", new_token, session.get_id());
                                 return Err(error::Error::Authorization);
                             }
 
-                            let account = Account::get_by_id(session.get_id() as i64, &mut conn)
-                                .map_err(error::Error::DieselError)?;
+                            let account = match Account::get_by_id(session.get_id() as i64, &mut conn)
+                                .map_err(error::Error::DieselError) {
+                                Ok(account) => account,
+                                Err(e) => {
+                                    trace!("Failed to find account for id {}: {:?}", session.get_id(), e);
+                                    return Err(error::Error::Authorization);
+                                }
+                            };
                             trace!("Found account for token {} in database", token);
                             session.set_name(account.name);
                             session.set_email(account.email);
