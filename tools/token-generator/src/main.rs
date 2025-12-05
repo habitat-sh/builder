@@ -69,11 +69,11 @@ mod tests {
 
     #[test]
     fn test_args_parsing() {
-        let args = Args::parse_from(&["token-generator",
-                                      "--account-id",
-                                      "12345",
-                                      "--key-path",
-                                      "/path/to/key"]);
+        let args = Args::parse_from(["token-generator",
+                                     "--account-id",
+                                     "12345",
+                                     "--key-path",
+                                     "/path/to/key"]);
 
         assert_eq!(args.account_id, 12345);
         assert_eq!(args.key_path, PathBuf::from("/path/to/key"));
@@ -82,12 +82,12 @@ mod tests {
 
     #[test]
     fn test_args_parsing_verbose() {
-        let args = Args::parse_from(&["token-generator",
-                                      "--account-id",
-                                      "12345",
-                                      "--key-path",
-                                      "/path/to/key",
-                                      "--verbose"]);
+        let args = Args::parse_from(["token-generator",
+                                     "--account-id",
+                                     "12345",
+                                     "--key-path",
+                                     "/path/to/key",
+                                     "--verbose"]);
 
         assert!(args.verbose);
     }
