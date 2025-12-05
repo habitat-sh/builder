@@ -83,7 +83,9 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
                     error::Error::Authorization
                 })?;
 
-            trace!("Found valid session for {} tied to account {}", token, session.get_id());
+            trace!("Found valid session for {} tied to account {}",
+                   token,
+                   session.get_id());
 
             if session.get_id() == BUILDER_ACCOUNT_ID {
                 trace!("Builder token identified");
@@ -100,14 +102,19 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
             {
                 Ok(access_tokens) => {
                     if access_tokens.len() > 1 {
-                        trace!("Found {} tokens for user {}", access_tokens.len(), session.get_id());
+                        trace!("Found {} tokens for user {}",
+                               access_tokens.len(),
+                               session.get_id());
                         return Err(error::Error::Authorization);
                     }
                     match access_tokens.first() {
                         Some(access_token) => {
                             let new_token = access_token.token.clone();
                             if token.trim_end_matches('=') != new_token.trim_end_matches('=') {
-                                trace!("Different token {} found for user {}. Token is valid but revoked or otherwise expired", new_token, session.get_id());
+                                trace!("Different token {} found for user {}. Token is valid but \
+                                        revoked or otherwise expired",
+                                       new_token,
+                                       session.get_id());
                                 return Err(error::Error::Authorization);
                             }
 
