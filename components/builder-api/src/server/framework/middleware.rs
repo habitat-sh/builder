@@ -60,94 +60,159 @@ pub fn authentication_middleware<S>(
 
 fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Session> {
     // Test hook - always create a valid session
+    if let Some(test_env) = handle_test_environment(token, state)? {
+        return Ok(test_env);
+    }
+
+    // Try to get session from cache first
+    if let Some(cached_session) = get_cached_session(token, state) {
+        return Ok(cached_session);
+    }
+
+    // Validate token and create new session
+    validate_token_and_create_session(token, state)
+}
+
+fn handle_test_environment(token: &str,
+                           state: &AppState)
+                           -> error::Result<Option<originsrv::Session>> {
     if env::var_os("HAB_FUNC_TEST").is_some() {
         debug!("HAB_FUNC_TEST: {:?}; calling session_create_short_circuit",
                env::var_os("HAB_FUNC_TEST"));
-        return session_create_short_circuit(token, state);
-    };
+        return Ok(Some(session_create_short_circuit(token, state)?));
+    }
+    Ok(None)
+}
 
+fn get_cached_session(token: &str, state: &AppState) -> Option<originsrv::Session> {
     let mut memcache = state.memcache.borrow_mut();
     match memcache.get_session(token) {
         Some(session) => {
             trace!("Session {} Cache Hit!", token);
-            Ok(session)
+            Some(session)
         }
         None => {
             trace!("Session {} Cache Miss!", token);
-
-            // Pull the session out of the current token provided so we can validate
-            // it against the db's tokens
-            let mut session = AccessToken::validate_access_token(token, &state.config.api.key_path)
-                .map_err(|e| {
-                    trace!("Unable to validate access token {}, err={:?}", token, e);
-                    error::Error::Authorization
-                })?;
-
-            trace!("Found valid session for {} tied to account {}",
-                   token,
-                   session.get_id());
-
-            if session.get_id() == BUILDER_ACCOUNT_ID {
-                trace!("Builder token identified");
-                session.set_name(BUILDER_ACCOUNT_NAME.to_owned());
-                memcache.set_session(token, &session, None);
-                return Ok(session);
-            }
-
-            // If we can't find a token in the cache, we need to round-trip to the
-            // db to see if we have a valid session token.
-            let mut conn = state.db.get_conn().map_err(error::Error::DbError)?;
-
-            match AccountToken::list(session.get_id(), &mut conn).map_err(error::Error::DieselError)
-            {
-                Ok(access_tokens) => {
-                    if access_tokens.len() > 1 {
-                        trace!("Found {} tokens for user {}",
-                               access_tokens.len(),
-                               session.get_id());
-                        return Err(error::Error::Authorization);
-                    }
-                    match access_tokens.first() {
-                        Some(access_token) => {
-                            let new_token = access_token.token.clone();
-                            if token.trim_end_matches('=') != new_token.trim_end_matches('=') {
-                                trace!("Different token {} found for user {}. Token is valid but \
-                                        revoked or otherwise expired",
-                                       new_token,
-                                       session.get_id());
-                                return Err(error::Error::Authorization);
-                            }
-
-                            let account = match Account::get_by_id(session.get_id() as i64, &mut conn)
-                                .map_err(error::Error::DieselError) {
-                                Ok(account) => account,
-                                Err(e) => {
-                                    trace!("Failed to find account for id {}: {:?}", session.get_id(), e);
-                                    return Err(error::Error::Authorization);
-                                }
-                            };
-                            trace!("Found account for token {} in database", token);
-                            session.set_name(account.name);
-                            session.set_email(account.email);
-
-                            memcache.set_session(&new_token, &session, None);
-                            Ok(session)
-                        }
-                        None => {
-                            // We have no tokens in the database for this user
-                            trace!("Failed to find token {} in database", token);
-                            Err(error::Error::Authorization)
-                        }
-                    }
-                }
-                Err(_) => {
-                    // Failed to fetch tokens from the database for this user
-                    trace!("Failed to find tokens for {} in database", token);
-                    Err(error::Error::Authorization)
-                }
-            }
+            None
         }
     }
+}
+
+fn validate_token_and_create_session(token: &str,
+                                     state: &AppState)
+                                     -> error::Result<originsrv::Session> {
+    // Pull the session out of the current token provided so we can validate it against the db's
+    // tokens
+    let mut session =
+        AccessToken::validate_access_token(token, &state.config.api.key_path).map_err(|e| {
+            trace!("Unable to validate access token {}, err={:?}", token, e);
+            error::Error::Authorization
+        })?;
+
+    trace!("Found valid session for {} tied to account {}",
+           token,
+           session.get_id());
+
+    // Handle special builder account case
+    if let Some(builder_session) = handle_builder_account(&mut session, token, state) {
+        return Ok(builder_session);
+    }
+
+    // Validate against database tokens
+    validate_database_token(token, &mut session, state)
+}
+
+fn handle_builder_account(session: &mut originsrv::Session,
+                          token: &str,
+                          state: &AppState)
+                          -> Option<originsrv::Session> {
+    if session.get_id() == BUILDER_ACCOUNT_ID {
+        trace!("Builder token identified");
+        session.set_name(BUILDER_ACCOUNT_NAME.to_owned());
+        state.memcache
+             .borrow_mut()
+             .set_session(token, session, None);
+        return Some(session.clone());
+    }
+    None
+}
+
+fn validate_database_token(token: &str,
+                           session: &mut originsrv::Session,
+                           state: &AppState)
+                           -> error::Result<originsrv::Session> {
+    // If we can't find a token in the cache, we need to round-trip to the db to see if we have a
+    // valid session token.
+    let mut conn = state.db.get_conn().map_err(error::Error::DbError)?;
+
+    let access_tokens =
+        match AccountToken::list(session.get_id(), &mut conn).map_err(error::Error::DieselError) {
+            Ok(tokens) => tokens,
+            Err(e) => {
+                trace!("Failed to list access tokens for user {}: {:?}",
+                       session.get_id(),
+                       e);
+                return Err(error::Error::Authorization);
+            }
+        };
+
+    validate_token_count_and_match(token, session, &access_tokens, &mut conn, state)
+}
+
+fn validate_token_count_and_match(token: &str,
+                                  session: &mut originsrv::Session,
+                                  access_tokens: &[AccountToken],
+                                  conn: &mut diesel::PgConnection,
+                                  state: &AppState)
+                                  -> error::Result<originsrv::Session> {
+    if access_tokens.len() > 1 {
+        trace!("Found {} tokens for user {}",
+               access_tokens.len(),
+               session.get_id());
+        return Err(error::Error::Authorization);
+    }
+
+    let access_token = access_tokens.first().ok_or_else(|| {
+                                                 trace!("Failed to find token {} in database",
+                                                        token);
+                                                 error::Error::Authorization
+                                             })?;
+
+    let new_token = &access_token.token;
+    if token.trim_end_matches('=') != new_token.trim_end_matches('=') {
+        trace!("Different token {} found for user {}. Token is valid but revoked or otherwise \
+                expired",
+               new_token,
+               session.get_id());
+        return Err(error::Error::Authorization);
+    }
+
+    finalize_session_with_account(token, session, new_token, conn, state)
+}
+
+fn finalize_session_with_account(_token: &str,
+                                 session: &mut originsrv::Session,
+                                 new_token: &str,
+                                 conn: &mut diesel::PgConnection,
+                                 state: &AppState)
+                                 -> error::Result<originsrv::Session> {
+    let account = Account::get_by_id(session.get_id() as i64, conn).map_err(|e| {
+                                                                       trace!("Failed to find \
+                                                                               account for id \
+                                                                               {}: {:?}",
+                                                                              session.get_id(),
+                                                                              e);
+                                                                       error::Error::Authorization
+                                                                   })?;
+
+    trace!("Found account for token {} in database", new_token);
+    session.set_name(account.name);
+    session.set_email(account.email);
+
+    state.memcache
+         .borrow_mut()
+         .set_session(new_token, session, None);
+    Ok(session.clone())
 }
 
 pub fn session_create_oauth(oauth_token: &str,
