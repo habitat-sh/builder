@@ -166,7 +166,7 @@ fn validate_token_count_and_match(token: &str,
                                   state: &AppState)
                                   -> error::Result<originsrv::Session> {
     if access_tokens.len() > 1 {
-        trace!("Found {} tokens for user {}",
+        error!("Found {} tokens for user {} but there should only be one",
                access_tokens.len(),
                session.get_id());
         return Err(error::Error::Authorization);
