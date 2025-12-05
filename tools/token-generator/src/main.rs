@@ -47,7 +47,7 @@ fn main() -> Result<()> {
     log::debug!("Using key path: {}", args.key_path.display());
 
     // Generate the user token using the same logic as provision
-    let token = AccessToken::user_token(&KeyCache::new(&args.key_path), args.account_id, FeatureFlags::all().bits())
+    let token = AccessToken::user_token(&KeyCache::new(&args.key_path), args.account_id, FeatureFlags::empty().bits())
         .with_context(|| {
             format!(
                 "Failed to generate user token for account {} with key path {}",

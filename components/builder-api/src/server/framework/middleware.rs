@@ -99,7 +99,7 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
             match AccountToken::list(session.get_id(), &mut conn).map_err(error::Error::DieselError)
             {
                 Ok(access_tokens) => {
-                    if access_tokens.len() <= 1 {
+                    if access_tokens.len() > 1 {
                         trace!("Found {} tokens for user {}", access_tokens.len(), session.get_id());
                         return Err(error::Error::Authorization);
                     }
