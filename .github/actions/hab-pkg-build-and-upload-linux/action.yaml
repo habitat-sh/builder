@@ -15,9 +15,10 @@ runs:
       shell: bash
       env:
         BLDR_COMPONENT: ${{ inputs.bldr-component }}
-        HAB_BLDR_CHANNEL: LTS-2024
-        HAB_REFRESH_CHANNEL: LTS-2024
-        HAB_FALLBACK_CHANNEL: LTS-2024
+        HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
+        HAB_BLDR_CHANNEL: base-2025
+        HAB_REFRESH_CHANNEL: base-2025
+        HAB_FALLBACK_CHANNEL: base-2025
       run: |
         hab pkg build $BLDR_COMPONENT
 
