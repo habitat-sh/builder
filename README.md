@@ -13,14 +13,6 @@ If you are looking for on-premise installation, please visit [On-Premise Builder
 
 To learn more about Habitat, please visit the [Habitat website](https://www.habitat.sh).
 
-**Umbrella Project**: [Habitat](https://github.com/habitat-sh/habitat)
-
-**Project State**: [Active](https://github.com/chef/chef-oss-practices/blob/master/repo-management/repo-states.md#active)
-
-**Issues Response SLA**: 5 business days
-
-**Pull Request Response SLA**: 5 business days
-
 ## Building
 
 See [DEVELOPING.md](dev-docs/dev-environment.md) for information on setting up a Builder Dev Environment
