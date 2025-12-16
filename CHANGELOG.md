@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- CHEF-28614 - Create SECURITY.md with standard template [#1951](https://github.com/habitat-sh/builder/pull/1951) ([nandanhegde73](https://github.com/nandanhegde73))
 - Restore &quot;bump crossbeam to eliminate CVE&quot; [#1949](https://github.com/habitat-sh/builder/pull/1949) ([mwrock](https://github.com/mwrock))
 - cleanup changelog [#1948](https://github.com/habitat-sh/builder/pull/1948) ([mwrock](https://github.com/mwrock))
 <!-- latest_release -->
