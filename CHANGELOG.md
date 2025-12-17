@@ -3,6 +3,11 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- CHEF-25523 - Replace CONTRIBUTING.md file with standard template for habitat [#1924](https://github.com/habitat-sh/builder/pull/1924) ([cgunasree08](https://github.com/cgunasree08))
+- CHEF-26046 - Replace CODE_OF_CONDUCT.md file [#1929](https://github.com/habitat-sh/builder/pull/1929) ([cgunasree08](https://github.com/cgunasree08))
+- Add GitHub Security Actions Workflow [#1923](https://github.com/habitat-sh/builder/pull/1923) ([sean-sype-simmons](https://github.com/sean-sype-simmons))
+- CHEF-25809 - Standardize - Removing SLA from README [#1927](https://github.com/habitat-sh/builder/pull/1927) ([nandanhegde73](https://github.com/nandanhegde73))
+- add a token generation tool and ensure errors are not swallowed in middleware auth [#1952](https://github.com/habitat-sh/builder/pull/1952) ([mwrock](https://github.com/mwrock))
 - CHEF-28614 - Create SECURITY.md with standard template [#1951](https://github.com/habitat-sh/builder/pull/1951) ([nandanhegde73](https://github.com/nandanhegde73))
 - Restore &quot;bump crossbeam to eliminate CVE&quot; [#1949](https://github.com/habitat-sh/builder/pull/1949) ([mwrock](https://github.com/mwrock))
 - cleanup changelog [#1948](https://github.com/habitat-sh/builder/pull/1948) ([mwrock](https://github.com/mwrock))
