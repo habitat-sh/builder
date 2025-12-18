@@ -1,16 +1,14 @@
 #!/bin/sh
 set -x
 
-node-sass \
-  --include-path=node_modules/bourbon-neat/core \
-  --include-path=node_modules/bourbon/app/assets/stylesheets \
-  --include-path=node_modules/normalize-scss/sass \
-  --include-path=node_modules/normalize-scss/node_modules/support-for/sass \
-  --include-path=node_modules \
-  --include-path=stylesheets \
-  --include-path=app \
-  --recursive=true \
-  --output=assets \
-  --output-style=compressed \
+sass \
+  --load-path=node_modules/bourbon-neat/core \
+  --load-path=node_modules/bourbon/app/assets/stylesheets \
+  --load-path=node_modules/normalize-scss/sass \
+  --load-path=node_modules/normalize-scss/node_modules/support-for/sass \
+  --load-path=node_modules \
+  --load-path=stylesheets \
+  --load-path=app \
+  --style=compressed \
   "$@" \
-  app/app.scss
+  app/app.scss:assets/app.css
