@@ -7,9 +7,9 @@ do_install() {
 
   build_line "Copying new config into package"
   cp -v "../default.toml" "$pkg_path/default.toml"
-  cp -v "../config/pg_hba.toml" "$pkg_path/config/pg_hba.toml"
-  cp -v "../config/pg_ident.toml" "$pkg_path/config/pg_ident.toml"
-  cp -v "../config/postgresql.toml" "$pkg_path/config/postgresql.toml"
+  cp -v "../config/pg_hba.conf" "$pkg_path/config/pg_hba.conf"
+  cp -v "../config/pg_ident.conf" "$pkg_path/config/pg_ident.conf"
+  cp -v "../config/postgresql.conf" "$pkg_path/config/postgresql.conf"
 
   build_line "Copying run hooks into package"
   for hook in ../hooks/*; do
