@@ -1,6 +1,7 @@
 #!/bin/bash
 
 source ../plan.sh
+pkg_exposes=()
 do_install() {
   local pkg_path
   pkg_path=$(hab pkg path habitat/"$pkg_name")
