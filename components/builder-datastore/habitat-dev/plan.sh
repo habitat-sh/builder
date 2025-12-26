@@ -3,6 +3,8 @@
 source ../plan.sh
 pkg_exposes=()
 do_install() {
+  mkdir "$pkg_prefix/config"
+  mkdir "$pkg_prefix/hooks"
   build_line "Copying new config into package"
   cp -v "../default.toml" "$pkg_prefix/default.toml"
   cp -v "../config/pg_hba.conf" "$pkg_prefix/config/pg_hba.conf"
