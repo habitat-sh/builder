@@ -1,3 +1,3 @@
 #!/bin/bash
 
-source ../habitat/plan.sh
+source ../plan.sh
