@@ -4,6 +4,7 @@
 cd /src || exit
 
 echo "--- Installing prerequisites"
+hab pkg install core/postgresql96 --channel stable
 hab pkg install core/openssl
 hab pkg install core/node --binlink
 hab pkg install core/coreutils
@@ -45,6 +46,10 @@ done
 # Redirect the output into a file that is automatically uploaded
 # to buildkite so we can inspect if necessary
 echo "--- Building changed builder components"
+
+echo "--- Building builder-datastore"
+echo "Redirecting log output; See build artifact 'builder-datastore.build.log'"
+build-builder datastore # >logs/builder-datastore.build.log 2>&1
 
 # NOTE: While building builder-api there is repeating error that can be
 # recognized by "Crypto error: No revisions found for bldr". We might be able

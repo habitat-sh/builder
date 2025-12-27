@@ -11,7 +11,7 @@
     }
 
     &.dispatched, &.processing {
-      @extend hab-icon.spinning;
+      @extend hab-icon, .spinning;
     }
   }
 }
