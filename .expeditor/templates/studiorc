@@ -4,7 +4,7 @@
 cd /src || exit
 
 echo "--- Installing prerequisites"
-hab pkg install core/postgresql96
+hab pkg install core/postgresql96 --channel stable
 hab pkg install core/openssl
 hab pkg install core/node --binlink
 hab pkg install core/coreutils
