@@ -3,7 +3,12 @@
 
 cd /src || exit
 
+# This should be the default in any ci environment (or any linux environment)
+# However as of a couple weeks before adding this, it was not set in our buildkite agents
+chmod 1777 /dev/shm
+
 echo "--- Installing prerequisites"
+hab pkg install core/postgresql96 --channel stable
 hab pkg install core/openssl
 hab pkg install core/node --binlink
 hab pkg install core/coreutils
@@ -52,6 +57,10 @@ echo "--- Building changed builder components"
 echo "--- Building builder-api"
 echo "Redirecting log output; See build artifact 'builder-api.build.log'"
 build-builder api >logs/builder-api.build.log 2>&1
+
+echo "--- Building builder-datastore"
+echo "Redirecting log output; See build artifact 'builder-datastore.build.log'"
+build-builder datastore >logs/builder-datastore.build.log 2>&1
 
 echo "--- Waiting for services to start"
 while hab svc status | grep --quiet down; do
