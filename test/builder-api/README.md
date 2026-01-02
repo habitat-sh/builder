@@ -42,7 +42,6 @@ habitat/builder-api-proxy/9639/20240722052815  standalone  up       up     87   
 habitat/builder-datastore/7795/20181018210336  standalone  up       up     121          45215  builder-datastore.default
 habitat/builder-minio/7764/20181006010221      standalone  up       up     74           45399  builder-minio.default
 habitat/builder-memcached/9467/20220628111248  standalone  up       up     113          45318  builder-memcached.default
-core/sccache/0.8.1/20241018040537              standalone  up       up     118          45272  sccache.default
 ```
 
 If we do not build, we'd be testing against the stable package versions of the builder components:
