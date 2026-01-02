@@ -426,6 +426,7 @@ upgrade_postgres() {
   local -r pg_dump_file="$work_dir/pg_dump.sql"
   local -r previous_data_dir="$work_dir/previous/data"
   mkdir -p "$previous_data_dir"
+  local builder_db_exists_before_upgrade=0
 
   PGPASSWORD="$(cat "$PWFILE")"
   export PGPASSWORD
@@ -436,9 +437,12 @@ upgrade_postgres() {
 
   start_postgres
 
-  # https://www.postgresql.org/docs/17/upgrading.html
-  # STEP 1) Making a backup, making sure that your database is not being updated
-  dump_postgres_database
+  if builder_db_exists; then
+    builder_db_exists_before_upgrade=1
+    # https://www.postgresql.org/docs/17/upgrading.html
+    # STEP 1) Making a backup, making sure that your database is not being updated
+    dump_postgres_database
+  fi
 
   # STEP 2) Shut down the old server
   stop_postgres
@@ -461,12 +465,14 @@ upgrade_postgres() {
 
   # STEP 6) Restore your previous pg_hba.conf and any postgresql.conf modifications
 
-  # STEP 7) Start the database server (again using the special database user account)
-  start_postgres
+  if [[ $builder_db_exists_before_upgrade -eq 1 ]]; then
+    # STEP 7) Start the database server (again using the special database user account)
+    start_postgres
 
-  # step 8) finally, restore your data from backup
-  load_postgres_database
-  stop_postgres # because the run method is going to start it again
+    # step 8) finally, restore your data from backup
+    load_postgres_database
+    stop_postgres # because the run method is going to start it again
+  fi
 
   # JAH: password upgrade would go here but would we even need it?
   # JAH: will this method of upgrade address it?
