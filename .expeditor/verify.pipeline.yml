@@ -31,8 +31,6 @@ steps:
         docker:
           environment:
             - HAB_AUTH_TOKEN
-            - HAB_ORIGIN=habitat
-            - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
   - label: "[lint] :linux: :paperclip: clippy!"
     command:
@@ -47,8 +45,6 @@ steps:
           privileged: true
           environment:
             - HAB_AUTH_TOKEN
-            - HAB_ORIGIN=habitat
-            - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
   - label: "[lint] :terraform: terraform validate"
     command:
@@ -69,8 +65,6 @@ steps:
           privileged: true
           environment:
             - HAB_AUTH_TOKEN
-            - HAB_ORIGIN=habitat
-            - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
   - label: "[unit] :linux: builder-core"
     command:
@@ -84,8 +78,6 @@ steps:
           privileged: true
           environment:
             - HAB_AUTH_TOKEN
-            - HAB_ORIGIN=habitat
-            - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
   - label: "[unit] :linux: builder-db"
     command:
@@ -99,8 +91,6 @@ steps:
           privileged: true
           environment:
             - HAB_AUTH_TOKEN
-            - HAB_ORIGIN=habitat
-            - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
   - label: "[unit] :linux: github-api-client"
     command:
@@ -114,8 +104,6 @@ steps:
           privileged: true
           environment:
             - HAB_AUTH_TOKEN
-            - HAB_ORIGIN=habitat
-            - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
   - label: "[unit] :linux: oauth-client"
     command:
@@ -129,8 +117,6 @@ steps:
           privileged: true
           environment:
             - HAB_AUTH_TOKEN
-            - HAB_ORIGIN=habitat
-            - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
   - label: "[functional] :linux: :mocha: builder-api"
     command:
