@@ -136,6 +136,7 @@ _start-builder() {
   if [[ "$#" -eq 0 ]]; then
     start-builder datastore
     configure
+    generate_bldr_keys
     start-builder memcached
     start-builder api
     start-builder api-proxy
@@ -146,7 +147,6 @@ _start-builder() {
     configure-minio
 
     upload_github_keys
-    generate_bldr_keys
     local rv=$?
 
     echo "Builder Started: Navigate to http://localhost/#/pkgs/core to access the web UI."
