@@ -32,6 +32,7 @@ log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error,hyper=error"
 
 [api]
 allowed_users_for_origin_create = ['bobo', 'mystique', 'wesker', 'lkennedy']
+features_enabled = ""
 
 [http]
 handler_count = 15
