@@ -3,12 +3,12 @@ expeditor:
     buildkite:
       timeout_in_minutes: 30
       env:
-        HAB_BLDR_CHANNEL: LTS-2024
-        HAB_REFRESH_CHANNEL: LTS-2024
-        HAB_FALLBACK_CHANNEL: LTS-2024
-        HAB_STUDIO_SECRET_HAB_BLDR_CHANNEL: LTS-2024
-        HAB_STUDIO_SECRET_HAB_REFRESH_CHANNEL: LTS-2024
-        HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL: LTS-2024
+        HAB_BLDR_CHANNEL: base-2025
+        HAB_REFRESH_CHANNEL: base-2025
+        HAB_FALLBACK_CHANNEL: base-2025
+        HAB_STUDIO_SECRET_HAB_BLDR_CHANNEL: base-2025
+        HAB_STUDIO_SECRET_HAB_REFRESH_CHANNEL: base-2025
+        HAB_STUDIO_SECRET_HAB_FALLBACK_CHANNEL: base-2025
 
 steps:
   - label: "[lint] :linux: :bash: Shellcheck"
@@ -29,6 +29,8 @@ steps:
     expeditor:
       executor:
         docker:
+          environment:
+            - HAB_AUTH_TOKEN
 
   - label: "[lint] :linux: :paperclip: clippy!"
     command:
@@ -41,6 +43,8 @@ steps:
       executor:
         docker:
           privileged: true
+          environment:
+            - HAB_AUTH_TOKEN
 
   - label: "[lint] :terraform: terraform validate"
     command:
@@ -59,6 +63,8 @@ steps:
       executor:
         docker:
           privileged: true
+          environment:
+            - HAB_AUTH_TOKEN
 
   - label: "[unit] :linux: builder-core"
     command:
@@ -70,6 +76,8 @@ steps:
       executor:
         docker:
           privileged: true
+          environment:
+            - HAB_AUTH_TOKEN
 
   - label: "[unit] :linux: builder-db"
     command:
@@ -81,6 +89,8 @@ steps:
       executor:
         docker:
           privileged: true
+          environment:
+            - HAB_AUTH_TOKEN
 
   - label: "[unit] :linux: github-api-client"
     command:
@@ -92,6 +102,8 @@ steps:
       executor:
         docker:
           privileged: true
+          environment:
+            - HAB_AUTH_TOKEN
 
   - label: "[unit] :linux: oauth-client"
     command:
@@ -103,6 +115,8 @@ steps:
       executor:
         docker:
           privileged: true
+          environment:
+            - HAB_AUTH_TOKEN
 
   - label: "[functional] :linux: :mocha: builder-api"
     command:
@@ -133,5 +147,6 @@ steps:
         docker:
           privileged: true
           environment:
+            - HAB_AUTH_TOKEN
             - HAB_ORIGIN=habitat
             - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"

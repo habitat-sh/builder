@@ -3,7 +3,12 @@
 
 cd /src || exit
 
+# This should be the default in any ci environment (or any linux environment)
+# However as of a couple weeks before adding this, it was not set in our buildkite agents
+chmod 1777 /dev/shm
+
 echo "--- Installing prerequisites"
+hab pkg install core/postgresql96 --channel stable
 hab pkg install core/openssl
 hab pkg install core/node --binlink
 hab pkg install core/coreutils
@@ -33,6 +38,11 @@ until hab svc status >/dev/null 2>&1; do
 done
 
 echo "--- Starting builder"
+
+# This fixes the broken handlbars in stable builder with hab v2
+hab pkg install habitat/builder-api --channel stable
+cp /src/components/builder-api/habitat/config/config.toml $(hab pkg path habitat/builder-api)/config/
+
 start-builder
 
 while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ]; do
@@ -40,6 +50,17 @@ while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ]; do
   ls /hab/svc/builder-api/files
   sleep 10
 done
+
+echo "--- Waiting for services to start"
+while hab svc status | grep --quiet down; do
+  echo "Waiting for services to start..."
+  sleep 10
+done
+
+# lets put some data in the builder datastore and minio to verify migrations
+cp /src/test/builder-api/fixtures/rcpd-20200401201905.pub /hab/cache/keys/
+hab origin create rcpd -z bobo -u http://localhost:9636
+env RUST_LOG=debug hab pkg upload /src/test/builder-api/fixtures/rcpd-testapp-0.1.0-20200401202136-x86_64-linux.hart --url http://localhost:9636 --auth bobo
 
 # In most cases, these builds will be noise in the log files
 # Redirect the output into a file that is automatically uploaded
@@ -53,6 +74,15 @@ echo "--- Building builder-api"
 echo "Redirecting log output; See build artifact 'builder-api.build.log'"
 build-builder api >logs/builder-api.build.log 2>&1
 
+echo "--- Building builder-datastore"
+echo "Redirecting log output; See build artifact 'builder-datastore.build.log'"
+build-builder datastore >logs/builder-datastore.build.log 2>&1
+
+echo "--- Building builder-minio"
+echo "Redirecting log output; See build artifact 'builder-minio.build.log'"
+build-builder minio >logs/builder-minio.build.log 2>&1
+sleep 10
+
 echo "--- Waiting for services to start"
 while hab svc status | grep --quiet down; do
   echo "Waiting for services to start..."
@@ -65,6 +95,13 @@ while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ]; do
   ls /hab/svc/builder-api/files
   sleep 10
 done
+
+hab pkg install rcpd/testapp -u http://localhost:9636 --channel unstable --auth bobo || {
+  echo "ERROR: Failed to install rcpd/testapp package"
+  exit 1
+}
+hab pkg uninstall rcpd/testapp
+hab pkg delete rcpd/testapp/0.1.0/20200401202136 -u http://localhost:9636 --auth bobo
 
 echo "--- :mocha: Running tests"
 test/builder-api/test.sh

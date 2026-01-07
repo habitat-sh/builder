@@ -43,8 +43,8 @@ no_install_deps() {
 }
 
 _init-datastore() {
-  mkdir -p /hab/svc/builder-datastore
-  cp -f /src/support/builder/datastore.toml /hab/svc/builder-datastore/user.toml
+  mkdir -p /hab/user/builder-datastore/config
+  cp -f /src/support/builder/datastore.toml /hab/user/builder-datastore/config/user.toml
 }
 init-datastore() { stop-on-failure _init-datastore; }
 
@@ -73,7 +73,6 @@ install-packages() {
     core/curl \
     core/net-tools \
     core/procps-ng \
-    core/sccache \
     core/shadow \
     --binlink
 }
@@ -84,7 +83,7 @@ _build-builder-component() {
   stop-builder "$component"
 
   NO_INSTALL_DEPS=$(no_install_deps "builder-$component") \
-    build "/src/components/builder-$component/habitat-dev"
+    build "/src/components/builder-$component"
   echo "builder-$component build succeeded"
 
   start-builder "$component"
@@ -137,7 +136,7 @@ _start-builder() {
   if [[ "$#" -eq 0 ]]; then
     start-builder datastore
     configure
-    start-builder cache
+    generate_bldr_keys
     start-builder memcached
     start-builder api
     start-builder api-proxy
@@ -148,7 +147,6 @@ _start-builder() {
     configure-minio
 
     upload_github_keys
-    generate_bldr_keys
     local rv=$?
 
     echo "Builder Started: Navigate to http://localhost/#/pkgs/core to access the web UI."
@@ -206,10 +204,6 @@ configure-minio() {
   fi
 }
 
-start-cache() {
-  load-if-not-loaded core/sccache
-}
-
 declare -A svc_params=(
   [api]="        -s at-once --bind memcached:builder-memcached.default"
   [api-proxy]="             --bind http:builder-api.default"
@@ -219,17 +213,13 @@ declare -A svc_params=(
 
 _stop-builder() {
   if [[ "$#" -eq 0 ]]; then
-    stop-builder cache api api-proxy datastore minio memcached
+    stop-builder api api-proxy datastore minio memcached
     return $?
   fi
 
   for component in "$@"; do
-    if [ "$component" == cache ]; then
-      hab svc unload core/sccache
-    else
-      echo "Unloading builder-$component"
-      hab svc unload "habitat/builder-$component"
-    fi
+    echo "Unloading builder-$component"
+    hab svc unload "habitat/builder-$component"
   done
 }
 stop-builder() { stop-on-failure _stop-builder "$@"; }
@@ -397,10 +387,10 @@ dev_docs() {
 		                              Experimental: api-proxy
 		  start-builder             - Start all services
 		  start-builder [SERVICE]   - Start specific service
-		                              Valid: api api-proxy cache datastore minio
+		                              Valid: api api-proxy datastore minio
 		  stop-builder              - Stop all services
 		  stop-builder [SERVICE]    - Stop specific service
-		                              Valid: api api-proxy cache datastore minio
+		                              Valid: api api-proxy datastore minio
 		  psql                      - Open psql shell to builder DB
 		  origin                    - Create core origin
 		  origin [ORIGIN]           - Create specified origin

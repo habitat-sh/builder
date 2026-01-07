@@ -11,7 +11,7 @@ hab-job-status-icon {
     &.inprogress, &.dispatching, &.dispatched, &.cancelpending, &.cancelprocessing {
 
       &.animate {
-        @extend hab-icon.spinning;
+        @extend hab-icon, .spinning;
       }
     }
   }
