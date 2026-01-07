@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Upgraded channel to base-2025 [#1954](https://github.com/habitat-sh/builder/pull/1954) ([sougata-progress](https://github.com/sougata-progress))
 - CHEF-25523 - Replace CONTRIBUTING.md file with standard template for habitat [#1924](https://github.com/habitat-sh/builder/pull/1924) ([cgunasree08](https://github.com/cgunasree08))
 - CHEF-26046 - Replace CODE_OF_CONDUCT.md file [#1929](https://github.com/habitat-sh/builder/pull/1929) ([cgunasree08](https://github.com/cgunasree08))
 - Add GitHub Security Actions Workflow [#1923](https://github.com/habitat-sh/builder/pull/1923) ([sean-sype-simmons](https://github.com/sean-sype-simmons))
