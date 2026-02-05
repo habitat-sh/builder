@@ -11,6 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Allow unused parentheses in generated protobuf code
+#![allow(unused_parens)]
+
 use habitat_core as hab_core;
 
 pub mod error;

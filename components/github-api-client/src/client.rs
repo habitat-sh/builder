@@ -244,12 +244,6 @@ impl GitHubClient {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-struct RepositoryList {
-    pub total_count:  u32,
-    pub repositories: Vec<Repository>,
-}
-
 fn generate_app_token<T, U>(key_path: T, app_id: &U) -> HubResult<String>
     where T: AsRef<Path>,
           U: ToString
