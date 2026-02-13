@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump time from 0.3.41 to 0.3.47 [#1961](https://github.com/habitat-sh/builder/pull/1961) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Rust Upgrade to 1.91.1 [#1953](https://github.com/habitat-sh/builder/pull/1953) ([sougata-progress](https://github.com/sougata-progress))
 - Upgraded channel to base-2025 [#1954](https://github.com/habitat-sh/builder/pull/1954) ([sougata-progress](https://github.com/sougata-progress))
 - CHEF-25523 - Replace CONTRIBUTING.md file with standard template for habitat [#1924](https://github.com/habitat-sh/builder/pull/1924) ([cgunasree08](https://github.com/cgunasree08))
