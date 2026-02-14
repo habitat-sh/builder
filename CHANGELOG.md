@@ -3,6 +3,8 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump diff from 5.2.0 to 5.2.2 in /test/builder-api [#1958](https://github.com/habitat-sh/builder/pull/1958) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump bytes from 1.4.0 to 1.11.1 [#1960](https://github.com/habitat-sh/builder/pull/1960) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump time from 0.3.41 to 0.3.47 [#1961](https://github.com/habitat-sh/builder/pull/1961) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Rust Upgrade to 1.91.1 [#1953](https://github.com/habitat-sh/builder/pull/1953) ([sougata-progress](https://github.com/sougata-progress))
 - Upgraded channel to base-2025 [#1954](https://github.com/habitat-sh/builder/pull/1954) ([sougata-progress](https://github.com/sougata-progress))
