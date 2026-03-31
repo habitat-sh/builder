@@ -62,11 +62,14 @@ async fn get_events_from_saas(req: HttpRequest,
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(USER_AGENT_BLDR.0.clone(), USER_AGENT_BLDR.1.clone());
     if req.headers().contains_key(http::header::AUTHORIZATION) {
-        headers.insert(http::header::AUTHORIZATION,
-                       req.headers()
-                          .get(http::header::AUTHORIZATION)
-                          .unwrap()
-                          .clone());
+        headers.insert(reqwest::header::AUTHORIZATION,
+                       reqwest::header::HeaderValue::from_bytes(
+                           req.headers()
+                              .get(http::header::AUTHORIZATION)
+                              .unwrap()
+                              .as_bytes(),
+                       )
+                       .unwrap());
     }
 
     let http_client = match HttpClient::new(bldr_url, headers) {
