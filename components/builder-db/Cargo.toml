@@ -19,7 +19,7 @@ serde = "*"
 chrono = { version = "*", features = ["serde"] }
 serde_derive = "*"
 num_cpus = "*"
-protobuf = "*"
+protobuf = "2"
 fallible-iterator = "*" # TODO: Do we need this? Machete says we don't.
 percent-encoding = "*"
 postgres = "*"
