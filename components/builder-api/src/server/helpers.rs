@@ -181,7 +181,7 @@ pub fn fetch_license_expiration(license_key: &str,
     if !status.is_success() {
         debug!("License server returned error: {}", body);
         return Err(HttpResponse::build(
-            actix_web::http::StatusCode::from_u16(status.as_u16()).unwrap(),
+            actix_web::http::StatusCode::from_u16(status.as_u16()).unwrap_or(actix_web::http::StatusCode::INTERNAL_SERVER_ERROR),
         )
         .body(body));
     }

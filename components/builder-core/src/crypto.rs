@@ -26,16 +26,17 @@ pub fn encrypt<B>(key_cache: &KeyCache, bytes: B) -> Result<(String, KeyRevision
     where B: AsRef<[u8]>
 {
     let key = keys::get_latest_builder_key(key_cache)?;
-    Ok(encrypt_with_key(&key, bytes))
+    encrypt_with_key(&key, bytes)
 }
 
 /// Same as `encrypt`, but using a specific key.
-pub fn encrypt_with_key<B>(key: &BuilderSecretEncryptionKey, bytes: B) -> (String, KeyRevision)
+pub fn encrypt_with_key<B>(key: &BuilderSecretEncryptionKey,
+                           bytes: B)
+                           -> Result<(String, KeyRevision)>
     where B: AsRef<[u8]>
 {
-    let encrypted = key.encrypt(bytes)
-                       .expect("BuilderSecretEncryptionKey errored.");
-    (encrypted.to_string(), key.named_revision().revision().clone())
+    let encrypted = key.encrypt(bytes)?;
+    Ok((encrypted.to_string(), key.named_revision().revision().clone()))
 }
 
 /// Decrypts a given string rendering of encrypted content using the
