@@ -158,16 +158,16 @@ pub fn fetch_license_expiration(license_key: &str,
                               base_url.trim_end_matches('/'),
                               license_key);
 
-    let response =
-        reqwest::blocking::Client::new().get(license_url)
-                                        .header("Accept", "application/json")
-                                        .send()
-                                        .map_err(|e| {
-                                            debug!("License API request failed: {}", e);
-                                            HttpResponse::BadRequest().body(format!("License API \
-                                                                                     error: {}",
-                                                                                    e))
-                                        })?;
+    let response = reqwest::blocking::Client::new().get(license_url)
+                                                   .header("Accept", "application/json")
+                                                   .send()
+                                                   .map_err(|e| {
+                                                       debug!("License API request failed: {}", e);
+                                                       HttpResponse::BadRequest().body(format!(
+            "License API error: {}",
+            e
+        ))
+                                                   })?;
 
     let status = response.status();
     let body = response.text().map_err(|e| {
@@ -180,7 +180,10 @@ pub fn fetch_license_expiration(license_key: &str,
 
     if !status.is_success() {
         debug!("License server returned error: {}", body);
-        return Err(HttpResponse::build(actix_web::http::StatusCode::from_u16(status.as_u16()).unwrap()).body(body));
+        return Err(HttpResponse::build(
+            actix_web::http::StatusCode::from_u16(status.as_u16()).unwrap(),
+        )
+        .body(body));
     }
 
     let json: Value = serde_json::from_str(&body).map_err(|e| {

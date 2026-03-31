@@ -319,7 +319,10 @@ fn member_role_ns_key(origin: &str, account_id: u64) -> String {
 fn hash_key(key: &str) -> String {
     let mut hasher = Sha512::new();
     hasher.update(key);
-    hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect::<String>()
+    hasher.finalize()
+          .iter()
+          .map(|b| format!("{:02x}", b))
+          .collect::<String>()
 }
 
 #[cfg(test)]

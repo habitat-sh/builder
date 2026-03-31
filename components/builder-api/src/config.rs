@@ -1,36 +1,33 @@
 //! Configuration for a Habitat Builder-API service
 
-use crate::{
-    bldr_core::{self, config::ConfigFile},
-    db::config::DataStoreCfg,
-};
+use crate::{bldr_core::{self,
+                        config::ConfigFile},
+            db::config::DataStoreCfg};
 use artifactory_client::config::ArtifactoryCfg;
 use github_api_client::config::GitHubCfg;
 
-use habitat_core::{
-    crypto::keys::KeyCache,
-    package::target::{self, PackageTarget},
-};
+use habitat_core::{crypto::keys::KeyCache,
+                   package::target::{self,
+                                     PackageTarget}};
 use oauth_client::config::OAuth2Cfg;
-use std::{
-    env, error,
-    fmt::{self, Write as _},
-    io,
-    net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs},
-    option::IntoIter,
-    path::PathBuf,
-};
+use std::{env,
+          error,
+          fmt::{self,
+                Write as _},
+          io,
+          net::{IpAddr,
+                Ipv4Addr,
+                SocketAddr,
+                ToSocketAddrs},
+          option::IntoIter,
+          path::PathBuf};
 
 pub trait GatewayCfg {
     /// Default number of worker threads to simultaneously handle HTTP requests.
-    fn default_handler_count() -> usize {
-        num_cpus::get() * 8
-    }
+    fn default_handler_count() -> usize { num_cpus::get() * 8 }
 
     /// Number of worker threads to simultaneously handle HTTP requests.
-    fn handler_count(&self) -> usize {
-        Self::default_handler_count()
-    }
+    fn handler_count(&self) -> usize { Self::default_handler_count() }
 
     fn listen_addr(&self) -> &IpAddr;
 
@@ -40,25 +37,23 @@ pub trait GatewayCfg {
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    pub api: ApiCfg,
+    pub api:         ApiCfg,
     pub artifactory: ArtifactoryCfg,
-    pub github: GitHubCfg,
-    pub http: HttpCfg,
-    pub oauth: OAuth2Cfg,
-    pub s3: S3Cfg,
-    pub ui: UiCfg,
-    pub memcache: MemcacheCfg,
-    pub datastore: DataStoreCfg,
-    pub provision: ProvisionCfg,
+    pub github:      GitHubCfg,
+    pub http:        HttpCfg,
+    pub oauth:       OAuth2Cfg,
+    pub s3:          S3Cfg,
+    pub ui:          UiCfg,
+    pub memcache:    MemcacheCfg,
+    pub datastore:   DataStoreCfg,
+    pub provision:   ProvisionCfg,
 }
 
 #[derive(Debug)]
 pub struct ConfigError(String);
 
 impl fmt::Display for ConfigError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", self.0) }
 }
 
 impl error::Error for ConfigError {}
@@ -68,9 +63,7 @@ impl ConfigFile for Config {
 }
 
 impl From<bldr_core::Error> for ConfigError {
-    fn from(err: bldr_core::Error) -> ConfigError {
-        ConfigError(format!("{:?}", err))
-    }
+    fn from(err: bldr_core::Error) -> ConfigError { ConfigError(format!("{:?}", err)) }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -84,11 +77,11 @@ pub enum S3Backend {
 #[serde(default)]
 pub struct S3Cfg {
     // These are for using S3 as the artifact storage
-    pub key_id: String,
-    pub secret_key: String,
+    pub key_id:      String,
+    pub secret_key:  String,
     pub bucket_name: String,
-    pub backend: S3Backend,
-    pub endpoint: String,
+    pub backend:     S3Backend,
+    pub endpoint:    String,
 }
 
 impl Default for S3Cfg {
@@ -97,16 +90,15 @@ impl Default for S3Cfg {
             env::var("MINIO_ENDPOINT").unwrap_or_else(|_| String::from("http://localhost:9000"));
         let key_id = env::var("MINIO_ACCESS_KEY").unwrap_or_else(|_| String::from("depot"));
         let secret_key = env::var("MINIO_SECRET_KEY").unwrap_or_else(|_| String::from("password"));
-        let bucket_name = env::var("MINIO_BUCKET_NAME")
-            .unwrap_or_else(|_| String::from("habitat-builder-artifact-store.default"));
+        let bucket_name = env::var("MINIO_BUCKET_NAME").unwrap_or_else(|_| {
+                              String::from("habitat-builder-artifact-store.default")
+                          });
 
-        S3Cfg {
-            key_id,
-            secret_key,
-            bucket_name,
-            backend: S3Backend::Minio,
-            endpoint,
-        }
+        S3Cfg { key_id,
+                secret_key,
+                bucket_name,
+                backend: S3Backend::Minio,
+                endpoint }
     }
 }
 
@@ -131,10 +123,11 @@ pub struct ApiCfg {
 }
 
 mod deserialize_into_vec {
-    use serde::{self, Deserialize, Deserializer};
+    use serde::{self,
+                Deserialize,
+                Deserializer};
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
-    where
-        D: Deserializer<'de>,
+        where D: Deserializer<'de>
     {
         let list = String::deserialize(deserializer)?;
         let features = list.split(',').map(|f| f.trim().to_uppercase()).collect();
@@ -144,92 +137,78 @@ mod deserialize_into_vec {
 
 impl Default for ApiCfg {
     fn default() -> Self {
-        let data_path = env::var("BLDR_DATA_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("files"));
-        let key_path = env::var("BLDR_HAB_KEY_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("files"));
+        let data_path = env::var("BLDR_DATA_DIR").map(PathBuf::from)
+                                                 .unwrap_or_else(|_| PathBuf::from("files"));
+        let key_path = env::var("BLDR_HAB_KEY_DIR").map(PathBuf::from)
+                                                   .unwrap_or_else(|_| PathBuf::from("files"));
 
-        ApiCfg {
-            data_path,
-            log_path: env::temp_dir(),
-            key_path: KeyCache::new(key_path),
-            targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
-            features_enabled: vec!["jobsrv".to_string()],
-            private_max_age: 300,
-            saas_bldr_url: "https://bldr.habitat.sh".to_string(),
-            license_server_url: "http://licensing-acceptance.chef.co".to_string(),
-            suppress_autobuild_origins: vec![],
-            allowed_users_for_origin_create: vec![],
-            unrestricted_channels: vec![],
-            partially_unrestricted_channels: vec![],
-            restricted_if_present: vec![],
-        }
+        ApiCfg { data_path,
+                 log_path: env::temp_dir(),
+                 key_path: KeyCache::new(key_path),
+                 targets: vec![target::X86_64_LINUX, target::X86_64_WINDOWS],
+                 features_enabled: vec!["jobsrv".to_string()],
+                 private_max_age: 300,
+                 saas_bldr_url: "https://bldr.habitat.sh".to_string(),
+                 license_server_url: "http://licensing-acceptance.chef.co".to_string(),
+                 suppress_autobuild_origins: vec![],
+                 allowed_users_for_origin_create: vec![],
+                 unrestricted_channels: vec![],
+                 partially_unrestricted_channels: vec![],
+                 restricted_if_present: vec![] }
     }
 }
 
 impl GatewayCfg for Config {
-    fn handler_count(&self) -> usize {
-        self.http.handler_count
-    }
+    fn handler_count(&self) -> usize { self.http.handler_count }
 
-    fn listen_addr(&self) -> &IpAddr {
-        &self.http.listen
-    }
+    fn listen_addr(&self) -> &IpAddr { &self.http.listen }
 
-    fn listen_port(&self) -> u16 {
-        self.http.port
-    }
+    fn listen_port(&self) -> u16 { self.http.port }
 }
 
 /// Public listening net address for HTTP requests
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct HttpCfg {
-    pub listen: IpAddr,
-    pub port: u16,
-    pub tls: Option<TLSServerCfg>,
+    pub listen:        IpAddr,
+    pub port:          u16,
+    pub tls:           Option<TLSServerCfg>,
     pub handler_count: usize,
-    pub keep_alive: usize,
+    pub keep_alive:    usize,
 }
 
 /// Optional TLS configuration
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct TLSServerCfg {
-    pub cert_path: PathBuf,
-    pub key_path: PathBuf,
+    pub cert_path:    PathBuf,
+    pub key_path:     PathBuf,
     pub ca_cert_path: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct TLSClientCfg {
-    pub cert_path: Option<PathBuf>,
-    pub key_path: Option<PathBuf>,
+    pub cert_path:    Option<PathBuf>,
+    pub key_path:     Option<PathBuf>,
     pub ca_cert_path: Option<PathBuf>,
-    pub verify: bool,
+    pub verify:       bool,
 }
 
 impl Default for TLSServerCfg {
     fn default() -> Self {
-        TLSServerCfg {
-            cert_path: PathBuf::from("files/server.crt"),
-            key_path: PathBuf::from("files/server.key"),
-            ca_cert_path: None,
-        }
+        TLSServerCfg { cert_path:    PathBuf::from("files/server.crt"),
+                       key_path:     PathBuf::from("files/server.key"),
+                       ca_cert_path: None, }
     }
 }
 
 impl Default for TLSClientCfg {
     fn default() -> Self {
-        TLSClientCfg {
-            cert_path: None,
-            key_path: None,
-            ca_cert_path: None,
-            verify: true,
-        }
+        TLSClientCfg { cert_path:    None,
+                       key_path:     None,
+                       ca_cert_path: None,
+                       verify:       true, }
     }
 }
 
@@ -243,11 +222,11 @@ fn resolve_addr(addr: &str) -> Result<IpAddr, String> {
         .map_err(|_| format!("Invalid IP address or hostname: {}", addr))
         .or_else(|_| {
             (addr, 0) // Use port 0 since we only need the IP
-                .to_socket_addrs()
-                .map_err(|_| format!("Failed to resolve hostname: {}", addr))?
-                .next()
-                .map(|socket_addr| socket_addr.ip())
-                .ok_or_else(|| format!("No IP addresses found for hostname: {}", addr))
+                     .to_socket_addrs()
+                     .map_err(|_| format!("Failed to resolve hostname: {}", addr))?
+                     .next()
+                     .map(|socket_addr| socket_addr.ip())
+                     .ok_or_else(|| format!("No IP addresses found for hostname: {}", addr))
         })
 }
 
@@ -258,18 +237,15 @@ impl Default for HttpCfg {
             Err(_) => IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), /* Use default if BLDR_LISTEN is not
                                                               * set */
         };
-        let port = env::var("BLDR_PORT")
-            .ok()
-            .and_then(|val| val.parse::<u16>().ok())
-            .unwrap_or(9636);
+        let port = env::var("BLDR_PORT").ok()
+                                        .and_then(|val| val.parse::<u16>().ok())
+                                        .unwrap_or(9636);
 
-        HttpCfg {
-            listen,
-            port,
-            tls: None,
-            handler_count: Config::default_handler_count(),
-            keep_alive: 60,
-        }
+        HttpCfg { listen,
+                  port,
+                  tls: None,
+                  handler_count: Config::default_handler_count(),
+                  keep_alive: 60 }
     }
 }
 
@@ -296,38 +272,33 @@ pub struct UiCfg {
 pub struct MemcacheCfgHosts {
     pub host: String,
     pub port: u16,
-    pub tls: Option<TLSClientCfg>,
+    pub tls:  Option<TLSClientCfg>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct MemcacheCfg {
-    pub ttl: u32,
+    pub ttl:   u32,
     pub hosts: Vec<MemcacheCfgHosts>,
 }
 
 impl Default for MemcacheCfgHosts {
     fn default() -> Self {
         let host = env::var("MEMCACHED_HOST").unwrap_or_else(|_| String::from("localhost"));
-        let port = env::var("MEMCACHED_PORT")
-            .ok()
-            .and_then(|val| val.parse::<u16>().ok())
-            .unwrap_or(11211);
+        let port = env::var("MEMCACHED_PORT").ok()
+                                             .and_then(|val| val.parse::<u16>().ok())
+                                             .unwrap_or(11211);
 
-        MemcacheCfgHosts {
-            host,
-            port,
-            tls: None,
-        }
+        MemcacheCfgHosts { host,
+                           port,
+                           tls: None }
     }
 }
 
 impl Default for MemcacheCfg {
     fn default() -> Self {
-        MemcacheCfg {
-            hosts: vec![MemcacheCfgHosts::default()],
-            ttl: 15,
-        }
+        MemcacheCfg { hosts: vec![MemcacheCfgHosts::default()],
+                      ttl:   15, }
     }
 }
 
@@ -345,27 +316,21 @@ impl MemcacheCfgHosts {
         let mut url = format!("{}?tcp_nodelay=true", self); // tcp_nodelay is a significant perf gain
         if let Some(tls_config) = &self.tls {
             if tls_config.ca_cert_path.is_some() {
-                let _ = write!(
-                    url,
-                    "&ca_path={}",
-                    tls_config.ca_cert_path.as_ref().unwrap().to_string_lossy()
-                );
+                let _ = write!(url,
+                               "&ca_path={}",
+                               tls_config.ca_cert_path.as_ref().unwrap().to_string_lossy());
             }
 
             if tls_config.key_path.is_some() {
-                let _ = write!(
-                    url,
-                    "&key_path={}",
-                    tls_config.key_path.as_ref().unwrap().to_string_lossy()
-                );
+                let _ = write!(url,
+                               "&key_path={}",
+                               tls_config.key_path.as_ref().unwrap().to_string_lossy());
             }
 
             if tls_config.cert_path.is_some() {
-                let _ = write!(
-                    url,
-                    "&cert_path={}",
-                    tls_config.cert_path.as_ref().unwrap().to_string_lossy()
-                );
+                let _ = write!(url,
+                               "&cert_path={}",
+                               tls_config.cert_path.as_ref().unwrap().to_string_lossy());
             }
 
             if tls_config.verify {
@@ -396,10 +361,8 @@ pub struct JobsrvCfg {
 
 impl Default for JobsrvCfg {
     fn default() -> Self {
-        JobsrvCfg {
-            host: String::from("localhost"),
-            port: 5580,
-        }
+        JobsrvCfg { host: String::from("localhost"),
+                    port: 5580, }
     }
 }
 
@@ -413,27 +376,24 @@ impl fmt::Display for JobsrvCfg {
 #[serde(default)]
 pub struct ProvisionCfg {
     pub auto_provision_account: bool,
-    pub username: String,
-    pub email: String,
-    pub token_path: PathBuf,
-    pub origins: Vec<String>,
-    pub channels: Vec<String>,
+    pub username:               String,
+    pub email:                  String,
+    pub token_path:             PathBuf,
+    pub origins:                Vec<String>,
+    pub channels:               Vec<String>,
 }
 
 impl Default for ProvisionCfg {
     fn default() -> Self {
-        let token_path = env::var("BLDR_TOKEN_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| env::temp_dir());
+        let token_path = env::var("BLDR_TOKEN_DIR").map(PathBuf::from)
+                                                   .unwrap_or_else(|_| env::temp_dir());
 
-        ProvisionCfg {
-            auto_provision_account: false,
-            username: "chef-platform".to_string(),
-            email: "chef-platform@progress.com".to_string(),
-            token_path,
-            origins: vec!["core".to_string()],
-            channels: vec!["stable".to_string()],
-        }
+        ProvisionCfg { auto_provision_account: false,
+                       username: "chef-platform".to_string(),
+                       email: "chef-platform@progress.com".to_string(),
+                       token_path,
+                       origins: vec!["core".to_string()],
+                       channels: vec!["stable".to_string()] }
     }
 }
 
@@ -514,52 +474,38 @@ mod tests {
         "#;
 
         let config = Config::from_raw(content).unwrap();
-        assert_eq!(
-            config.api.data_path,
-            PathBuf::from("/hab/svc/hab-depot/data")
-        );
-        assert_eq!(
-            config.api.log_path,
-            PathBuf::from("/hab/svc/hab-depot/var/log")
-        );
-        assert_eq!(
-            config.api.key_path,
-            KeyCache::new("/hab/svc/hab-depot/files")
-        );
+        assert_eq!(config.api.data_path,
+                   PathBuf::from("/hab/svc/hab-depot/data"));
+        assert_eq!(config.api.log_path,
+                   PathBuf::from("/hab/svc/hab-depot/var/log"));
+        assert_eq!(config.api.key_path,
+                   KeyCache::new("/hab/svc/hab-depot/files"));
 
         assert_eq!(config.api.targets.len(), 3);
         assert_eq!(config.api.targets[0], target::X86_64_LINUX);
         assert_eq!(config.api.targets[1], target::X86_64_LINUX_KERNEL2);
         assert_eq!(config.api.targets[2], target::X86_64_WINDOWS);
 
-        assert_eq!(
-            &config.api.allowed_users_for_origin_create,
-            &["super1".to_string(), "super2".to_string()]
-        );
+        assert_eq!(&config.api.allowed_users_for_origin_create,
+                   &["super1".to_string(), "super2".to_string()]);
 
-        assert_eq!(
-            &config.api.features_enabled,
-            &["FOO".to_string(), "BAR".to_string()]
-        );
+        assert_eq!(&config.api.features_enabled,
+                   &["FOO".to_string(), "BAR".to_string()]);
         assert_eq!(config.api.private_max_age, 400);
 
         assert_eq!(&format!("{}", config.http.listen), "::1");
 
         assert_eq!(config.memcache.ttl, 11);
-        assert_eq!(
-            &format!("{}", config.memcache.hosts[0]),
-            "memcache://192.168.0.1:12345"
-        );
+        assert_eq!(&format!("{}", config.memcache.hosts[0]),
+                   "memcache://192.168.0.1:12345");
 
         assert_eq!(config.http.port, 9636);
         assert_eq!(config.http.handler_count, 128);
         assert_eq!(config.http.keep_alive, 30);
 
         assert_eq!(config.oauth.client_id, "0c2f738a7d0bd300de10");
-        assert_eq!(
-            config.oauth.client_secret,
-            "438223113eeb6e7edf2d2f91a232b72de72b9bdf"
-        );
+        assert_eq!(config.oauth.client_secret,
+                   "438223113eeb6e7edf2d2f91a232b72de72b9bdf");
 
         assert_eq!(config.github.api_url, "https://api.github.com");
 
@@ -567,10 +513,8 @@ mod tests {
 
         assert_eq!(config.s3.backend, S3Backend::Minio);
         assert_eq!(config.s3.key_id, "AWSKEYIDORSOMETHING");
-        assert_eq!(
-            config.s3.secret_key,
-            "aW5S3c437Key7hIn817s7o7a11yN457y70Wr173L1k37h15"
-        );
+        assert_eq!(config.s3.secret_key,
+                   "aW5S3c437Key7hIn817s7o7a11yN457y70Wr173L1k37h15");
         assert_eq!(config.s3.endpoint, "http://localhost:9000");
         assert_eq!(config.s3.bucket_name, "hibbity-bibbity-poopity-scoopity");
 
@@ -586,10 +530,8 @@ mod tests {
         assert!(config.datastore.connection_test);
         assert_eq!(config.datastore.pool_size, 1);
         assert_eq!(config.datastore.ssl_mode, Some("verify_ca".to_string()));
-        assert_eq!(
-            config.datastore.ssl_root_cert,
-            Some("/root_ca.crt".to_string())
-        );
+        assert_eq!(config.datastore.ssl_root_cert,
+                   Some("/root_ca.crt".to_string()));
         assert_eq!(config.datastore.ssl_key, Some("/ssl.key".to_string()));
         assert_eq!(config.datastore.ssl_cert, Some("/ssl.crt".to_string()));
     }

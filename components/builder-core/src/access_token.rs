@@ -87,7 +87,7 @@ impl AccessToken {
     ///
     /// Currently , user tokens never expire, and can only be revoked.
     pub fn user_token(key_cache: &KeyCache, account_id: u64, privileges: u32) -> Result<Self> {
-        Self::generate_access_token(key_cache, account_id, privileges, Duration::max_value())
+        Self::generate_access_token(key_cache, account_id, privileges, Duration::MAX)
     }
 
     /// Given the string form of an `AccessToken`, fully process it to yield an

@@ -34,18 +34,19 @@ impl LicenseKey {
     pub fn create(req: &NewLicenseKey, conn: &mut PgConnection) -> QueryResult<LicenseKey> {
         Counter::DBCall.increment();
 
-        diesel::insert_into(license_keys::table).values((
-            license_keys::account_id.eq(req.account_id),
-            license_keys::license_key.eq(req.license_key),
-            license_keys::expiration_date.eq(req.expiration_date),
-        ))
-        .on_conflict(license_keys::account_id)
-        .do_update()
-        .set((
-            license_keys::license_key.eq(req.license_key),
-            license_keys::expiration_date.eq(req.expiration_date),
-        ))
-        .get_result(conn)
+        diesel::insert_into(license_keys::table)
+            .values((
+                license_keys::account_id.eq(req.account_id),
+                license_keys::license_key.eq(req.license_key),
+                license_keys::expiration_date.eq(req.expiration_date),
+            ))
+            .on_conflict(license_keys::account_id)
+            .do_update()
+            .set((
+                license_keys::license_key.eq(req.license_key),
+                license_keys::expiration_date.eq(req.expiration_date),
+            ))
+            .get_result(conn)
     }
 
     pub fn get_by_account_id(account_id: i64,

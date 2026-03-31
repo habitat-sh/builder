@@ -49,10 +49,10 @@ fn main() -> Result<()> {
                                         args.account_id,
                                         FeatureFlags::empty().bits()).with_context(|| {
                                                                          format!(
-                "Failed to generate user token for account {} with key path {}",
-                args.account_id,
-                args.key_path.display()
-            )
+            "Failed to generate user token for account {} with key path {}",
+            args.account_id,
+            args.key_path.display()
+        )
                                                                      })?;
 
     // Output the token to stdout

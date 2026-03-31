@@ -1517,7 +1517,8 @@ async fn delete_origin_integration(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginIntegration::delete(&origin, &integration, &name, &mut conn).map_err(Error::DieselError)
+    match OriginIntegration::delete(&origin, &integration, &name, &mut conn)
+        .map_err(Error::DieselError)
     {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
@@ -1543,7 +1544,9 @@ async fn get_origin_integration(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginIntegration::get(&origin, &integration, &name, &mut conn).map_err(Error::DieselError) {
+    match OriginIntegration::get(&origin, &integration, &name, &mut conn)
+        .map_err(Error::DieselError)
+    {
         Ok(integration) => {
             match crypto::decrypt(&state.config.api.key_path, &integration.body)
                 .map_err(Error::BuilderCore)

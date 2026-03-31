@@ -6,9 +6,12 @@
 //! sequestered apart as "special" code
 
 use crate::models::keys as db_keys;
-use diesel::{
-    self, pg::PgConnection, result::QueryResult, ExpressionMethods, QueryDsl, RunQueryDsl,
-};
+use diesel::{self,
+             pg::PgConnection,
+             result::QueryResult,
+             ExpressionMethods,
+             QueryDsl,
+             RunQueryDsl};
 use habitat_core::crypto::keys as core_keys;
 
 impl db_keys::OriginPrivateEncryptionKey {
@@ -18,27 +21,23 @@ impl db_keys::OriginPrivateEncryptionKey {
     /// Returns the number of updated rows for user feedback purposes.
     ///
     /// Should be run in a transaction!
-    pub fn encrypt_unencrypted_keys(
-        conn: &mut PgConnection,
-        encryption_key: &core_keys::BuilderSecretEncryptionKey,
-    ) -> QueryResult<u32> {
+    pub fn encrypt_unencrypted_keys(conn: &mut PgConnection,
+                                    encryption_key: &core_keys::BuilderSecretEncryptionKey)
+                                    -> QueryResult<u32> {
         use crate::schema::key::origin_private_encryption_keys::dsl::*;
 
         let mut updated_rows = 0;
-        for row in origin_private_encryption_keys
-            .for_update()
-            .get_results::<Self>(conn)?
+        for row in origin_private_encryption_keys.for_update()
+                                                 .get_results::<Self>(conn)?
         {
             // If contents are not encrypted, then encrypt and update. The
             // key can't be parsed if it's encrypted.
-            if row
-                .body
-                .parse::<core_keys::OriginSecretEncryptionKey>()
-                .is_ok()
+            if row.body
+                  .parse::<core_keys::OriginSecretEncryptionKey>()
+                  .is_ok()
             {
-                let encrypted = encryption_key
-                    .encrypt(&row.body)
-                    .expect("Encryption Panicked.");
+                let encrypted = encryption_key.encrypt(&row.body)
+                                              .expect("Encryption Panicked.");
                 diesel::update(origin_private_encryption_keys.filter(id.eq(row.id)))
                     .set((body.eq(&encrypted.to_string()),))
                     .get_result::<Self>(conn)?;
