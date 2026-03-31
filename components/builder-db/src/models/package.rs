@@ -743,15 +743,14 @@ impl Package {
         let rows: Vec<(String, String)> =
             page_query.limit(limit_i64).offset(offset_i64).load(conn)?;
 
-        let pkgs: Vec<BuilderPackageIdent> =
-            rows.into_iter()
-                .map(|(origin, name)| {
-                    BuilderPackageIdent(PackageIdent { origin,
+        let pkgs: Vec<BuilderPackageIdent> = rows.into_iter()
+                                                 .map(|(origin, name)| {
+                                                     BuilderPackageIdent(PackageIdent { origin,
                                                        name,
                                                        version: None,
                                                        release: None })
-                })
-                .collect();
+                                                 })
+                                                 .collect();
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::list_distinct time: {} ms", duration_millis);

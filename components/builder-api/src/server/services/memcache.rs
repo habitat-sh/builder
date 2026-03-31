@@ -69,17 +69,11 @@ impl MemcacheClient {
                            self.ttl * 60)
         {
             Ok(_) => {
-                trace!("Saved {}/{}/{} to memcached",
-                       target,
-                       channel,
-                       ident.to_string())
+                trace!("Saved {}/{}/{} to memcached", target, channel, ident)
             }
             Err(e) => {
                 warn!("Failed to save {}/{}/{} to memcached: {:?}",
-                      target,
-                      channel,
-                      ident.to_string(),
-                      e)
+                      target, channel, ident, e)
             }
         };
     }
@@ -96,7 +90,7 @@ impl MemcacheClient {
         trace!("Getting {}/{}/{} from memcached for {:?}",
                target,
                channel,
-               ident.to_string(),
+               ident,
                opt_account_id);
 
         let account_str = match opt_account_id {

@@ -386,13 +386,12 @@ impl Channel {
                             conn: &mut PgConnection)
                             -> QueryResult<usize> {
         Counter::DBCall.increment();
-        let insert: Vec<(_, _)> =
-            package_ids.iter()
-                       .map(|id| {
-                           (origin_channel_packages::package_id.eq(id),
+        let insert: Vec<(_, _)> = package_ids.iter()
+                                             .map(|id| {
+                                                 (origin_channel_packages::package_id.eq(id),
                             origin_channel_packages::channel_id.eq(channel_id))
-                       })
-                       .collect();
+                                             })
+                                             .collect();
         diesel::insert_into(origin_channel_packages::table).values(insert)
                                                            .on_conflict_do_nothing()
                                                            .execute(conn)
