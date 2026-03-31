@@ -223,7 +223,7 @@ impl S3Handler {
 
         let payload = request.send().await;
         match payload {
-            Ok(response) => Ok(response.content_length),
+            Ok(response) => Ok(response.content_length.unwrap_or(0)),
             Err(e) => {
                 warn!("Failed to retrieve object metadata from S3, ident={}: {:?}",
                       ident, e);

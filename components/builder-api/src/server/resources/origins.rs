@@ -426,7 +426,12 @@ async fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>
     // to create a pair, because we don't want to store anything to
     // disk. That's why we have a database.
     let (public, secret) = match origin.parse().map_err(Error::HabitatCore) {
-        Ok(o) => generate_signing_key_pair(&o),
+        Ok(o) => {
+            match generate_signing_key_pair(&o) {
+                Ok(keys) => keys,
+                Err(err) => return Error::HabitatCore(err).into(),
+            }
+        }
         Err(err) => return err.into(),
     };
 
@@ -1615,7 +1620,7 @@ fn generate_origin_encryption_keys(origin: &str,
                                    conn: &mut PgConnection)
                                    -> Result<core_keys::OriginPublicEncryptionKey> {
     debug!("Generating encryption keys for {}", origin);
-    let (public, secret) = generate_origin_encryption_key_pair(&origin.parse()?);
+    let (public, secret) = generate_origin_encryption_key_pair(&origin.parse()?)?;
 
     let pk_body = public.to_key_string();
     let new_pk =

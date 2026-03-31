@@ -15,7 +15,7 @@
 use protobuf::{self,
                Message};
 use rand::{self,
-           Rng};
+           RngExt};
 use sha2::{Digest,
            Sha512};
 use std::time::Instant;
@@ -262,8 +262,8 @@ impl MemcacheClient {
     }
 
     fn reset_namespace(&mut self, namespace_key: &str) -> String {
-        let mut rng = rand::thread_rng();
-        let val: u64 = rng.gen();
+        let mut rng = rand::rng();
+        let val: u64 = rng.random();
         trace!("Reset namespace {} to {}", namespace_key, val);
 
         if let Err(err) = self.cli.set(namespace_key, val, self.ttl * 60) {
@@ -319,7 +319,7 @@ fn member_role_ns_key(origin: &str, account_id: u64) -> String {
 fn hash_key(key: &str) -> String {
     let mut hasher = Sha512::new();
     hasher.update(key);
-    format!("{:02x}", hasher.finalize())
+    hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect::<String>()
 }
 
 #[cfg(test)]
