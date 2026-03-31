@@ -178,7 +178,7 @@ _load-if-not-loaded() {
   if hab svc status "$pkg_ident" >/dev/null 2>&1; then
     echo "$pkg_ident is already loaded"
   else
-    hab svc load "$@"
+    hab svc load "$@" --channel stable
   fi
 }
 load-if-not-loaded() { stop-on-failure _load-if-not-loaded "$@"; }
@@ -189,7 +189,7 @@ start-datastore() {
     echo "habitat/builder-datastore is already loaded"
   else
     init-datastore
-    hab svc load habitat/builder-datastore
+    hab svc load habitat/builder-datastore --channel stable
   fi
 }
 
