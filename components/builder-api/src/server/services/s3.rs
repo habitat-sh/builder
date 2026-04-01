@@ -82,7 +82,8 @@ impl S3Handler {
         let region = Region::new(region_name);
 
         // Create configuration synchronously
-        let mut s3_conf_builder = aws_sdk_s3::config::Builder::new().region(region)
+        let mut s3_conf_builder = aws_sdk_s3::config::Builder::new().behavior_version_latest()
+                                                                    .region(region)
                                                                     .credentials_provider(creds);
 
         // Apply endpoint URL and path style settings if needed
