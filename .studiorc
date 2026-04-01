@@ -178,6 +178,9 @@ _load-if-not-loaded() {
   if hab svc status "$pkg_ident" >/dev/null 2>&1; then
     echo "$pkg_ident is already loaded"
   else
+    # since channel is never passed through 'svc_params' we are safe to pass
+    # channel here. defaulting to 'stable' due to new *default* channel being
+    # base where we do not yet have `habitat/builder-*` packages
     hab svc load "$@" --channel stable
   fi
 }

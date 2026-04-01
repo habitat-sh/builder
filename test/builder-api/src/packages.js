@@ -1259,7 +1259,7 @@ describe('Working with packages', function () {
         });
     });
 
-    // TODO supposed to be 404, but receiving an ampty array
+    // TODO supposed to be 404, but receiving an empty array
     it('unauthenticated users cannot view private package channels', function (done) {
       request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/channels`)
         .type('application/json')
@@ -1312,7 +1312,7 @@ describe('Working with packages', function () {
         });
     });
 
-    // TODO supposed to be 404, but receiving an ampty array
+    // TODO supposed to be 404, but receiving an empty array
     it('does not let members of the other origin to view private package channels', function (done) {
       request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/channels`)
         .type('application/json')
