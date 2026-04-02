@@ -37,7 +37,7 @@ runs:
         VERSION: ${{ inputs.habitat-version }}
         TARGET: ${{ inputs.habitat-target }}
       run: |
-        curl "$URL" | sudo bash -s -- -v "$VERSION" -t "$TARGET"
+        curl "$URL" | sudo -E bash -s -- -v "$VERSION" -t "$TARGET"
 
     - name: accept hab license
       shell: bash
