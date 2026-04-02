@@ -27,7 +27,6 @@ const file4 = fs.readFileSync(__dirname + `/../fixtures/xmen-testapp-0.1.4-${rel
 const file5 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp2-v1.2.3-master-${release5}-x86_64-linux.hart`);
 const file6 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp2-v1.2.3-aaster-${release6}-x86_64-linux.hart`);
 const file7 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.4-${release7}-x86_64-windows.hart`);
-const file8 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release8}-x86_64-linux-kernel2.hart`);
 const file9 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp3-0.1.0-${release9}-x86_64-linux.hart`);
 const file10 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.13-${release10}-x86_64-linux.hart`);
 const file11 = fs.readFileSync(__dirname + `/../fixtures/neurosis-neurosis-2.0-${release11}-x86_64-linux.hart`);
