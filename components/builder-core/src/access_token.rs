@@ -87,7 +87,7 @@ impl AccessToken {
     ///
     /// Currently , user tokens never expire, and can only be revoked.
     pub fn user_token(key_cache: &KeyCache, account_id: u64, privileges: u32) -> Result<Self> {
-        Self::generate_access_token(key_cache, account_id, privileges, Duration::max_value())
+        Self::generate_access_token(key_cache, account_id, privileges, Duration::MAX)
     }
 
     /// Given the string form of an `AccessToken`, fully process it to yield an
@@ -274,6 +274,8 @@ mod tests {
 
         // Create a new bldr encryption key, since tests are going to need one.
         let bldr_key = habitat_core::crypto::keys::generate_builder_encryption_key();
+        assert!(bldr_key.is_ok());
+        let bldr_key = bldr_key.unwrap();
         cache.write_key(&bldr_key).unwrap();
         (cache, dir)
     }
@@ -450,7 +452,9 @@ mod tests {
             // `originsrv::AuthToken`.
             //
             // This is the best we can do with `std::str::FromStr`, though.
-            let encrypted: SignedBox = key.encrypt("supersecretstuff");
+            let encrypted = key.encrypt("supersecretstuff");
+            assert!(encrypted.is_ok());
+            let encrypted: SignedBox = encrypted.unwrap();
             let b64 = habitat_core::base64::encode(encrypted.to_string());
             let token = format!("_{}", b64);
             let parsed = token.parse::<AccessToken>();

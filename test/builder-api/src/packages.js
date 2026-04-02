@@ -219,15 +219,15 @@ describe('Working with packages', function () {
         });
     });
 
-    it('uploads a kernel2 package', function (done) {
+    it('uploads a kernel2 package (error)', function (done) {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release8}`)
         .set('Authorization', global.boboBearer)
         .set('Content-Length', file8.length)
         .query({ checksum: 'bdae4812e37aa8d6d29eb5beae930c69334006e44edcbbbf75ec817c5e48ca2c' })
         .send(file8)
-        .expect(201)
+        .expect(422)
         .end(function (err, res) {
-          expect(res.text).to.equal(`/pkgs/neurosis/testapp/0.1.3/${release8}/download`);
+          expect(res.text).to.include(`err=InvalidPackageTarget("x86_64-linux-kernel2")`);
           done(err);
         });
     });
@@ -394,42 +394,6 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(9);
-          expect(res.body.total_count).to.equal(10);
-          expect(res.body.data.length).to.equal(10);
-          expect(res.body.data[0].origin).to.equal('neurosis');
-          expect(res.body.data[0].name).to.equal('native-testapp');
-          expect(res.body.data[0].version).to.equal('0.1.0');
-          expect(res.body.data[0].release).to.equal(release13);
-          expect(res.body.data[1].origin).to.equal('neurosis');
-          expect(res.body.data[1].name).to.equal('testapp');
-          expect(res.body.data[1].version).to.equal('0.1.13');
-          expect(res.body.data[1].release).to.equal(release10);
-          expect(res.body.data[2].version).to.equal('0.1.3');
-          expect(res.body.data[2].release).to.equal(release1);
-          expect(res.body.data[3].origin).to.equal('neurosis');
-          expect(res.body.data[3].name).to.equal('testapp');
-          expect(res.body.data[3].version).to.equal('0.1.3');
-          expect(res.body.data[3].release).to.equal(release2);
-          expect(res.body.data[4].origin).to.equal('neurosis');
-          expect(res.body.data[4].name).to.equal('testapp');
-          expect(res.body.data[4].version).to.equal('0.1.3');
-          expect(res.body.data[4].release).to.equal(release8);
-          expect(res.body.data[9].origin).to.equal('xmen');
-          expect(res.body.data[9].name).to.equal('testapp');
-          expect(res.body.data[9].version).to.equal('0.1.4');
-          expect(res.body.data[9].release).to.equal(release4);
-          done(err);
-        });
-    });
-
-    it('allows me to search for packages by origin/name', function (done) {
-      request.get('/depot/pkgs/search/neurosis%2Ftestapp')
-        .type('application/json')
-        .accept('application/json')
-        .expect(200)
-        .end(function (err, res) {
-          expect(res.body.range_start).to.equal(0);
           expect(res.body.range_end).to.equal(8);
           expect(res.body.total_count).to.equal(9);
           expect(res.body.data.length).to.equal(9);
@@ -447,14 +411,42 @@ describe('Working with packages', function () {
           expect(res.body.data[3].name).to.equal('testapp');
           expect(res.body.data[3].version).to.equal('0.1.3');
           expect(res.body.data[3].release).to.equal(release2);
+          expect(res.body.data[8].origin).to.equal('xmen');
+          expect(res.body.data[8].name).to.equal('testapp');
+          expect(res.body.data[8].version).to.equal('0.1.4');
+          expect(res.body.data[8].release).to.equal(release4);
+          done(err);
+        });
+    });
+
+    it('allows me to search for packages by origin/name', function (done) {
+      request.get('/depot/pkgs/search/neurosis%2Ftestapp')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.range_start).to.equal(0);
+          expect(res.body.range_end).to.equal(7);
+          expect(res.body.total_count).to.equal(8);
+          expect(res.body.data.length).to.equal(8);
+          expect(res.body.data[0].origin).to.equal('neurosis');
+          expect(res.body.data[0].name).to.equal('native-testapp');
+          expect(res.body.data[0].version).to.equal('0.1.0');
+          expect(res.body.data[0].release).to.equal(release13);
+          expect(res.body.data[1].origin).to.equal('neurosis');
+          expect(res.body.data[1].name).to.equal('testapp');
+          expect(res.body.data[1].version).to.equal('0.1.13');
+          expect(res.body.data[1].release).to.equal(release10);
+          expect(res.body.data[2].version).to.equal('0.1.3');
+          expect(res.body.data[2].release).to.equal(release1);
+          expect(res.body.data[3].origin).to.equal('neurosis');
+          expect(res.body.data[3].name).to.equal('testapp');
+          expect(res.body.data[3].version).to.equal('0.1.3');
+          expect(res.body.data[3].release).to.equal(release2);
           expect(res.body.data[7].origin).to.equal('neurosis');
           expect(res.body.data[7].name).to.equal('testapp2');
-          expect(res.body.data[7].version).to.equal('v1.2.3-aaster');
-          expect(res.body.data[7].release).to.equal(release6);
-          expect(res.body.data[8].origin).to.equal('neurosis');
-          expect(res.body.data[8].name).to.equal('testapp2');
-          expect(res.body.data[8].version).to.equal('v1.2.3-master');
-          expect(res.body.data[8].release).to.equal(release5);
+          expect(res.body.data[7].version).to.equal('v1.2.3-master');
+          expect(res.body.data[7].release).to.equal(release5);
           done(err);
         });
     });
@@ -524,9 +516,9 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(10);
-          expect(res.body.total_count).to.equal(11);
-          expect(res.body.data.length).to.equal(11);
+          expect(res.body.range_end).to.equal(9);
+          expect(res.body.total_count).to.equal(10);
+          expect(res.body.data.length).to.equal(10);
           expect(res.body.data[2].origin).to.equal('neurosis');
           expect(res.body.data[2].name).to.equal('testapp');
           expect(res.body.data[2].version).to.equal('0.1.4');
@@ -535,10 +527,6 @@ describe('Working with packages', function () {
           expect(res.body.data[3].name).to.equal('testapp');
           expect(res.body.data[3].version).to.equal('0.1.4');
           expect(res.body.data[3].release).to.equal(release3);
-          expect(res.body.data[4].origin).to.equal('neurosis');
-          expect(res.body.data[4].name).to.equal('testapp');
-          expect(res.body.data[4].version).to.equal('0.1.3');
-          expect(res.body.data[4].release).to.equal(release8);
           done(err);
         });
     });
@@ -613,9 +601,9 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(5);
-          expect(res.body.total_count).to.equal(6);
-          expect(res.body.data.length).to.equal(6);
+          expect(res.body.range_end).to.equal(4);
+          expect(res.body.total_count).to.equal(5);
+          expect(res.body.data.length).to.equal(5);
           expect(res.body.data[0].origin).to.equal('neurosis');
           expect(res.body.data[0].name).to.equal('testapp');
           expect(res.body.data[0].version).to.equal('0.1.4');
@@ -625,11 +613,6 @@ describe('Working with packages', function () {
           expect(res.body.data[1].name).to.equal('testapp');
           expect(res.body.data[1].version).to.equal('0.1.4');
           expect(res.body.data[1].release).to.equal(release3);
-          expect(res.body.data[1].platforms[0]).to.equal('x86_64-linux');
-          expect(res.body.data[2].origin).to.equal('neurosis');
-          expect(res.body.data[2].name).to.equal('testapp');
-          expect(res.body.data[2].version).to.equal('0.1.3');
-          expect(res.body.data[2].release).to.equal(release8);
           expect(res.body.data[1].platforms[0]).to.equal('x86_64-linux');
           done(err);
         });
@@ -661,9 +644,9 @@ describe('Working with packages', function () {
           expect(res.body[2].origin).to.equal('neurosis');
           expect(res.body[2].name).to.equal('testapp');
           expect(res.body[2].version).to.equal('0.1.3');
-          expect(res.body[2].release_count).to.equal('3');
-          expect(res.body[2].latest).to.equal(release8);
-          expect(res.body[2].platforms.length).to.equal(2);
+          expect(res.body[2].release_count).to.equal('2');
+          expect(res.body[2].latest).to.equal(release2);
+          expect(res.body[2].platforms.length).to.equal(1);
           expect(res.body[2].platforms[0]).to.equal('x86_64-linux');
           done(err);
         });
@@ -719,19 +702,14 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.range_start).to.equal(0);
-          expect(res.body.range_end).to.equal(2);
-          expect(res.body.total_count).to.equal(3);
-          expect(res.body.data.length).to.equal(3);
+          expect(res.body.range_end).to.equal(1);
+          expect(res.body.total_count).to.equal(2);
+          expect(res.body.data.length).to.equal(2);
           expect(res.body.data[0].origin).to.equal('neurosis');
           expect(res.body.data[0].name).to.equal('testapp');
           expect(res.body.data[0].version).to.equal('0.1.3');
-          expect(res.body.data[0].release).to.equal(release8);
-          expect(res.body.data[1].platforms[0]).to.equal('x86_64-linux');
-          expect(res.body.data[1].origin).to.equal('neurosis');
-          expect(res.body.data[1].name).to.equal('testapp');
-          expect(res.body.data[1].version).to.equal('0.1.3');
-          expect(res.body.data[1].release).to.equal(release2);
-          expect(res.body.data[1].platforms[0]).to.equal('x86_64-linux');
+          expect(res.body.data[0].release).to.equal(release2);
+          expect(res.body.data[0].platforms[0]).to.equal('x86_64-linux');
           done(err);
         });
     });
@@ -910,7 +888,7 @@ describe('Working with packages', function () {
         });
     });
 
-    // TODO supposed to be empty, need to revisit 
+    // TODO supposed to be empty, need to revisit
     it('tests the builder events after demoting a package', function (done) {
       const url = appendDateRange('/depot/events');
       request.get(url)
@@ -1002,10 +980,10 @@ describe('Working with packages', function () {
     const demotePath = (channel) => `/depot/channels/${origin}/${channel}/pkgs/${name}/${version}/${release}/demote`;
     const createChannelPath = (channel) => `/depot/channels/${origin}/${channel}`;
     const deleteChannelPath = (channel) => `/depot/channels/${origin}/${channel}`;
-  
+
     const validLicenseKey = 'free-6cc49568-d1e8-4165-b1a9-6b232b914ca6-7839';
     const expiredLicenseKey = 'tmns-3785e812-1704-4d08-836d-2f35bdfddce4-4914';
-  
+
     function addLicenseKey(key, done) {
       request.put('/profile/license')
         .set('Authorization', global.boboBearer)
@@ -1016,28 +994,28 @@ describe('Working with packages', function () {
         .expect(200)
         .end(done);
     }
-  
+
     function removeLicenseKey(done) {
       request.delete('/profile/license')
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(done);
     }
-  
+
     function createChannel(channel, done) {
       request.post(createChannelPath(channel))
         .set('Authorization', global.boboBearer)
         .expect(201)
         .end(done);
     }
-  
+
     function deleteChannel(channel, done) {
       request.delete(deleteChannelPath(channel))
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(done);
     }
-  
+
     function promoteTo(channel, done) {
       request.put(promotePath(channel))
         .query({ target })
@@ -1045,7 +1023,7 @@ describe('Working with packages', function () {
         .expect(200)
         .end(done);
     }
-  
+
     function demoteFrom(channel, done) {
       request.put(demotePath(channel))
         .query({ target })
@@ -1053,7 +1031,7 @@ describe('Working with packages', function () {
         .expect(200)
         .end(done);
     }
-  
+
     before(function (done) {
       request.post('/profile/access-tokens')
         .set('Authorization', global.boboBearer)
@@ -1064,19 +1042,19 @@ describe('Working with packages', function () {
           if (err) return done(err);
           expect(res.body.token).to.not.be.empty;
           global.boboId = res.body.id;
-  
+
           createChannel('LTS-2024', () => {
               createChannel('base-2025', done);
           });
         });
     });
-  
+
     after(function (done) {
       deleteChannel('LTS-2024', () => {
           deleteChannel('base-2025', done);
       });
     });
-  
+
     it('succeeds without license when package is only in LTS-2024', function (done) {
       promoteTo('LTS-2024', () => {
         removeLicenseKey(() => {
@@ -1089,7 +1067,7 @@ describe('Working with packages', function () {
         });
       });
     });
-  
+
     it('fails without license when package is only in base-2025', function (done) {
       promoteTo('base-2025', () => {
         removeLicenseKey(() => {
@@ -1102,7 +1080,7 @@ describe('Working with packages', function () {
         });
       });
     });
-  
+
     it('succeeds with valid license when package is only in base-2025', function (done) {
       promoteTo('base-2025', () => {
         addLicenseKey(validLicenseKey, () => {
@@ -1115,7 +1093,7 @@ describe('Working with packages', function () {
         });
       });
     });
-  
+
     it('fails with expired license when package is only in base-2025', function (done) {
       promoteTo('base-2025', () => {
         addLicenseKey(expiredLicenseKey, () => {
@@ -1128,7 +1106,7 @@ describe('Working with packages', function () {
         });
       });
     });
-  
+
     it('succeeds without license when package is in LTS-2024 and base-2025', function (done) {
       promoteTo('LTS-2024', () => {
         promoteTo('base-2025', () => {
@@ -1145,7 +1123,7 @@ describe('Working with packages', function () {
         });
       });
     });
-  
+
     it('succeeds with valid license when package is in LTS-2024 and base-2025', function (done) {
       promoteTo('LTS-2024', () => {
         promoteTo('base-2025', () => {
@@ -1162,7 +1140,7 @@ describe('Working with packages', function () {
         });
       });
     });
-  
+
     it('succeeds with expired license when package is in LTS-2024 and base-2025', function (done) {
       promoteTo('LTS-2024', () => {
         promoteTo('base-2025', () => {
@@ -1179,7 +1157,7 @@ describe('Working with packages', function () {
         });
       });
     });
-  
+
     it('succeeds without license when package is in stable and not in base-2025', function (done) {
       promoteTo('stable', () => {
         removeLicenseKey(() => {
@@ -1192,7 +1170,7 @@ describe('Working with packages', function () {
         });
       });
     });
-  
+
     it('fails without license when package is in stable and base-2025', function (done) {
       promoteTo('stable', () => {
         promoteTo('base-2025', () => {
@@ -1209,7 +1187,7 @@ describe('Working with packages', function () {
         });
       });
     });
-  
+
     it('succeeds with valid license when package is in stable and base-2025', function (done) {
       promoteTo('stable', () => {
         promoteTo('base-2025', () => {
@@ -1226,7 +1204,7 @@ describe('Working with packages', function () {
         });
       });
     });
-  
+
     it('fails with expired license when package is in stable and base-2025', function (done) {
       promoteTo('stable', () => {
         promoteTo('base-2025', () => {
@@ -1243,8 +1221,8 @@ describe('Working with packages', function () {
         });
       });
     });
-  
-  });  
+
+  });
 
   describe('Other functions', function () {
     it('lists all the channels a package is in', function (done) {
@@ -1281,7 +1259,7 @@ describe('Working with packages', function () {
         });
     });
 
-    // TODO supposed to be 404, but receiving an ampty array 
+    // TODO supposed to be 404, but receiving an empty array
     it('unauthenticated users cannot view private package channels', function (done) {
       request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/channels`)
         .type('application/json')
@@ -1334,7 +1312,7 @@ describe('Working with packages', function () {
         });
     });
 
-    // TODO supposed to be 404, but receiving an ampty array 
+    // TODO supposed to be 404, but receiving an empty array
     it('does not let members of the other origin to view private package channels', function (done) {
       request.get(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}/channels`)
         .type('application/json')

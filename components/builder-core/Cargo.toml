@@ -9,13 +9,13 @@ edition = "2018"
 base64 = "*"
 bitflags = "*"
 chrono = { version = "*", features = ["serde"] }
-dogstatsd = "*"
+dogstatsd = "0.6"
 env_proxy = "*"
 glob = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
 log = "*"
-protobuf = "*"
+protobuf = "2"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
@@ -28,7 +28,7 @@ git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.reqwest]
 version = "*"
-features = ["stream"]
+features = ["stream", "query"]
 
 [dev-dependencies]
 tempfile = "*"

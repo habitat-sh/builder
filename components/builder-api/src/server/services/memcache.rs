@@ -15,7 +15,7 @@
 use protobuf::{self,
                Message};
 use rand::{self,
-           Rng};
+           RngExt};
 use sha2::{Digest,
            Sha512};
 use std::time::Instant;
@@ -69,17 +69,11 @@ impl MemcacheClient {
                            self.ttl * 60)
         {
             Ok(_) => {
-                trace!("Saved {}/{}/{} to memcached",
-                       target,
-                       channel,
-                       ident.to_string())
+                trace!("Saved {}/{}/{} to memcached", target, channel, ident)
             }
             Err(e) => {
                 warn!("Failed to save {}/{}/{} to memcached: {:?}",
-                      target,
-                      channel,
-                      ident.to_string(),
-                      e)
+                      target, channel, ident, e)
             }
         };
     }
@@ -96,7 +90,7 @@ impl MemcacheClient {
         trace!("Getting {}/{}/{} from memcached for {:?}",
                target,
                channel,
-               ident.to_string(),
+               ident,
                opt_account_id);
 
         let account_str = match opt_account_id {
@@ -262,8 +256,8 @@ impl MemcacheClient {
     }
 
     fn reset_namespace(&mut self, namespace_key: &str) -> String {
-        let mut rng = rand::thread_rng();
-        let val: u64 = rng.gen();
+        let mut rng = rand::rng();
+        let val: u64 = rng.random();
         trace!("Reset namespace {} to {}", namespace_key, val);
 
         if let Err(err) = self.cli.set(namespace_key, val, self.ttl * 60) {
@@ -319,7 +313,10 @@ fn member_role_ns_key(origin: &str, account_id: u64) -> String {
 fn hash_key(key: &str) -> String {
     let mut hasher = Sha512::new();
     hasher.update(key);
-    format!("{:02x}", hasher.finalize())
+    hasher.finalize()
+          .iter()
+          .map(|b| format!("{:02x}", b))
+          .collect::<String>()
 }
 
 #[cfg(test)]

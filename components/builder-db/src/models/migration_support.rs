@@ -36,7 +36,15 @@ impl db_keys::OriginPrivateEncryptionKey {
                   .parse::<core_keys::OriginSecretEncryptionKey>()
                   .is_ok()
             {
-                let encrypted = encryption_key.encrypt(&row.body);
+                let encrypted = encryption_key.encrypt(&row.body)
+                                              .map_err(|e| diesel::result::Error::SerializationError(Box::new(
+                                                    std::io::Error::other(
+                                                      format!(
+                                                          "Failed to encrypt origin_private_encryption_keys row id {}: {}",
+                                                          row.id, e
+                                                      ),
+                                                  ),
+                                              )))?;
                 diesel::update(origin_private_encryption_keys.filter(id.eq(row.id)))
                     .set((body.eq(&encrypted.to_string()),))
                     .get_result::<Self>(conn)?;

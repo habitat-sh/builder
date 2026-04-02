@@ -985,7 +985,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
                                   ident: &PackageIdent,
                                   temp_path: &path::Path)
                                   -> HttpResponse {
-    let mut archive = match PackageArchive::new(temp_path) {
+    let archive = match PackageArchive::new(temp_path) {
         Ok(archive) => archive,
         Err(e) => {
             info!("Could not read the package at {:#?}: {:#?}", temp_path, e);

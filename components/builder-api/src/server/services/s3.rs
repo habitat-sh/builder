@@ -82,7 +82,8 @@ impl S3Handler {
         let region = Region::new(region_name);
 
         // Create configuration synchronously
-        let mut s3_conf_builder = aws_sdk_s3::config::Builder::new().region(region)
+        let mut s3_conf_builder = aws_sdk_s3::config::Builder::new().behavior_version_latest()
+                                                                    .region(region)
                                                                     .credentials_provider(creds);
 
         // Apply endpoint URL and path style settings if needed
@@ -223,7 +224,15 @@ impl S3Handler {
 
         let payload = request.send().await;
         match payload {
-            Ok(response) => Ok(response.content_length),
+            Ok(response) => {
+                match response.content_length {
+                    Some(len) => Ok(len),
+                    None => {
+                        warn!("S3 object missing content length for ident={}", ident);
+                        Err(Error::IO(std::io::Error::other("S3 object missing content length")))
+                    }
+                }
+            }
             Err(e) => {
                 warn!("Failed to retrieve object metadata from S3, ident={}: {:?}",
                       ident, e);

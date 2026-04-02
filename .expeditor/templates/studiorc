@@ -1,5 +1,5 @@
 # This file (.expeditor/templates/studiorc) is concatenated onto .studiorc when
-# .expeditor/scripts/verify/builder-api-functional.sh runs.  
+# .expeditor/scripts/verify/builder-api-functional.sh runs.
 
 cd /src || exit
 
@@ -96,7 +96,7 @@ while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ]; do
   sleep 10
 done
 
-hab pkg install rcpd/testapp -u http://localhost:9636 --channel unstable --auth bobo || {
+env RUST_LOG=debug hab pkg install rcpd/testapp -u http://localhost:9636 --channel unstable --auth bobo || {
   echo "ERROR: Failed to install rcpd/testapp package"
   exit 1
 }
