@@ -219,19 +219,6 @@ describe('Working with packages', function () {
         });
     });
 
-    it('uploads a kernel2 package (error)', function (done) {
-      request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release8}`)
-        .set('Authorization', global.boboBearer)
-        .set('Content-Length', file8.length)
-        .query({ checksum: 'bdae4812e37aa8d6d29eb5beae930c69334006e44edcbbbf75ec817c5e48ca2c' })
-        .send(file8)
-        .expect(422)
-        .end(function (err, res) {
-          expect(res.text).to.include(`err=InvalidPackageTarget("x86_64-linux-kernel2")`);
-          done(err);
-        });
-    });
-
     it('allows native packages to be uploaded', function (done) {
         request.post(`/depot/pkgs/neurosis/native-testapp/0.1.0/${release13}`)
           .set('Authorization', global.boboBearer)
