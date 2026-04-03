@@ -2250,7 +2250,7 @@ dependencies = [
 [[package]]
 name = "habitat_core"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#ade96639b1c173eb79d429a1ad5d205f03dedb21"
+source = "git+https://github.com/habitat-sh/habitat.git#aff457eb48ae3894c83dca2afbbe3a886296a92c"
 dependencies = [
  "base64",
  "blake2b_simd",
@@ -2299,7 +2299,7 @@ dependencies = [
 [[package]]
 name = "habitat_win_users"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#ade96639b1c173eb79d429a1ad5d205f03dedb21"
+source = "git+https://github.com/habitat-sh/habitat.git#aff457eb48ae3894c83dca2afbbe3a886296a92c"
 dependencies = [
  "cc",
  "log",
