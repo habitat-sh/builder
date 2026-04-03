@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- send HAB_AUTH_TOKEN to hab curl bash installer [#1972](https://github.com/habitat-sh/builder/pull/1972) ([mwrock](https://github.com/mwrock))
 - cargo update to track latest `habitat_core`  [#1971](https://github.com/habitat-sh/builder/pull/1971) ([agadgil-progress](https://github.com/agadgil-progress))
 - Bump diff from 5.2.0 to 5.2.2 in /test/builder-api [#1958](https://github.com/habitat-sh/builder/pull/1958) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump bytes from 1.4.0 to 1.11.1 [#1960](https://github.com/habitat-sh/builder/pull/1960) ([dependabot[bot]](https://github.com/dependabot[bot]))
