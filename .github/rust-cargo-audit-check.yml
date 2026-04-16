@@ -1,0 +1,19 @@
+# https://github.com/actions-rs/audit-check
+name: Rust Cargo Audit
+on:
+  push:
+jobs:
+  security_audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.91.1
+        id: toolchain
+      - run: rustup override set ${{steps.toolchain.outputs.name}}
+      - uses: ClementTsang/cargo-action@v0.0.7
+        with:
+          command: install
+          args: cargo-audit
+      - uses: ClementTsang/cargo-action@v0.0.7
+        with:
+          command: audit
