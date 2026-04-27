@@ -38,7 +38,7 @@ rand = "*"
 r2d2 = "*"
 regex = "*"
 aws-config = "*"
-aws-sdk-s3 = "*"
+aws-sdk-s3 = { version = "*", default-features = false, features = ["sigv4a", "http-1x", "default-https-client", "rt-tokio"] }
 tempfile = "*"
 uuid = { version = "*", features = ["v4"] }
 tokio = { version = "*", features = ["rt", "time"] }
