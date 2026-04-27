@@ -37,7 +37,7 @@ impl RpcMessage {
     pub fn make<T>(msg: &T) -> Result<RpcMessage>
         where T: protobuf::Message
     {
-        let id = msg.descriptor().name().to_owned();
+        let id = T::NAME.to_owned();
         let body = msg.write_to_bytes().map_err(Error::Protobuf)?;
 
         Ok(RpcMessage::new(id, body))
@@ -78,7 +78,7 @@ impl RpcClient {
         where R: protobuf::Message,
               T: protobuf::Message
     {
-        let id = req.descriptor().name().to_owned();
+        let id = R::NAME.to_owned();
         let body = req.write_to_bytes()?;
         let msg = RpcMessage { id, body };
         debug!("Sending RPC Message: {}", msg.id);

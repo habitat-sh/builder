@@ -106,7 +106,7 @@ impl AccessToken {
         //
         // TODO (CM - 2020-09-15): This logic would be better as an `expired`
         // method on the `originsrv::AccessToken` type itself.
-        match Utc.timestamp_opt(payload.get_expires(), 0 /* nanoseconds */) {
+        match Utc.timestamp_opt(payload.expires(), 0 /* nanoseconds */) {
             Single(expires) => {
                 if expires < Utc::now() {
                     return Err(Error::TokenExpired);
@@ -123,9 +123,9 @@ impl AccessToken {
                 // no one is laughing. I hope there will be a better fix than this
                 // in the near future but this will allow the many keys currently
                 // out in the wild with this value to authenticate.
-                if payload.get_expires() != 8_210_298_326_400 {
+                if payload.expires() != 8_210_298_326_400 {
                     trace!("unable to parse timestamp from expires {} for token {}",
-                           payload.get_expires(),
+                           payload.expires(),
                            token);
                     return Err(Error::TokenInvalid);
                 }
@@ -304,10 +304,10 @@ mod tests {
 
         let inner = token.decrypt(&cache).unwrap();
 
-        assert_eq!(inner.get_account_id(),
+        assert_eq!(inner.account_id(),
                    BUILDER_ACCOUNT_ID,
                    "Builder tokens should be for the Builder account only");
-        assert_eq!(inner.get_flags(),
+        assert_eq!(inner.flags(),
                    FeatureFlags::all().bits(),
                    "Builder tokens should have all flags enabled");
 
@@ -325,10 +325,10 @@ mod tests {
         let lower_bound = expected_expiration - 1;
         let acceptable_range = lower_bound..=upper_bound;
 
-        assert!(acceptable_range.contains(&inner.get_expires()),
+        assert!(acceptable_range.contains(&inner.expires()),
                 "Builder tokens should expire in 2 hours (expected {}, got {})",
                 expected_expiration,
-                inner.get_expires());
+                inner.expires());
     }
 
     #[test]
@@ -341,13 +341,13 @@ mod tests {
 
         let inner = token.decrypt(&cache).unwrap();
 
-        assert_eq!(inner.get_account_id(), account_id);
-        assert_eq!(inner.get_flags(), privileges);
+        assert_eq!(inner.account_id(), account_id);
+        assert_eq!(inner.flags(), privileges);
 
         // December 31, 262143 CE... see `chrono::naive::date::MAX_DATE`
         // User tokens essentially never expire.
         let maximum_time = 8_210_266_876_799;
-        assert_eq!(inner.get_expires(), maximum_time);
+        assert_eq!(inner.expires(), maximum_time);
     }
 
     mod validate_access_token {

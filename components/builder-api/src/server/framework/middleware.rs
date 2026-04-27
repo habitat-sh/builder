@@ -111,7 +111,7 @@ fn validate_token_and_create_session(token: &str,
 
     trace!("Found valid session for {} tied to account {}",
            token,
-           session.get_id());
+           session.id());
 
     // Handle special builder account case
     if let Some(builder_session) = handle_builder_account(&mut session, token, state) {
@@ -126,7 +126,7 @@ fn handle_builder_account(session: &mut originsrv::Session,
                           token: &str,
                           state: &AppState)
                           -> Option<originsrv::Session> {
-    if session.get_id() == BUILDER_ACCOUNT_ID {
+    if session.id() == BUILDER_ACCOUNT_ID {
         trace!("Builder token identified");
         session.set_name(BUILDER_ACCOUNT_NAME.to_owned());
         state.memcache
@@ -146,11 +146,11 @@ fn validate_database_token(token: &str,
     let mut conn = state.db.get_conn().map_err(error::Error::DbError)?;
 
     let access_tokens =
-        match AccountToken::list(session.get_id(), &mut conn).map_err(error::Error::DieselError) {
+        match AccountToken::list(session.id(), &mut conn).map_err(error::Error::DieselError) {
             Ok(tokens) => tokens,
             Err(e) => {
                 trace!("Failed to list access tokens for user {}: {:?}",
-                       session.get_id(),
+                       session.id(),
                        e);
                 return Err(error::Error::Authorization);
             }
@@ -168,7 +168,7 @@ fn validate_token_count_and_match(token: &str,
     if access_tokens.len() > 1 {
         error!("Found {} tokens for user {} but there should only be one",
                access_tokens.len(),
-               session.get_id());
+               session.id());
         return Err(error::Error::Authorization);
     }
 
@@ -183,7 +183,7 @@ fn validate_token_count_and_match(token: &str,
         trace!("Different token {} found for user {}. Token is valid but revoked or otherwise \
                 expired",
                new_token,
-               session.get_id());
+               session.id());
         return Err(error::Error::Authorization);
     }
 
@@ -196,14 +196,14 @@ fn finalize_session_with_account(_token: &str,
                                  conn: &mut diesel::PgConnection,
                                  state: &AppState)
                                  -> error::Result<originsrv::Session> {
-    let account = Account::get_by_id(session.get_id() as i64, conn).map_err(|e| {
-                                                                       trace!("Failed to find \
-                                                                               account for id \
-                                                                               {}: {:?}",
-                                                                              session.get_id(),
-                                                                              e);
-                                                                       error::Error::Authorization
-                                                                   })?;
+    let account = Account::get_by_id(session.id() as i64, conn).map_err(|e| {
+                                                                   trace!("Failed to find \
+                                                                           account for id {}: \
+                                                                           {:?}",
+                                                                          session.id(),
+                                                                          e);
+                                                                   error::Error::Authorization
+                                                               })?;
 
     trace!("Found account for token {} in database", new_token);
     session.set_name(account.name);
@@ -260,7 +260,7 @@ pub fn session_create_oauth(oauth_token: &str,
             debug!("issuing session, {:?}", session);
             state.memcache
                  .borrow_mut()
-                 .set_session(session.get_token(), &session, Some(*SESSION_DURATION));
+                 .set_session(session.token(), &session, Some(*SESSION_DURATION));
             Ok(session)
         }
         Err(e) => {

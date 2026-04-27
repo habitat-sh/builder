@@ -125,7 +125,7 @@ fn do_get_events(req: &HttpRequest,
                  search_query: &Query<SearchQuery>)
                  -> Result<(Vec<AuditPackageEvent>, i64)> {
     let opt_session_id = match authorize_session(req, None, None) {
-        Ok(session) => Some(session.get_id() as i64),
+        Ok(session) => Some(session.id() as i64),
         Err(_) => None,
     };
     let (page, per_page) = helpers::extract_pagination_in_pages(pagination);

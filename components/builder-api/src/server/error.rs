@@ -66,7 +66,7 @@ pub enum Error {
     PackageUpload(Box<SdkError<PutObjectError>>),
     PartialUpload(Box<SdkError<UploadPartError>>),
     PayloadError(actix_web::error::PayloadError),
-    Protobuf(protobuf::ProtobufError),
+    Protobuf(protobuf::Error),
     SerdeJson(serde_json::Error),
     System,
     TLSError(openssl::error::ErrorStack),
@@ -224,8 +224,8 @@ impl From<actix_web::error::PayloadError> for Error {
     fn from(err: actix_web::error::PayloadError) -> Error { Error::PayloadError(err) }
 }
 
-impl From<protobuf::ProtobufError> for Error {
-    fn from(err: protobuf::ProtobufError) -> Error { Error::Protobuf(err) }
+impl From<protobuf::Error> for Error {
+    fn from(err: protobuf::Error) -> Error { Error::Protobuf(err) }
 }
 
 impl From<db::error::Error> for Error {

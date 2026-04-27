@@ -35,30 +35,26 @@ impl Serialize for OriginKeyIdent {
         where S: Serializer
     {
         let mut strukt = serializer.serialize_struct("origin_key", 3)?;
-        strukt.serialize_field("origin", self.get_origin())?;
-        strukt.serialize_field("revision", self.get_revision())?;
-        strukt.serialize_field("location", self.get_location())?;
+        strukt.serialize_field("origin", self.origin())?;
+        strukt.serialize_field("revision", self.revision())?;
+        strukt.serialize_field("location", self.location())?;
         strukt.end()
     }
 }
 
 impl fmt::Display for OriginPackageIdent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if !self.get_version().is_empty() && !self.get_release().is_empty() {
+        if !self.version().is_empty() && !self.release().is_empty() {
             write!(f,
                    "{}/{}/{}/{}",
-                   self.get_origin(),
-                   self.get_name(),
-                   self.get_version(),
-                   self.get_release())
-        } else if !self.get_version().is_empty() {
-            write!(f,
-                   "{}/{}/{}",
-                   self.get_origin(),
-                   self.get_name(),
-                   self.get_version())
+                   self.origin(),
+                   self.name(),
+                   self.version(),
+                   self.release())
+        } else if !self.version().is_empty() {
+            write!(f, "{}/{}/{}", self.origin(), self.name(), self.version())
         } else {
-            write!(f, "{}/{}", self.get_origin(), self.get_name())
+            write!(f, "{}/{}", self.origin(), self.name())
         }
     }
 }
@@ -84,13 +80,12 @@ impl From<hab_core::package::PackageIdent> for OriginPackageIdent {
 
 impl From<OriginPackageIdent> for package::PackageIdent {
     fn from(value: OriginPackageIdent) -> package::PackageIdent {
-        let mut ident =
-            package::PackageIdent::new(value.get_origin(), value.get_name(), None, None);
-        if !value.get_version().is_empty() {
-            ident.version = Some(value.get_version().into());
+        let mut ident = package::PackageIdent::new(value.origin(), value.name(), None, None);
+        if !value.version().is_empty() {
+            ident.version = Some(value.version().into());
         }
-        if !value.get_release().is_empty() {
-            ident.release = Some(value.get_release().into());
+        if !value.release().is_empty() {
+            ident.release = Some(value.release().into());
         }
         ident
     }
@@ -127,12 +122,12 @@ impl FromStr for OriginPackageIdent {
 }
 
 impl Identifiable for OriginPackageIdent {
-    fn origin(&self) -> &str { self.get_origin() }
+    fn origin(&self) -> &str { self.origin() }
 
-    fn name(&self) -> &str { self.get_name() }
+    fn name(&self) -> &str { self.name() }
 
     fn version(&self) -> Option<&str> {
-        let ver = self.get_version();
+        let ver = self.version();
         if ver.is_empty() {
             None
         } else {
@@ -141,7 +136,7 @@ impl Identifiable for OriginPackageIdent {
     }
 
     fn release(&self) -> Option<&str> {
-        let rel = self.get_release();
+        let rel = self.release();
         if rel.is_empty() {
             None
         } else {
@@ -174,8 +169,8 @@ impl FromStr for OAuthProvider {
 impl From<AccessToken> for Session {
     fn from(value: AccessToken) -> Session {
         let mut session = Session::new();
-        session.set_id(value.get_account_id());
-        session.set_flags(value.get_flags());
+        session.set_id(value.account_id());
+        session.set_flags(value.flags());
         session
     }
 }
@@ -185,12 +180,12 @@ impl Serialize for Session {
         where S: Serializer
     {
         let mut strukt = serializer.serialize_struct("session", 6)?;
-        strukt.serialize_field("id", &self.get_id().to_string())?;
-        strukt.serialize_field("name", self.get_name())?;
-        strukt.serialize_field("email", self.get_email())?;
-        strukt.serialize_field("token", self.get_token())?;
-        strukt.serialize_field("flags", &self.get_flags())?;
-        strukt.serialize_field("oauth_token", self.get_oauth_token())?;
+        strukt.serialize_field("id", &self.id().to_string())?;
+        strukt.serialize_field("name", self.name())?;
+        strukt.serialize_field("email", self.email())?;
+        strukt.serialize_field("token", self.token())?;
+        strukt.serialize_field("flags", &self.flags())?;
+        strukt.serialize_field("oauth_token", self.oauth_token())?;
         strukt.end()
     }
 }

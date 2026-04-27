@@ -27,7 +27,7 @@ memcache = "*"
 num_cpus = "*"
 openssl = "*"
 percent-encoding = "*"
-protobuf = "2"
+protobuf = "3"
 reqwest = { version = "*", features = ["blocking", "json"] }
 serde = "*"
 serde_derive = "*"

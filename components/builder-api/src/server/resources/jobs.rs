@@ -90,7 +90,7 @@ fn filtered_rdeps(req: &HttpRequest,
 
     for rdep in reverse_dependencies.rdeps.iter() {
         let ident = OriginPackageIdent::from_str(rdep)?;
-        let origin_name = ident.get_origin();
+        let origin_name = ident.origin();
         let pv = if !origin_map.contains_key(origin_name) {
             let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
             let origin = Origin::get(origin_name, &mut conn)?;

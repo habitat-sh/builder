@@ -41,7 +41,7 @@ pub enum Error {
     OriginDeleteError(String),
     OriginMemberRoleError(String),
     PackageSettingDeleteError(String),
-    Protobuf(protobuf::ProtobufError),
+    Protobuf(protobuf::Error),
     Protocol(protocol::ProtocolError),
     Serialization(serde_json::Error),
     TokenInvalid,
@@ -95,8 +95,8 @@ impl From<hab_core::Error> for Error {
     fn from(err: hab_core::Error) -> Error { Error::HabitatCore(err) }
 }
 
-impl From<protobuf::ProtobufError> for Error {
-    fn from(err: protobuf::ProtobufError) -> Error { Error::Protobuf(err) }
+impl From<protobuf::Error> for Error {
+    fn from(err: protobuf::Error) -> Error { Error::Protobuf(err) }
 }
 
 impl From<reqwest::Error> for Error {

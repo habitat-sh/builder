@@ -19,10 +19,12 @@ fn main() {
     let protocols = protocol_files();
     let protocols: Vec<&str> = protocols.iter().map(AsRef::as_ref).collect();
 
-    protoc_rust::Codegen::new().out_dir("src/message")
-                               .inputs(&protocols)
-                               .includes(["protocols"])
-                               .run()
-                               .expect("Failed to run protoc, please check that it is available \
-                                        on your PATH and that the src/message folder is writable");
+    protobuf_codegen::Codegen::new().pure()
+                                    .out_dir("src/message")
+                                    .inputs(&protocols)
+                                    .include("protocols")
+                                    .customize(protobuf_codegen::Customize::default()
+                                                                            .lite_runtime(true)
+                                                                            .gen_mod_rs(false))
+                                    .run_from_script();
 }

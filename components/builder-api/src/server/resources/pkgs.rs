@@ -385,7 +385,7 @@ async fn download_package(req: HttpRequest,
     };
 
     let opt_session_id = match authorize_session(&req, None, None) {
-        Ok(session) => Some(session.get_id()),
+        Ok(session) => Some(session.id()),
         Err(_) => None,
     };
 
@@ -593,7 +593,7 @@ async fn get_package_channels(req: HttpRequest,
     let (origin, name, version, release) = path.into_inner();
 
     let opt_session_id = match authorize_session(&req, None, None) {
-        Ok(session) => Some(session.get_id()),
+        Ok(session) => Some(session.id()),
         Err(_) => None,
     };
 
@@ -656,7 +656,7 @@ async fn list_package_versions(req: HttpRequest,
     let (origin, name) = path.into_inner();
 
     let opt_session_id = match authorize_session(&req, None, None) {
-        Ok(session) => Some(session.get_id()),
+        Ok(session) => Some(session.id()),
         Err(_) => None,
     };
 
@@ -700,7 +700,7 @@ async fn search_packages(req: HttpRequest,
     let query = path.into_inner();
 
     let opt_session_id = match authorize_session(&req, None, None) {
-        Ok(session) => Some(session.get_id() as i64),
+        Ok(session) => Some(session.id() as i64),
         Err(_) => None,
     };
 
@@ -884,7 +884,7 @@ fn do_get_packages(req: &HttpRequest,
                    pagination: &Query<Pagination>)
                    -> Result<(Vec<PackageIdentWithChannelPlatform>, i64)> {
     let opt_session_id = match authorize_session(req, None, None) {
-        Ok(session) => Some(session.get_id()),
+        Ok(session) => Some(session.id()),
         Err(_) => None,
     };
 
@@ -1176,7 +1176,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
 
     let session = authorize_session(req, None, None).unwrap(); // Unwrap Ok
 
-    package.owner_id = session.get_id() as i64;
+    package.owner_id = session.id() as i64;
     package.origin = ident.clone().origin;
 
     package.visibility = match OriginPackageSettings::get(
@@ -1261,7 +1261,7 @@ async fn do_get_package(req: &HttpRequest,
                         ident: &PackageIdent)
                         -> Result<String> {
     let opt_session_id = match authorize_session(req, None, None) {
-        Ok(session) => Some(session.get_id()),
+        Ok(session) => Some(session.id()),
         Err(_) => None,
     };
     Counter::GetPackage.increment();

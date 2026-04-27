@@ -97,7 +97,7 @@ async fn create_origin_package_settings(req: HttpRequest,
 
     let account_id =
         match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
-            Ok(session) => session.get_id(),
+            Ok(session) => session.id(),
             Err(err) => return err.into(),
         };
 
@@ -143,7 +143,7 @@ async fn update_origin_package_settings(req: HttpRequest,
 
     let account_id =
         match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
-            Ok(session) => session.get_id(),
+            Ok(session) => session.id(),
             Err(err) => return err.into(),
         };
 
@@ -188,7 +188,7 @@ async fn delete_origin_package_settings(req: HttpRequest,
 
     let account_id =
         match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
-            Ok(session) => session.get_id(),
+            Ok(session) => session.id(),
             Err(err) => return err.into(),
         };
 

@@ -23,8 +23,8 @@ pub enum ProtocolError {
     BadJobState(String),
     BadOriginPackageVisibility(String),
     BadOs(String),
-    Decode(protobuf::ProtobufError),
-    Encode(protobuf::ProtobufError),
+    Decode(protobuf::Error),
+    Encode(protobuf::Error),
     IdentityDecode(FromUtf8Error),
     NoProtocol(String),
 }
