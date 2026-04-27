@@ -144,7 +144,7 @@ async fn create_channel(req: HttpRequest,
 
     let session_id =
         match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
-            Ok(session) => session.get_id(),
+            Ok(session) => session.id(),
             Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
         };
 
@@ -229,7 +229,7 @@ async fn promote_channel_packages(req: HttpRequest,
                                                 &ch_target,
                                                 &origin,
                                                 true,
-                                                session.get_id() as i64)
+                                                session.id() as i64)
     {
         Ok(pkg_ids) => {
             match PackageGroupChannelAudit::audit(
@@ -239,8 +239,8 @@ async fn promote_channel_packages(req: HttpRequest,
                     package_ids: pkg_ids,
                     operation: PackageChannelOperation::Promote,
                     trigger: helpers::trigger_from_request_model(&req),
-                    requester_id: session.get_id() as i64,
-                    requester_name: session.get_name(),
+                    requester_id: session.id() as i64,
+                    requester_name: session.name(),
                     group_id: 0_i64,
                 },
                 &mut conn,
@@ -282,7 +282,7 @@ async fn demote_channel_packages(req: HttpRequest,
                                                 &ch_target,
                                                 &origin,
                                                 false,
-                                                session.get_id() as i64)
+                                                session.id() as i64)
     {
         Ok(pkg_ids) => {
             match PackageGroupChannelAudit::audit(
@@ -292,8 +292,8 @@ async fn demote_channel_packages(req: HttpRequest,
                     package_ids: pkg_ids,
                     operation: PackageChannelOperation::Demote,
                     trigger: helpers::trigger_from_request_model(&req),
-                    requester_id: session.get_id() as i64,
-                    requester_name: session.get_name(),
+                    requester_id: session.id() as i64,
+                    requester_name: session.name(),
                     group_id: 0_i64,
                 },
                 &mut conn,
@@ -426,8 +426,8 @@ async fn promote_package(req: HttpRequest,
                                            operation:      PackageChannelOperation::Promote,
                                            trigger:
                                                helpers::trigger_from_request_model(&req),
-                                           requester_id:   session.get_id() as i64,
-                                           requester_name: session.get_name(),
+                                           requester_id:   session.id() as i64,
+                                           requester_name: session.name(),
                                            origin:         &origin, };
 
     match OriginChannelPackage::promote(
@@ -520,8 +520,8 @@ async fn demote_package(req: HttpRequest,
                     channel: channel.as_str(),
                     operation: PackageChannelOperation::Demote,
                     trigger: helpers::trigger_from_request_model(&req),
-                    requester_id: session.get_id() as i64,
-                    requester_name: session.get_name(),
+                    requester_id: session.id() as i64,
+                    requester_name: session.name(),
                     origin: &origin,
                 },
                 &mut conn,
@@ -725,7 +725,7 @@ fn do_get_latest_channel_packages(req: &HttpRequest,
                                   channel: &ChannelIdent)
                                   -> Result<(String, String, Vec<BuilderPackageIdent>)> {
     let opt_session_id = match authorize_session(req, None, None) {
-        Ok(session) => Some(session.get_id()),
+        Ok(session) => Some(session.id()),
         Err(_) => None,
     };
 
@@ -758,7 +758,7 @@ fn do_get_channel_packages(req: &HttpRequest,
                            channel: &ChannelIdent)
                            -> Result<(Vec<BuilderPackageIdent>, i64)> {
     let opt_session_id = match authorize_session(req, None, None) {
-        Ok(session) => Some(session.get_id()),
+        Ok(session) => Some(session.id()),
         Err(_) => None,
     };
     let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
@@ -801,7 +801,7 @@ fn do_get_channel_package(req: &HttpRequest,
                           channel: &ChannelIdent)
                           -> Result<String> {
     let opt_session_id = match authorize_session(req, None, None) {
-        Ok(session) => Some(session.get_id()),
+        Ok(session) => Some(session.id()),
         Err(_) => None,
     };
     Counter::GetChannelPackage.increment();
@@ -913,7 +913,7 @@ pub fn channels_for_package_ident(req: &HttpRequest,
                                   conn: &mut PgConnection)
                                   -> Result<Option<Vec<String>>> {
     let opt_session_id = match authorize_session(req, None, None) {
-        Ok(session) => Some(session.get_id()),
+        Ok(session) => Some(session.id()),
         Err(_) => None,
     };
 

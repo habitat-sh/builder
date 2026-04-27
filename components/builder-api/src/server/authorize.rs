@@ -36,12 +36,12 @@ pub fn authorize_session(req: &HttpRequest,
         let extensions = req.extensions();
         match extensions.get::<originsrv::Session>() {
             Some(session) => {
-                let flags = FeatureFlags::from_bits(session.get_flags()).unwrap(); // unwrap Ok
+                let flags = FeatureFlags::from_bits(session.flags()).unwrap(); // unwrap Ok
                 if flags.contains(FeatureFlags::BUILD_WORKER) {
                     debug!("authorize_session: detected allowed BUILD_WORKER");
                     return Ok(session.clone());
                 }
-                debug!("authorize_session: found session {}", session.get_id());
+                debug!("authorize_session: found session {}", session.id());
                 session.clone()
             }
             None => {
@@ -61,18 +61,18 @@ pub fn authorize_session(req: &HttpRequest,
                 r
             }
         };
-        match check_origin_member_role(req, origin, session.get_id()) {
+        match check_origin_member_role(req, origin, session.id()) {
             Some(member_role) => {
                 if member_role >= minimum_req_role {
                     debug!("authorize_session: account {} has {} permissions in origin {}",
-                           session.get_id(),
+                           session.id(),
                            minimum_req_role,
                            origin);
                     return Ok(session);
                 } else {
                     debug!("authorize_session: account {} does not have {} permissions in origin \
                             {}. Current role: {}",
-                           session.get_id(),
+                           session.id(),
                            minimum_req_role,
                            origin,
                            member_role);
@@ -81,7 +81,7 @@ pub fn authorize_session(req: &HttpRequest,
             }
             None => {
                 debug!("authorize_session: account {} is not a member of the origin {}",
-                       session.get_id(),
+                       session.id(),
                        origin);
                 return Err(Error::Authorization);
             }

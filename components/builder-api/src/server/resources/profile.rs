@@ -59,7 +59,7 @@ pub fn do_get_access_tokens(req: &HttpRequest, account_id: u64) -> Result<Vec<Ac
 #[allow(clippy::needless_pass_by_value)]
 async fn get_account(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None, None) {
-        Ok(session) => session.get_id() as i64,
+        Ok(session) => session.id() as i64,
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 
@@ -80,7 +80,7 @@ async fn get_account(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
 #[allow(clippy::needless_pass_by_value)]
 async fn get_access_tokens(req: HttpRequest) -> HttpResponse {
     let account_id = match authorize_session(&req, None, None) {
-        Ok(session) => session.get_id(),
+        Ok(session) => session.id(),
         Err(err) => return err.into(),
     };
 
@@ -103,7 +103,7 @@ async fn get_access_tokens(req: HttpRequest) -> HttpResponse {
 #[allow(clippy::needless_pass_by_value)]
 async fn generate_access_token(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
     let account_id = match authorize_session(&req, None, None) {
-        Ok(session) => session.get_id(),
+        Ok(session) => session.id(),
         Err(err) => return err.into(),
     };
 
@@ -124,7 +124,7 @@ async fn generate_access_token(req: HttpRequest, state: Data<AppState>) -> HttpR
     let flags = {
         let extension = req.extensions();
         let session = extension.get::<originsrv::Session>().unwrap();
-        session.get_flags()
+        session.flags()
     };
 
     let token = match CoreAccessToken::user_token(&state.config.api.key_path, account_id, flags) {
@@ -168,7 +168,7 @@ async fn revoke_access_token(req: HttpRequest,
     };
 
     let account_id = match authorize_session(&req, None, None) {
-        Ok(session) => session.get_id(),
+        Ok(session) => session.id(),
         Err(err) => return err.into(),
     };
 
@@ -260,7 +260,7 @@ async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
     };
 
     let account_id = match authorize_session(&req, None, None) {
-        Ok(session) => session.get_id() as i64,
+        Ok(session) => session.id() as i64,
         Err(err) => return err.into(),
     };
 
@@ -311,7 +311,7 @@ async fn update_account(req: HttpRequest,
                         state: Data<AppState>)
                         -> HttpResponse {
     let account_id = match authorize_session(&req, None, None) {
-        Ok(session) => session.get_id(),
+        Ok(session) => session.id(),
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
     };
 

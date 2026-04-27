@@ -1336,14 +1336,14 @@ impl From<Package> for OriginPackage {
         let mut op = OriginPackage::new();
         let ident = &*value.ident;
         op.set_id(value.id as u64);
-        op.set_ident(OriginPackageIdent::from(ident.clone()));
+        op.ident = protobuf::MessageField::some(OriginPackageIdent::from(ident.clone()));
         op.set_manifest(value.manifest);
         op.set_target(value.target.to_string());
-        op.set_deps(into_idents(value.deps));
-        op.set_tdeps(into_idents(value.tdeps));
-        op.set_build_deps(into_idents(value.build_deps));
-        op.set_build_tdeps(into_idents(value.build_tdeps));
-        op.set_exposes(exposes);
+        op.deps = into_idents(value.deps);
+        op.tdeps = into_idents(value.tdeps);
+        op.build_deps = into_idents(value.build_deps);
+        op.build_tdeps = into_idents(value.build_tdeps);
+        op.exposes = exposes;
         op.set_config(value.config);
         op.set_checksum(value.checksum);
         op.set_owner_id(value.owner_id as u64);
@@ -1380,12 +1380,8 @@ impl From<BuilderPackageIdent> for OriginPackageIdent {
     fn from(value: BuilderPackageIdent) -> OriginPackageIdent { value.0.into() }
 }
 
-fn into_idents(column: Vec<BuilderPackageIdent>) -> protobuf::RepeatedField<OriginPackageIdent> {
-    let mut idents = protobuf::RepeatedField::new();
-    for ident in column {
-        idents.push(ident.into());
-    }
-    idents
+fn into_idents(column: Vec<BuilderPackageIdent>) -> Vec<OriginPackageIdent> {
+    column.into_iter().map(|ident| ident.into()).collect()
 }
 
 impl From<PackageWithChannelPlatform> for PackageIdentWithChannelPlatform {

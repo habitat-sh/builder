@@ -15,7 +15,7 @@ glob = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
 log = "*"
-protobuf = "2"
+protobuf = "3"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"

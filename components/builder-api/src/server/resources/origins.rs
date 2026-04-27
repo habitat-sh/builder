@@ -185,7 +185,7 @@ async fn create_origin(req: HttpRequest,
        && !state.config
                 .api
                 .allowed_users_for_origin_create
-                .contains(&session.get_name().to_string())
+                .contains(&session.name().to_string())
     {
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
@@ -205,7 +205,7 @@ async fn create_origin(req: HttpRequest,
     };
 
     let new_origin = NewOrigin { name: &body.0.name,
-                                 owner_id: session.get_id() as i64,
+                                 owner_id: session.id() as i64,
                                  default_package_visibility: &dpv, };
 
     match Origin::create(&new_origin, &mut conn).map_err(Error::DieselError) {
@@ -213,8 +213,8 @@ async fn create_origin(req: HttpRequest,
             origin_audit(&body.0.name,
                          OriginOperation::OriginCreate,
                          &body.0.name,
-                         session.get_id() as i64,
-                         session.get_name(),
+                         session.id() as i64,
+                         session.name(),
                          &mut conn);
             HttpResponse::Created().json(origin)
         }
@@ -269,7 +269,7 @@ async fn delete_origin(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    if !check_origin_owner(&req, session.get_id(), &origin).unwrap_or(false) {
+    if !check_origin_owner(&req, session.id(), &origin).unwrap_or(false) {
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
@@ -289,8 +289,8 @@ async fn delete_origin(req: HttpRequest,
                     origin_audit(&origin,
                                  OriginOperation::OriginDelete,
                                  &origin,
-                                 session.get_id() as i64,
-                                 session.get_name(),
+                                 session.id() as i64,
+                                 session.name(),
                                  &mut conn);
                     HttpResponse::NoContent().into()
                 }
@@ -410,7 +410,7 @@ async fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>
 
     let account_id =
         match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
-            Ok(session) => session.get_id(),
+            Ok(session) => session.id(),
             Err(err) => return err.into(),
         };
 
@@ -518,7 +518,7 @@ async fn upload_origin_key(req: HttpRequest,
         // NEW key into the origin_public_keys data table
         let account_id =
             match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
-                Ok(session) => session.get_id(),
+                Ok(session) => session.id(),
                 Err(_) => {
                     debug!("Unable to upload origin public signing key due to lack of permissions");
                     let body = Bytes::from(format!("You do not have permissions to upload a new \
@@ -636,7 +636,7 @@ async fn create_origin_secret(req: HttpRequest,
 
     let account_id =
         match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
-            Ok(session) => session.get_id() as i64,
+            Ok(session) => session.id() as i64,
             Err(err) => return err.into(),
         };
 
@@ -744,7 +744,7 @@ async fn upload_origin_secret_key(req: HttpRequest,
 
     let account_id =
         match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
-            Ok(session) => session.get_id(),
+            Ok(session) => session.id(),
             Err(err) => return err.into(),
         };
 
@@ -825,7 +825,7 @@ async fn list_unique_packages(req: HttpRequest,
     let origin = path.into_inner();
 
     let opt_session_id = match authorize_session(&req, None, None) {
-        Ok(session) => Some(session.get_id()),
+        Ok(session) => Some(session.id()),
         Err(_) => None,
     };
 
@@ -869,7 +869,7 @@ async fn download_latest_origin_encryption_key(req: HttpRequest,
     let origin = path.into_inner();
 
     let account_id = match authorize_session(&req, Some(&origin), None) {
-        Ok(session) => session.get_id(),
+        Ok(session) => session.id(),
         Err(err) => return err.into(),
     };
 
@@ -909,7 +909,7 @@ async fn invite_to_origin(req: HttpRequest,
 
     let account_id =
         match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
-            Ok(session) => session.get_id(),
+            Ok(session) => session.id(),
             Err(err) => return err.into(),
         };
 
@@ -953,7 +953,7 @@ async fn accept_invitation(req: HttpRequest,
     let (origin, invitation) = path.into_inner();
 
     let account_id = match authorize_session(&req, None, None) {
-        Ok(session) => session.get_id(),
+        Ok(session) => session.id(),
         Err(err) => return err.into(),
     };
 
@@ -990,7 +990,7 @@ async fn ignore_invitation(req: HttpRequest,
     let (origin, invitation) = path.into_inner();
 
     let _ = match authorize_session(&req, None, None) {
-        Ok(session) => session.get_id(),
+        Ok(session) => session.id(),
         Err(err) => return err.into(),
     };
 
@@ -1028,7 +1028,7 @@ async fn rescind_invitation(req: HttpRequest,
     let (origin, invitation) = path.into_inner();
 
     let _ = match authorize_session(&req, None, None) {
-        Ok(session) => session.get_id(),
+        Ok(session) => session.id(),
         Err(err) => return err.into(),
     };
 
@@ -1156,7 +1156,7 @@ async fn update_origin_member_role(req: HttpRequest,
     // Account id of the user making the request
     let account_id =
         match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
-            Ok(session) => session.get_id(),
+            Ok(session) => session.id(),
             Err(err) => return err.into(),
         };
 
@@ -1215,12 +1215,12 @@ async fn transfer_origin_ownership(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    if !check_origin_owner(&req, session.get_id(), &origin).unwrap_or(false) {
+    if !check_origin_owner(&req, session.id(), &origin).unwrap_or(false) {
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
     // Do not allow the owner to transfer ownership to themselves
-    if user == session.get_name() {
+    if user == session.name() {
         let body = Bytes::from_static(b"Cannot transfer origin ownership to self");
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
@@ -1251,8 +1251,8 @@ async fn transfer_origin_ownership(req: HttpRequest,
             origin_audit(&origin,
                          OriginOperation::OwnerTransfer,
                          &recipient_id.to_string(),
-                         session.get_id() as i64,
-                         session.get_name(),
+                         session.id() as i64,
+                         session.name(),
                          &mut conn);
             HttpResponse::NoContent().finish()
         }
@@ -1276,13 +1276,13 @@ async fn depart_from_origin(req: HttpRequest,
     };
 
     // Do not allow an origin owner to depart which would orphan the origin
-    if check_origin_owner(&req, session.get_id(), &origin).unwrap_or(false) {
+    if check_origin_owner(&req, session.id(), &origin).unwrap_or(false) {
         let body = Bytes::from_static(b"Departing the owner from the origin is not allowed");
         return HttpResponse::with_body(StatusCode::FORBIDDEN, BoxBody::new(body));
     }
 
     // Pass a meaningful error in the case that the user isn't a member of origin
-    if !check_origin_member(&req, &origin, session.get_id()).unwrap_or(false) {
+    if !check_origin_member(&req, &origin, session.id()).unwrap_or(false) {
         let body =
             Bytes::from(format!("Do not have access to the origin '{}'", origin).into_bytes());
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
@@ -1294,10 +1294,10 @@ async fn depart_from_origin(req: HttpRequest,
     };
 
     debug!("Departing user {} from origin {}",
-           session.get_name(),
+           session.name(),
            &origin);
 
-    match Origin::depart(&origin, session.get_id() as i64, &mut conn).map_err(Error::DieselError) {
+    match Origin::depart(&origin, session.id() as i64, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(err) => {
             debug!("{}", err);
@@ -1352,12 +1352,12 @@ async fn origin_member_delete(req: HttpRequest,
             Err(err) => return err.into(),
         };
 
-    if !check_origin_owner(&req, session.get_id(), &origin).unwrap_or(false) {
+    if !check_origin_owner(&req, session.id(), &origin).unwrap_or(false) {
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
     // Do not allow the owner to be removed which would orphan the origin
-    if user == session.get_name() {
+    if user == session.name() {
         let body = Bytes::from_static(b"Removing the owner is not allowd");
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
