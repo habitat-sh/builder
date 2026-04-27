@@ -52,11 +52,7 @@ impl fmt::Display for OriginPackageIdent {
                    self.version(),
                    self.release())
         } else if !self.version().is_empty() {
-            write!(f,
-                   "{}/{}/{}",
-                   self.origin(),
-                   self.name(),
-                   self.version())
+            write!(f, "{}/{}/{}", self.origin(), self.name(), self.version())
         } else {
             write!(f, "{}/{}", self.origin(), self.name())
         }
@@ -84,8 +80,7 @@ impl From<hab_core::package::PackageIdent> for OriginPackageIdent {
 
 impl From<OriginPackageIdent> for package::PackageIdent {
     fn from(value: OriginPackageIdent) -> package::PackageIdent {
-        let mut ident =
-            package::PackageIdent::new(value.origin(), value.name(), None, None);
+        let mut ident = package::PackageIdent::new(value.origin(), value.name(), None, None);
         if !value.version().is_empty() {
             ident.version = Some(value.version().into());
         }

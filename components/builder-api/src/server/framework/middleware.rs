@@ -197,13 +197,13 @@ fn finalize_session_with_account(_token: &str,
                                  state: &AppState)
                                  -> error::Result<originsrv::Session> {
     let account = Account::get_by_id(session.id() as i64, conn).map_err(|e| {
-                                                                       trace!("Failed to find \
-                                                                               account for id \
-                                                                               {}: {:?}",
-                                                                              session.id(),
-                                                                              e);
-                                                                       error::Error::Authorization
-                                                                   })?;
+                                                                   trace!("Failed to find \
+                                                                           account for id {}: \
+                                                                           {:?}",
+                                                                          session.id(),
+                                                                          e);
+                                                                   error::Error::Authorization
+                                                               })?;
 
     trace!("Found account for token {} in database", new_token);
     session.set_name(account.name);

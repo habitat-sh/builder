@@ -1293,9 +1293,7 @@ async fn depart_from_origin(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    debug!("Departing user {} from origin {}",
-           session.name(),
-           &origin);
+    debug!("Departing user {} from origin {}", session.name(), &origin);
 
     match Origin::depart(&origin, session.id() as i64, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
