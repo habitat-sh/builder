@@ -2,7 +2,9 @@
 name: Rust Cargo Audit
 on:
   push:
-jobs:
+permissions:
+  contents: read
+  jobs:
   security_audit:
     runs-on: ubuntu-latest
     steps:
