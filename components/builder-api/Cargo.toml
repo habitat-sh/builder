@@ -50,8 +50,8 @@ default-features = false
 features = [ "openssl" ]
 
 [dependencies.clap]
-version = "*"
-features = [ "suggestions", "color", "unstable" ]
+version = "4"
+features = [ "derive", "color" ]
 
 [dependencies.artifactory-client]
 path = "../artifactory-client"
