@@ -42,7 +42,7 @@ enum Commands {
     Start {
         /// Filepath to configuration file.
         #[arg(short, long)]
-        config: Option<String>,
+        config: Option<PathBuf>,
 
         /// Filepath to store packages, keys, and other artifacts.
         #[arg(short, long)]
