@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- migrate to latest clap [#1979](https://github.com/habitat-sh/builder/pull/1979) ([mwrock](https://github.com/mwrock))
 - migrating to protobuf-codegen [#1978](https://github.com/habitat-sh/builder/pull/1978) ([mwrock](https://github.com/mwrock))
 - add cargo audit workflow to ci [#1975](https://github.com/habitat-sh/builder/pull/1975) ([mwrock](https://github.com/mwrock))
 - add kernel2 back to default.toml [#1974](https://github.com/habitat-sh/builder/pull/1974) ([mwrock](https://github.com/mwrock))
