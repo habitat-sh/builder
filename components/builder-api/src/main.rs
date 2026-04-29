@@ -13,16 +13,15 @@
 // limitations under the License.
 
 #[macro_use]
-extern crate clap;
-#[macro_use]
 extern crate log;
 
 use std::{fmt,
           path::PathBuf,
-          process,
-          str::FromStr};
+          process};
 
 use builder_core::config::ConfigFile;
+use clap::{Parser,
+           Subcommand};
 use habitat_builder_api as bldr_api;
 
 use crate::bldr_api::{config::Config,
@@ -30,52 +29,61 @@ use crate::bldr_api::{config::Config,
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
+#[derive(Parser, Debug)]
+#[command(version = VERSION, about = "Habitat builder-api", subcommand_required = true, arg_required_else_help = true)]
+struct BuilderApi {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Run the builder-api server
+    Start {
+        /// Filepath to configuration file.
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+
+        /// Filepath to store packages, keys, and other artifacts.
+        #[arg(short, long)]
+        path: Option<PathBuf>,
+
+        /// Listen port. [default: 9636]
+        #[arg(long)]
+        port: Option<u16>,
+    },
+}
+
 #[actix_rt::main]
 async fn main() {
     env_logger::init();
-    let matches = app().get_matches();
-    debug!("CLI matches: {:?}", matches);
-    match server::run(config_from_args(&matches)).await {
+    let cli = BuilderApi::parse();
+    debug!("CLI: {:?}", cli);
+    match server::run(config_from_args(cli)).await {
         Ok(_) => std::process::exit(0),
         Err(e) => exit_with(e, 1),
     }
 }
 
-fn app<'a, 'b>() -> clap::App<'a, 'b> {
-    clap_app!(BuilderApi =>
-        (version: VERSION)
-        (about: "Habitat builder-api")
-        (@setting VersionlessSubcommands)
-        (@setting SubcommandRequiredElseHelp)
-        (@subcommand start =>
-            (about: "Run the builder-api server")
-            (@arg config: -c --config +takes_value
-                "Filepath to configuration file.")
-            (@arg path: -p --path +takes_value
-                "Filepath to store packages, keys, and other artifacts.")
-            (@arg port: --port +takes_value "Listen port. [default: 9636]")
-        )
-    )
-}
+fn config_from_args(cli: BuilderApi) -> Config {
+    match cli.command {
+        Commands::Start { config, path, port } => {
+            let mut cfg = match config {
+                Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
+                None => Config::default(),
+            };
 
-fn config_from_args(matches: &clap::ArgMatches) -> Config {
-    let cmd = matches.subcommand_name().unwrap();
-    let args = matches.subcommand_matches(cmd).unwrap();
-    let mut config = match args.value_of("config") {
-        Some(cfg_path) => Config::from_file(cfg_path).unwrap(),
-        None => Config::default(),
-    };
+            if let Some(p) = port {
+                cfg.http.port = p;
+            }
 
-    if let Some(port) = args.value_of("port") {
-        u16::from_str(port).map(|p| config.http.port = p)
-                           .expect("Specified port must be a valid u16");
+            if let Some(p) = path {
+                cfg.api.data_path = p;
+            }
+
+            cfg
+        }
     }
-
-    if let Some(path) = args.value_of("path") {
-        config.api.data_path = PathBuf::from(path);
-    }
-
-    config
 }
 
 fn exit_with<T>(err: T, code: i32)
