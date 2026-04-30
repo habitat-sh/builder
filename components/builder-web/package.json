@@ -63,7 +63,7 @@
         "redux-thunk": "^2.3.0",
         "reflect-metadata": "^0.1.12",
         "rxjs": "^6.2.2",
-        "uuid": "^3.3.2",
+        "uuid": "^14.0.0",
         "whatwg-fetch": "^2.0.4",
         "zone.js": "^0.8.26"
     },
