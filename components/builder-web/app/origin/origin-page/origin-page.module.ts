@@ -17,7 +17,10 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { NgModule } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { MatTabsModule, MatRadioModule, MatButtonModule, MatDialogModule } from '@angular/material';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatRadioModule } from '@angular/material/radio';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialogModule } from '@angular/material/dialog';
 import { IntegrationDeleteConfirmDialog } from './origin-integrations-tab/dialog/integration-delete-confirm/integration-delete-confirm.dialog';
 import { GenerateKeysConfirmDialog } from './origin-keys-tab/dialog/generate-keys-confirm/generate-keys-confirm.dialog';
 import { DepartOriginDialog } from './origin-members-tab/dialog/depart-origin.dialog';
@@ -66,17 +69,9 @@ export const declarations = [
   OriginJobDetailComponent
 ];
 
-const entryComponents = [
-  IntegrationCredentialsFormDialog,
-  GenerateKeysConfirmDialog,
-  DepartOriginDialog,
-  IntegrationDeleteConfirmDialog,
-  KeyAddFormDialog
-];
 
 @NgModule({
   imports,
-  declarations,
-  entryComponents
+  declarations
 })
 export class OriginPageModule { }

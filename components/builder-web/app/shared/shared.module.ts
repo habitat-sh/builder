@@ -17,11 +17,16 @@ import { CommonModule } from '@angular/common';
 import { DomSanitizer } from '@angular/platform-browser';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import {
-  MatCheckbox, MatCheckboxModule, MatIconModule, MatIconRegistry, MatMenuModule, MatRadioModule,
-  MatRadioGroup, MatRadioButton, MatSlideToggleModule, MatSlideToggle, MatTooltipModule, MatTabsModule,
-  MatButtonModule, MatInputModule, MatSelectModule
-} from '@angular/material';
+import { MatCheckbox, MatCheckboxModule } from '@angular/material/checkbox';
+import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatRadioModule, MatRadioGroup, MatRadioButton } from '@angular/material/radio';
+import { MatSlideToggleModule, MatSlideToggle } from '@angular/material/slide-toggle';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatButtonModule } from '@angular/material/button';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { AutoBuildSettingsComponent } from './auto-build-settings/auto-build-settings.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { BreadcrumbsComponent } from './breadcrumbs/breadcrumbs.component';
@@ -99,15 +104,6 @@ import { LicenseRequiredGuard } from './guards/license-required.guard';
     JobNoticeComponent,
     KeysPipe,
   ],
-  entryComponents: [
-    DisconnectConfirmDialog,
-    DockerExportSettingsDialog,
-    JobCancelDialog,
-    SimpleConfirmDialog,
-    PromoteConfirmDialog,
-    EulaConfirmDialog,
-    ValidLicenseConfirmDialog
-  ],
   exports: [
     MatMenuModule,
     BreadcrumbsComponent,
@@ -145,30 +141,6 @@ import { LicenseRequiredGuard } from './guards/license-required.guard';
 })
 export class SharedModule {
   constructor(private matIconRegistry: MatIconRegistry, private sanitizer: DomSanitizer) {
-
-    // At the time of this monkeypatching, the SVG settings applied by MatIconRegistry
-    // were missing the `viewBox` attribute, which is responsible for mapping the coordinate space
-    // of an SVG image to that of the viewport, enabling proper scaling. While we await resolution
-    // of the issue below, we'll go ahead and plow right over Angular's implementation,
-    // 'cause JavaScript is awesome.
-    // https://github.com/angular/material2/issues/5188
-    // https://github.com/angular/material2/blob/bef6271c617f6904cc360454805ea080e2212f2a/src/lib/icon/icon-registry.ts#L424-L436
-    matIconRegistry['_setSvgAttributes'] = (svg: SVGElement): SVGElement => {
-
-      if (!svg.getAttribute('xmlns')) {
-        svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-      }
-
-      svg.setAttribute('fit', '');
-      svg.setAttribute('height', '100%');
-      svg.setAttribute('width', '100%');
-      svg.setAttribute('viewBox', '0 0 24 24'); // This is the one we care about.
-      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-      svg.setAttribute('focusable', 'false');
-
-      return svg;
-    };
-
     matIconRegistry.addSvgIconSet(
       sanitizer.bypassSecurityTrustResourceUrl('assets/images/icons/all.svg')
     );

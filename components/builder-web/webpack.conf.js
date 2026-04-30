@@ -5,19 +5,8 @@ const path = require('path');
 const isProduction = process.env.NODE_ENV === 'production';
 
 let rules = [
-    { test: /\.ts$/, use: [{ loader: 'awesome-typescript-loader' }] },
-    { test: /\.html$/, use: [{ loader: 'raw-loader' }] },
-    {
-        test: /\.ts$/,
-        enforce: 'pre',
-        use: [{
-            loader: 'tslint-loader',
-            options: {
-                emitErrors: true,
-                failOnHint: true
-            }
-        }]
-    }
+    { test: /\.ts$/, use: [{ loader: 'ts-loader' }] },
+    { test: /\.html$/, use: [{ loader: 'raw-loader' }] }
 ];
 
 let plugins = [];

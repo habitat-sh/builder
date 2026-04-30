@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'whatwg-fetch';
 import { packageString } from '../util';
 import { AppStore } from '../app.store';
 import { addNotification, signOut } from '../actions/index';

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -120,7 +120,7 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
   }
 
   private download(blob, name) {
-    const msSave = navigator.msSaveBlob;
+    const msSave = (navigator as any).msSaveBlob;
 
     if (typeof msSave === 'function') {
       msSave(blob, name);

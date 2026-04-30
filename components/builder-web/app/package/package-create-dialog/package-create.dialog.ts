@@ -15,7 +15,7 @@
 import { Component, Inject } from '@angular/core';
 import { FormGroup, FormBuilder  } from '@angular/forms';
 import { Router } from '@angular/router';
-import { MatDialogRef } from '@angular/material';
+import { MatDialogRef } from '@angular/material/dialog';
 import { AppStore } from '../../app.store';
 import { BuilderApiClient } from '../../client/builder-api';
 import { createEmptyPackage } from '../../actions/index';

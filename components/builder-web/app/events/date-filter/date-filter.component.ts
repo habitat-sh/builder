@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Component, Input, ViewChild } from '@angular/core';
-import { MatCalendar } from '@angular/material';
+import { MatCalendar } from '@angular/material/datepicker';
 
 import { getDateRange, toDateString, toDate } from '../date-util';
 

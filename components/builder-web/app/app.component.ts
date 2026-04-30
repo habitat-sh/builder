@@ -16,7 +16,6 @@ import config from './config';
 import { Subscription } from 'rxjs';
 import { AppStore } from './app.store';
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { URLSearchParams } from '@angular/http';
 import { ActivatedRoute, Router, NavigationEnd, NavigationStart } from '@angular/router';
 import {
   identifyUser, loadFeatures, removeNotification, exchangeOAuthCode,

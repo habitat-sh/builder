@@ -18,7 +18,7 @@ import { AppStore } from '../app.store';
 import { setLayout, signOut } from '../actions/index';
 import config from '../config';
 import { EulaConfirmDialog } from '../shared/dialog/eula-confirm/eula-confirm.dialog';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
 
 @Component({

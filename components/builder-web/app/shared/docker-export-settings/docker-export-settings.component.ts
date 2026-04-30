@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Component, Input, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { DockerExportSettingsDialog } from './dialog/docker-export-settings.dialog';
 import { fetchProjectIntegration } from '../../actions/projects';
 import { AppStore } from '../../app.store';

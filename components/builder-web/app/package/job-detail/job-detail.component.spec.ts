@@ -45,7 +45,7 @@ class MockAppStore {
     };
   }
   subscribe() { }
-  dispatch() { }
+  dispatch(_action?: any) { }
 }
 
 describe('JobDetailComponent', () => {
@@ -75,7 +75,7 @@ describe('JobDetailComponent', () => {
     fixture = TestBed.createComponent(JobDetailComponent);
     component = fixture.componentInstance;
     element = fixture.debugElement;
-    store = TestBed.get(AppStore);
+    store = TestBed.inject(AppStore);
   });
 
   describe('on init', () => {

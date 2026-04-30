@@ -15,7 +15,7 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { Component, DebugElement } from '@angular/core';
-import { MatTabsModule } from '@angular/material';
+import { MatTabsModule } from '@angular/material/tabs';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { of } from 'rxjs';
@@ -32,7 +32,7 @@ class MockAppStore {
     return MockAppStore.state;
   }
 
-  dispatch() { }
+  dispatch(_action?: any) { }
 
   observe(path) {
     return of(get(this.getState(), path));

@@ -1,5 +1,5 @@
 import { Component, OnDestroy } from '@angular/core';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { PackageReleaseVisibilityDialog } from '../package-release-visibility-dialog/package-release-visibility.dialog';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -49,7 +49,7 @@ export class PackageReleaseSettingsComponent implements OnDestroy {
   confirmSettingChange() {
     this.confirmDialog
       .open(PackageReleaseVisibilityDialog, { width: '480px', data: { visibility: this.visibility, package: this.package } })
-      .beforeClose()
+      .beforeClosed()
       .subscribe(confirmed => {
         if (confirmed) {
           this.saveSettingChange();

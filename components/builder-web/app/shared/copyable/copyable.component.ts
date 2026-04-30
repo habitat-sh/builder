@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Component, Input, ViewChild } from '@angular/core';
-import { MatTooltip } from '@angular/material';
+import { MatTooltip } from '@angular/material/tooltip';
 
 @Component({
   selector: 'hab-copyable',

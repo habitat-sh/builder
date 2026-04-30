@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'whatwg-fetch';
 import * as async from 'async';
 import config from '../config';
 

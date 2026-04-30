@@ -24,9 +24,9 @@ describe('BuilderApiClient', () => {
       beforeEach(() => {
         myObj = { myCallback: () => { } };
         spyOn(myObj, 'myCallback');
-        spyOn(window, 'fetch').and.callFake(() => {
+        spyOn(window, 'fetch').and.callFake((() => {
           return Promise.resolve({ ok: true });
-        });
+        }) as any);
       });
 
       it('resolves true', (done) => {
@@ -46,9 +46,9 @@ describe('BuilderApiClient', () => {
       beforeEach(() => {
         myObj = { myCallback: () => { } };
         spyOn(myObj, 'myCallback');
-        spyOn(window, 'fetch').and.callFake(() => {
+        spyOn(window, 'fetch').and.callFake((() => {
           return Promise.resolve({ ok: false });
-        });
+        }) as any);
       });
 
       it('resolves with an instance of Error', (done) => {

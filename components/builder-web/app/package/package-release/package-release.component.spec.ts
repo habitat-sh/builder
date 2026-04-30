@@ -45,7 +45,7 @@ class MockAppStore {
     };
   }
 
-  dispatch() { }
+  dispatch(_action?: any) { }
 
   observe(path) {
     return of(get(this.getState(), path));

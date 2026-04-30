@@ -34,7 +34,7 @@ class MockAppStore {
     };
   }
 
-  dispatch() { }
+  dispatch(_action?: any) { }
 }
 
 class MockRoute {

@@ -15,7 +15,7 @@
 import { DebugElement } from '@angular/core';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
-import { MatInputModule } from '@angular/material';
+import { MatInputModule } from '@angular/material/input';
 import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute } from '@angular/router';
@@ -32,7 +32,7 @@ class MockAppStore {
     return MockAppStore.state;
   }
 
-  dispatch() { }
+  dispatch(_action?: any) { }
 }
 
 class MockRoute {
@@ -73,7 +73,7 @@ describe('DateFilterComponent', () => {
     fixture = TestBed.createComponent(DateFilterComponent);
     component = fixture.componentInstance;
     element = fixture.debugElement;
-    store = TestBed.get(AppStore);
+    store = TestBed.inject(AppStore);
   });
 
   describe('given the events', () => {

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'whatwg-fetch';
 import config from '../config';
 import { parseKey } from '../util';
 import { AppStore } from '../app.store';
@@ -203,7 +202,7 @@ export class BuilderApiClient {
   }
 
   public generateOriginKeys(origin: string) {
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${origin}/keys`, {
         method: 'POST',
         headers: this.headers
@@ -364,7 +363,7 @@ export class BuilderApiClient {
   }
 
   public cancelJobGroup(id: string) {
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/jobs/group/${id}/cancel`, {
         method: 'POST',
         headers: this.headers
@@ -575,7 +574,7 @@ export class BuilderApiClient {
   }
 
   public saveProfile(profile: any) {
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/profile`, {
         headers: this.jsonHeaders,
         method: 'PATCH',
@@ -725,7 +724,7 @@ export class BuilderApiClient {
   }
 
   public setIntegration(originName: string, credentials, type: string, name: string) {
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${originName}/integrations/${type}/${name}`, {
         headers: this.jsonHeaders,
         method: 'PUT',
@@ -762,7 +761,7 @@ export class BuilderApiClient {
   }
 
   public setProjectIntegrationSettings(origin: string, name: string, integration: string, settings: any) {
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/projects/${origin}/${name}/integrations/${integration}/default`, {
         headers: this.jsonHeaders,
         method: 'PUT',
@@ -782,7 +781,7 @@ export class BuilderApiClient {
   }
 
   public deleteProjectIntegration(origin: string, name: string, integration: string) {
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/projects/${origin}/${name}/integrations/${integration}/default`, {
         headers: this.headers,
         method: 'DELETE'
@@ -801,7 +800,7 @@ export class BuilderApiClient {
   }
 
   public setProjectVisibility(origin: string, name: string, setting: string) {
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/projects/${origin}/${name}/${setting}`, {
         headers: this.headers,
         method: 'PATCH'
@@ -820,7 +819,7 @@ export class BuilderApiClient {
   }
 
   public setPackageReleaseVisibility(origin: string, name: string, version: string, release: string, setting: string) {
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/pkgs/${origin}/${name}/${version}/${release}/${setting}`, {
         headers: this.headers,
         method: 'PATCH'
@@ -839,7 +838,7 @@ export class BuilderApiClient {
   }
 
   public deleteIntegration(origin: string, name: string, type: string) {
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${origin}/integrations/${type}/${name}`, {
         headers: this.headers,
         method: 'DELETE',
@@ -857,7 +856,7 @@ export class BuilderApiClient {
   }
 
   public updateOrigin(origin: any) {
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${origin.name}`, {
         headers: this.jsonHeaders,
         method: 'PUT',
@@ -876,7 +875,7 @@ export class BuilderApiClient {
   }
 
   public deleteOriginSecret(origin: string, key: string) {
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${origin}/secret/${key}`, {
         headers: this.headers,
         method: 'DELETE'
@@ -916,7 +915,7 @@ export class BuilderApiClient {
       creds['url'] = url.trim();
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/ext/integrations/${type}/credentials/validate`, {
         headers: this.jsonHeaders,
         method: 'POST',

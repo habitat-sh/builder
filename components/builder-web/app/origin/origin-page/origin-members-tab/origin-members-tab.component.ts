@@ -19,7 +19,7 @@ import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { List } from 'immutable';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { SimpleConfirmDialog } from '../../../shared/dialog/simple-confirm/simple-confirm.dialog';
 import { DepartOriginDialog } from './dialog/depart-origin.dialog';
 import { AppStore } from '../../../app.store';
