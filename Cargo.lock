@@ -2212,7 +2212,7 @@ dependencies = [
 [[package]]
 name = "habitat_core"
 version = "0.0.0"
-source = "git+https://github.com/habitat-sh/habitat.git#aff457eb48ae3894c83dca2afbbe3a886296a92c"
+source = "git+https://github.com/habitat-sh/habitat.git#e7e37ab822f15799cee603ae2087bc3944ce6601"
 dependencies = [
  "base64",
  "blake2b_simd",
