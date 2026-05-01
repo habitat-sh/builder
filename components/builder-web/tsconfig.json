@@ -15,6 +15,9 @@
       "dom"
     ]
   },
+  "angularCompilerOptions": {
+    "strictTemplates": false
+  },
   "include": [
     "app",
     "./*.js|ts"

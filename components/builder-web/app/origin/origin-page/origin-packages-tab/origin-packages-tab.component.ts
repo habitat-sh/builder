@@ -23,8 +23,9 @@ import config from '../../../config';
 import { PackageCreateDialog } from '../../../package/package-create-dialog/package-create.dialog';
 
 @Component({
+  standalone: false,
   selector: 'hab-origin-packages-tab',
-  template: require('./origin-packages-tab.component.html')
+  templateUrl: './origin-packages-tab.component.html'
 })
 export class OriginPackagesTabComponent implements OnInit, OnDestroy {
   selectingPlan: boolean = false;

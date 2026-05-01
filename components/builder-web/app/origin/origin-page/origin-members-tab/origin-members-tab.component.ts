@@ -29,7 +29,8 @@ import { deleteOriginMember, departOrigin, fetchOriginMembers, fetchOriginInvita
 import config from '../../../config';
 
 @Component({
-  template: require('./origin-members-tab.component.html')
+  standalone: false,
+  templateUrl: './origin-members-tab.component.html'
 })
 export class OriginMembersTabComponent implements OnInit, OnDestroy {
   form: FormGroup;

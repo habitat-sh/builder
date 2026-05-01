@@ -17,7 +17,8 @@ import { Location } from '@angular/common';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
 @Component({
-  template: require('./valid-license-confirm.dialog.html'),
+  standalone: false,
+  templateUrl: './valid-license-confirm.dialog.html',
 })
 
 export class ValidLicenseConfirmDialog {

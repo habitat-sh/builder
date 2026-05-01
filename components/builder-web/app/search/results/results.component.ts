@@ -17,8 +17,9 @@ import { List } from 'immutable';
 import { packageString } from '../../util';
 
 @Component({
+  standalone: false,
   selector: 'hab-search-results',
-  template: require('./results.component.html')
+  templateUrl: './results.component.html'
 })
 export class SearchResultsComponent {
   @Input() errorMessage: string;

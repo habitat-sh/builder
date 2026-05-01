@@ -23,7 +23,8 @@ import { packageString, parseDate, targetFrom, targetsFromPkgVersions } from '..
 import { demotePackage, filterPackagesBy } from '../../actions/index';
 
 @Component({
-  template: require('./package-versions.component.html'),
+  standalone: false,
+  templateUrl: './package-versions.component.html',
 })
 export class PackageVersionsComponent implements OnDestroy {
   origin: string;

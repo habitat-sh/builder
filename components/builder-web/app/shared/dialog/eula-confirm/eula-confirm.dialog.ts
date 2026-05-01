@@ -16,7 +16,8 @@ import { Component, Inject } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
 @Component({
-  template: require('./eula-confirm.dialog.html'),
+  standalone: false,
+  templateUrl: './eula-confirm.dialog.html',
 })
 export class EulaConfirmDialog {
   isButtonDisabled: boolean = true;

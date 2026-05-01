@@ -16,8 +16,9 @@ import { Component, ElementRef, HostListener, Input } from '@angular/core';
 import { AppStore } from '../app.store';
 
 @Component({
+  standalone: false,
   selector: 'hab-user-nav',
-  template: require('./user-nav.component.html')
+  templateUrl: './user-nav.component.html'
 })
 export class UserNavComponent {
   @Input() isOpen: boolean;

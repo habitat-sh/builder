@@ -22,7 +22,8 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { Subscription } from 'rxjs';
 
 @Component({
-  template: require('./search.component.html')
+  standalone: false,
+  templateUrl: './search.component.html'
 })
 export class SearchComponent implements OnInit, OnDestroy {
   origin: string;

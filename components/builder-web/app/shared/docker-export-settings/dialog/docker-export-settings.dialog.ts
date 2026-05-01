@@ -16,15 +16,16 @@ import { Component, Inject } from '@angular/core';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
 @Component({
-  template: require('./docker-export-settings.dialog.html')
+  standalone: false,
+  templateUrl: './docker-export-settings.dialog.html'
 })
 export class DockerExportSettingsDialog {
-  private repoPlaceholder: string;
-  private docker_hub_repo_name: string;
-  private custom_tag: string;
-  private latest_tag: boolean;
-  private version_tag: boolean;
-  private version_release_tag: boolean;
+  repoPlaceholder: string;
+  docker_hub_repo_name: string;
+  custom_tag: string;
+  latest_tag: boolean;
+  version_tag: boolean;
+  version_release_tag: boolean;
 
   constructor(
     private ref: MatDialogRef<DockerExportSettingsDialog>,

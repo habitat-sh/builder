@@ -15,6 +15,7 @@
 import { AfterViewInit, Component } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'hab-statuspage',
   template: `
     <a href="//status.chef.io/" target="_blank" class="statuspage-component">

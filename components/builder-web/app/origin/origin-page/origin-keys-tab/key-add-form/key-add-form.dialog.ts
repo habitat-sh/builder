@@ -21,8 +21,9 @@ import { AppStore } from '../../../../app.store';
 import config from '../../../../config';
 
 @Component({
+  standalone: false,
   selector: 'hab-key-add-form',
-  template: require('./key-add-form.dialog.html')
+  templateUrl: './key-add-form.dialog.html'
 })
 export class KeyAddFormDialog implements OnInit {
   originName: string;

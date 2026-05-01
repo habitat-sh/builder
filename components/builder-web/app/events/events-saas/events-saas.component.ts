@@ -25,7 +25,8 @@ import { dateFilters, getDateRange } from '../date-util';
 import { setSaasEventsSearchQuery, setSaasEventsDateFilter } from '../../actions/events-saas';
 
 @Component({
-  template: require('./events-saas.component.html')
+  standalone: false,
+  templateUrl: './events-saas.component.html'
 })
 export class EventsSaaSComponent implements OnInit, OnDestroy {
   dateFilterChanged: Function;

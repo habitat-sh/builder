@@ -1,6 +1,7 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'hab-job-status',
   template: `
     <hab-job-status-icon [job]="job" [animate]="true"></hab-job-status-icon>

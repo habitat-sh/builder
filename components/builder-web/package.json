@@ -12,8 +12,8 @@
     "license": "Apache-2.0",
     "scripts": {
         "build": "concurrently \"npm run build-js\" \"npm run build-css\"",
-        "build-css": "bin/build-css",
-        "build-css-watch": "npm run build-css -- --source-map=true --watch",
+        "build-css": "sass --load-path=node_modules/bourbon-neat/core --load-path=node_modules/bourbon/app/assets/stylesheets --load-path=node_modules/normalize-scss/sass --load-path=node_modules/normalize-scss/node_modules/support-for/sass --load-path=node_modules --load-path=stylesheets --load-path=app --style=compressed app/app.scss assets/app.css",
+        "build-css-watch": "npm run build-css -- --watch",
         "build-e2e": "bin/e2e",
         "build-js": "webpack --config webpack.conf.js",
         "build-js-watch": "npm run build-js -- --watch",
@@ -64,8 +64,11 @@
         "zone.js": "^0.15.0"
     },
     "devDependencies": {
+        "@angular/compiler-cli": "^21.2.11",
+        "@ngtools/webpack": "^21.2.9",
         "@types/jasmine": "^4.3.0",
         "@types/node": "^20.0.0",
+        "babel-loader": "^10.1.1",
         "concurrently": "^8.2.0",
         "http-server": "^14.1.1",
         "jasmine-core": "^5.1.0",
@@ -80,7 +83,6 @@
         "karma-webpack": "^5.0.1",
         "ng2-mock-component": "^0.1.0",
         "normalize-scss": "^7.0.0",
-        "raw-loader": "^4.0.2",
         "sass": "^1.69.5",
         "ts-loader": "^9.5.1",
         "ts-node": "^10.9.2",

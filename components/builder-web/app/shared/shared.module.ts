@@ -16,8 +16,9 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer } from '@angular/platform-browser';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, RouterLink, RouterLinkActive } from '@angular/router';
 import { MatCheckbox, MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatRadioModule, MatRadioGroup, MatRadioButton } from '@angular/material/radio';
@@ -28,7 +29,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { AutoBuildSettingsComponent } from './auto-build-settings/auto-build-settings.component';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { BreadcrumbsComponent } from './breadcrumbs/breadcrumbs.component';
 import { ChannelsComponent } from './channels/channels.component';
 import { CheckingInputComponent } from './checking-input/checking-input.component';
@@ -61,10 +61,10 @@ import { LicenseRequiredGuard } from './guards/license-required.guard';
 
 @NgModule({
   imports: [
-    BrowserAnimationsModule,
     CommonModule,
     FormsModule,
     MatCheckboxModule,
+    MatDialogModule,
     MatIconModule,
     MatMenuModule,
     MatTabsModule,
@@ -75,7 +75,9 @@ import { LicenseRequiredGuard } from './guards/license-required.guard';
     MatInputModule,
     MatSelectModule,
     ReactiveFormsModule,
-    RouterModule
+    RouterModule,
+    RouterLink,
+    RouterLinkActive
   ],
   declarations: [
     AutoBuildSettingsComponent,
@@ -105,6 +107,7 @@ import { LicenseRequiredGuard } from './guards/license-required.guard';
     KeysPipe,
   ],
   exports: [
+    MatDialogModule,
     MatMenuModule,
     BreadcrumbsComponent,
     ChannelsComponent,
@@ -142,7 +145,8 @@ import { LicenseRequiredGuard } from './guards/license-required.guard';
 export class SharedModule {
   constructor(private matIconRegistry: MatIconRegistry, private sanitizer: DomSanitizer) {
     matIconRegistry.addSvgIconSet(
-      sanitizer.bypassSecurityTrustResourceUrl('assets/images/icons/all.svg')
+      sanitizer.bypassSecurityTrustResourceUrl('assets/images/icons/all.svg'),
+      { viewBox: '0 0 24 24' }
     );
   }
 }

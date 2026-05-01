@@ -18,8 +18,9 @@ import { submitJob } from '../../actions/index';
 import { targetFrom, targets, latestBase } from '../../util';
 
 @Component({
+  standalone: false,
     selector: 'hab-package-sidebar',
-    template: require('./package-sidebar.component.html')
+    templateUrl: './package-sidebar.component.html'
 })
 export class PackageSidebarComponent {
     @Input() origin: string;

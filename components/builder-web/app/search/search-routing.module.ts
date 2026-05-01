@@ -31,8 +31,7 @@ const routes: Routes = [
   },
   {
     path: 'pkgs',
-    redirectTo: '/pkgs/core',
-    canActivate: [SignedInGuard, LicenseRequiredGuard]
+    redirectTo: '/pkgs/core'
   }
 ];
 

@@ -23,8 +23,9 @@ import { fetchJobGroup, cancelJobGroup } from '../../../actions/index';
 import { parseDate, iconForJobState } from '../../../util';
 
 @Component({
+  standalone: false,
   selector: 'hab-origin-job-detail',
-  template: require('./origin-job-detail.component.html')
+  templateUrl: './origin-job-detail.component.html'
 })
 export class OriginJobDetailComponent implements OnInit, OnDestroy {
   origin: string;

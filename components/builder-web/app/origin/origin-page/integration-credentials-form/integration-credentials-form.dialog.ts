@@ -32,8 +32,9 @@ export class Credentials implements Credentials {
 }
 
 @Component({
+  standalone: false,
   selector: 'hab-integration-credentials-dialog',
-  template: require('./integration-credentials-form.dialog.html')
+  templateUrl: './integration-credentials-form.dialog.html'
 })
 export class IntegrationCredentialsFormDialog implements OnDestroy {
   model: Credentials = new Credentials;

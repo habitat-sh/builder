@@ -16,7 +16,8 @@ import { Component } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
 
 @Component({
-  template: require('./disconnect-confirm.dialog.html')
+  standalone: false,
+  templateUrl: './disconnect-confirm.dialog.html'
 })
 export class DisconnectConfirmDialog {
   constructor(private ref: MatDialogRef<DisconnectConfirmDialog>) { }

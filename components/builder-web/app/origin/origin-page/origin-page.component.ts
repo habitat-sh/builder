@@ -20,7 +20,8 @@ import { Origin } from '../../records/Origin';
 import { fetchOrigin, fetchMyOrigins, getUniquePackages, fetchIntegrations, fetchProjects, fetchOriginSecrets } from '../../actions';
 
 @Component({
-  template: require('./origin-page.component.html')
+  standalone: false,
+  templateUrl: './origin-page.component.html'
 })
 export class OriginPageComponent implements OnInit, OnDestroy {
   loadPackages: Function;

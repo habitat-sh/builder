@@ -22,7 +22,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute } from '@angular/router';
 
 @Component({
-  template: require('./sign-in-page.component.html')
+  standalone: false,
+  templateUrl: './sign-in-page.component.html'
 })
 export class SignInPageComponent implements OnDestroy {
   message: string;

@@ -21,7 +21,8 @@ import { fetchJobGroups } from '../../../actions/index';
 import { List } from 'immutable';
 
 @Component({
-  template: require('./origin-jobs-tab.component.html')
+  standalone: false,
+  templateUrl: './origin-jobs-tab.component.html'
 })
 export class OriginJobsTabComponent implements OnInit, OnDestroy {
   origin: string;

@@ -23,16 +23,18 @@
         margin-top: 0;
       }
 
-      .mat-radio-label {
+      // MDC radio button: .mdc-form-field wraps the radio + label in a flex row
+      .mdc-form-field {
         position: relative;
+        align-items: flex-start;
 
-        .mat-radio-container {
+        .mdc-radio {
           position: absolute;
           top: 0;
           left: 0;
         }
 
-        .mat-radio-label-content {
+        .mdc-label {
           white-space: normal;
           margin-left: $default-margin;
           padding-left: $default-padding;

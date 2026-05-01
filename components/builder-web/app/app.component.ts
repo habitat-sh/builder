@@ -25,8 +25,9 @@ import {
 const md5 = require('blueimp-md5');
 
 @Component({
+  standalone: false,
   selector: 'hab-app',
-  template: require('./app.component.html')
+  templateUrl: './app.component.html'
 })
 export class AppComponent implements OnInit, OnDestroy {
   removeNotification: Function;

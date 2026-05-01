@@ -16,7 +16,8 @@ import { Component } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
 
 @Component({
-  template: require('./generate-keys-confirm.dialog.html')
+  standalone: false,
+  templateUrl: './generate-keys-confirm.dialog.html'
 })
 export class GenerateKeysConfirmDialog {
   constructor(private ref: MatDialogRef<GenerateKeysConfirmDialog>) { }

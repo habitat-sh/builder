@@ -15,8 +15,9 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'hab-visibility-selector',
-  template: require('./visibility-selector.component.html')
+  templateUrl: './visibility-selector.component.html'
 })
 export class VisibilitySelectorComponent {
   @Input() setting: string = 'public';
@@ -37,7 +38,7 @@ export class VisibilitySelectorComponent {
     return `The ${this.settingLabel} do${this.plural ? '' : 'es'} NOT appear in public search results and can ONLY be utilized by members of this origin.`;
   }
 
-  change() {
+  change(_event?: any) {
     this.changed.emit(this.setting);
   }
 }

@@ -24,7 +24,8 @@ import { IntegrationDeleteConfirmDialog } from './dialog/integration-delete-conf
 import { fetchIntegrations } from '../../../actions/index';
 
 @Component({
-  template: require('./origin-integrations-tab.component.html')
+  standalone: false,
+  templateUrl: './origin-integrations-tab.component.html'
 })
 export class OriginIntegrationsTabComponent implements OnInit, OnDestroy {
 

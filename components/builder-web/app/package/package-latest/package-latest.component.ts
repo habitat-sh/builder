@@ -20,7 +20,8 @@ import { AppStore } from '../../app.store';
 import config from '../../config';
 
 @Component({
-  template: require('./package-latest.component.html')
+  standalone: false,
+  templateUrl: './package-latest.component.html'
 })
 export class PackageLatestComponent implements OnDestroy {
   origin: string;

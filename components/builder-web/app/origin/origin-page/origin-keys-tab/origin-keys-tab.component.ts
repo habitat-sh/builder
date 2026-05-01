@@ -26,7 +26,8 @@ import { OriginService } from '../../origin.service';
 import config from '../../../config';
 
 @Component({
-  template: require('./origin-keys-tab.component.html')
+  standalone: false,
+  templateUrl: './origin-keys-tab.component.html'
 })
 export class OriginKeysTabComponent implements OnInit, OnDestroy {
   origin: string;

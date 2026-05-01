@@ -20,7 +20,8 @@ import { AppStore } from '../../app.store';
 import { requestRoute } from '../../actions/index';
 
 @Component({
-  template: require('./package-release.component.html')
+  standalone: false,
+  templateUrl: './package-release.component.html'
 })
 export class PackageReleaseComponent implements OnDestroy {
 

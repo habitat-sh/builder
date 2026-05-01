@@ -30,7 +30,8 @@ import { targetFrom, targets as allPlatforms, latestBase } from '../../util';
 import { fetchOriginChannels } from '../../actions/origins';
 
 @Component({
-  template: require('./package.component.html')
+  standalone: false,
+  templateUrl: './package.component.html'
 })
 export class PackageComponent implements OnInit, OnDestroy {
   origin: string;

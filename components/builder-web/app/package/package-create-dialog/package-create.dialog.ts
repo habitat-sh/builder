@@ -21,7 +21,8 @@ import { BuilderApiClient } from '../../client/builder-api';
 import { createEmptyPackage } from '../../actions/index';
 
 @Component({
-  template: require('./package-create.dialog.html')
+  standalone: false,
+  templateUrl: './package-create.dialog.html'
 })
 export class PackageCreateDialog {
   createPackageForm: FormGroup;

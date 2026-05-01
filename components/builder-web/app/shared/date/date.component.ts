@@ -17,6 +17,7 @@ import { Component, Input } from '@angular/core';
 import * as moment from 'moment';
 
 @Component({
+  standalone: false,
   selector: 'hab-date',
   template: `<mat-label [matTooltip]="tooltip" matTooltipPosition="above">{{ displayDate }}</mat-label>`
 })

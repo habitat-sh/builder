@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { NgModule } from '@angular/core';
-import { RouterModule } from '@angular/router';
+import { NgModule, ErrorHandler } from '@angular/core';
 import { LocationStrategy, HashLocationStrategy } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpClientModule } from '@angular/common/http';
+import { RouterOutlet } from '@angular/router';
 import { routing } from './routes';
 import { AppStore } from './app.store';
 import { AppComponent } from './app.component';
@@ -38,12 +40,30 @@ import { SearchModule } from './search/search.module';
 import { EventsModule } from './events/events.module';
 import { SharedModule } from './shared/shared.module';
 
+class VisibleErrorHandler implements ErrorHandler {
+  handleError(error: any) {
+    console.error('[VisibleErrorHandler]', error);
+    const msg = (error && (error.message || JSON.stringify(error))) || String(error);
+    const stack = (error && error.stack) || '';
+    let banner = document.getElementById('_ng_error_banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = '_ng_error_banner';
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#c00;color:#fff;padding:12px;font:12px monospace;white-space:pre-wrap;max-height:40vh;overflow:auto;';
+      document.body.appendChild(banner);
+    }
+    banner.textContent += '\n---\n' + msg + '\n' + stack;
+  }
+}
+
 @NgModule({
   imports: [
     MatIconModule,
     MatRadioModule,
     MatTabsModule,
+    MatDialogModule,
     BrowserModule,
+    BrowserAnimationsModule,
     FormsModule,
     HttpClientModule,
     MatButtonModule,
@@ -51,10 +71,10 @@ import { SharedModule } from './shared/shared.module';
     PackageModule,
     ProfileModule,
     ReactiveFormsModule,
-    RouterModule,
     SearchModule,
     EventsModule,
     SharedModule,
+    RouterOutlet,
     routing
   ],
   declarations: [
@@ -68,6 +88,7 @@ import { SharedModule } from './shared/shared.module';
   providers: [
     { provide: LocationStrategy, useClass: HashLocationStrategy, },
     { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { floatLabel: 'always' } },
+    { provide: ErrorHandler, useClass: VisibleErrorHandler },
     AppStore
   ],
   bootstrap: [AppComponent]

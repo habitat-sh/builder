@@ -23,7 +23,8 @@ import { Router, NavigationEnd } from '@angular/router';
 import config from '../../config';
 
 @Component({
-  template: require('./profile.component.html')
+  standalone: false,
+  templateUrl: './profile.component.html'
 })
 export class ProfileComponent implements OnInit, OnDestroy {
   licenseValidationMessage: string;

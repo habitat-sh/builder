@@ -16,8 +16,9 @@ import { Component, Input } from '@angular/core';
 import { isPackage, packageString } from '../../util';
 
 @Component({
+  standalone: false,
   selector: 'hab-package-list',
-  template: require('./package-list.component.html')
+  templateUrl: './package-list.component.html'
 })
 
 export class PackageListComponent {

@@ -15,8 +15,9 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'hab-auto-build-settings',
-  template: require('./auto-build-settings.component.html')
+  templateUrl: './auto-build-settings.component.html'
 })
 export class AutoBuildSettingsComponent {
   @Input() enabled: boolean = false;

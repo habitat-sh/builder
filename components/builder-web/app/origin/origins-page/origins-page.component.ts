@@ -22,7 +22,8 @@ import { AppStore } from '../../app.store';
 import config from '../../config';
 
 @Component({
-  template: require('./origins-page.component.html')
+  standalone: false,
+  templateUrl: './origins-page.component.html'
 })
 export class OriginsPageComponent implements OnInit {
 

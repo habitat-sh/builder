@@ -14,7 +14,7 @@
 
 import 'reflect-metadata';
 import 'zone.js';
-import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+import { platformBrowser } from '@angular/platform-browser';
 import { enableProdMode } from '@angular/core';
 import { AppModule } from './app.module';
 import config from './config';
@@ -23,4 +23,11 @@ if (config['environment'] === 'production') {
   enableProdMode();
 }
 
-platformBrowserDynamic().bootstrapModule(AppModule);
+platformBrowser().bootstrapModule(AppModule)
+  .catch(err => {
+    console.error('Angular bootstrap error:', err);
+    const msg = (err && (err.message || JSON.stringify(err))) || String(err);
+    const stack = (err && err.stack) || '';
+    document.body.style.cssText = 'background:#fff;color:#c00;padding:20px;font-family:monospace;font-size:13px;';
+    document.body.innerHTML = '<h2>Bootstrap Error</h2><pre>' + msg + '\n\n' + stack + '</pre>';
+  });

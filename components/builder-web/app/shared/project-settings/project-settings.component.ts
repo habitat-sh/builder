@@ -35,8 +35,9 @@ import config from '../../config';
 import { targetFrom, targets } from '../../util';
 
 @Component({
+  standalone: false,
   selector: 'hab-project-settings',
-  template: require('./project-settings.component.html')
+  templateUrl: './project-settings.component.html'
 })
 export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterViewChecked {
   connecting: boolean = false;

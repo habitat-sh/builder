@@ -15,8 +15,9 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'hab-package-breadcrumbs',
-  template: require('./breadcrumbs.component.html')
+  templateUrl: './breadcrumbs.component.html'
 })
 
 export class BreadcrumbsComponent {

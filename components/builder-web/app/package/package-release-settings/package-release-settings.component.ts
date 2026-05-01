@@ -7,7 +7,8 @@ import { AppStore } from '../../app.store';
 import { setPackageReleaseVisibility } from '../../actions/packages';
 
 @Component({
-  template: require('./package-release-settings.component.html')
+  standalone: false,
+  templateUrl: './package-release-settings.component.html'
 })
 export class PackageReleaseSettingsComponent implements OnDestroy {
   visibility: string;

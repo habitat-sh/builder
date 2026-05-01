@@ -16,7 +16,8 @@ import { Component } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
 
 @Component({
-  template: require('./integration-delete-confirm.dialog.html')
+  standalone: false,
+  templateUrl: './integration-delete-confirm.dialog.html'
 })
 export class IntegrationDeleteConfirmDialog {
   constructor(private ref: MatDialogRef<IntegrationDeleteConfirmDialog>) { }

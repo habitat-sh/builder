@@ -21,7 +21,8 @@ import { BuilderApiClient } from '../../client/builder-api';
 import { createOrigin } from '../../actions/index';
 
 @Component({
-  template: require('./origin-create-page.component.html')
+  standalone: false,
+  templateUrl: './origin-create-page.component.html'
 })
 export class OriginCreatePageComponent implements AfterViewInit {
   form: FormGroup;

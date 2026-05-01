@@ -15,6 +15,7 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'hab-text',
   template: `<mat-label [matTooltip]="title" matTooltipPosition="above">{{ text }}</mat-label>`
 })

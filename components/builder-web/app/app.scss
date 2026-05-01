@@ -108,19 +108,34 @@ nav {
   &.tabs {
     background-color: $light-blue;
 
-    .mat-tab-links {
+    .mat-mdc-tab-links {
       display: flex;
     }
 
-    .mat-tab-link {
+    .mat-mdc-tab-link {
       color: $black;
       text-transform: uppercase;
       font-size: 0.75rem;
       opacity: 1;
       min-width: inherit;
+      height: 48px;
 
       @include tablet-up {
         min-width: 100px;
+      }
+
+      // MDC tab text label
+      .mdc-tab__text-label {
+        color: $black;
+      }
+
+      &.mdc-tab--active .mdc-tab__text-label {
+        color: $black;
+      }
+
+      // Remove MDC indicator bottom border color override
+      .mdc-tab-indicator .mdc-tab-indicator__content--underline {
+        border-color: $dark-blue;
       }
     }
   }

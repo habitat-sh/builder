@@ -22,7 +22,8 @@ import { SimpleConfirmDialog } from '../../../shared/dialog/simple-confirm/simpl
 import { deleteOriginSecret, updateOrigin } from '../../../actions/index';
 import config from '../../../config';
 @Component({
-  template: require('./origin-settings-tab.component.html')
+  standalone: false,
+  templateUrl: './origin-settings-tab.component.html'
 })
 
 export class OriginSettingsTabComponent implements OnInit, OnDestroy {

@@ -25,7 +25,8 @@ import { dateFilters, getDateRange } from '../date-util';
 import { setEventsSearchQuery, setEventsDateFilter } from '../../actions/events';
 
 @Component({
-  template: require('./events.component.html')
+  standalone: false,
+  templateUrl: './events.component.html'
 })
 export class EventsComponent implements OnInit, OnDestroy {
   dateFilterChanged: Function;
