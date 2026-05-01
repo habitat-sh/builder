@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
@@ -25,13 +25,15 @@ import config from '../../config';
   standalone: false,
   templateUrl: './origins-page.component.html'
 })
-export class OriginsPageComponent implements OnInit {
+export class OriginsPageComponent implements OnInit, OnDestroy {
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     private store: AppStore,
     private router: Router,
     private confirmDialog: MatDialog,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) {
     this.title.setTitle(`My Origins | ${store.getState().app.name}`);
   }
@@ -40,6 +42,13 @@ export class OriginsPageComponent implements OnInit {
     if (this.token) {
       this.store.dispatch(fetchMyOrigins(this.token));
       this.store.dispatch(fetchMyOriginInvitations(this.token));
+    }
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
+  }
+
+  ngOnDestroy() {
+    if (this._storeUnsub) {
+      this._storeUnsub();
     }
   }
 

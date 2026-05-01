@@ -14,6 +14,7 @@
 
 import 'reflect-metadata';
 import 'zone.js';
+import 'zone.js/plugins/zone-patch-fetch';
 import { platformBrowser } from '@angular/platform-browser';
 import { enableProdMode } from '@angular/core';
 import { AppModule } from './app.module';
