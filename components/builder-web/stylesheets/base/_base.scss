@@ -34,6 +34,7 @@ $heading-font-family: Montserrat, Verdana;
 $monospace-font-family: 'Source Code Pro', Menlo, Consolas, monospace;
 $monospace-font-size: 12px;
 $tabs-font-family: $heading-font-family;
+@import 'theme_palette';
 @import 'theme';
 
 $default-spacing: 20px;

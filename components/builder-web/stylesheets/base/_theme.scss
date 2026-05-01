@@ -1,33 +1,28 @@
 // https://material.angular.io/guide/theming
 // https://material.io/guidelines/style/color.html#color-color-palette
 
-@import "@angular/material/theming";
-@import "theme_palette";
+@use '@angular/material' as mat;
 
-$mat-elevation-color: $medium-gray;
-
-$custom-typography: mat-typography-config(
-  $button: mat-typography-level($base-font-size, $base-line-height, normal),
+$custom-typography: mat.m2-define-typography-config(
+  $button: mat.m2-define-typography-level($base-font-size, $base-line-height, normal),
   $font-family: "#{$base-font-family}"
 );
 
-$tabs-typography: mat-typography-config(
-  $font-family: "#{$tabs-font-family}"
-);
+$hab-theme-primary: mat.m2-define-palette($md-mcgpalette0);
+$hab-theme-accent: mat.m2-define-palette($md-mcgpalette0);
+$hab-theme-warn: mat.m2-define-palette($md-mcgpalette5);
 
-$hab-theme-primary: mat-palette($md-mcgpalette0);
-$hab-theme-accent: mat-palette($md-mcgpalette0);
-$hab-theme-warn: mat-palette($md-mcgpalette5);
+$hab-theme: mat.m2-define-light-theme((
+  color: (
+    primary: $hab-theme-primary,
+    accent: $hab-theme-accent,
+    warn: $hab-theme-warn,
+  ),
+  typography: $custom-typography,
+));
 
-$hab-theme: mat-light-theme(
-  $hab-theme-primary,
-  $hab-theme-accent,
-  $hab-theme-warn
-);
-
-@include mat-core($custom-typography);
-@include mat-tabs-typography($tabs-typography);
-@include angular-material-theme($hab-theme);
+@include mat.core();
+@include mat.all-component-themes($hab-theme);
 
 // Angular Material overrides
 
@@ -35,19 +30,19 @@ html {
   background-color: $dark-blue; // Firefox needs this for Material dialogs.
 }
 
-.mat-tab-label-active {
+.mdc-tab.mdc-tab--active {
   background: transparent !important;
 }
 
-.mat-raised-button:not([class*=mat-elevation-z]) {
+.mat-mdc-raised-button:not([class*=mat-elevation-z]) {
   box-shadow: none !important;
 }
 
-.mat-dialog-container {
+.mat-mdc-dialog-container {
   margin: 0 auto; // Centers the dialog on smaller screens
 }
 
-.mat-tooltip {
+.mat-mdc-tooltip {
   line-height: 16px;
   font-size: 12px;
 }
