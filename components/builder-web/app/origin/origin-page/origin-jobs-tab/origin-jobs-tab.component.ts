@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -30,12 +30,14 @@ export class OriginJobsTabComponent implements OnInit, OnDestroy {
 
   private sub: Subscription;
   private poll: number;
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     private route: ActivatedRoute,
     private store: AppStore,
     private router: Router,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) {
 
     this.sub = this.route.parent.params.subscribe((params) => {
@@ -55,9 +57,12 @@ export class OriginJobsTabComponent implements OnInit, OnDestroy {
     }, 10000);
 
     this.fetchJobGroups();
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
+    if (this._storeUnsub) { this._storeUnsub(); }
     if (this.sub) {
       this.sub.unsubscribe();
     }

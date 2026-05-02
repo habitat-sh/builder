@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -23,13 +23,14 @@ import config from '../../config';
   standalone: false,
   templateUrl: './package-latest.component.html'
 })
-export class PackageLatestComponent implements OnDestroy {
+export class PackageLatestComponent implements OnInit, OnDestroy {
   origin: string;
   name: string;
 
   private isDestroyed$: Subject<boolean> = new Subject();
+  private _storeUnsub: (() => void) | null = null;
 
-  constructor(private store: AppStore, private title: Title) {
+  constructor(private store: AppStore, private title: Title, private cdr: ChangeDetectorRef) {
     this.store.observe('router.route.params')
       .pipe(takeUntil(this.isDestroyed$))
       .subscribe(params => {
@@ -39,7 +40,12 @@ export class PackageLatestComponent implements OnDestroy {
       });
   }
 
+  ngOnInit() {
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
+  }
+
   ngOnDestroy() {
+    if (this._storeUnsub) { this._storeUnsub(); }
     this.isDestroyed$.next(true);
     this.isDestroyed$.complete();
   }
