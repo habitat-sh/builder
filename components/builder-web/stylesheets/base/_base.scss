@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+@use 'sass:color';
 @import 'fonts';
 @import 'colors';
 
@@ -48,7 +49,7 @@ $default-transition-duration: 0.2s;
 
 $max-grid-width: 1180px;
 
-$small-margin: $default-margin / 2;
+$small-margin: $default-margin * 0.5;
 $small-font-size: 12px;
 $small-line-height: 16px;
 $smaller-font-size: 11px;
@@ -120,7 +121,7 @@ a {
   @include transition(color);
 
   &:hover {
-    color: darken($hab-links, 10%);
+    color: color.adjust($hab-links, $lightness: -10%);
   }
 }
 
