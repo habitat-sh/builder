@@ -118,6 +118,7 @@ nav {
       font-size: 0.75rem;
       opacity: 1;
       min-width: inherit;
+      flex-grow: 0 !important;
       height: 48px;
 
       @include tablet-up {
