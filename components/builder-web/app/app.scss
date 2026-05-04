@@ -115,6 +115,7 @@ nav {
     .mat-mdc-tab-link {
       color: $black;
       text-transform: uppercase;
+      font-family: $heading-font-family;
       font-size: 0.75rem;
       opacity: 1;
       min-width: inherit;
