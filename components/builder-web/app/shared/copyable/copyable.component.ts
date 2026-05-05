@@ -23,7 +23,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 export class CopyableComponent {
 
   @Input() text: string = '';
-  @Input() style: string = 'unstyled';
+  @Input() variant: string = 'unstyled';
 
   public copied: boolean = false;
 
