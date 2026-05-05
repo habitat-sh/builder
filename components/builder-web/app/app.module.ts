@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { NgModule, ErrorHandler } from '@angular/core';
+import { NgModule } from '@angular/core';
 import { LocationStrategy, HashLocationStrategy } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule } from '@angular/material/dialog';
@@ -40,21 +40,6 @@ import { SearchModule } from './search/search.module';
 import { EventsModule } from './events/events.module';
 import { SharedModule } from './shared/shared.module';
 
-class VisibleErrorHandler implements ErrorHandler {
-  handleError(error: any) {
-    console.error('[VisibleErrorHandler]', error);
-    const msg = (error && (error.message || JSON.stringify(error))) || String(error);
-    const stack = (error && error.stack) || '';
-    let banner = document.getElementById('_ng_error_banner');
-    if (!banner) {
-      banner = document.createElement('div');
-      banner.id = '_ng_error_banner';
-      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#c00;color:#fff;padding:12px;font:12px monospace;white-space:pre-wrap;max-height:40vh;overflow:auto;';
-      document.body.appendChild(banner);
-    }
-    banner.textContent += '\n---\n' + msg + '\n' + stack;
-  }
-}
 
 @NgModule({
   imports: [
@@ -88,7 +73,6 @@ class VisibleErrorHandler implements ErrorHandler {
   providers: [
     { provide: LocationStrategy, useClass: HashLocationStrategy, },
     { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { floatLabel: 'always' } },
-    { provide: ErrorHandler, useClass: VisibleErrorHandler },
     AppStore
   ],
   bootstrap: [AppComponent]
