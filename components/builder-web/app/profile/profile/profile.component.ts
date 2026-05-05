@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Title } from '@angular/platform-browser';
 import { AppStore } from '../../app.store';
@@ -30,18 +30,21 @@ export class ProfileComponent implements OnInit, OnDestroy {
   licenseValidationMessage: string;
   private dialogRef: any;
   private allSubscriptions: any[] = [];
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     private confirmDialog: MatDialog,
     private store: AppStore,
     private title: Title,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {
     this.title.setTitle(`My Profile | ${store.getState().app.name}`);
   }
 
   ngOnInit() {
     this.fetch();
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
 
     if (this.config.is_saas) {
       this.store.dispatch(fetchLicenseKey(this.token));
@@ -162,6 +165,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    if (this._storeUnsub) { this._storeUnsub(); }
     // Guard against missing unsubscribe method
     this.allSubscriptions.forEach(sub => sub && typeof sub.unsubscribe === 'function' && sub.unsubscribe());
     this.dialogRef = null;
