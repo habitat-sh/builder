@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
@@ -32,11 +32,13 @@ export class PackageVersionsComponent implements OnDestroy {
   selected: string;
 
   private isDestroyed$: Subject<boolean> = new Subject();
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     private store: AppStore,
     private router: Router,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) {
     this.store.observe('router.route.params')
       .pipe(takeUntil(this.isDestroyed$))
@@ -51,11 +53,14 @@ export class PackageVersionsComponent implements OnDestroy {
       .subscribe(version => {
         this.toggle(version);
       });
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
     this.isDestroyed$.next(true);
     this.isDestroyed$.complete();
+    if (this._storeUnsub) { this._storeUnsub(); }
   }
 
   get ident() {
