@@ -4,12 +4,18 @@
 
 #### Merged Pull Requests
 - Bump qs from 6.11.2 to 6.15.1 in /test/builder-api [#1955](https://github.com/habitat-sh/builder/pull/1955) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- bump habitat_core to latest main with windows arm target [#1980](https://github.com/habitat-sh/builder/pull/1980) ([mwrock](https://github.com/mwrock))
-- bump version in preparation of release [#1981](https://github.com/habitat-sh/builder/pull/1981) ([mwrock](https://github.com/mwrock))
 - Bump brace-expansion from 2.0.2 to 2.0.3 in /test/builder-api [#1970](https://github.com/habitat-sh/builder/pull/1970) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump picomatch from 2.3.1 to 2.3.2 in /test/builder-api [#1968](https://github.com/habitat-sh/builder/pull/1968) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump js-yaml from 4.1.0 to 4.1.1 in /test/builder-api [#1944](https://github.com/habitat-sh/builder/pull/1944) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump minimatch from 5.1.6 to 5.1.9 in /test/builder-api [#1963](https://github.com/habitat-sh/builder/pull/1963) ([dependabot[bot]](https://github.com/dependabot[bot]))
+
+<!-- latest_release -->
+
+## [20260430](https://github.com/habitat-sh/builder/tree/20260430) (2026-04-30)
+
+#### Merged Pull Requests
+- bump version in preparation of release [#1981](https://github.com/habitat-sh/builder/pull/1981) ([mwrock](https://github.com/mwrock))
+- bump habitat_core to latest main with windows arm target [#1980](https://github.com/habitat-sh/builder/pull/1980) ([mwrock](https://github.com/mwrock))
 - migrate to latest clap [#1979](https://github.com/habitat-sh/builder/pull/1979) ([mwrock](https://github.com/mwrock))
 - migrating to protobuf-codegen [#1978](https://github.com/habitat-sh/builder/pull/1978) ([mwrock](https://github.com/mwrock))
 - add cargo audit workflow to ci [#1975](https://github.com/habitat-sh/builder/pull/1975) ([mwrock](https://github.com/mwrock))
@@ -29,11 +35,6 @@
 - CHEF-28614 - Create SECURITY.md with standard template [#1951](https://github.com/habitat-sh/builder/pull/1951) ([nandanhegde73](https://github.com/nandanhegde73))
 - Restore &quot;bump crossbeam to eliminate CVE&quot; [#1949](https://github.com/habitat-sh/builder/pull/1949) ([mwrock](https://github.com/mwrock))
 - cleanup changelog [#1948](https://github.com/habitat-sh/builder/pull/1948) ([mwrock](https://github.com/mwrock))
-<!-- latest_release -->
-
-## Unreleased
-
-#### Merged Pull Requests
 - Revert &quot;bump crossbeam to eliminate CVE&quot; [#1946](https://github.com/habitat-sh/builder/pull/1946) ([mwrock](https://github.com/mwrock))
 
 ## [20251124](https://github.com/habitat-sh/builder/tree/20251124) (2025-11-20)
