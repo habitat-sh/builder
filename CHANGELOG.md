@@ -3,12 +3,12 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- update changelog with new release [#1984](https://github.com/habitat-sh/builder/pull/1984) ([mwrock](https://github.com/mwrock))
 - Bump qs from 6.11.2 to 6.15.1 in /test/builder-api [#1955](https://github.com/habitat-sh/builder/pull/1955) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump brace-expansion from 2.0.2 to 2.0.3 in /test/builder-api [#1970](https://github.com/habitat-sh/builder/pull/1970) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump picomatch from 2.3.1 to 2.3.2 in /test/builder-api [#1968](https://github.com/habitat-sh/builder/pull/1968) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump js-yaml from 4.1.0 to 4.1.1 in /test/builder-api [#1944](https://github.com/habitat-sh/builder/pull/1944) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump minimatch from 5.1.6 to 5.1.9 in /test/builder-api [#1963](https://github.com/habitat-sh/builder/pull/1963) ([dependabot[bot]](https://github.com/dependabot[bot]))
-
 <!-- latest_release -->
 
 ## [20260430](https://github.com/habitat-sh/builder/tree/20260430) (2026-04-30)
