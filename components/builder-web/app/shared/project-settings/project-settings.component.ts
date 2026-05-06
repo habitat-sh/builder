@@ -411,7 +411,10 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
 
   settingChanged(setting) {
     this.visibility = setting;
-    this.store.dispatch(setCurrentPackageVisibility(this.origin, this.name, this.visibility, this.token));
+    const params = this.store.getState().router.route.params;
+    const origin = this.origin || params.origin;
+    const name = this.name || params.name;
+    this.store.dispatch(setCurrentPackageVisibility(origin, name, this.visibility, this.token));
   }
 
   refresh() {
