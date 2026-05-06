@@ -14,7 +14,7 @@
 
 import {
   AfterViewChecked, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output,
-  SimpleChanges, ViewChild
+  SimpleChanges, ViewChild, ChangeDetectorRef
 } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -67,6 +67,7 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
   private _autoBuild;
 
   private isDestroyed$: Subject<boolean> = new Subject();
+  private _storeUnsub: (() => void) | null = null;
 
   private _doAfterViewChecked: Function[] = [];
 
@@ -75,7 +76,8 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     private router: Router,
     private store: AppStore,
     private disconnectDialog: MatDialog,
-    private elementRef: ElementRef
+    private elementRef: ElementRef,
+    private cdr: ChangeDetectorRef
   ) {
     this.api = new BuilderApiClient(this.token);
     this.selectedPath = this.defaultPath;
@@ -99,6 +101,8 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     ).subscribe(username => {
       this.store.dispatch(fetchGitHubInstallations(username));
     });
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngAfterViewChecked() {
@@ -131,6 +135,7 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
   ngOnDestroy() {
     this.isDestroyed$.next(true);
     this.isDestroyed$.complete();
+    if (this._storeUnsub) { this._storeUnsub(); }
   }
 
   get autoBuild() {

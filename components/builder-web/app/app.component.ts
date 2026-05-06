@@ -15,7 +15,7 @@
 import config from './config';
 import { Subscription } from 'rxjs';
 import { AppStore } from './app.store';
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router, NavigationEnd, NavigationStart } from '@angular/router';
 import {
   identifyUser, loadFeatures, removeNotification, exchangeOAuthCode,
@@ -37,7 +37,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private sub: Subscription;
 
-  constructor(private route: ActivatedRoute, private router: Router, private store: AppStore) {
+  constructor(private route: ActivatedRoute, private router: Router, private store: AppStore, private cdr: ChangeDetectorRef) {
     store.dispatch(loadFeatures());
     store.dispatch(loadOAuthProvider());
 
@@ -70,6 +70,7 @@ export class AppComponent implements OnInit, OnDestroy {
       if (requestedRoute) {
         router.navigate(requestedRoute);
       }
+      this.cdr.detectChanges();
     });
 
     this.removeNotification = function (i) {
