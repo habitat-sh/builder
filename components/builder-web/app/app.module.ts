@@ -13,11 +13,17 @@
 // limitations under the License.
 
 import { NgModule } from '@angular/core';
-import { RouterModule } from '@angular/router';
 import { LocationStrategy, HashLocationStrategy } from '@angular/common';
-import { MatButtonModule, MatIconModule, MatRadioModule, MatTabsModule, MAT_LABEL_GLOBAL_OPTIONS } from '@angular/material';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialogModule } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
+import { MatRadioModule } from '@angular/material/radio';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpClientModule } from '@angular/common/http';
+import { RouterOutlet } from '@angular/router';
 import { routing } from './routes';
 import { AppStore } from './app.store';
 import { AppComponent } from './app.component';
@@ -34,12 +40,15 @@ import { SearchModule } from './search/search.module';
 import { EventsModule } from './events/events.module';
 import { SharedModule } from './shared/shared.module';
 
+
 @NgModule({
   imports: [
     MatIconModule,
     MatRadioModule,
     MatTabsModule,
+    MatDialogModule,
     BrowserModule,
+    BrowserAnimationsModule,
     FormsModule,
     HttpClientModule,
     MatButtonModule,
@@ -47,10 +56,10 @@ import { SharedModule } from './shared/shared.module';
     PackageModule,
     ProfileModule,
     ReactiveFormsModule,
-    RouterModule,
     SearchModule,
     EventsModule,
     SharedModule,
+    RouterOutlet,
     routing
   ],
   declarations: [
@@ -63,9 +72,10 @@ import { SharedModule } from './shared/shared.module';
   ],
   providers: [
     { provide: LocationStrategy, useClass: HashLocationStrategy, },
-    { provide: MAT_LABEL_GLOBAL_OPTIONS, useValue: { float: 'always' } },
+    { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { floatLabel: 'always' } },
     AppStore
   ],
   bootstrap: [AppComponent]
 })
 export class AppModule {}
+

@@ -15,7 +15,7 @@
 form {
   color: $hab-text;
 
-  label:not(.mat-radio-label):not(.mat-slide-toggle-label):not(.mat-checkbox-layout) {
+  label:not(.mdc-label) {
     font-weight: 600;
     display: block;
     margin-bottom: $small-margin;

@@ -15,7 +15,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { Subscription } from 'rxjs';
 import { AppStore } from '../../../app.store';
 import { getUniquePackages } from '../../../actions/index';
@@ -23,8 +23,9 @@ import config from '../../../config';
 import { PackageCreateDialog } from '../../../package/package-create-dialog/package-create.dialog';
 
 @Component({
+  standalone: false,
   selector: 'hab-origin-packages-tab',
-  template: require('./origin-packages-tab.component.html')
+  templateUrl: './origin-packages-tab.component.html'
 })
 export class OriginPackagesTabComponent implements OnInit, OnDestroy {
   selectingPlan: boolean = false;

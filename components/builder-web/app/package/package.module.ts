@@ -16,7 +16,9 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { MatTabsModule, MatButtonModule, MatRadioModule } from '@angular/material';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatButtonModule } from '@angular/material/button';
+import { MatRadioModule } from '@angular/material/radio';
 import { JobDetailComponent } from './job-detail/job-detail.component';
 import { JobListComponent } from './job-list/job-list.component';
 import { PackageJobComponent } from './package-job/package-job.component';
@@ -65,10 +67,6 @@ import { PackageRoutingModule } from './package-routing.module';
     PackageSidebarComponent,
     PackageSettingsComponent,
     PackageVersionsComponent
-  ],
-  entryComponents: [
-    PackageCreateDialog,
-    PackageReleaseVisibilityDialog
   ],
   exports: []
 })

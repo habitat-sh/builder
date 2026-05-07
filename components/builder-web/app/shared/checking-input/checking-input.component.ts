@@ -17,8 +17,9 @@ import { Component, Input, OnChanges, OnInit } from '@angular/core';
 import { AsyncValidator } from '../../async-validator';
 
 @Component({
+  standalone: false,
   selector: 'hab-checking-input',
-  template: require('./checking-input.component.html')
+  templateUrl: './checking-input.component.html'
 })
 export class CheckingInputComponent implements OnInit, OnChanges {
   @Input() autofocus;

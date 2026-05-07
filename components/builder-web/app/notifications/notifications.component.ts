@@ -15,8 +15,9 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'hab-notifications',
-  template: require('./notifications.component.html')
+  templateUrl: './notifications.component.html'
 })
 export class NotificationsComponent {
   @Input() notifications;

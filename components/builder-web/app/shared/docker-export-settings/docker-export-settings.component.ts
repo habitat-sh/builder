@@ -13,14 +13,15 @@
 // limitations under the License.
 
 import { Component, Input, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { DockerExportSettingsDialog } from './dialog/docker-export-settings.dialog';
 import { fetchProjectIntegration } from '../../actions/projects';
 import { AppStore } from '../../app.store';
 
 @Component({
+  standalone: false,
   selector: 'hab-docker-export-settings',
-  template: require('./docker-export-settings.component.html')
+  templateUrl: './docker-export-settings.component.html'
 })
 export class DockerExportSettingsComponent implements OnChanges, OnDestroy {
   @Input() origin: string;

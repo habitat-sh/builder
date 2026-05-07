@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone, Optional } from '@angular/core';
 import { applyMiddleware, compose, createStore, Store } from 'redux';
 import rootReducer from './reducers/index';
 import thunk from 'redux-thunk';
@@ -24,12 +24,7 @@ import { get, isEqual } from 'lodash';
 const composeEnhancers = window['__REDUX_DEVTOOLS_EXTENSION_COMPOSE__'] || compose;
 
 const finalCreateStore = composeEnhancers(
-  // The thunk middleware allows an action to return a function that takes a
-  // dispatch argument instead of returning an object directly. This allows
-  // actions to make async calls.
   applyMiddleware(thunk),
-
-  // Allows resetting of the store
   reduxReset()
 )(createStore);
 
@@ -43,10 +38,12 @@ export class AppStore {
 
   private storeSource$: BehaviorSubject<any>;
 
-  constructor() {
+  constructor(@Optional() private zone?: NgZone) {
     this.storeSource$ = new BehaviorSubject(this.store.getState());
     this.store$ = this.storeSource$.asObservable().pipe(distinctUntilChanged(isEqual));
-    this.store.subscribe(() => this.storeSource$.next(this.store.getState()));
+    this.store.subscribe(() => {
+      this.storeSource$.next(this.store.getState());
+    });
   }
 
   getState(): any {
@@ -65,6 +62,9 @@ export class AppStore {
   }
 
   subscribe(listener: Function) {
-    return this.store.subscribe(() => listener(this.getState()));
+    return this.store.subscribe(() => {
+      const run = () => listener(this.getState());
+      this.zone ? this.zone.run(run) : run();
+    });
   }
 }

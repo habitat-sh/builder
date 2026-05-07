@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { FormControl, FormGroup, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { List } from 'immutable';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { SimpleConfirmDialog } from '../../../shared/dialog/simple-confirm/simple-confirm.dialog';
 import { DepartOriginDialog } from './dialog/depart-origin.dialog';
 import { AppStore } from '../../../app.store';
@@ -29,13 +29,15 @@ import { deleteOriginMember, departOrigin, fetchOriginMembers, fetchOriginInvita
 import config from '../../../config';
 
 @Component({
-  template: require('./origin-members-tab.component.html')
+  standalone: false,
+  templateUrl: './origin-members-tab.component.html'
 })
 export class OriginMembersTabComponent implements OnInit, OnDestroy {
   form: FormGroup;
   control: FormControl;
   sub: Subscription;
   origin;
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     formBuilder: FormBuilder,
@@ -44,7 +46,8 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
     private store: AppStore,
     private confirmDialog: MatDialog,
     private departOriginDialog: MatDialog,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) {
     this.form = formBuilder.group({});
   }
@@ -59,9 +62,12 @@ export class OriginMembersTabComponent implements OnInit, OnDestroy {
 
     this.control = new FormControl('', Validators.required);
     this.form.addControl('username', this.control);
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
+    if (this._storeUnsub) { this._storeUnsub(); }
     this.sub.unsubscribe();
   }
 

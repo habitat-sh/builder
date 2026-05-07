@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { MatDialog } from '@angular/material';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -26,11 +26,13 @@ import { OriginService } from '../../origin.service';
 import config from '../../../config';
 
 @Component({
-  template: require('./origin-keys-tab.component.html')
+  standalone: false,
+  templateUrl: './origin-keys-tab.component.html'
 })
 export class OriginKeysTabComponent implements OnInit, OnDestroy {
   origin: string;
   sub: Subscription;
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -38,7 +40,8 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
     private keyAddDialog: MatDialog,
     private keyGenerateDialog: MatDialog,
     private originService: OriginService,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) { }
 
   ngOnInit() {
@@ -48,9 +51,12 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
       this.fetchMyOrigins();
       this.fetchPublicKeys();
     });
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
+    if (this._storeUnsub) { this._storeUnsub(); }
     if (this.sub) {
       this.sub.unsubscribe();
     }
@@ -120,7 +126,7 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
   }
 
   private download(blob, name) {
-    const msSave = navigator.msSaveBlob;
+    const msSave = (navigator as any).msSaveBlob;
 
     if (typeof msSave === 'function') {
       msSave(blob, name);

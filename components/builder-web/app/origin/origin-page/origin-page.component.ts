@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AppStore } from '../../app.store';
@@ -20,15 +20,17 @@ import { Origin } from '../../records/Origin';
 import { fetchOrigin, fetchMyOrigins, getUniquePackages, fetchIntegrations, fetchProjects, fetchOriginSecrets } from '../../actions';
 
 @Component({
-  template: require('./origin-page.component.html')
+  standalone: false,
+  templateUrl: './origin-page.component.html'
 })
 export class OriginPageComponent implements OnInit, OnDestroy {
   loadPackages: Function;
   perPage: number = 50;
   sub: Subscription;
   originName: string;
+  private _storeUnsub: (() => void) | null = null;
 
-  constructor(private route: ActivatedRoute, private store: AppStore) {
+  constructor(private route: ActivatedRoute, private store: AppStore, private cdr: ChangeDetectorRef) {
     this.sub = this.route.params.subscribe(params => {
       this.originName = params['origin'];
     });
@@ -42,9 +44,11 @@ export class OriginPageComponent implements OnInit, OnDestroy {
     this.fetchProjects();
     this.fetchSecrets();
     this.loadPackages = this.fetchPackages.bind(this);
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
+    if (this._storeUnsub) { this._storeUnsub(); }
     this.sub.unsubscribe();
   }
 

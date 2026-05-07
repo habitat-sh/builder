@@ -2,25 +2,33 @@
 
 const webpack = require('webpack');
 const path = require('path');
+const { AngularWebpackPlugin } = require('@ngtools/webpack');
 const isProduction = process.env.NODE_ENV === 'production';
 
 let rules = [
-    { test: /\.ts$/, use: [{ loader: 'awesome-typescript-loader' }] },
-    { test: /\.html$/, use: [{ loader: 'raw-loader' }] },
+    // Run the Angular Linker on Angular library packages (partially compiled Ivy)
     {
-        test: /\.ts$/,
-        enforce: 'pre',
-        use: [{
-            loader: 'tslint-loader',
+        test: /\.m?js$/,
+        include: /node_modules[\\/]@angular/,
+        use: {
+            loader: 'babel-loader',
             options: {
-                emitErrors: true,
-                failOnHint: true
+                plugins: ['@angular/compiler-cli/linker/babel'],
+                compact: false,
+                cacheDirectory: true
             }
-        }]
-    }
+        }
+    },
+    { test: /\.[cm]?[jt]sx?$/, use: [{ loader: '@ngtools/webpack' }], exclude: /node_modules/ },
+    { test: /\.html$/, type: 'asset/source' }
 ];
 
-let plugins = [];
+let plugins = [
+    new AngularWebpackPlugin({
+        tsconfig: path.resolve(__dirname, 'tsconfig.json'),
+        jitMode: false
+    })
+];
 let devtool = 'source-map';
 
 if (isProduction) {

@@ -16,8 +16,9 @@ import { Component, Input } from '@angular/core';
 import config from '../config';
 
 @Component({
+  standalone: false,
   selector: 'hab-side-nav',
-  template: require('./side-nav.component.html')
+  templateUrl: './side-nav.component.html'
 })
 export class SideNavComponent {
   @Input() isSignedIn;

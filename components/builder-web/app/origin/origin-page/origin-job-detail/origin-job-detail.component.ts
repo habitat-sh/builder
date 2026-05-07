@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { AppStore } from '../../../app.store';
 import { Title } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
@@ -23,8 +23,9 @@ import { fetchJobGroup, cancelJobGroup } from '../../../actions/index';
 import { parseDate, iconForJobState } from '../../../util';
 
 @Component({
+  standalone: false,
   selector: 'hab-origin-job-detail',
-  template: require('./origin-job-detail.component.html')
+  templateUrl: './origin-job-detail.component.html'
 })
 export class OriginJobDetailComponent implements OnInit, OnDestroy {
   origin: string;
@@ -37,13 +38,15 @@ export class OriginJobDetailComponent implements OnInit, OnDestroy {
   private poll: number;
   private completedStates = ['success', 'failure'];
   private cancelableStates = ['notstarted', 'inprogress'];
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     private route: ActivatedRoute,
     private store: AppStore,
     private router: Router,
     private cancelDialog: MatDialog,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) {
     this.sub = this.route.params.subscribe((params) => {
       this.id = params['id'];
@@ -58,9 +61,12 @@ export class OriginJobDetailComponent implements OnInit, OnDestroy {
     }, 5000);
 
     this.fetchJobGroup();
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
+    if (this._storeUnsub) { this._storeUnsub(); }
     if (this.sub) {
       this.sub.unsubscribe();
       this.parentSub.unsubscribe();

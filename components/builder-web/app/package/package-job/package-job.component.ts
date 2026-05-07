@@ -6,7 +6,8 @@ import { fetchJob } from '../../actions/index';
 import { AppStore } from '../../app.store';
 
 @Component({
-  template: require('./package-job.component.html')
+  standalone: false,
+  templateUrl: './package-job.component.html'
 })
 export class PackageJobComponent implements OnInit, OnDestroy {
   private sub: Subscription;

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'whatwg-fetch';
 import { GitHubApiClient } from '../client/github-api';
 import { Browser } from '../browser';
 

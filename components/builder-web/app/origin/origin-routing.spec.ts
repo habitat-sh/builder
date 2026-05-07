@@ -15,7 +15,7 @@
 import { Location } from '@angular/common';
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
-import { MatButtonModule } from '@angular/material';
+import { MatButtonModule } from '@angular/material/button';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { imports, declarations } from './origin.module';
@@ -30,8 +30,8 @@ describe('Router: Origin', () => {
     TestBed.configureTestingModule({
       imports, declarations
     });
-    router = TestBed.get(Router);
-    location = TestBed.get(Location);
+    router = TestBed.inject(Router);
+    location = TestBed.inject(Location);
     router.initialNavigation();
   });
 

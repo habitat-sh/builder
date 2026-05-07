@@ -13,12 +13,13 @@
 // limitations under the License.
 
 import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { SimpleConfirmDialog } from '../../shared/dialog/simple-confirm/simple-confirm.dialog';
 
 @Component({
+  standalone: false,
   selector: 'hab-channels',
-  template: require('./channels.component.html')
+  templateUrl: './channels.component.html'
 })
 export class ChannelsComponent {
   @Input() channels: string[];

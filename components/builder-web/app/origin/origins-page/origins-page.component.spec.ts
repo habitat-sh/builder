@@ -16,7 +16,7 @@ import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { Component, DebugElement } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { List } from 'immutable';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable } from 'rxjs';
@@ -51,7 +51,7 @@ class MockAppStore {
     };
   }
 
-  dispatch() { }
+  dispatch(_action?: any) { }
 }
 
 class MockDialog { }

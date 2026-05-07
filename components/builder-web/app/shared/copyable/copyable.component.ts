@@ -13,16 +13,17 @@
 // limitations under the License.
 
 import { Component, Input, ViewChild } from '@angular/core';
-import { MatTooltip } from '@angular/material';
+import { MatTooltip } from '@angular/material/tooltip';
 
 @Component({
+  standalone: false,
   selector: 'hab-copyable',
-  template: require('./copyable.component.html')
+  templateUrl: './copyable.component.html'
 })
 export class CopyableComponent {
 
   @Input() text: string = '';
-  @Input() style: string = 'unstyled';
+  @Input() variant: string = 'unstyled';
 
   public copied: boolean = false;
 

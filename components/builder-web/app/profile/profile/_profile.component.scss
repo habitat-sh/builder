@@ -13,6 +13,7 @@
       color: $hab-text;
       background-color: #f0f5f8;
       font-weight: 600;
+      min-width: 0;
 
       @include tablet-up {
         margin-bottom: 0;

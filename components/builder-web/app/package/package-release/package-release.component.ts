@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { Subject } from 'rxjs';
 import { debounceTime, filter, take, takeUntil } from 'rxjs/operators';
@@ -20,18 +20,21 @@ import { AppStore } from '../../app.store';
 import { requestRoute } from '../../actions/index';
 
 @Component({
-  template: require('./package-release.component.html')
+  standalone: false,
+  templateUrl: './package-release.component.html'
 })
 export class PackageReleaseComponent implements OnDestroy {
 
   private isDestroyed$: Subject<boolean> = new Subject();
+  private _storeUnsub: (() => void) | null = null;
   // Wait fot this ms before checking for error
   private debounceDuration = 500;
   private maxAttempts = 5;
 
   constructor(
     private store: AppStore,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) {
     this.store.observe('router.route.params')
       .pipe(takeUntil(this.isDestroyed$))
@@ -51,11 +54,14 @@ export class PackageReleaseComponent implements OnDestroy {
           this.store.dispatch(requestRoute(['/pkgs']));
         }
       });
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
     this.isDestroyed$.next(true);
     this.isDestroyed$.complete();
+    if (this._storeUnsub) { this._storeUnsub(); }
   }
 
   get package() {

@@ -1,6 +1,7 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'hab-visibility-icon',
   template: `<hab-icon [symbol]="symbol" class="icon-visibility" [title]="title"></hab-icon>`
 })

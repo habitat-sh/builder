@@ -14,16 +14,16 @@
 
 import { DebugElement } from '@angular/core';
 import { TestBed, ComponentFixture } from '@angular/core/testing';
-import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
+import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { PackageReleaseVisibilityDialog } from './package-release-visibility.dialog';
 
 describe('PackageReleaseVisibilityDialog', () => {
   let fixture: ComponentFixture<PackageReleaseVisibilityDialog>;
   let component: PackageReleaseVisibilityDialog;
   let element: DebugElement;
-  let dialogRef = {
+  let dialogRef: any = {
     open() {},
-    close() {}
+    close(val?: any) {}
   };
   let dialogData = {
     visibility: 'private',

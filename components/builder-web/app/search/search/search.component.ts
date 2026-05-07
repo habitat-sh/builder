@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -22,7 +22,8 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { Subscription } from 'rxjs';
 
 @Component({
-  template: require('./search.component.html')
+  standalone: false,
+  templateUrl: './search.component.html'
 })
 export class SearchComponent implements OnInit, OnDestroy {
   origin: string;
@@ -30,12 +31,14 @@ export class SearchComponent implements OnInit, OnDestroy {
   searchBox: FormControl;
 
   private sub: Subscription;
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     private store: AppStore,
     private route: ActivatedRoute,
     private router: Router,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) {
     this.searchBox = new FormControl(this.searchQuery);
   }
@@ -69,9 +72,12 @@ export class SearchComponent implements OnInit, OnDestroy {
       this.store.dispatch(setPackagesSearchQuery(query));
       this.fetchPackages();
     });
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
+    if (this._storeUnsub) { this._storeUnsub(); }
     if (this.sub) {
       this.sub.unsubscribe();
     }

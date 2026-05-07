@@ -26,11 +26,6 @@ export class SignedInGuard implements CanActivate {
   constructor(private store: AppStore, private router: Router) { }
 
   canActivate(route: ActivatedRouteSnapshot, routerState: RouterStateSnapshot): Promise<boolean> {
-    // For on-prem users, no authentication required - allow all navigation
-    if (!config.is_saas) {
-      return Promise.resolve(true);
-    }
-    // For SaaS users, require authentication
     const state = this.store.getState();
     const signedIn = !!state.session.token;
     const signingIn = state.users.current.isSigningIn;
@@ -72,11 +67,7 @@ export class SignedInGuard implements CanActivate {
       return this.signingInPromise;
     } else {
       return Promise.reject(() => {
-        if (routerState.url === '/origins') {
-          this.sendHome();
-        } else {
-          this.redirectToSignIn(routerState.url);
-        }
+        this.redirectToSignIn(routerState.url);
       })
         .catch(next => next())
         .then(() => true);

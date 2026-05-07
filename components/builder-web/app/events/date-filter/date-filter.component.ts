@@ -13,13 +13,14 @@
 // limitations under the License.
 
 import { Component, Input, ViewChild } from '@angular/core';
-import { MatCalendar } from '@angular/material';
+import { MatCalendar } from '@angular/material/datepicker';
 
 import { getDateRange, toDateString, toDate } from '../date-util';
 
 @Component({
+  standalone: false,
   selector: 'hab-events-date-filter',
-  template: require('./date-filter.component.html')
+  templateUrl: './date-filter.component.html'
 })
 export class DateFilterComponent {
 

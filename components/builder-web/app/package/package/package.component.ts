@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { combineLatest, Subject, Subscription } from 'rxjs';
 import { filter, map, takeUntil } from 'rxjs/operators';
 import { List } from 'immutable';
@@ -30,7 +30,8 @@ import { targetFrom, targets as allPlatforms, latestBase } from '../../util';
 import { fetchOriginChannels } from '../../actions/origins';
 
 @Component({
-  template: require('./package.component.html')
+  standalone: false,
+  templateUrl: './package.component.html'
 })
 export class PackageComponent implements OnInit, OnDestroy {
   origin: string;
@@ -46,8 +47,9 @@ export class PackageComponent implements OnInit, OnDestroy {
 
   private isDestroyed$: Subject<boolean> = new Subject();
   private poll: number;
+  private _storeUnsub: (() => void) | null = null;
 
-  constructor(private store: AppStore) {
+  constructor(private store: AppStore, private cdr: ChangeDetectorRef) {
     const origin$ = this.store.observe('router.route.params.origin').pipe(filter(v => v));
     const name$ = this.store.observe('router.route.params.name').pipe(filter(v => v));
     const target$ = this.store.observe('router.route.params.target');
@@ -148,6 +150,8 @@ export class PackageComponent implements OnInit, OnDestroy {
         filter(([versionsLoading]) => !versionsLoading)
       )
       .subscribe(() => this.fetchProject());
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnInit() {
@@ -171,6 +175,7 @@ export class PackageComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     window.clearInterval(this.poll);
+    if (this._storeUnsub) { this._storeUnsub(); }
 
     this.store.dispatch(setCurrentPackageTarget(undefined));
     this.store.dispatch(clearPackageVersions());

@@ -13,10 +13,11 @@
 // limitations under the License.
 
 import { Component, Inject } from '@angular/core';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
 @Component({
-  template: require('./simple-confirm.dialog.html')
+  standalone: false,
+  templateUrl: './simple-confirm.dialog.html'
 })
 export class SimpleConfirmDialog {
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -20,8 +20,9 @@ import { AppStore } from '../../app.store';
 import { targetFrom } from '../../util';
 
 @Component({
+  standalone: false,
   selector: 'hab-package-settings',
-  template: require('./package-settings.component.html')
+  templateUrl: './package-settings.component.html'
 })
 export class PackageSettingsComponent implements OnDestroy {
   name: string;
@@ -29,10 +30,12 @@ export class PackageSettingsComponent implements OnDestroy {
   target: string;
 
   private isDestroyed$: Subject<boolean> = new Subject();
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     private store: AppStore,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) {
     this.store.observe('router.route.params')
       .pipe(takeUntil(this.isDestroyed$))
@@ -43,11 +46,14 @@ export class PackageSettingsComponent implements OnDestroy {
         this.target = target ? target.id : null;
         this.title.setTitle(`Packages › ${this.origin}/${this.name} › Settings | ${store.getState().app.name}`);
       });
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
     this.isDestroyed$.next(true);
     this.isDestroyed$.complete();
+    if (this._storeUnsub) { this._storeUnsub(); }
   }
 
   get projects() {

@@ -15,6 +15,7 @@
 import { Component, Input } from '@angular/core';
 
 @Component({
+  standalone: false,
   selector: 'hab-icon',
   template: `<mat-icon [svgIcon]="id" [matTooltip]="tooltip" matTooltipPosition="above"></mat-icon>`
 })

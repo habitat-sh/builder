@@ -14,11 +14,11 @@
 
 import {
   AfterViewChecked, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output,
-  SimpleChanges, ViewChild
+  SimpleChanges, ViewChild, ChangeDetectorRef
 } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { Router } from '@angular/router';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { Subject } from 'rxjs';
 import { filter, takeUntil } from 'rxjs/operators';
 import { Record } from 'immutable';
@@ -35,8 +35,9 @@ import config from '../../config';
 import { targetFrom, targets } from '../../util';
 
 @Component({
+  standalone: false,
   selector: 'hab-project-settings',
-  template: require('./project-settings.component.html')
+  templateUrl: './project-settings.component.html'
 })
 export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterViewChecked {
   connecting: boolean = false;
@@ -66,6 +67,7 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
   private _autoBuild;
 
   private isDestroyed$: Subject<boolean> = new Subject();
+  private _storeUnsub: (() => void) | null = null;
 
   private _doAfterViewChecked: Function[] = [];
 
@@ -74,7 +76,8 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     private router: Router,
     private store: AppStore,
     private disconnectDialog: MatDialog,
-    private elementRef: ElementRef
+    private elementRef: ElementRef,
+    private cdr: ChangeDetectorRef
   ) {
     this.api = new BuilderApiClient(this.token);
     this.selectedPath = this.defaultPath;
@@ -98,6 +101,8 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
     ).subscribe(username => {
       this.store.dispatch(fetchGitHubInstallations(username));
     });
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngAfterViewChecked() {
@@ -130,6 +135,7 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
   ngOnDestroy() {
     this.isDestroyed$.next(true);
     this.isDestroyed$.complete();
+    if (this._storeUnsub) { this._storeUnsub(); }
   }
 
   get autoBuild() {
@@ -405,7 +411,10 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
 
   settingChanged(setting) {
     this.visibility = setting;
-    this.store.dispatch(setCurrentPackageVisibility(this.origin, this.name, this.visibility, this.token));
+    const params = this.store.getState().router.route.params;
+    const origin = this.origin || params.origin;
+    const name = this.name || params.name;
+    this.store.dispatch(setCurrentPackageVisibility(origin, name, this.visibility, this.token));
   }
 
   refresh() {

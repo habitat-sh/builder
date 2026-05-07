@@ -18,12 +18,13 @@ import { AppStore } from '../../app.store';
 import { parseDate, targetFrom } from '../../util';
 import { demotePackage, promotePackage } from '../../actions/index';
 import { SimpleConfirmDialog } from '../../shared/dialog/simple-confirm/simple-confirm.dialog';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { PromoteConfirmDialog } from '../../shared/dialog/promote-confirm/promote-confirm.dialog';
 
 @Component({
+  standalone: false,
     selector: 'hab-package-detail',
-    template: require('./package-detail.component.html')
+    templateUrl: './package-detail.component.html'
 })
 export class PackageDetailComponent {
     @Input() package: any;

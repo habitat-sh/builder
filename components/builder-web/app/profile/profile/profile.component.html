@@ -61,7 +61,7 @@
           </ng-container>
           <ng-container *ngIf="newAccessToken">
             <div class="controls">
-              <hab-copyable style="input" [text]="newAccessToken.token"></hab-copyable>
+              <hab-copyable variant="input" [text]="newAccessToken.token"></hab-copyable>
               <div class="actions">
                 <a class="generate" (click)="generateToken(true)">{{ buttonLabel }}</a>
                 <a class="delete" (click)="deleteToken(newAccessToken.id)" *ngIf="!deletingAccessToken">Delete</a>

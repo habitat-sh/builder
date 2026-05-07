@@ -5,7 +5,7 @@
       <h4>Group ID</h4>
       <h4>Created</h4>
     </li>
-    <li class="none" *ngIf="!jobGroups || jobGroups.length === 0">
+    <li class="none" *ngIf="!jobGroups || jobGroups.size === 0">
       <span>There are no available build jobs for this package.</span>
     </li>
     <li class="item" *ngFor="let jobGroup of jobGroups" (click)="onClick(jobGroup)">

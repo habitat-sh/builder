@@ -13,15 +13,16 @@
 // limitations under the License.
 
 import { Component, Inject } from '@angular/core';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 
 @Component({
-  template: require('./package-release-visibility.dialog.html')
+  standalone: false,
+  templateUrl: './package-release-visibility.dialog.html'
 })
 export class PackageReleaseVisibilityDialog {
   constructor(
     private ref: MatDialogRef<PackageReleaseVisibilityDialog>,
-    @Inject(MAT_DIALOG_DATA) private data: any
+    @Inject(MAT_DIALOG_DATA) public data: any
   ) {}
 
   get artifactName() {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormControl } from '@angular/forms';
@@ -25,7 +25,8 @@ import { dateFilters, getDateRange } from '../date-util';
 import { setEventsSearchQuery, setEventsDateFilter } from '../../actions/events';
 
 @Component({
-  template: require('./events.component.html')
+  standalone: false,
+  templateUrl: './events.component.html'
 })
 export class EventsComponent implements OnInit, OnDestroy {
   dateFilterChanged: Function;
@@ -36,12 +37,14 @@ export class EventsComponent implements OnInit, OnDestroy {
 
   private sub: Subscription;
   private dateRange: any;
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     private store: AppStore,
     private route: ActivatedRoute,
     private router: Router,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) {
     this.searchBox = new FormControl(this.searchQuery);
     this.filters = dateFilters;
@@ -77,9 +80,12 @@ export class EventsComponent implements OnInit, OnDestroy {
         this.store.dispatch(setEventsSearchQuery(query));
         this.fetchEvents(0);
       });
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
+    if (this._storeUnsub) { this._storeUnsub(); }
     if (this.sub) {
       this.sub.unsubscribe();
     }

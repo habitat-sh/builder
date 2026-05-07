@@ -19,7 +19,8 @@ import { Subscription } from 'rxjs';
 import { AppStore } from '../../app.store';
 
 @Component({
-  template: require('./package-jobs.component.html')
+  standalone: false,
+  templateUrl: './package-jobs.component.html'
 })
 export class PackageJobsComponent implements OnDestroy {
   origin: string;

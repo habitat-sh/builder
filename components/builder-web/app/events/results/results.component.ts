@@ -23,8 +23,9 @@ import { Browser } from '../../browser';
 const BLDR_SAAS = 'https://bldr.habitat.sh';
 
 @Component({
+  standalone: false,
   selector: 'hab-event-results',
-  template: require('./results.component.html')
+  templateUrl: './results.component.html'
 })
 export class EventResultsComponent {
   @Input() errorMessage: string;

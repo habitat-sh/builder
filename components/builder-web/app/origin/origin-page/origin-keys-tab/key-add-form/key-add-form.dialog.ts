@@ -14,15 +14,16 @@
 
 import { Component, Inject, OnInit } from '@angular/core';
 import { FormControl, FormGroup, FormBuilder, Validators } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { uploadOriginPrivateKey, uploadOriginPublicKey } from '../../../../actions/index';
 import { parseKey } from '../../../../util';
 import { AppStore } from '../../../../app.store';
 import config from '../../../../config';
 
 @Component({
+  standalone: false,
   selector: 'hab-key-add-form',
-  template: require('./key-add-form.dialog.html')
+  templateUrl: './key-add-form.dialog.html'
 })
 export class KeyAddFormDialog implements OnInit {
   originName: string;

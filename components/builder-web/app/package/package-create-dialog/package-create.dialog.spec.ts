@@ -17,7 +17,7 @@ import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
-import { MatDialog, MatDialogRef } from '@angular/material';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MockComponent } from 'ng2-mock-component';
 import { AppStore } from '../../app.store';
 import { PackageCreateDialog } from '../package-create-dialog/package-create.dialog';
@@ -37,7 +37,7 @@ class MockAppStore {
     };
   }
 
-  dispatch() { }
+  dispatch(_action?: any) { }
 }
 
 class MockDialog { }

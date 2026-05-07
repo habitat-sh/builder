@@ -22,7 +22,7 @@
 
       color: $hab-text;
 
-      .mat-button-wrapper {
+      .mdc-button__label {
         position: relative;
 
         @include tablet-up {

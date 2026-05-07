@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Component, Inject, OnDestroy } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { AppStore } from '../../../app.store';
 import { clearIntegrationCredsValidation, validateIntegrationCredentials } from '../../../actions/index';
 
@@ -32,8 +32,9 @@ export class Credentials implements Credentials {
 }
 
 @Component({
+  standalone: false,
   selector: 'hab-integration-credentials-dialog',
-  template: require('./integration-credentials-form.dialog.html')
+  templateUrl: './integration-credentials-form.dialog.html'
 })
 export class IntegrationCredentialsFormDialog implements OnDestroy {
   model: Credentials = new Credentials;

@@ -30,7 +30,7 @@ class MockAppStore {
     return MockAppStore.state;
   }
 
-  dispatch() { }
+  dispatch(_action?: any) { }
 }
 
 describe('PackageSidebarComponent', () => {
@@ -59,7 +59,7 @@ describe('PackageSidebarComponent', () => {
     fixture = TestBed.createComponent(PackageSidebarComponent);
     component = fixture.componentInstance;
     element = fixture.debugElement;
-    store = TestBed.get(AppStore);
+    store = TestBed.inject(AppStore);
   });
 
   beforeEach(() => {

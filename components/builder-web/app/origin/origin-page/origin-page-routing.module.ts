@@ -37,8 +37,7 @@ const routes: Routes = [
       {
         path: '',
         redirectTo: 'packages',
-        pathMatch: 'full',
-        canActivate: [SignedInGuard, LicenseRequiredGuard]
+        pathMatch: 'full'
       },
       {
         path: 'packages',
@@ -77,8 +76,7 @@ const routes: Routes = [
       },
       {
         path: '**',
-        redirectTo: 'packages',
-        canActivate: [SignedInGuard, LicenseRequiredGuard]
+        redirectTo: 'packages'
       }
     ]
   }

@@ -21,8 +21,9 @@ import { iconForJobState, labelForJobState } from '../../util';
 import { AppStore } from '../../app.store';
 
 @Component({
+  standalone: false,
   selector: 'hab-job-detail',
-  template: require('./job-detail.component.html')
+  templateUrl: './job-detail.component.html'
 })
 export class JobDetailComponent implements OnChanges, OnDestroy {
   @Input() job;

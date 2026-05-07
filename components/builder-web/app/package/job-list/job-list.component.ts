@@ -18,8 +18,9 @@ import * as moment from 'moment';
 import { iconForJobState } from '../../util';
 
 @Component({
+  standalone: false,
   selector: 'hab-job-list',
-  template: require('./job-list.component.html')
+  templateUrl: './job-list.component.html'
 })
 export class JobListComponent {
   @Input() jobs = List();

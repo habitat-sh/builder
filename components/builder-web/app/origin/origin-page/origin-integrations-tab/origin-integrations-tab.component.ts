@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -24,7 +24,8 @@ import { IntegrationDeleteConfirmDialog } from './dialog/integration-delete-conf
 import { fetchIntegrations } from '../../../actions/index';
 
 @Component({
-  template: require('./origin-integrations-tab.component.html')
+  standalone: false,
+  templateUrl: './origin-integrations-tab.component.html'
 })
 export class OriginIntegrationsTabComponent implements OnInit, OnDestroy {
 

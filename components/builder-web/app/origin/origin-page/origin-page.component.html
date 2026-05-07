@@ -6,7 +6,7 @@
     </h1>
     <h2>origin</h2>
   </header>
-  <nav class="tabs" mat-tab-nav-bar>
+  <nav class="tabs" mat-tab-nav-bar [tabPanel]="tabPanel">
     <a mat-tab-link
       routerLink="packages"
       routerLinkActive
@@ -42,5 +42,7 @@
       [active]="integrations.isActive"
       *ngIf="builderEnabled && memberOfOrigin">Integrations</a>
   </nav>
-  <router-outlet></router-outlet>
+  <mat-tab-nav-panel #tabPanel>
+    <router-outlet></router-outlet>
+  </mat-tab-nav-panel>
 </div>

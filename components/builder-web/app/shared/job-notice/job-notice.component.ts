@@ -17,8 +17,9 @@ import { iconForJobState } from '../../util';
 import { AppStore } from '../../app.store';
 
 @Component({
+  standalone: false,
   selector: 'hab-job-notice',
-  template: require('./job-notice.component.html')
+  templateUrl: './job-notice.component.html'
 })
 export class JobNoticeComponent {
 

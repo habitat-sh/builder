@@ -23,19 +23,21 @@
         margin-top: 0;
       }
 
-      .mat-radio-label {
-        position: relative;
+      // MDC radio button: .mdc-form-field wraps the radio + label in a flex row
+      .mdc-form-field {
+        align-items: flex-start;
 
-        .mat-radio-container {
-          position: absolute;
-          top: 0;
-          left: 0;
+        .mdc-radio {
+          flex-shrink: 0;
+          // MDC touch target is 40px; visual circle is 20px (10px padding each side).
+          // Negative margins cancel that padding so the circle aligns with the text.
+          margin-top: -10px;
+          margin-left: -10px;
         }
 
-        .mat-radio-label-content {
+        .mdc-label {
           white-space: normal;
-          margin-left: $default-margin;
-          padding-left: $default-padding;
+          padding-left: 6px;
 
           hab-icon {
             margin-left: $small-margin;
