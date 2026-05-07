@@ -9,6 +9,9 @@
   },
   "author": "The Habitat Humans",
   "license": "Apache-2.0",
+  "overrides": {
+    "serialize-javascript": "7.0.5"
+  },
   "dependencies": {
     "chai": "^3.5.0",
     "jwt-builder": "1.1.0",
