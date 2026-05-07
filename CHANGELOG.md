@@ -3,6 +3,9 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- bump serialize-javascript [#1985](https://github.com/habitat-sh/builder/pull/1985) ([mwrock](https://github.com/mwrock))
+- Bump openssl from 0.10.78 to 0.10.79 [#1983](https://github.com/habitat-sh/builder/pull/1983) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Angular upgrade [#1982](https://github.com/habitat-sh/builder/pull/1982) ([mwrock](https://github.com/mwrock))
 - update changelog with new release [#1984](https://github.com/habitat-sh/builder/pull/1984) ([mwrock](https://github.com/mwrock))
 - Bump qs from 6.11.2 to 6.15.1 in /test/builder-api [#1955](https://github.com/habitat-sh/builder/pull/1955) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump brace-expansion from 2.0.2 to 2.0.3 in /test/builder-api [#1970](https://github.com/habitat-sh/builder/pull/1970) ([dependabot[bot]](https://github.com/dependabot[bot]))
