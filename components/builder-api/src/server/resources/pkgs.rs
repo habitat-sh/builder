@@ -372,23 +372,34 @@ async fn delete_package(req: HttpRequest,
         return err.into();
     }
 
-    // Attempt S3 delete while the DB transaction is still open. On failure, roll
-    // back so the DB record is preserved and the caller gets a clear error.
-    if !feat::is_enabled(feat::Artifactory) {
-        if let Err(err) = req_state(&req).packages.delete(&ident, target).await {
-            error!("Unable to delete package from S3, rolling back DB transaction. ident={}: {:?}",
+    // Attempt artifact store delete while the DB transaction is still open. On
+    // failure, roll back so the DB record is preserved and the caller gets a
+    // clear error.
+    if feat::is_enabled(feat::Artifactory) {
+        if let Err(err) = req_state(&req).artifactory
+                                         .delete(&ident, target)
+                                         .await
+                                         .map_err(Error::Artifactory)
+        {
+            error!("Unable to delete package from Artifactory, rolling back DB transaction. \
+                    ident={}: {:?}",
                    ident, err);
             let _ = conn.batch_execute("ROLLBACK");
             return err.into();
         }
+    } else if let Err(err) = req_state(&req).packages.delete(&ident, target).await {
+        error!("Unable to delete package from S3, rolling back DB transaction. ident={}: {:?}",
+               ident, err);
+        let _ = conn.batch_execute("ROLLBACK");
+        return err.into();
     }
 
     // S3 deletion succeeded (or Artifactory is in use) — commit the DB changes.
     if let Err(err) = conn.batch_execute("COMMIT").map_err(Error::DieselError) {
-        // Extremely rare: S3 artifact is already gone but DB commit failed.
-        // Log loudly so operators can reconcile.
-        error!("COMMIT failed after S3 delete succeeded for ident={}: {:?} — DB and S3 may be \
-                inconsistent",
+        // Extremely rare: artifact is already gone from the store but DB commit
+        // failed. Log loudly so operators can reconcile.
+        error!("COMMIT failed after artifact store delete succeeded for ident={}: {:?} — DB and \
+                artifact store may be inconsistent",
                ident, err);
         return err.into();
     }
