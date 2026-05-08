@@ -159,6 +159,15 @@ impl ArtifactoryClient {
 
         if resp.status().is_success() {
             Ok(())
+        } else if resp.status() == reqwest::StatusCode::NOT_FOUND
+                  || resp.status() == reqwest::StatusCode::GONE
+        {
+            warn!("Artifactory delete returned {} for {} ({}); artifact may have already been \
+                   removed",
+                  resp.status(),
+                  ident,
+                  target);
+            Ok(())
         } else {
             error!("Artifactory delete non-success status: {:?}", resp.status());
             Err(ArtifactoryError::ApiError(resp.status(), HashMap::new()))
