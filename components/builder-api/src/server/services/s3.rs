@@ -201,7 +201,7 @@ impl S3Handler {
             }
             Err(e) => {
                 Counter::DeleteFailures.increment();
-                warn!("S3Handler::delete failed for s3_key {}: ({:?})", key, e);
+                error!("S3Handler::delete failed for s3_key {}: ({:?})", key, e);
                 Err(e.into())
             }
         }

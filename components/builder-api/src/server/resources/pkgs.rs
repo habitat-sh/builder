@@ -67,6 +67,7 @@ use actix_web::{body::BoxBody,
                 HttpResponse};
 use bytes::Bytes;
 use diesel::result::Error::NotFound;
+use diesel::connection::SimpleConnection;
 use futures::{channel::mpsc,
               StreamExt};
 use serde::ser::Serialize;
@@ -338,8 +339,7 @@ async fn delete_package(req: HttpRequest,
         }
     }
 
-    // TODO (SA): Wrap in transaction, or better yet, eliminate need to do
-    // channel package deletion
+    // Fetch the package record so we have its id for channel association cleanup.
     let pkg = match Package::get(GetPackage { ident:      BuilderPackageIdent(ident.clone()),
                                               visibility: PackageVisibility::all(),
                                               target:     BuilderPackageTarget(target), },
@@ -349,33 +349,52 @@ async fn delete_package(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    if let Err(err) = Channel::delete_channel_package(pkg.id, &mut conn).map_err(Error::DieselError)
-    {
-        debug!("{}", err);
+    // Begin a transaction so DB deletes and S3 delete are atomic: if S3 deletion
+    // fails we roll back the DB changes, keeping the two stores consistent.
+    if let Err(err) = conn.batch_execute("BEGIN").map_err(Error::DieselError) {
+        error!("{}", err);
         return err.into();
     }
 
-    match Package::delete(DeletePackage { ident:  BuilderPackageIdent(ident.clone()),
-                                          target: BuilderPackageTarget(target), },
-                          &mut conn).map_err(Error::DieselError)
+    if let Err(err) = Channel::delete_channel_package(pkg.id, &mut conn).map_err(Error::DieselError)
     {
-        Ok(_) => {
-            state.memcache.borrow_mut().clear_cache_for_package(&ident);
+        let _ = conn.batch_execute("ROLLBACK");
+        error!("{}", err);
+        return err.into();
+    }
 
-            if !feat::is_enabled(feat::Artifactory) {
-                if let Err(err) = req_state(&req).packages.delete(&ident, target).await {
-                    warn!("Unable to delete package from S3, ident={}: {:?}", ident, err);
-                    return err.into();
-                }
-            }
+    if let Err(err) = Package::delete(DeletePackage { ident:  BuilderPackageIdent(ident.clone()),
+                                                      target: BuilderPackageTarget(target), },
+                                      &mut conn).map_err(Error::DieselError)
+    {
+        let _ = conn.batch_execute("ROLLBACK");
+        error!("{}", err);
+        return err.into();
+    }
 
-            HttpResponse::NoContent().finish()
-        }
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
+    // Attempt S3 delete while the DB transaction is still open. On failure, roll
+    // back so the DB record is preserved and the caller gets a clear error.
+    if !feat::is_enabled(feat::Artifactory) {
+        if let Err(err) = req_state(&req).packages.delete(&ident, target).await {
+            error!("Unable to delete package from S3, rolling back DB transaction. ident={}: {:?}",
+                   ident, err);
+            let _ = conn.batch_execute("ROLLBACK");
+            return err.into();
         }
     }
+
+    // S3 deletion succeeded (or Artifactory is in use) — commit the DB changes.
+    if let Err(err) = conn.batch_execute("COMMIT").map_err(Error::DieselError) {
+        // Extremely rare: S3 artifact is already gone but DB commit failed.
+        // Log loudly so operators can reconcile.
+        error!("COMMIT failed after S3 delete succeeded for ident={}: {:?} — DB and S3 may be \
+                inconsistent",
+               ident, err);
+        return err.into();
+    }
+
+    state.memcache.borrow_mut().clear_cache_for_package(&ident);
+    HttpResponse::NoContent().finish()
 }
 
 // TODO : Convert to async
