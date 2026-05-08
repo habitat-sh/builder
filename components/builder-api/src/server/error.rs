@@ -134,6 +134,17 @@ impl ResponseError for Error {
             Error::System => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Error::Unprocessable => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
 
+            // S3 / artifact store errors are upstream failures
+            Error::CreateBucketError(_)
+            | Error::HeadObject(_)
+            | Error::ListBuckets(_)
+            | Error::MultipartCompletion(_)
+            | Error::MultipartUploadReq(_)
+            | Error::PackageDelete(_)
+            | Error::PackageDownload(_)
+            | Error::PackageUpload(_)
+            | Error::PartialUpload(_) => HttpResponse::new(StatusCode::BAD_GATEWAY),
+
             // Default
             _ => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
         }
@@ -157,6 +168,17 @@ impl Into<HttpResponse> for Error {
             Error::DieselError(ref e) => HttpResponse::new(diesel_err_to_http(e)),
             Error::System => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Error::Unprocessable => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
+
+            // S3 / artifact store errors are upstream failures
+            Error::CreateBucketError(_)
+            | Error::HeadObject(_)
+            | Error::ListBuckets(_)
+            | Error::MultipartCompletion(_)
+            | Error::MultipartUploadReq(_)
+            | Error::PackageDelete(_)
+            | Error::PackageDownload(_)
+            | Error::PackageUpload(_)
+            | Error::PartialUpload(_) => HttpResponse::new(StatusCode::BAD_GATEWAY),
 
             // Default
             _ => HttpResponse::new(StatusCode::UNPROCESSABLE_ENTITY),
