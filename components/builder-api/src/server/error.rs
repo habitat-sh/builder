@@ -24,6 +24,7 @@ use aws_sdk_s3::{error::SdkError,
                  operation::{complete_multipart_upload::CompleteMultipartUploadError,
                              create_bucket::CreateBucketError,
                              create_multipart_upload::CreateMultipartUploadError,
+                             delete_object::DeleteObjectError,
                              get_object::GetObjectError,
                              head_object::HeadObjectError,
                              list_buckets::ListBucketsError,
@@ -62,6 +63,7 @@ pub enum Error {
     MultipartUploadReq(Box<SdkError<CreateMultipartUploadError>>),
     NotFound,
     OAuth(OAuthError),
+    PackageDelete(Box<SdkError<DeleteObjectError>>),
     PackageDownload(Box<SdkError<GetObjectError>>),
     PackageUpload(Box<SdkError<PutObjectError>>),
     PartialUpload(Box<SdkError<UploadPartError>>),
@@ -100,6 +102,7 @@ impl fmt::Display for Error {
             Error::MultipartUploadReq(ref e) => format!("{}", e),
             Error::NotFound => "Entity not found".to_string(),
             Error::OAuth(ref e) => format!("{}", e),
+            Error::PackageDelete(ref e) => format!("{}", e),
             Error::PackageDownload(ref e) => format!("{}", e),
             Error::PackageUpload(ref e) => format!("{}", e),
             Error::PartialUpload(ref e) => format!("{}", e),
@@ -270,6 +273,10 @@ impl From<SdkError<CreateMultipartUploadError>> for Error {
     fn from(e: SdkError<CreateMultipartUploadError>) -> Self {
         Error::MultipartUploadReq(Box::new(e))
     }
+}
+
+impl From<SdkError<DeleteObjectError>> for Error {
+    fn from(e: SdkError<DeleteObjectError>) -> Self { Error::PackageDelete(Box::new(e)) }
 }
 
 impl From<SdkError<GetObjectError>> for Error {

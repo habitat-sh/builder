@@ -361,6 +361,14 @@ async fn delete_package(req: HttpRequest,
     {
         Ok(_) => {
             state.memcache.borrow_mut().clear_cache_for_package(&ident);
+
+            if !feat::is_enabled(feat::Artifactory) {
+                if let Err(err) = req_state(&req).packages.delete(&ident, target).await {
+                    warn!("Unable to delete package from S3, ident={}: {:?}", ident, err);
+                    return err.into();
+                }
+            }
+
             HttpResponse::NoContent().finish()
         }
         Err(err) => {
