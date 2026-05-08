@@ -66,8 +66,8 @@ use actix_web::{body::BoxBody,
                 HttpRequest,
                 HttpResponse};
 use bytes::Bytes;
-use diesel::result::Error::NotFound;
-use diesel::connection::SimpleConnection;
+use diesel::{connection::SimpleConnection,
+             result::Error::NotFound};
 use futures::{channel::mpsc,
               StreamExt};
 use serde::ser::Serialize;
