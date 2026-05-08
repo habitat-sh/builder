@@ -397,8 +397,10 @@ async fn delete_package(req: HttpRequest,
     // S3 deletion succeeded (or Artifactory is in use) — commit the DB changes.
     if let Err(err) = conn.batch_execute("COMMIT").map_err(Error::DieselError) {
         // Extremely rare: artifact is already gone from the store but DB commit
-        // failed. Log loudly so operators can reconcile.
-        error!("COMMIT failed after artifact store delete succeeded for ident={}: {:?} — DB and \
+        // failed. Roll back to return the connection to the pool in a clean
+        // state, then log loudly so operators can reconcile the inconsistency.
+        let _ = conn.batch_execute("ROLLBACK");
+        error!("COMMIT failed after artifact store delete succeeded for ident={}: {:?} DB and \
                 artifact store may be inconsistent",
                ident, err);
         return err.into();
