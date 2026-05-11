@@ -183,6 +183,30 @@ impl S3Handler {
         self.object_exists(&key).await
     }
 
+    pub async fn delete(&self, ident: &PackageIdent, target: PackageTarget) -> Result<()> {
+        Counter::DeleteRequests.increment();
+        let key = s3_key(ident, target)?;
+
+        info!("S3Handler::delete request started for s3_key: {}", key);
+
+        let request = self.client
+                          .delete_object()
+                          .bucket(self.bucket.clone())
+                          .key(key.clone());
+
+        match request.send().await {
+            Ok(_) => {
+                info!("S3Handler::delete succeeded for s3_key: {}", key);
+                Ok(())
+            }
+            Err(e) => {
+                Counter::DeleteFailures.increment();
+                error!("S3Handler::delete failed for s3_key {}: ({:?})", key, e);
+                Err(e.into())
+            }
+        }
+    }
+
     pub async fn download(&self,
                           loc: &Path,
                           ident: &PackageIdent,

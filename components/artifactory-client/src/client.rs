@@ -135,6 +135,45 @@ impl ArtifactoryClient {
         }
     }
 
+    pub async fn delete(&self,
+                        ident: &PackageIdent,
+                        target: PackageTarget)
+                        -> ArtifactoryResult<()> {
+        let url = self.url_path_for(ident, target);
+        debug!("ArtifactoryClient delete url = {}", url);
+
+        let resp = match self.inner
+                             .delete(&url)
+                             .send()
+                             .await
+                             .map_err(ArtifactoryError::HttpClient)
+        {
+            Ok(resp) => resp,
+            Err(err) => {
+                error!("ArtifactoryClient delete failed, err={}", err);
+                return Err(err);
+            }
+        };
+
+        debug!("Artifactory delete response status: {:?}", resp.status());
+
+        if resp.status().is_success() {
+            Ok(())
+        } else if resp.status() == reqwest::StatusCode::NOT_FOUND
+                  || resp.status() == reqwest::StatusCode::GONE
+        {
+            warn!("Artifactory delete returned {} for {} ({}); artifact may have already been \
+                   removed",
+                  resp.status(),
+                  ident,
+                  target);
+            Ok(())
+        } else {
+            error!("Artifactory delete non-success status: {:?}", resp.status());
+            Err(ArtifactoryError::ApiError(resp.status(), HashMap::new()))
+        }
+    }
+
     fn url_path_for(&self, ident: &PackageIdent, target: PackageTarget) -> String {
         let hart_name = ident.archive_name_with_target(target)
                              .expect("ident is fully qualified");
