@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- When deleting a package, remove from artifact storage [#1986](https://github.com/habitat-sh/builder/pull/1986) ([mwrock](https://github.com/mwrock))
 - bump serialize-javascript [#1985](https://github.com/habitat-sh/builder/pull/1985) ([mwrock](https://github.com/mwrock))
 - Bump openssl from 0.10.78 to 0.10.79 [#1983](https://github.com/habitat-sh/builder/pull/1983) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Angular upgrade [#1982](https://github.com/habitat-sh/builder/pull/1982) ([mwrock](https://github.com/mwrock))
