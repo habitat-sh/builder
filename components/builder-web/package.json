@@ -51,7 +51,7 @@
         "async": "^3.2.5",
         "blueimp-md5": "^2.19.0",
         "immutable": "^3.8.2",
-        "js-cookie": "^2.2.0",
+        "js-cookie": "^3.0.7",
         "lodash": "^4.17.21",
         "marked": "^15.0.6",
         "moment": "^2.30.1",
