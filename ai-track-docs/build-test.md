@@ -32,6 +32,8 @@ The repository verify pipeline also includes a dedicated unit-test step for `tok
 ./test/run_cargo_test.sh token-generator
 ```
 
+That CI step reuses the same shared script developers can run locally, which helps keep local and CI behavior aligned.
+
 ## Recommended low-risk module workflow
 
 For small, isolated changes, `tools/token-generator` is a good starting point because it is a standalone CLI with local unit tests.
