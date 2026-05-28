@@ -16,7 +16,6 @@ import * as moment from 'moment';
 import { find } from 'lodash';
 
 import { Project } from './records/Project';
-import { AppStore } from './app.store';
 import { FeatureFlags } from './privilege';
 
 // Pretty print a time
@@ -109,11 +108,13 @@ export function parseKey(key) {
 }
 
 export function isSignedIn() {
+  const { AppStore } = require('./app.store');
   const store = new AppStore();
   return !!store.getState().session.token;
 }
 
 export function isEarlyAccess() {
+  const { AppStore } = require('./app.store');
   const store = new AppStore();
   const flags = store.getState().users.current.flags;
   return !!(flags & FeatureFlags.EARLY_ACCESS);

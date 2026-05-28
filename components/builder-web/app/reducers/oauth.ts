@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import initialState from '../initial-state';
-import * as actionTypes from '../actions/index';
+import * as actionTypes from '../actions/types';
 
 export default function oauth(state = initialState['oauth'], action) {
   switch (action.type) {

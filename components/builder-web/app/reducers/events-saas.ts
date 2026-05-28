@@ -14,7 +14,7 @@
 
 import { List } from 'immutable';
 
-import * as actionTypes from '../actions/index';
+import * as actionTypes from '../actions/types';
 import initialState from '../initial-state';
 
 export default function eventsSaas(state = initialState['eventsSaas'], action) {

@@ -32,6 +32,7 @@
         "start": "bin/start",
         "test": "npm run test-unit && npm run test-e2e",
         "test-unit": "karma start",
+        "test-unit-coverage": "KARMA_COVERAGE=1 karma start",
         "test-unit-watch": "npm run test-unit -- --no-single-run",
         "test-watch": "concurrently 'npm run test-unit-watch' 'npm run test-e2e-watch'",
         "travis": "npm run test-unit && npm run test-e2e-record"
@@ -70,6 +71,7 @@
         "@types/node": "^20.0.0",
         "babel-loader": "^10.1.1",
         "concurrently": "^8.2.0",
+        "@jsdevtools/coverage-istanbul-loader": "^3.0.5",
         "http-server": "^14.1.1",
         "jasmine-core": "^5.1.0",
         "karma": "^6.4.4",

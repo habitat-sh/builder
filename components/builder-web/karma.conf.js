@@ -1,11 +1,13 @@
 // Karma configuration
 module.exports = function (config) {
+    const enableCoverage = process.env.KARMA_COVERAGE === "1";
+
     config.set({
         frameworks: ["jasmine"],
 
         files: [
-          "node_modules/zone.js/dist/zone.js",
-          "node_modules/zone.js/dist/zone-testing.js",
+          { pattern: require.resolve("zone.js"), watched: false },
+          { pattern: require.resolve("zone.js/testing"), watched: false },
           "app/tests-entry.ts",
 
           // handle asset requests
@@ -26,10 +28,20 @@ module.exports = function (config) {
         ],
 
         preprocessors: {
-            "app/tests-entry.ts": ["webpack", "sourcemap", "coverage"]
+            "app/tests-entry.ts": ["webpack", "sourcemap"]
         },
 
-        reporters: ["spec"],
+        reporters: enableCoverage ? ["spec", "coverage"] : ["spec"],
+
+        coverageReporter: {
+            dir: "coverage",
+            reporters: [
+                { type: "text-summary" },
+                { type: "json-summary" },
+                { type: "html", subdir: "html" },
+                { type: "lcovonly", subdir: ".", file: "lcov.info" }
+            ]
+        },
 
         webpack: {
             mode: 'development',
@@ -41,6 +53,12 @@ module.exports = function (config) {
                 rules: [
                     { test: /\.ts$/, use: [{ loader: "ts-loader" }], exclude: /node_modules/ },
                     { test: /\.html$/, use: [{ loader: "raw-loader" }] },
+                    ...(enableCoverage ? [{
+                        test: /\.ts$/,
+                        use: [{ loader: "@jsdevtools/coverage-istanbul-loader" }],
+                        exclude: [/node_modules/, /\.test\.ts$/, /\.spec\.ts$/, /tests-entry\.ts$/],
+                        enforce: "post"
+                    }] : []),
                 ]
             }
         },

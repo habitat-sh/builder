@@ -84,6 +84,35 @@ Files ending with .test.ts and .spec.ts are unit tested. We use
 [Karma](https://karma-runner.github.io/0.13/index.html) and [Jasmine](https://jasmine.github.io/).
 See [app/util.test.ts](app/util.test.ts) for an example.
 
+### Coverage output
+
+Run the web unit-test coverage target with either of these commands:
+
+```shell
+make coverage-web
+# or
+cd components/builder-web && npm run test-unit-coverage
+```
+
+The coverage run prints Karma's `TOTAL` summary in the terminal and writes artifacts to:
+
+* `components/builder-web/coverage/coverage-summary.json`
+* `components/builder-web/coverage/lcov.info`
+* `components/builder-web/coverage/html/`
+
+The root `make coverage` target currently delegates to `make coverage-web`, which is the only
+repository coverage flow wired today.
+
+### PR snippet template
+
+Use the reported terminal `TOTAL` percentage in the PR body:
+
+```text
+Evidence
+- Tests/logs/metrics: `make coverage-web` — passed
+- Coverage: Total 87.3% lines / 84.9% statements / 79.1% branches / 88.0% functions
+```
+
 ## Tasks
 
 These are defined in [package.json](package.json) and can be run with `npm run

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { List, Record } from 'immutable';
-import * as actionTypes from '../actions/index';
+import * as actionTypes from '../actions/types';
 import initialState from '../initial-state';
 
 export default function jobs(state = initialState['jobs'], action) {

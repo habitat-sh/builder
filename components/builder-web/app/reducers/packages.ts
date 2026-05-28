@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { marked } from 'marked';
-import * as actionTypes from '../actions/index';
+import * as actionTypes from '../actions/types';
 import initialState from '../initial-state';
 import { Package } from '../records/Package';
 import { List } from 'immutable';

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import * as actionTypes from '../actions/index';
+import * as actionTypes from '../actions/types';
 import config from '../config';
 import initialState from '../initial-state';
 

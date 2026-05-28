@@ -61,6 +61,13 @@ fmt:
 	bash ./support/ci/rustfmt.sh
 .PHONY: fmt
 
+coverage: coverage-web ## generates currently supported coverage report(s)
+.PHONY: coverage
+
+coverage-web: ## generates builder-web unit test coverage with terminal totals
+	cd components/builder-web && npm run test-unit-coverage
+.PHONY: coverage-web
+
 help:
 	@perl -nle'print $& if m{^[a-zA-Z_-]+:.*?## .*$$}' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 .PHONY: help

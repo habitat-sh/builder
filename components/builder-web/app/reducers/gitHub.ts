@@ -14,7 +14,7 @@
 
 import { fromJS, List } from 'immutable';
 import initialState from '../initial-state';
-import * as actionTypes from '../actions/index';
+import * as actionTypes from '../actions/types';
 
 export default function gitHub(state = initialState['gitHub'], action) {
   switch (action.type) {

@@ -1,0 +1,402 @@
+cd components/builder-web && npm run test-unit-coverage
+
+> habitat@0.8.0 test-unit-coverage
+> KARMA_COVERAGE=1 karma start
+
+webpack was not included as a framework in karma configuration, setting this automatically...
+Webpack bundling...
+asset [1m[32mcommons.js[39m[22m 22.3 MiB [1m[32m[emitted][39m[22m (name: commons) (id hint: commons)
+asset [1m[32mruntime.js[39m[22m 16 KiB [1m[32m[emitted][39m[22m (name: runtime)
+asset [1m[32mtests-entry.3442862916.js[39m[22m 450 bytes [1m[32m[emitted][39m[22m (name: tests-entry.3442862916)
+Entrypoint [1mtests-entry.3442862916[39m[22m 22.4 MiB = [1m[32mruntime.js[39m[22m 16 KiB [1m[32mcommons.js[39m[22m 22.3 MiB [1m[32mtests-entry.3442862916.js[39m[22m 450 bytes
+webpack 5.106.2 compiled [1m[32msuccessfully[39m[22m in 11203 ms
+[32m28 05 2026 19:48:31.625:INFO [karma-server]: [39mKarma v6.4.4 server started at http://localhost:9876/
+[32m28 05 2026 19:48:31.627:INFO [launcher]: [39mLaunching browsers ChromeHeadless with concurrency unlimited
+[32m28 05 2026 19:48:31.646:INFO [launcher]: [39mStarting browser ChromeHeadless
+[32m28 05 2026 19:48:32.433:INFO [Chrome Headless 126.0.6478.127 (Mac OS 10.15.7)]: [39mConnected on socket b50GGyoxl43ld7KpAAAB with id 85693168
+
+  BuilderApiClient
+    acceptOriginInvitation
+      on success
+        [31m✗ [39m[31mresolves true[39m
+	Error: Component 'AutoBuildSettingsComponent' is not resolved:
+	 - templateUrl: ./auto-build-settings.component.html
+	Did you run and wait for 'resolveComponentResources()'?
+	    at AutoBuildSettingsComponent.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305906:17)
+	    at getComponentDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:308164:14)
+	    at isStandalone (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:308187:15)
+	    at DepsTracker.computeNgModuleScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:295874:97)
+	    at DepsTracker.getNgModuleScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:295838:24)
+	    at DepsTracker.computeNgModuleScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:295856:36)
+	    at DepsTracker.getNgModuleScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:295838:24)
+	    at DepsTracker.computeNgModuleScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:295856:36)
+	    at DepsTracker.getNgModuleScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:295838:24)
+	    at transitiveScopesFor (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305835:31)
+
+      on failure
+        [31m✗ [39m[31mresolves with an instance of Error[39m
+	Error: Component 'AutoBuildSettingsComponent' is not resolved:
+	 - templateUrl: ./auto-build-settings.component.html
+	Did you run and wait for 'resolveComponentResources()'?
+	    at AutoBuildSettingsComponent.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305906:17)
+	    at getComponentDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:308164:14)
+	    at isStandalone (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:308187:15)
+	    at DepsTracker.computeNgModuleScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:295874:97)
+	    at DepsTracker.getNgModuleScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:295838:24)
+	    at DepsTracker.computeNgModuleScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:295856:36)
+	    at DepsTracker.getNgModuleScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:295838:24)
+	    at transitiveScopesFor (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305835:31)
+	    at setScopeOnDeclaredComponents (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305815:28)
+	    at flushModuleScopingQueueAsMuchAsPossible (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305547:11)
+
+
+  EventResultsComponent
+    given an empty list of events
+      [31m✗ [39m[31mhides the list[39m
+	Error: Component 'AutoBuildSettingsComponent' is not resolved:
+	 - templateUrl: ./auto-build-settings.component.html
+	Did you run and wait for 'resolveComponentResources()'?
+	    at AutoBuildSettingsComponent.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305906:17)
+	    at getComponentDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:308164:14)
+	    at isStandalone (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:308187:15)
+	    at DepsTracker.computeNgModuleScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:295874:97)
+	    at DepsTracker.getNgModuleScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:295838:24)
+	    at transitiveScopesFor (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305835:31)
+	    at setScopeOnDeclaredComponents (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305815:28)
+	    at flushModuleScopingQueueAsMuchAsPossible (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305547:11)
+	    at TestBedImpl.checkGlobalCompilationFinished (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:317083:93)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316971:10)
+
+      [31m✗ [39m[31mrenders an appropriate message[39m
+	Error: Unexpected "Mock" found in the "declarations" array of the "TestBed.configureTestingModule" call, "Mock" is marked as standalone and can't be declared in any NgModule - did you intend to import it instead (by adding it to the "imports" array)?
+	    at /var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316093:15
+	    at Array.forEach (<anonymous>)
+	    at assertNoStandaloneComponents (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316089:9)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316142:7)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:230860:68)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+
+    [31m✗ [39m[31mrenders a list of events[39m
+	Error: Unexpected "Mock" found in the "declarations" array of the "TestBed.configureTestingModule" call, "Mock" is marked as standalone and can't be declared in any NgModule - did you intend to import it instead (by adding it to the "imports" array)?
+	    at /var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316093:15
+	    at Array.forEach (<anonymous>)
+	    at assertNoStandaloneComponents (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316089:9)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316142:7)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:230860:68)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+
+
+  NotificationsComponent
+    when one or more notifications are provided
+      [31m✗ [39m[31mrenders them[39m
+	Error: Component 'NotificationsComponent' is not resolved:
+	 - templateUrl: ./notifications.component.html
+	Did you run and wait for 'resolveComponentResources()'?
+	    at NotificationsComponent.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305906:17)
+	    at getComponentDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:308164:14)
+	    at verifyDeclarationsHaveDefinitions (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305692:84)
+	    at Array.forEach (<anonymous>)
+	    at verifySemanticsOfNgModuleDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305672:16)
+	    at DynamicTestModule.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305626:22)
+	    at TestBedCompiler.applyProviderOverridesInScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316405:29)
+	    at TestBedCompiler.compileTestModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316645:10)
+	    at TestBedCompiler.finalize (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316284:10)
+	    at get testModuleRef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:317072:43)
+
+      [31m✗ [39m[31mdelegates to the supplied dismiss function[39m
+	Error: Component 'NotificationsComponent' is not resolved:
+	 - templateUrl: ./notifications.component.html
+	Did you run and wait for 'resolveComponentResources()'?
+	    at NotificationsComponent.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305906:17)
+	    at getComponentDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:308164:14)
+	    at verifyDeclarationsHaveDefinitions (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305692:84)
+	    at Array.forEach (<anonymous>)
+	    at verifySemanticsOfNgModuleDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305672:16)
+	    at DynamicTestModule.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305626:22)
+	    at TestBedCompiler.applyProviderOverridesInScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316405:29)
+	    at TestBedCompiler.compileTestModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316645:10)
+	    at TestBedCompiler.finalize (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316284:10)
+	    at get testModuleRef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:317072:43)
+
+
+  EventsSaaSComponent
+    given the events
+      [31m✗ [39m[31mshows the Builder Events heading[39m
+	Error: Unexpected "Mock" found in the "declarations" array of the "TestBed.configureTestingModule" call, "Mock" is marked as standalone and can't be declared in any NgModule - did you intend to import it instead (by adding it to the "imports" array)?
+	    at /var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316093:15
+	    at Array.forEach (<anonymous>)
+	    at assertNoStandaloneComponents (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316089:9)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316142:7)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:230669:68)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+
+
+  Router: Origin
+    [31m✗ [39m[31mnavigate to origins/create takes you to create page[39m
+	Error: Component 'BreadcrumbsComponent' is not resolved:
+	 - templateUrl: ./breadcrumbs.component.html
+	Did you run and wait for 'resolveComponentResources()'?
+	    at BreadcrumbsComponent.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305906:17)
+	    at getComponentDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316734:16)
+	    at isStandaloneComponent (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316730:15)
+	    at queueTypesFromModulesArrayRecur (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316505:20)
+	    at queueTypesFromModulesArrayRecur (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316502:11)
+	    at queueTypesFromModulesArrayRecur (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316501:11)
+	    at TestBedCompiler.queueTypesFromModulesArray (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316523:5)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316147:12)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+
+    [31m✗ [39m[31mnavigate to origins/create takes you to the correct place[39m
+	Error: Component 'BreadcrumbsComponent' is not resolved:
+	 - templateUrl: ./breadcrumbs.component.html
+	Did you run and wait for 'resolveComponentResources()'?
+	    at BreadcrumbsComponent.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305906:17)
+	    at getComponentDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316734:16)
+	    at isStandaloneComponent (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316730:15)
+	    at queueTypesFromModulesArrayRecur (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316505:20)
+	    at queueTypesFromModulesArrayRecur (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316502:11)
+	    at queueTypesFromModulesArrayRecur (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316501:11)
+	    at TestBedCompiler.queueTypesFromModulesArray (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316523:5)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316147:12)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+
+
+  JobListComponent
+    given a list of jobs
+      [31m✗ [39m[31mrenders them[39m
+	Error: Unexpected "Mock" found in the "declarations" array of the "TestBed.configureTestingModule" call, "Mock" is marked as standalone and can't be declared in any NgModule - did you intend to import it instead (by adding it to the "imports" array)?
+	    at /var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316093:15
+	    at Array.forEach (<anonymous>)
+	    at assertNoStandaloneComponents (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316089:9)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316142:7)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:231610:68)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+
+      when a job item is clicked
+        [31m✗ [39m[31memits an event containing the job[39m
+	Error: Unexpected "Mock" found in the "declarations" array of the "TestBed.configureTestingModule" call, "Mock" is marked as standalone and can't be declared in any NgModule - did you intend to import it instead (by adding it to the "imports" array)?
+	    at /var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316093:15
+	    at Array.forEach (<anonymous>)
+	    at assertNoStandaloneComponents (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316089:9)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316142:7)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:231610:68)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+
+    given an empty list of jobs
+      [31m✗ [39m[31mrenders an appropriate message[39m
+	Error: Unexpected "Mock" found in the "declarations" array of the "TestBed.configureTestingModule" call, "Mock" is marked as standalone and can't be declared in any NgModule - did you intend to import it instead (by adding it to the "imports" array)?
+	    at /var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316093:15
+	    at Array.forEach (<anonymous>)
+	    at assertNoStandaloneComponents (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316089:9)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316142:7)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:231610:68)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+
+      [31m✗ [39m[31mhides the list[39m
+	Error: Unexpected "Mock" found in the "declarations" array of the "TestBed.configureTestingModule" call, "Mock" is marked as standalone and can't be declared in any NgModule - did you intend to import it instead (by adding it to the "imports" array)?
+	    at /var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316093:15
+	    at Array.forEach (<anonymous>)
+	    at assertNoStandaloneComponents (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316089:9)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316142:7)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:231610:68)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+
+
+  EventsComponent
+    given the events
+      [31m✗ [39m[31mshows the Builder Events heading[39m
+	Error: Unexpected "Mock" found in the "declarations" array of the "TestBed.configureTestingModule" call, "Mock" is marked as standalone and can't be declared in any NgModule - did you intend to import it instead (by adding it to the "imports" array)?
+	    at /var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316093:15
+	    at Array.forEach (<anonymous>)
+	    at assertNoStandaloneComponents (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316089:9)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316142:7)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:230783:68)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+
+
+  actions
+    filterPackagesBy
+      given a query parameter
+        [31m✗ [39m[31mencodes the parameter before sending it[39m
+	Error: <spyOn> : get is not declared writable or has no setter
+	Usage: spyOn(<object>, <methodName>)
+	    at <Jasmine>
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:230398:17)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+	    at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+	    at runInTestZone (node_modules/zone.js/bundles/zone-testing.umd.js:237:42)
+	    at UserContext.<anonymous> (node_modules/zone.js/bundles/zone-testing.umd.js:255:36)
+
+    populateBuildLog
+      when data is undefined
+        [36m- [39m[36mhas an undefined payload[39m
+      when data is a string
+        [36m- [39m[36mhas a string payload[39m
+    Browser
+      setCookie
+        [32m✓ [39mapplies the proper domain
+
+  DateFilterComponent
+    given the events
+      [31m✗ [39m[31mshow label[39m
+	Error: Component 'DateFilterComponent' is not resolved:
+	 - templateUrl: ./date-filter.component.html
+	Did you run and wait for 'resolveComponentResources()'?
+	    at DateFilterComponent.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305906:17)
+	    at getComponentDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:308164:14)
+	    at verifyDeclarationsHaveDefinitions (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305692:84)
+	    at Array.forEach (<anonymous>)
+	    at verifySemanticsOfNgModuleDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305672:16)
+	    at DynamicTestModule.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305626:22)
+	    at TestBedCompiler.applyProviderOverridesInScope (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316405:29)
+	    at TestBedCompiler.compileTestModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316645:10)
+	    at TestBedCompiler.finalize (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316284:10)
+	    at get testModuleRef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:317072:43)
+
+
+  OriginsPageComponent
+    [31m✗ [39m[31mroutes to the correct origin[39m
+	Error: <spyOn> : fetchMyOriginInvitations is not declared writable or has no setter
+	Usage: spyOn(<object>, <methodName>)
+	    at <Jasmine>
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:231349:9)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+	    at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+	    at runInTestZone (node_modules/zone.js/bundles/zone-testing.umd.js:237:42)
+	    at UserContext.<anonymous> (node_modules/zone.js/bundles/zone-testing.umd.js:255:36)
+
+    given origin and name
+      [31m✗ [39m[31mfetches the list of invitations[39m
+	Error: <spyOn> : fetchMyOriginInvitations is not declared writable or has no setter
+	Usage: spyOn(<object>, <methodName>)
+	    at <Jasmine>
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:231349:9)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+	    at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+	    at runInTestZone (node_modules/zone.js/bundles/zone-testing.umd.js:237:42)
+	    at UserContext.<anonymous> (node_modules/zone.js/bundles/zone-testing.umd.js:255:36)
+
+      [31m✗ [39m[31mfetches the list of origins[39m
+	Error: <spyOn> : fetchMyOriginInvitations is not declared writable or has no setter
+	Usage: spyOn(<object>, <methodName>)
+	    at <Jasmine>
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:231349:9)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+	    at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+	    at runInTestZone (node_modules/zone.js/bundles/zone-testing.umd.js:237:42)
+	    at UserContext.<anonymous> (node_modules/zone.js/bundles/zone-testing.umd.js:255:36)
+
+
+  Router: Origin Page
+    [31m✗ [39m[31mnavigate to origins/:origin redirects you to packages[39m
+	Error: Component 'BreadcrumbsComponent' is not resolved:
+	 - templateUrl: ./breadcrumbs.component.html
+	Did you run and wait for 'resolveComponentResources()'?
+	    at BreadcrumbsComponent.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305906:17)
+	    at getComponentDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316734:16)
+	    at isStandaloneComponent (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316730:15)
+	    at queueTypesFromModulesArrayRecur (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316505:20)
+	    at queueTypesFromModulesArrayRecur (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316502:11)
+	    at TestBedCompiler.queueTypesFromModulesArray (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316523:5)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316147:12)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:231191:68)
+
+    [31m✗ [39m[31mnavigate to origins/:origin/garbage redirects you to packages[39m
+	Error: Component 'BreadcrumbsComponent' is not resolved:
+	 - templateUrl: ./breadcrumbs.component.html
+	Did you run and wait for 'resolveComponentResources()'?
+	    at BreadcrumbsComponent.get (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:305906:17)
+	    at getComponentDef (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316734:16)
+	    at isStandaloneComponent (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316730:15)
+	    at queueTypesFromModulesArrayRecur (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316505:20)
+	    at queueTypesFromModulesArrayRecur (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316502:11)
+	    at TestBedCompiler.queueTypesFromModulesArray (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316523:5)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316147:12)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:231191:68)
+
+[31mChrome Headless 126.0.6478.127 (Mac OS 10.15.7) ERROR[39m
+  An error was thrown in afterAll
+  Error: describe with no children (describe() or it()): JobDetailComponent on init
+      at <Jasmine>
+      at jasmineEnv.<computed> [as describe] (node_modules/zone.js/bundles/zone-testing.umd.js:120:46)
+      at <Jasmine>
+      at /var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:231482:5
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at node_modules/zone.js/bundles/zone-testing.umd.js:219:37
+      at <Jasmine>
+
+Chrome Headless 126.0.6478.127 (Mac OS 10.15.7): Executed 23 of 29[31m (22 FAILED)[39m (skipped 2)[31m ERROR[39m (0.016 secs / 0.009 secs)
+
+
+=============================== Coverage summary ===============================
+Statements   : Unknown% ( 0/0 )
+Branches     : Unknown% ( 0/0 )
+Functions    : Unknown% ( 0/0 )
+Lines        : Unknown% ( 0/0 )
+================================================================================
+
+  PackageDetailComponent
+    given a package
+      [31m✗ [39m[31mrenders it[39m
+	Error: Unexpected "Mock" found in the "declarations" array of the "TestBed.configureTestingModule" call, "Mock" is marked as standalone and can't be declared in any NgModule - did you intend to import it instead (by adding it to the "imports" array)?
+	    at /var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316093:15
+	    at Array.forEach (<anonymous>)
+	    at assertNoStandaloneComponents (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316089:9)
+	    at TestBedCompiler.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316142:7)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316982:19)
+	    at TestBedImpl.configureTestingModule (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:316853:33)
+	    at UserContext.<anonymous> (/var/folders/wf/6lypf3mn0qv2gj6zd783841m0000gp/T/_karma_webpack_294646/commons.js:231866:68)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+	    at ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+	    at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+
+make: *** [coverage-web] Error 1
+
+EXIT_CODE=2

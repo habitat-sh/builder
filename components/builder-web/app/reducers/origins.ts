@@ -14,7 +14,7 @@
 
 import { List } from 'immutable';
 import { sortBy } from 'lodash';
-import * as actionTypes from '../actions/index';
+import * as actionTypes from '../actions/types';
 import initialState from '../initial-state';
 import { Origin } from '../records/Origin';
 
