@@ -2,6 +2,8 @@
 
 `tools/token-generator` is intentionally small: parse CLI args, initialize logging, validate the signing key path, generate a token with `builder_core::access_token::AccessToken`, and print the result.
 
+See also [dependency-notes.md](dependency-notes.md) for the module's critical dependency summary and low-risk pinning recommendations.
+
 ## Safe extension points
 
 - **Add new CLI flags** in `src/main.rs` on the `Args` struct using Clap attributes.
