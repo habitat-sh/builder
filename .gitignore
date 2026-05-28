@@ -7,6 +7,16 @@
 .DS_Store
 .secrets/*
 !.secrets/habitat-env.sample
+.env
+.env.*
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.pkcs12
+*.secret
+*.secrets
 *.swp
 .tags*
 .vagrant/

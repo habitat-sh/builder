@@ -7,6 +7,7 @@ It makes is easier to switch between tokens during development / acceptance test
 
 1. Copy the `hab-token` script to a directory in your path - e.g., `~/bin`
 2. Create a new file called `.tokens` in your home directory - e.g. '~/.tokens'
+3. Restrict that file to your user only, for example `chmod 600 ~/.tokens`
 
 The `.tokens` file should have the following format:
 
@@ -16,6 +17,8 @@ TOKEN_LIVE=<your prod token>
 TOKEN_ACCEPTANCE=<your acceptance token>
 TOKEN_DEV=<your dev token>
 ```
+
+Keep `.tokens` outside the repository and never commit it or copy its contents into tracked sample files.
 
 ## Usage
 
