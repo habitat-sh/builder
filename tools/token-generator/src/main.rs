@@ -57,13 +57,10 @@ fn validate_args(args: &Args) -> Result<()> {
 }
 
 fn structured_logging_enabled_from(value: Option<&str>) -> bool {
-    match value {
-        Some(value) if value.eq_ignore_ascii_case("0")
+    !matches!(value, Some(value) if value.eq_ignore_ascii_case("0")
                     || value.eq_ignore_ascii_case("false")
                     || value.eq_ignore_ascii_case("off")
-                    || value.eq_ignore_ascii_case("no") => false,
-        _ => true,
-    }
+                    || value.eq_ignore_ascii_case("no"))
 }
 
 /// Executes an operation and emits structured completion logs.
