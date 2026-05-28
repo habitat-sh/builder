@@ -8,7 +8,7 @@ See also [dependency-notes.md](dependency-notes.md) for the module's critical de
 
 - **Add new CLI flags** in `src/main.rs` on the `Args` struct using Clap attributes.
 - **Adjust logging behavior** through `log_level()` or `init_logging()`.
-- **Add preflight validation** before `AccessToken::user_token(...)` if new inputs require explicit checks.
+- **Add preflight validation** before `AccessToken::user_token(...)` if new inputs require explicit checks. Prefer mapping raw filesystem failures to explicit user-facing errors at this boundary.
 
 ## Keep behavior predictable
 

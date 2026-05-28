@@ -35,6 +35,8 @@ hab pkg exec habitat/builder-token-generator token-generator --account-id <ID> -
 - `--account-id, -a <ID>`: The account ID for which to generate the token
 - `--key-path, -k <PATH>`: Path to the directory that contains the Builder signing key file (typically `/hab/svc/builder-api/files`)
 
+The tool resolves `--key-path` before token generation and reports inaccessible paths with an explicit `Unable to access key path: ...` error.
+
 ### Optional Arguments
 
 - `--verbose, -v`: Enable verbose logging output

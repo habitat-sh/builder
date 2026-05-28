@@ -1,10 +1,11 @@
 use anyhow::{Context,
              Result};
 use builder_core::{access_token::AccessToken,
-                     privilege::FeatureFlags};
+                      privilege::FeatureFlags};
 use clap::Parser;
 use habitat_core::crypto::keys::KeyCache;
 use std::{env,
+          fs,
           path::PathBuf,
           time::Instant};
 
@@ -43,17 +44,16 @@ fn init_logging(verbose: bool) {
                                            .init();
 }
 
-/// Validates CLI input before attempting token generation.
-fn validate_args(args: &Args) -> Result<()> {
-    if !args.key_path.exists() {
-        anyhow::bail!("Key path does not exist: {}", args.key_path.display());
-    }
+/// Resolves and validates the user-provided key path before token generation.
+fn validated_key_path(args: &Args) -> Result<PathBuf> {
+    let resolved_key_path = fs::canonicalize(&args.key_path)
+        .with_context(|| format!("Unable to access key path: {}", args.key_path.display()))?;
 
-    if !args.key_path.is_dir() {
+    if !resolved_key_path.is_dir() {
         anyhow::bail!("Key path must be a directory: {}", args.key_path.display());
     }
 
-    Ok(())
+    Ok(resolved_key_path)
 }
 
 fn structured_logging_enabled_from(value: Option<&str>) -> bool {
@@ -95,23 +95,23 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     init_logging(args.verbose);
-    run_with_timing("validate_args", || validate_args(&args))?;
+    let key_path = run_with_timing("validate_args", || validated_key_path(&args))?;
 
     log::info!("Generating token for account ID: {}", args.account_id);
-    log::debug!("Using key path: {}", args.key_path.display());
+    log::debug!("Using key path: {}", key_path.display());
 
     // Reuse Builder's access token helper so the CLI issues tokens in the same
     // format as the provisioning path.
     let token = run_with_timing("generate_token", || {
-        AccessToken::user_token(&KeyCache::new(&args.key_path),
+        AccessToken::user_token(&KeyCache::new(&key_path),
                                 args.account_id,
                                 FeatureFlags::empty().bits()).with_context(|| {
                                                                  format!(
             "Failed to generate user token for account {} with key path {}",
             args.account_id,
-            args.key_path.display()
+            key_path.display()
         )
-                                                             })
+                                                              })
     })?;
 
     println!("{}", token);
@@ -195,10 +195,10 @@ mod tests {
                                           .join("does-not-exist"),
                           verbose:    false, };
 
-        let err = validate_args(&args).unwrap_err();
+        let err = validated_key_path(&args).unwrap_err();
 
         assert_eq!(err.to_string(),
-                   format!("Key path does not exist: {}", args.key_path.display()));
+                   format!("Unable to access key path: {}", args.key_path.display()));
     }
 
     #[test]
@@ -208,7 +208,7 @@ mod tests {
                                           .join("Cargo.toml"),
                           verbose:    false, };
 
-        let err = validate_args(&args).unwrap_err();
+        let err = validated_key_path(&args).unwrap_err();
 
         assert_eq!(err.to_string(),
                    format!("Key path must be a directory: {}", args.key_path.display()));
