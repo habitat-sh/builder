@@ -24,17 +24,24 @@ struct Args {
     verbose: bool,
 }
 
+fn log_level(verbose: bool) -> log::LevelFilter {
+    if verbose {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    }
+}
+
+fn init_logging(verbose: bool) {
+    env_logger::Builder::from_default_env().filter_level(log_level(verbose))
+                                           .init();
+}
+
 fn main() -> Result<()> {
     let args = Args::parse();
 
     // Initialize logging
-    if args.verbose {
-        env_logger::Builder::from_default_env().filter_level(log::LevelFilter::Debug)
-                                               .init();
-    } else {
-        env_logger::Builder::from_default_env().filter_level(log::LevelFilter::Info)
-                                               .init();
-    }
+    init_logging(args.verbose);
 
     // Validate that the key path exists
     if !args.key_path.exists() {
@@ -98,6 +105,16 @@ mod tests {
             Args::try_parse_from(["token-generator", "--account-id", "12345"]).unwrap_err();
 
         assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
+    }
+
+    #[test]
+    fn test_log_level_defaults_to_info() {
+        assert_eq!(log_level(false), log::LevelFilter::Info);
+    }
+
+    #[test]
+    fn test_log_level_verbose_is_debug() {
+        assert_eq!(log_level(true), log::LevelFilter::Debug);
     }
 
     #[test]
