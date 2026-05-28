@@ -76,3 +76,10 @@ Structured completion logs now use the fields `op`, `status`, and `elapsed_ms`, 
 op=validate_args status=ok elapsed_ms=0
 op=generate_token status=ok elapsed_ms=3
 ```
+
+Set `TOKEN_GENERATOR_STRUCTURED_LOGS=off` to disable those structured completion logs while keeping the rest of the tool behavior unchanged:
+
+```bash
+TOKEN_GENERATOR_STRUCTURED_LOGS=off \
+cargo run -p token-generator -- --account-id 12345 --key-path /hab/svc/builder-api/files
+```

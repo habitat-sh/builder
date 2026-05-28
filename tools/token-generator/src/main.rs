@@ -1,10 +1,11 @@
 use anyhow::{Context,
              Result};
 use builder_core::{access_token::AccessToken,
-                    privilege::FeatureFlags};
+                     privilege::FeatureFlags};
 use clap::Parser;
 use habitat_core::crypto::keys::KeyCache;
-use std::{path::PathBuf,
+use std::{env,
+          path::PathBuf,
           time::Instant};
 
 /// CLI tool to generate user authentication tokens
@@ -24,6 +25,8 @@ struct Args {
     #[arg(short, long, help = "Enable verbose logging")]
     verbose: bool,
 }
+
+const STRUCTURED_LOGGING_ENV: &str = "TOKEN_GENERATOR_STRUCTURED_LOGS";
 
 /// Maps the CLI verbosity flag to the logger's default filter level.
 fn log_level(verbose: bool) -> log::LevelFilter {
@@ -53,23 +56,39 @@ fn validate_args(args: &Args) -> Result<()> {
     Ok(())
 }
 
+fn structured_logging_enabled_from(value: Option<&str>) -> bool {
+    match value {
+        Some(value) if value.eq_ignore_ascii_case("0")
+                    || value.eq_ignore_ascii_case("false")
+                    || value.eq_ignore_ascii_case("off")
+                    || value.eq_ignore_ascii_case("no") => false,
+        _ => true,
+    }
+}
+
 /// Executes an operation and emits structured completion logs.
 fn run_with_timing<T, F>(op: &str, f: F) -> Result<T>
     where F: FnOnce() -> Result<T>
 {
     let started_at = Instant::now();
+    let structured_logging_enabled =
+        structured_logging_enabled_from(env::var(STRUCTURED_LOGGING_ENV).ok().as_deref());
 
     match f() {
         Ok(value) => {
-            log::info!("op={} status=ok elapsed_ms={}",
-                       op,
-                       started_at.elapsed().as_millis());
+            if structured_logging_enabled {
+                log::info!("op={} status=ok elapsed_ms={}",
+                           op,
+                           started_at.elapsed().as_millis());
+            }
             Ok(value)
         }
         Err(error) => {
-            log::error!("op={} status=error elapsed_ms={}",
-                        op,
-                        started_at.elapsed().as_millis());
+            if structured_logging_enabled {
+                log::error!("op={} status=error elapsed_ms={}",
+                            op,
+                            started_at.elapsed().as_millis());
+            }
             Err(error)
         }
     }
@@ -152,6 +171,24 @@ mod tests {
     #[test]
     fn test_log_level_verbose_is_debug() {
         assert_eq!(log_level(true), log::LevelFilter::Debug);
+    }
+
+    #[test]
+    fn test_structured_logging_defaults_to_on() {
+        assert!(structured_logging_enabled_from(None));
+    }
+
+    #[test]
+    fn test_structured_logging_explicitly_on() {
+        assert!(structured_logging_enabled_from(Some("on")));
+        assert!(structured_logging_enabled_from(Some("true")));
+    }
+
+    #[test]
+    fn test_structured_logging_explicitly_off() {
+        assert!(!structured_logging_enabled_from(Some("off")));
+        assert!(!structured_logging_enabled_from(Some("false")));
+        assert!(!structured_logging_enabled_from(Some("0")));
     }
 
     #[test]
