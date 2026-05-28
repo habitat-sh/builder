@@ -1,0 +1,40 @@
+name: Validate architecture diagram
+
+on:
+  pull_request:
+    paths:
+      - docs/architecture.md
+      - support/ci/extract_mermaid_block.sh
+      - support/ci/mermaid-puppeteer-config.json
+      - support/ci/render_architecture_diagram.sh
+      - .github/workflows/validate-architecture-diagram.yml
+  push:
+    branches:
+      - main
+      - release/**
+    paths:
+      - docs/architecture.md
+      - support/ci/extract_mermaid_block.sh
+      - support/ci/mermaid-puppeteer-config.json
+      - support/ci/render_architecture_diagram.sh
+      - .github/workflows/validate-architecture-diagram.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    name: Render Mermaid architecture diagram
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Render architecture diagram
+        run: ./support/ci/render_architecture_diagram.sh docs/architecture.md "$RUNNER_TEMP/architecture.svg"
