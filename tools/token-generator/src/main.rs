@@ -1,10 +1,11 @@
 use anyhow::{Context,
              Result};
 use builder_core::{access_token::AccessToken,
-                   privilege::FeatureFlags};
+                    privilege::FeatureFlags};
 use clap::Parser;
 use habitat_core::crypto::keys::KeyCache;
-use std::path::PathBuf;
+use std::{path::PathBuf,
+          time::Instant};
 
 /// CLI tool to generate user authentication tokens
 #[derive(Parser, Debug)]
@@ -52,26 +53,50 @@ fn validate_args(args: &Args) -> Result<()> {
     Ok(())
 }
 
+/// Executes an operation and emits structured completion logs.
+fn run_with_timing<T, F>(op: &str, f: F) -> Result<T>
+    where F: FnOnce() -> Result<T>
+{
+    let started_at = Instant::now();
+
+    match f() {
+        Ok(value) => {
+            log::info!("op={} status=ok elapsed_ms={}",
+                       op,
+                       started_at.elapsed().as_millis());
+            Ok(value)
+        }
+        Err(error) => {
+            log::error!("op={} status=error elapsed_ms={}",
+                        op,
+                        started_at.elapsed().as_millis());
+            Err(error)
+        }
+    }
+}
+
 fn main() -> Result<()> {
     let args = Args::parse();
 
     init_logging(args.verbose);
-    validate_args(&args)?;
+    run_with_timing("validate_args", || validate_args(&args))?;
 
     log::info!("Generating token for account ID: {}", args.account_id);
     log::debug!("Using key path: {}", args.key_path.display());
 
     // Reuse Builder's access token helper so the CLI issues tokens in the same
     // format as the provisioning path.
-    let token = AccessToken::user_token(&KeyCache::new(&args.key_path),
-                                        args.account_id,
-                                        FeatureFlags::empty().bits()).with_context(|| {
-                                                                         format!(
+    let token = run_with_timing("generate_token", || {
+        AccessToken::user_token(&KeyCache::new(&args.key_path),
+                                args.account_id,
+                                FeatureFlags::empty().bits()).with_context(|| {
+                                                                 format!(
             "Failed to generate user token for account {} with key path {}",
             args.account_id,
             args.key_path.display()
         )
-                                                                     })?;
+                                                             })
+    })?;
 
     println!("{}", token);
 
