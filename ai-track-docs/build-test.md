@@ -26,6 +26,12 @@ Inside the Habitat Studio, the documented service workflow is:
 - `build-builder api` for an incremental API-only rebuild
 - `test-builder` for automated API verification
 
+The repository verify pipeline also includes a dedicated unit-test step for `token-generator` via:
+
+```bash
+./test/run_cargo_test.sh token-generator
+```
+
 ## Recommended low-risk module workflow
 
 For small, isolated changes, `tools/token-generator` is a good starting point because it is a standalone CLI with local unit tests.
