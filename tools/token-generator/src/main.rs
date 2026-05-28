@@ -83,6 +83,8 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{hint::black_box,
+              time::Instant};
 
     #[test]
     fn test_args_parsing() {
@@ -151,5 +153,34 @@ mod tests {
 
         assert_eq!(err.to_string(),
                    format!("Key path must be a directory: {}", args.key_path.display()));
+    }
+
+    #[test]
+    #[ignore = "micro-benchmark; run explicitly in release mode"]
+    fn benchmark_log_level() {
+        const ITERATIONS: u32 = 5_000_000;
+
+        let start = Instant::now();
+        let mut checksum = 0_u32;
+
+        for i in 0..ITERATIONS {
+            let level = black_box(log_level(black_box(i % 2 == 0)));
+            checksum ^= match level {
+                log::LevelFilter::Debug => 1,
+                log::LevelFilter::Info => 2,
+                _ => 0,
+            };
+        }
+
+        let elapsed = start.elapsed();
+        let ns_per_iter = elapsed.as_nanos() as f64 / ITERATIONS as f64;
+
+        println!(
+            "benchmark_log_level iterations={} elapsed_ns={} ns_per_iter={:.2} checksum={}",
+            ITERATIONS,
+            elapsed.as_nanos(),
+            ns_per_iter,
+            checksum
+        );
     }
 }
