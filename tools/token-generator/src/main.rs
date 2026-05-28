@@ -39,14 +39,24 @@ fn init_logging(verbose: bool) {
                                            .init();
 }
 
+/// Validates CLI input before attempting token generation.
+fn validate_args(args: &Args) -> Result<()> {
+    if !args.key_path.exists() {
+        anyhow::bail!("Key path does not exist: {}", args.key_path.display());
+    }
+
+    if !args.key_path.is_dir() {
+        anyhow::bail!("Key path must be a directory: {}", args.key_path.display());
+    }
+
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let args = Args::parse();
 
     init_logging(args.verbose);
-
-    if !args.key_path.exists() {
-        anyhow::bail!("Key path does not exist: {}", args.key_path.display());
-    }
+    validate_args(&args)?;
 
     log::info!("Generating token for account ID: {}", args.account_id);
     log::debug!("Using key path: {}", args.key_path.display());
@@ -120,10 +130,26 @@ mod tests {
     #[test]
     fn test_nonexistent_key_path_validation() {
         let args = Args { account_id: 12345,
-                          key_path:   PathBuf::from("/nonexistent/path"),
+                          key_path:   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                                          .join("does-not-exist"),
                           verbose:    false, };
 
-        // Test that validation would fail for non-existent path
-        assert!(!args.key_path.exists());
+        let err = validate_args(&args).unwrap_err();
+
+        assert_eq!(err.to_string(),
+                   format!("Key path does not exist: {}", args.key_path.display()));
+    }
+
+    #[test]
+    fn test_key_path_must_be_a_directory() {
+        let args = Args { account_id: 12345,
+                          key_path:   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                                          .join("Cargo.toml"),
+                          verbose:    false, };
+
+        let err = validate_args(&args).unwrap_err();
+
+        assert_eq!(err.to_string(),
+                   format!("Key path must be a directory: {}", args.key_path.display()));
     }
 }
