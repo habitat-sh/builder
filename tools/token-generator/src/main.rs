@@ -93,6 +93,14 @@ mod tests {
     }
 
     #[test]
+    fn test_missing_key_path_is_rejected() {
+        let err =
+            Args::try_parse_from(["token-generator", "--account-id", "12345"]).unwrap_err();
+
+        assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
+    }
+
+    #[test]
     fn test_nonexistent_key_path_validation() {
         let args = Args { account_id: 12345,
                           key_path:   PathBuf::from("/nonexistent/path"),

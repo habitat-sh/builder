@@ -1,0 +1,38 @@
+flowchart LR
+    Browser[Browser / hab users]
+
+    subgraph Frontend
+        Web[builder-web\nAngular + TypeScript SPA]
+        Proxy[builder-api-proxy\nserves UI/proxy traffic]
+    end
+
+    subgraph Backend
+        API[builder-api\nActix Web service]
+        Core[builder-core\nshared business logic]
+        DBLib[builder-db\npersistence layer]
+        Proto[builder-protocol\nmessages/protocols]
+    end
+
+    subgraph Integrations
+        GitHub[GitHub / OAuth]
+        Artifactory[Artifactory]
+        ObjectStore[MinIO / S3-style storage]
+        Cache[Memcached]
+        Postgres[(Postgres)]
+    end
+
+    Browser --> Web
+    Browser --> API
+    Web --> API
+    Proxy --> Web
+    Proxy --> API
+
+    API --> Core
+    API --> DBLib
+    API --> Proto
+    API --> GitHub
+    API --> Artifactory
+    API --> Cache
+    API --> ObjectStore
+    DBLib --> Postgres
+    Core --> Proto
