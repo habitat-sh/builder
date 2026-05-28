@@ -2,6 +2,8 @@
 
 A standalone CLI tool that generates user authentication tokens for Habitat Builder.
 
+See [../../ai-track-docs/extending-token-generator.md](../../ai-track-docs/extending-token-generator.md) for notes on making small, safe changes to this module.
+
 ## Overview
 
 The Token Generator is a utility tool that mimics the functionality of Habitat Builder token provisioning. It allows administrators and developers to generate authentication tokens for specific user accounts using the Builder's signing key infrastructure.

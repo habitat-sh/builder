@@ -24,6 +24,7 @@ struct Args {
     verbose: bool,
 }
 
+/// Maps the CLI verbosity flag to the logger's default filter level.
 fn log_level(verbose: bool) -> log::LevelFilter {
     if verbose {
         log::LevelFilter::Debug
@@ -32,6 +33,7 @@ fn log_level(verbose: bool) -> log::LevelFilter {
     }
 }
 
+/// Initializes env_logger once using the verbosity requested by the caller.
 fn init_logging(verbose: bool) {
     env_logger::Builder::from_default_env().filter_level(log_level(verbose))
                                            .init();
@@ -40,10 +42,8 @@ fn init_logging(verbose: bool) {
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    // Initialize logging
     init_logging(args.verbose);
 
-    // Validate that the key path exists
     if !args.key_path.exists() {
         anyhow::bail!("Key path does not exist: {}", args.key_path.display());
     }
@@ -51,7 +51,8 @@ fn main() -> Result<()> {
     log::info!("Generating token for account ID: {}", args.account_id);
     log::debug!("Using key path: {}", args.key_path.display());
 
-    // Generate the user token using the same logic as provision
+    // Reuse Builder's access token helper so the CLI issues tokens in the same
+    // format as the provisioning path.
     let token = AccessToken::user_token(&KeyCache::new(&args.key_path),
                                         args.account_id,
                                         FeatureFlags::empty().bits()).with_context(|| {
@@ -62,7 +63,6 @@ fn main() -> Result<()> {
         )
                                                                      })?;
 
-    // Output the token to stdout
     println!("{}", token);
 
     log::info!("Token generated successfully");
