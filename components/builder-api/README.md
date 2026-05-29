@@ -88,3 +88,37 @@ For focused local validation of the extension helper logic:
 ```bash
 cargo test -p habitat_builder_api ext::
 ```
+
+## Contract tests
+
+This component now has focused contract coverage for two request boundaries:
+
+| Boundary | File | Contract covered |
+| --- | --- | --- |
+| Extension credential validation | `src/server/resources/ext.rs` | required credentials, Docker default URL, explicit URL override, unsupported registry rejection, and outbound JSON payload shape |
+| Request target inference | `src/server/helpers.rs` | missing `User-Agent` fallback, valid Habitat target parsing, and invalid-target fallback to Linux |
+
+### Update process
+
+When a boundary changes, update the contract tests in the same branch/PR:
+
+1. Identify the externally visible rule that changed: request fields, fallback behavior, status mapping, or header parsing.
+2. Update the narrowest unit or handler-level test near that boundary (`ext.rs` or `helpers.rs` today).
+3. Refresh this README section if the supported input, fallback, or error semantics changed.
+4. Run at least `cargo check -p habitat_builder_api --tests`; if the local environment links successfully, also run the focused test target (`cargo test -p habitat_builder_api ext::` or the relevant helper test).
+
+## API TODO and edge sweep
+
+Reviewed TODO/FIXME hotspots under `src/server/` and left the current scope intentionally narrow.
+
+| Area | Current edge / TODO | Rationale for leaving as-is in this update |
+| --- | --- | --- |
+| `helpers.rs` | `target_from_headers` is still a compatibility fallback based on `User-Agent` | This behavior is still referenced by package/channel handlers. The safe change here was to lock the current contract with tests before a future deprecation. |
+| `helpers.rs` | helper module is still a mixed “grab bag” | Breaking it up is worthwhile, but it is structural refactoring across many handlers rather than a doc-with-code boundary fix. |
+| `resources/pkgs.rs` and `resources/channels.rs` | repeated “deprecate target from headers” TODOs | These call sites depend on the same compatibility rule. Documenting and testing the shared helper gives one contract anchor without rewriting multiple handlers now. |
+| `resources/pkgs.rs` | async/provider-model TODOs around upload and Artifactory/S3 handling | Those are larger transport/storage changes with broader operational risk than this task’s contract-test scope. |
+| `resources/origins.rs` | file remains large and has invitation/key-management TODOs | These are domain-shape issues, not currently ambiguous request/response boundaries. They should be addressed in a dedicated decomposition effort. |
+| `services/s3.rs` | blocking call inside async code | Important, but it needs an async storage migration rather than a boundary-contract update; changing it here would be higher risk than validating current API behavior. |
+| `mod.rs` | legacy compatibility TODO tied to an upgrade path | This is a startup/runtime compatibility note rather than a request boundary. No behavior changed here. |
+
+The guiding rule for this sweep was: **validate stable boundary behavior first, defer structural rewrites until the compatibility-dependent call sites are ready to move together.**

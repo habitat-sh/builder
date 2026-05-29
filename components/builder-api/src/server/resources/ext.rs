@@ -33,8 +33,11 @@ use crate::server::{authorize::authorize_session,
 
 #[derive(Deserialize, Serialize)]
 pub struct Body {
+    #[serde(skip_serializing_if = "Option::is_none")]
     username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     password: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     url:      Option<String>,
 }
 
@@ -196,5 +199,13 @@ mod tests {
 
         assert_eq!(serialized,
                    r#"{"username":"hab","password":"secret","url":"https://registry.example.test"}"#);
+    }
+
+    #[test]
+    fn login_request_body_omits_optional_url_when_absent() {
+        let request_body = login_request_body(&valid_body()).unwrap();
+        let serialized = String::from_utf8(request_body).unwrap();
+
+        assert_eq!(serialized, r#"{"username":"hab","password":"secret"}"#);
     }
 }

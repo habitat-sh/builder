@@ -263,6 +263,41 @@ pub fn req_state(req: &HttpRequest) -> &AppState {
        .expect("request state")
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::test::TestRequest;
+
+    #[test]
+    fn target_from_headers_defaults_to_linux_when_header_is_missing() {
+        let request = TestRequest::default().to_http_request();
+
+        assert_eq!(target_from_headers(&request),
+                   PackageTarget::from_str("x86_64-linux").unwrap());
+    }
+
+    #[test]
+    fn target_from_headers_parses_valid_hab_user_agent_target() {
+        let request = TestRequest::default().insert_header(("User-Agent",
+                                                            "hab/1.6.56 (x86_64-windows; \
+                                                             10.0.17763)"))
+                                            .to_http_request();
+
+        assert_eq!(target_from_headers(&request),
+                   PackageTarget::from_str("x86_64-windows").unwrap());
+    }
+
+    #[test]
+    fn target_from_headers_falls_back_to_linux_for_invalid_target() {
+        let request = TestRequest::default().insert_header(("User-Agent",
+                                                            "hab/1.6.56 (nope-nope; 10.0.17763)"))
+                                            .to_http_request();
+
+        assert_eq!(target_from_headers(&request),
+                   PackageTarget::from_str("x86_64-linux").unwrap());
+    }
+}
+
 mod ymd_date_format {
     use chrono::{NaiveDate,
                  NaiveDateTime};
