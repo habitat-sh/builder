@@ -1,0 +1,107 @@
+CI subsystem improvement backlog
+Branch context: agadgil/run/ex-11
+
+Issue 1: Add CI linting for workflows and composite actions
+Problem
+- The repo validates workflow YAML syntax, but it does not lint workflow semantics or shell snippets in CI-owned actions.
+
+Acceptance
+- Add a repo-owned workflow that runs actionlint on `.github/workflows/*` and `.github/actions/**/action.y*ml`.
+- Run shellcheck on bash snippets used by the composite Habitat actions.
+- Document the local validation commands in `support/ci/README.md`.
+- The new workflow passes on the current branch without suppressing real findings broadly.
+
+Links
+- `.github/workflows/rust-cargo-audit-check.yml`
+- `.github/workflows/hab-pkg-build-upload.yaml`
+- `.github/workflows/adhoc-hab-pkg-build-upload.yaml`
+- `.github/actions/hab-install-linux/action.yaml`
+- `.github/actions/hab-pkg-build-and-upload-linux/action.yaml`
+- `support/ci/README.md`
+
+Good first task / agent patch plan
+- Create `.github/workflows/ci-lint.yml`.
+- Add actionlint first, then add shellcheck for the two composite actions.
+- Fix any quoting or shell portability warnings in the action scripts.
+
+Issue 2: Centralize retry and timeout defaults for Habitat packaging
+Problem
+- Timeout and retry values are currently duplicated across workflows and composite actions, which makes future tuning error-prone.
+
+Acceptance
+- Define one documented source of truth for packaging timeout/retry defaults.
+- Wire both package workflows to pass explicit values from one place instead of relying on scattered magic numbers.
+- Keep current behavior unchanged unless a value is intentionally renamed.
+- Update rollback guidance in `support/ci/README.md`.
+
+Links
+- `.github/workflows/hab-pkg-build-upload.yaml`
+- `.github/workflows/adhoc-hab-pkg-build-upload.yaml`
+- `.github/actions/hab-install-linux/action.yaml`
+- `.github/actions/hab-pkg-build-and-upload-linux/action.yaml`
+- `support/ci/README.md`
+
+Good first task / agent patch plan
+- Introduce shared workflow-level env values or action inputs with documented defaults.
+- Thread those values through both workflows into both composite actions.
+- Add one short note in `support/ci/README.md` explaining where to tune them.
+
+Issue 3: Publish failure diagnostics as workflow summaries and artifacts
+Problem
+- Package workflow failures currently depend on raw step logs, which slows review of timeout, upload, and retry problems.
+
+Acceptance
+- On packaging failure, upload the relevant `results/` logs and metadata as artifacts.
+- Write a GitHub Actions step summary with component name, failed step, timeout value, and retry count used.
+- Keep artifact upload limited to failure paths so successful runs do not add noise.
+- Document where to find the diagnostics in `support/ci/README.md`.
+
+Links
+- `.github/workflows/hab-pkg-build-upload.yaml`
+- `.github/workflows/adhoc-hab-pkg-build-upload.yaml`
+- `.github/actions/hab-pkg-build-and-upload-linux/action.yaml`
+- `support/ci/README.md`
+
+Good first task / agent patch plan
+- Add `if: failure()` artifact upload steps to both workflows.
+- Emit a small summary file from the composite action or workflow step.
+- Reference the uploaded artifact names in the workflow summary.
+
+Issue 4: Add scheduled cargo-audit runs with advisory update guidance
+Problem
+- `Rust Cargo Audit` now supports manual and push execution, but there is no scheduled safety net to catch newly published advisories when the repo is quiet.
+
+Acceptance
+- Add a scheduled trigger to `.github/workflows/rust-cargo-audit-check.yml`.
+- Keep the existing push and manual triggers intact.
+- Document the schedule, cache behavior, and rollback path in `support/ci/README.md`.
+- The workflow still uses the pinned `cargo-audit` cache key and remains cancel-safe per ref.
+
+Links
+- `.github/workflows/rust-cargo-audit-check.yml`
+- `support/ci/README.md`
+
+Good first task / agent patch plan
+- Add a conservative cron schedule.
+- Update the workflow comments and README with when the schedule runs and why.
+- Confirm the concurrency group still behaves correctly for push versus schedule runs.
+
+Issue 5: Test changed-component matrix generation before publishing
+Problem
+- The package publish workflow depends on changed-path detection to decide which components enter the matrix, but there is no regression test for that mapping.
+
+Acceptance
+- Add a lightweight validation script or test fixture set for component path-to-matrix mapping.
+- Cover at least these cases: one component changed, multiple components changed, no package-bearing component changed.
+- Make the validation runnable locally and reference it from `support/ci/README.md`.
+- Do not require a real GitHub Actions run to verify the mapping logic.
+
+Links
+- `.github/workflows/hab-pkg-build-upload.yaml`
+- `support/ci/README.md`
+- `components/`
+
+Good first task / agent patch plan
+- Extract or mirror the path-filter expectations into a small local test script.
+- Add a few fixture path lists and expected matrix outputs.
+- Hook that script into a repo-owned validation workflow or documented local command.
