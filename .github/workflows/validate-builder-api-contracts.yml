@@ -1,0 +1,51 @@
+name: Validate builder-api contracts
+
+on:
+  pull_request:
+    paths:
+      - components/builder-api/src/server/helpers.rs
+      - components/builder-api/tests/fixtures/package_results_contract.json
+      - .github/workflows/validate-builder-api-contracts.yml
+  push:
+    branches:
+      - main
+      - release/**
+    paths:
+      - components/builder-api/src/server/helpers.rs
+      - components/builder-api/tests/fixtures/package_results_contract.json
+      - .github/workflows/validate-builder-api-contracts.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  builder-api-contract-test:
+    name: Run builder-api contract test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            clang \
+            cmake \
+            libarchive-dev \
+            libpq-dev \
+            libsodium-dev \
+            libssl-dev \
+            libzmq3-dev \
+            pkg-config \
+            protobuf-compiler
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.91.1
+
+      - name: Run package results contract test
+        run: cd components/builder-api && cargo test package_results_json_contract_matches_golden -- --nocapture

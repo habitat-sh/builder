@@ -1,0 +1,15 @@
+{
+  "range_start": 10,
+  "range_end": 19,
+  "total_count": 42,
+  "data": [
+    {
+      "ident": "core/redis/7.2.5/20240501010101",
+      "checksum": "sha256:1111111111111111"
+    },
+    {
+      "ident": "core/nginx/1.27.0/20240502020202",
+      "checksum": "sha256:2222222222222222"
+    }
+  ]
+}

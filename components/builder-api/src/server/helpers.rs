@@ -279,3 +279,39 @@ mod ymd_date_format {
         Ok(naive_date.and_hms_opt(0, 0, 0).unwrap())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::package_results_json;
+    use serde::Serialize;
+    use serde_json::Value;
+
+    #[derive(Serialize)]
+    struct TestPackage<'a> {
+        ident: &'a str,
+        checksum: &'a str,
+    }
+
+    #[test]
+    fn package_results_json_contract_matches_golden() {
+        let packages = vec![TestPackage { ident:    "core/redis/7.2.5/20240501010101",
+                                          checksum: "sha256:1111111111111111", },
+                            TestPackage { ident:    "core/nginx/1.27.0/20240502020202",
+                                          checksum: "sha256:2222222222222222", }];
+
+        let actual = package_results_json(&packages, 42, 10, 19);
+        let actual_json: Value = serde_json::from_str(&actual).unwrap();
+        let expected_json: Value =
+            serde_json::from_str(include_str!(concat!(env!("CARGO_MANIFEST_DIR"),
+                                                      "/tests/fixtures/package_results_contract.json")))
+                .unwrap();
+
+        assert_eq!(actual_json, expected_json);
+        assert_eq!(actual_json["range_start"], 10);
+        assert_eq!(actual_json["range_end"], 19);
+        assert_eq!(actual_json["total_count"], 42);
+        assert_eq!(actual_json["data"].as_array().map(std::vec::Vec::len), Some(2));
+        assert_eq!(actual_json["data"][0]["ident"], "core/redis/7.2.5/20240501010101");
+        assert_eq!(actual_json["data"][1]["checksum"], "sha256:2222222222222222");
+    }
+}
