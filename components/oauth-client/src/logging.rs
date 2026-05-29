@@ -14,6 +14,10 @@
 
 use reqwest::StatusCode;
 
+pub(crate) fn debug_authenticate_start(provider: &str) {
+    debug!("{} authenticate start", provider);
+}
+
 pub(crate) fn debug_response(provider: &str, operation: &str, status: StatusCode, body: &str) {
     debug!("{} {} response: {}",
            provider,
@@ -41,4 +45,7 @@ mod test {
         assert_eq!(response_summary(StatusCode::BAD_REQUEST, "{\"error\":\"invalid\"}"),
                    "status=400 Bad Request, body=<redacted 19 bytes>");
     }
+
+    #[test]
+    fn debug_authenticate_start_uses_provider_key() { debug_authenticate_start("chef-automate"); }
 }

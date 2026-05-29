@@ -24,6 +24,11 @@ use crate::{config::OAuth2Cfg,
                     Result},
             form::encode,
             logging::debug_response,
+            metrics::{observe_failure,
+                      observe_http_failure,
+                      observe_request,
+                      FailureKind,
+                      Operation},
             types::*};
 use async_trait::async_trait;
 pub struct AzureAD;
@@ -45,6 +50,7 @@ impl AzureAD {
                   client: &HttpClient,
                   token: &str)
                   -> Result<OAuth2User> {
+        observe_request(&config.provider, Operation::UserInfo);
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone()];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
@@ -53,22 +59,36 @@ impl AzureAD {
                          .bearer_auth(token)
                          .send()
                          .await
-                         .map_err(Error::HttpClient)?;
+                         .map_err(|e| {
+                             observe_failure(&config.provider,
+                                             Operation::UserInfo,
+                                             FailureKind::Transport);
+                             Error::HttpClient(e)
+                         })?;
 
         let status = resp.status();
-        let body = resp.text().await.map_err(Error::HttpClient)?;
-        debug_response("AzureAD", "userinfo", status, &body);
+        let body = resp.text().await.map_err(|e| {
+                                         observe_failure(&config.provider,
+                                                         Operation::UserInfo,
+                                                         FailureKind::Transport);
+                                         Error::HttpClient(e)
+                                     })?;
+        debug_response(&config.provider, "userinfo", status, &body);
 
         if status.is_success() {
             let user = match serde_json::from_str::<User>(&body) {
                 Ok(msg) => msg,
-                Err(e) => return Err(Error::Serialization(e)),
+                Err(e) => {
+                    observe_failure(&config.provider, Operation::UserInfo, FailureKind::Parse);
+                    return Err(Error::Serialization(e));
+                }
             };
 
             Ok(OAuth2User { id:       user.sub,
                             username: user.upn,
                             email:    None, })
         } else {
+            observe_http_failure(&config.provider, Operation::UserInfo, status);
             Err(Error::HttpResponse(status, body))
         }
     }
@@ -81,6 +101,7 @@ impl OAuth2Provider for AzureAD {
                           client: &HttpClient,
                           code: &str)
                           -> Result<(String, OAuth2User)> {
+        observe_request(&config.provider, Operation::Token);
         let body = encode(&[("client_id", config.client_id.as_str()),
                             ("client_secret", config.client_secret.as_str()),
                             ("grant_type", "authorization_code"),
@@ -92,23 +113,36 @@ impl OAuth2Provider for AzureAD {
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
         let body: Body = body.into();
 
-        let resp = client.post(&config.token_url)
-                         .headers(headers)
-                         .body(body)
-                         .send()
-                         .await
-                         .map_err(Error::HttpClient)?;
+        let resp =
+            client.post(&config.token_url)
+                  .headers(headers)
+                  .body(body)
+                  .send()
+                  .await
+                  .map_err(|e| {
+                      observe_failure(&config.provider, Operation::Token, FailureKind::Transport);
+                      Error::HttpClient(e)
+                  })?;
 
         let status = resp.status();
-        let body = resp.text().await.map_err(Error::HttpClient)?;
-        debug_response("AzureAD", "token", status, &body);
+        let body = resp.text().await.map_err(|e| {
+                                         observe_failure(&config.provider,
+                                                         Operation::Token,
+                                                         FailureKind::Transport);
+                                         Error::HttpClient(e)
+                                     })?;
+        debug_response(&config.provider, "token", status, &body);
 
         let token = if status.is_success() {
             match serde_json::from_str::<AuthOk>(&body) {
                 Ok(msg) => msg.access_token,
-                Err(e) => return Err(Error::Serialization(e)),
+                Err(e) => {
+                    observe_failure(&config.provider, Operation::Token, FailureKind::Parse);
+                    return Err(Error::Serialization(e));
+                }
             }
         } else {
+            observe_http_failure(&config.provider, Operation::Token, status);
             return Err(Error::HttpResponse(status, body));
         };
 

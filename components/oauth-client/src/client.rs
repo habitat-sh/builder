@@ -20,6 +20,7 @@ use crate::{a2::A2,
             error::Result,
             github::GitHub,
             gitlab::GitLab,
+            logging::debug_authenticate_start,
             metrics::Counter,
             okta::Okta,
             types::*};
@@ -59,6 +60,7 @@ impl OAuth2Client {
 
     pub async fn authenticate(&self, code: &str) -> Result<(String, OAuth2User)> {
         Counter::Authenticate(self.config.provider.clone()).increment();
+        debug_authenticate_start(&self.config.provider);
         debug!("Authenticate called, config: {:?}", self.config);
         self.provider
             .authenticate(&self.config, &self.inner, code)
