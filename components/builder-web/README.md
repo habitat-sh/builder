@@ -84,6 +84,45 @@ Files ending with .test.ts and .spec.ts are unit tested. We use
 [Karma](https://karma-runner.github.io/0.13/index.html) and [Jasmine](https://jasmine.github.io/).
 See [app/util.test.ts](app/util.test.ts) for an example.
 
+## Dependency upgrades
+
+Minor dependency upgrades in this component should be kept narrow and validated
+with the same commands used by the existing build/test workflow.
+
+Current minor-upgrade sweep:
+
+| Package | From | To |
+| --- | --- | --- |
+| `ansi_up` | `^5.0.0` | `^5.2.1` |
+| `@types/jasmine` | `^4.3.0` | `^4.6.6` |
+| `@types/node` | `^20.0.0` | `^20.19.41` |
+
+### Validation
+
+Run these commands after updating `package.json` and `package-lock.json`:
+
+```shell
+npm run build
+npm run test-unit
+```
+
+These are the closest local equivalents to the component's CI-facing build and
+unit-test checks.
+
+### Rollback
+
+If one of these minor upgrades regresses the web build or Karma test pipeline:
+
+1. Restore the previous versions in `package.json`.
+2. Regenerate `package-lock.json` with `npm install`.
+3. Re-run `npm run build` and `npm run test-unit` to confirm the rollback.
+
+For this specific sweep, the direct rollback targets are:
+
+- `ansi_up@^5.0.0`
+- `@types/jasmine@^4.3.0`
+- `@types/node@^20.0.0`
+
 ## Tasks
 
 These are defined in [package.json](package.json) and can be run with `npm run
