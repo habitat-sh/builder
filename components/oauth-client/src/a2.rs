@@ -18,6 +18,8 @@ use reqwest::{header::HeaderMap,
 use crate::{config::OAuth2Cfg,
             error::{Error,
                     Result},
+            form::encode,
+            logging::debug_response,
             types::*};
 use async_trait::async_trait;
 use builder_core::http_client::{HttpClient,
@@ -56,7 +58,7 @@ impl A2 {
 
         let status = resp.status();
         let body = resp.text().await.map_err(Error::HttpClient)?;
-        debug!("A2 response body: {}", body);
+        debug_response("A2", "userinfo", status, &body);
 
         if status.is_success() {
             let user = match serde_json::from_str::<User>(&body) {
@@ -80,18 +82,18 @@ impl OAuth2Provider for A2 {
                           client: &HttpClient,
                           code: &str)
                           -> Result<(String, OAuth2User)> {
-        let url = config.token_url.to_string();
-        let body = format!("client_id={}&client_secret={}&grant_type=authorization_code&code={}&\
-                            redirect_uri={}",
-                           config.client_id, config.client_secret, code, config.redirect_url);
+        let body = encode(&[("client_id", config.client_id.as_str()),
+                            ("client_secret", config.client_secret.as_str()),
+                            ("grant_type", "authorization_code"),
+                            ("code", code),
+                            ("redirect_uri", config.redirect_url.as_str())]);
 
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),
                                  CONTENT_TYPE_FORM_URL_ENCODED.clone(),];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
-
         let body: Body = body.into();
 
-        let resp = client.post(&url)
+        let resp = client.post(&config.token_url)
                          .headers(headers)
                          .body(body)
                          .send()
@@ -100,7 +102,7 @@ impl OAuth2Provider for A2 {
 
         let status = resp.status();
         let body = resp.text().await.map_err(Error::HttpClient)?;
-        debug!("A2 response body: {}", body);
+        debug_response("A2", "token", status, &body);
 
         let token = if status.is_success() {
             match serde_json::from_str::<AuthOk>(&body) {

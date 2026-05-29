@@ -12,23 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[macro_use]
-extern crate log;
+pub(crate) fn encode(fields: &[(&str, &str)]) -> String {
+    let mut serializer = url::form_urlencoded::Serializer::new(String::new());
 
-#[macro_use]
-extern crate serde_derive;
+    for (key, value) in fields {
+        serializer.append_pair(key, value);
+    }
 
-pub mod a2;
-pub mod active_directory;
-pub mod azure_ad;
-pub mod bitbucket;
-pub mod client;
-pub mod config;
-pub mod error;
-pub mod form;
-pub mod github;
-pub mod gitlab;
-pub mod logging;
-pub mod metrics;
-pub mod okta;
-pub mod types;
+    serializer.finish()
+}
+
+#[cfg(test)]
+mod test {
+    use super::encode;
+
+    #[test]
+    fn encode_percent_encodes_values() {
+        let encoded = encode(&[("code", "ab+c=="),
+                               ("redirect_uri", "https://example.com/cb?x=1")]);
+
+        assert_eq!(encoded,
+                   "code=ab%2Bc%3D%3D&redirect_uri=https%3A%2F%2Fexample.com%2Fcb%3Fx%3D1");
+    }
+}

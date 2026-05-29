@@ -21,6 +21,8 @@ use builder_core::http_client::{HttpClient,
 use crate::{config::OAuth2Cfg,
             error::{Error,
                     Result},
+            form::encode,
+            logging::debug_response,
             types::*};
 use async_trait::async_trait;
 
@@ -62,7 +64,7 @@ impl Bitbucket {
 
         let status = resp.status();
         let body = resp.text().await.map_err(Error::HttpClient)?;
-        debug!("Bitbucket response body: {}", body);
+        debug_response("Bitbucket", "userinfo", status, &body);
 
         if status.is_success() {
             let user_ok = match serde_json::from_str::<UserOk>(&body) {
@@ -91,16 +93,14 @@ impl OAuth2Provider for Bitbucket {
                           client: &HttpClient,
                           code: &str)
                           -> Result<(String, OAuth2User)> {
-        let url = config.token_url.to_string();
-        let body = format!("grant_type=authorization_code&code={}", code);
+        let body = encode(&[("grant_type", "authorization_code"), ("code", code)]);
 
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),
                                  CONTENT_TYPE_FORM_URL_ENCODED.clone(),];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
-
         let body: Body = body.into();
 
-        let resp = client.post(&url)
+        let resp = client.post(&config.token_url)
                          .headers(headers)
                          .body(body)
                          .basic_auth(&config.client_id[..], Some(&config.client_secret[..]))
@@ -110,7 +110,7 @@ impl OAuth2Provider for Bitbucket {
 
         let status = resp.status();
         let body = resp.text().await.map_err(Error::HttpClient)?;
-        debug!("Bitbucket response body: {}", body);
+        debug_response("Bitbucket", "token", status, &body);
 
         let token = if status.is_success() {
             match serde_json::from_str::<AuthOk>(&body) {

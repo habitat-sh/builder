@@ -13,6 +13,7 @@ reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
+url = "*"
 
 [dependencies.builder_core]
 path = "../builder-core"

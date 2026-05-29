@@ -14,6 +14,8 @@
 
 use std::fmt;
 
+use crate::logging::redacted_body;
+
 #[derive(Debug)]
 pub enum Error {
     BuilderCore(builder_core::Error),
@@ -31,7 +33,8 @@ impl fmt::Display for Error {
             Error::HttpClient(ref e) => format!("{}", e),
             Error::HttpResponse(ref code, ref response) => {
                 format!("Received a non-200 response, status={}, response={}",
-                        code, response)
+                        code,
+                        redacted_body(response))
             }
             Error::Serialization(ref e) => format!("{}", e),
         };
@@ -41,4 +44,20 @@ impl fmt::Display for Error {
 
 impl From<builder_core::Error> for Error {
     fn from(err: builder_core::Error) -> Error { Error::BuilderCore(err) }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Error;
+
+    #[test]
+    fn display_redacts_response_body() {
+        let rendered = format!("{}",
+                               Error::HttpResponse(reqwest::StatusCode::UNAUTHORIZED,
+                                                   "{\"access_token\":\"secret\"}".to_string()));
+
+        assert!(rendered.contains("status=401 Unauthorized"));
+        assert!(rendered.contains("response=<redacted 25 bytes>"));
+        assert!(!rendered.contains("secret"));
+    }
 }
