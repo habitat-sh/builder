@@ -25,6 +25,7 @@ pub mod client;
 pub mod config;
 pub mod error;
 pub mod metrics;
+mod response;
 pub mod types;
 
 pub use crate::{

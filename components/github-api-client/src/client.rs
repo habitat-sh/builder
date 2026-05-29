@@ -3,16 +3,16 @@ use crate::{
     error::{HubError, HubResult},
     jwt::{self, Algorithm},
     metrics::Counter,
+    response,
     types::*,
 };
 use builder_core::{
     http_client::{HttpClient, ACCEPT_GITHUB_JSON, CONTENT_TYPE_APPLICATION_JSON, USER_AGENT_BLDR},
     metrics::CounterMetric,
 };
-use reqwest::{header::HeaderMap, StatusCode};
+use reqwest::header::HeaderMap;
 
 use std::{
-    collections::HashMap,
     path::Path,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -92,17 +92,7 @@ impl GitHubClient {
             .await
             .map_err(HubError::HttpClient)?;
 
-        let status = rep.status();
-        let body = rep.text().await?;
-        debug!("GitHub response body, {}", body);
-
-        if status != StatusCode::OK {
-            let err: HashMap<String, String> = serde_json::from_str(&body)?;
-            return Err(HubError::ApiError(status, err));
-        }
-
-        let contents = serde_json::from_str::<App>(&body)?;
-        Ok(contents)
+        response::read_json(rep).await
     }
 
     pub async fn app_installation_token(&self, install_id: u32) -> HubResult<AppToken> {
@@ -153,18 +143,10 @@ impl GitHubClient {
             .await
             .map_err(HubError::HttpClient)?;
 
-        let status = rep.status();
-        let body = rep.text().await?;
-        debug!("GitHub response body, {}", body);
-        match status {
-            StatusCode::NOT_FOUND => return Ok(None),
-            StatusCode::OK => (),
-            status => {
-                let err: HashMap<String, String> = serde_json::from_str(&body)?;
-                return Err(HubError::ApiError(status, err));
-            }
-        }
-        let mut contents: Contents = serde_json::from_str(&body)?;
+        let mut contents: Contents = match response::read_optional_json(rep).await? {
+            Some(contents) => contents,
+            None => return Ok(None),
+        };
         // We need to strip line feeds as the Github API has started to return
         // base64 content with line feeds.
         if contents.encoding == "base64" {
@@ -191,19 +173,7 @@ impl GitHubClient {
             .await
             .map_err(HubError::HttpClient)?;
 
-        let status = rep.status();
-        let body = rep.text().await?;
-        debug!("GitHub response body, {}", body);
-        match status {
-            StatusCode::NOT_FOUND => return Ok(None),
-            StatusCode::OK => (),
-            status => {
-                let err: HashMap<String, String> = serde_json::from_str(&body)?;
-                return Err(HubError::ApiError(status, err));
-            }
-        }
-        let directory: Vec<DirectoryEntry> = serde_json::from_str(&body)?;
-        Ok(Some(directory))
+        response::read_optional_json(rep).await
     }
 
     pub async fn repo(&self, token: &AppToken, repo: u32) -> HubResult<Option<Repository>> {
@@ -218,19 +188,7 @@ impl GitHubClient {
             .await
             .map_err(HubError::HttpClient)?;
 
-        let status = rep.status();
-        let body = rep.text().await?;
-        debug!("GitHub response body, {}", body);
-        match status {
-            StatusCode::NOT_FOUND => return Ok(None),
-            StatusCode::OK => (),
-            status => {
-                let err: HashMap<String, String> = serde_json::from_str(&body)?;
-                return Err(HubError::ApiError(status, err));
-            }
-        }
-        let value = serde_json::from_str(&body)?;
-        Ok(Some(value))
+        response::read_optional_json(rep).await
     }
 
     // The main purpose of this is just to verify HTTP communication with GH.
@@ -247,16 +205,7 @@ impl GitHubClient {
             .await
             .map_err(HubError::HttpClient)?;
 
-        let status = rep.status();
-        let body = rep.text().await?;
-        debug!("GitHub response body, {}", body);
-
-        if status != StatusCode::OK {
-            let err: HashMap<String, String> = serde_json::from_str(&body)?;
-            return Err(HubError::ApiError(status, err));
-        }
-
-        Ok(())
+        response::expect_ok(rep).await
     }
 }
 
@@ -293,6 +242,7 @@ where
 mod tests {
     use super::*;
     use crate::config;
+    use reqwest::StatusCode;
     use std::{
         env,
         io::{Read, Write},
@@ -470,6 +420,22 @@ mod tests {
             .unwrap();
         assert_eq!(directory.len(), 1);
         assert_eq!(directory[0].name, "plan.sh");
+
+        server.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn repo_returns_none_on_not_found() {
+        let (api_url, server) = spawn_server(
+            "404 Not Found",
+            r#"{"message":"missing"}"#,
+            "GET /repositories/100 HTTP/1.1",
+            Some("opaque-token"),
+        );
+        let client = test_client(api_url);
+
+        let repo = client.repo(&test_token(), 100).await.unwrap();
+        assert!(repo.is_none());
 
         server.join().unwrap();
     }

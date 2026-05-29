@@ -15,6 +15,8 @@
 use std::{collections::HashMap, fmt, io};
 
 use crate::{jwt, types};
+use reqwest::StatusCode;
+use serde_json::Value;
 
 pub type HubResult<T> = Result<T, HubError>;
 
@@ -28,6 +30,30 @@ pub enum HubError {
     IO(io::Error),
     JWT(jwt::Error),
     Serialization(serde_json::Error),
+}
+
+impl HubError {
+    pub fn api_response(status: StatusCode, body: &str) -> Self {
+        let response = match serde_json::from_str::<Value>(body) {
+            Ok(Value::Object(values)) => values
+                .into_iter()
+                .map(|(key, value)| {
+                    let value = match value {
+                        Value::String(value) => value,
+                        other => other.to_string(),
+                    };
+                    (key, value)
+                })
+                .collect(),
+            _ => {
+                let mut response = HashMap::new();
+                response.insert("message".to_string(), body.to_string());
+                response
+            }
+        };
+
+        HubError::ApiError(status, response)
+    }
 }
 
 impl fmt::Display for HubError {
@@ -72,5 +98,25 @@ impl From<builder_core::Error> for HubError {
 impl From<reqwest::Error> for HubError {
     fn from(err: reqwest::Error) -> Self {
         HubError::HttpClient(err)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn api_response_falls_back_to_message_for_plain_text_bodies() {
+        let error = HubError::api_response(StatusCode::BAD_GATEWAY, "upstream timed out");
+
+        match error {
+            HubError::ApiError(StatusCode::BAD_GATEWAY, response) => {
+                assert_eq!(
+                    response.get("message"),
+                    Some(&"upstream timed out".to_string())
+                );
+            }
+            other => panic!("unexpected error: {:?}", other),
+        }
     }
 }
