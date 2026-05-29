@@ -1,32 +1,28 @@
 use super::db_id_format;
-use chrono::{NaiveDate,
-             NaiveDateTime};
-use diesel::{self,
-             pg::PgConnection,
-             result::QueryResult,
-             ExpressionMethods,
-             OptionalExtension,
-             QueryDsl,
-             RunQueryDsl};
+use chrono::{NaiveDate, NaiveDateTime};
+use diesel::{
+    self, pg::PgConnection, result::QueryResult, ExpressionMethods, OptionalExtension, QueryDsl,
+    RunQueryDsl,
+};
 
-use crate::{bldr_core::metrics::CounterMetric,
-            metrics::Counter,
-            schema::license_keys::license_keys};
+use crate::{
+    bldr_core::metrics::CounterMetric, metrics::Counter, schema::license_keys::license_keys,
+};
 
 #[derive(Debug, Identifiable, Serialize, Queryable)]
 pub struct LicenseKey {
     #[serde(with = "db_id_format")]
-    pub id:              i64,
+    pub id: i64,
     #[serde(with = "db_id_format")]
-    pub account_id:      i64,
-    pub license_key:     String,
+    pub account_id: i64,
+    pub license_key: String,
     pub expiration_date: NaiveDate,
-    pub created_at:      Option<NaiveDateTime>,
+    pub created_at: Option<NaiveDateTime>,
 }
 
 pub struct NewLicenseKey<'a> {
-    pub account_id:      i64,
-    pub license_key:     &'a str,
+    pub account_id: i64,
+    pub license_key: &'a str,
     pub expiration_date: NaiveDate,
 }
 
@@ -49,13 +45,15 @@ impl LicenseKey {
             .get_result(conn)
     }
 
-    pub fn get_by_account_id(account_id: i64,
-                             conn: &mut PgConnection)
-                             -> QueryResult<Option<LicenseKey>> {
+    pub fn get_by_account_id(
+        account_id: i64,
+        conn: &mut PgConnection,
+    ) -> QueryResult<Option<LicenseKey>> {
         Counter::DBCall.increment();
 
-        license_keys::table.filter(license_keys::account_id.eq(account_id))
-                           .first::<LicenseKey>(conn)
-                           .optional()
+        license_keys::table
+            .filter(license_keys::account_id.eq(account_id))
+            .first::<LicenseKey>(conn)
+            .optional()
     }
 }

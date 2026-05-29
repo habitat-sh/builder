@@ -15,17 +15,13 @@
 #[macro_use]
 extern crate log;
 
-use std::{fmt,
-          path::PathBuf,
-          process};
+use std::{fmt, path::PathBuf, process};
 
 use builder_core::config::ConfigFile;
-use clap::{Parser,
-           Subcommand};
+use clap::{Parser, Subcommand};
 use habitat_builder_api as bldr_api;
 
-use crate::bldr_api::{config::Config,
-                      server};
+use crate::bldr_api::{config::Config, server};
 
 const VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/VERSION"));
 
@@ -87,7 +83,8 @@ fn config_from_args(cli: BuilderApi) -> Config {
 }
 
 fn exit_with<T>(err: T, code: i32)
-    where T: fmt::Display
+where
+    T: fmt::Display,
 {
     println!("{}", err);
     process::exit(code)

@@ -1,21 +1,17 @@
 use super::AppState;
 use crate::server::error::Error;
-use builder_core::{access_token::AccessToken,
-                   privilege::FeatureFlags};
-use diesel::result::{DatabaseErrorKind,
-                     Error as DieselError};
-use habitat_builder_db::models::{account::{Account,
-                                           AccountToken,
-                                           NewAccount,
-                                           NewAccountToken},
-                                 channel::{Channel,
-                                           CreateChannel},
-                                 origin::{NewOrigin,
-                                          Origin},
-                                 package::PackageVisibility};
-use std::{fs::{self,
-               File},
-          io::Write};
+use builder_core::{access_token::AccessToken, privilege::FeatureFlags};
+use diesel::result::{DatabaseErrorKind, Error as DieselError};
+use habitat_builder_db::models::{
+    account::{Account, AccountToken, NewAccount, NewAccountToken},
+    channel::{Channel, CreateChannel},
+    origin::{NewOrigin, Origin},
+    package::PackageVisibility,
+};
+use std::{
+    fs::{self, File},
+    io::Write,
+};
 
 const BLDR_TOKEN_FILE_NAME: &str = "HAB_AUTH_TOKEN";
 
@@ -31,14 +27,21 @@ pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error>
     let username = &app_state.config.provision.username;
     let email = &app_state.config.provision.email;
     let mut conn = app_state.db.get_conn().map_err(Error::DbError)?;
-    let account = Account::find_or_create(&NewAccount { name: username,
-                                                        email },
-                                          &mut conn).map_err(Error::DieselError)?;
+    let account = Account::find_or_create(
+        &NewAccount {
+            name: username,
+            email,
+        },
+        &mut conn,
+    )
+    .map_err(Error::DieselError)?;
 
     for origin in &app_state.config.provision.origins {
-        let new_origin = NewOrigin { name: origin,
-                                     owner_id: account.id,
-                                     default_package_visibility: &PackageVisibility::Public, };
+        let new_origin = NewOrigin {
+            name: origin,
+            owner_id: account.id,
+            default_package_visibility: &PackageVisibility::Public,
+        };
 
         match Origin::create(&new_origin, &mut conn) {
             Ok(_) => {}
@@ -55,36 +58,43 @@ pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error>
     }
 
     // We automatically create stable and unstable channels when an origin is created.
-    let filtered_channels: Vec<String> =
-        app_state.config
-                 .provision
-                 .channels
-                 .iter()
-                 .filter(|&channel| channel != "stable" && channel != "unstable")
-                 .cloned()
-                 .collect();
+    let filtered_channels: Vec<String> = app_state
+        .config
+        .provision
+        .channels
+        .iter()
+        .filter(|&channel| channel != "stable" && channel != "unstable")
+        .cloned()
+        .collect();
 
-    for (origin, channel) in app_state.config
-                                      .provision
-                                      .origins
-                                      .iter()
-                                      .zip(&filtered_channels)
+    for (origin, channel) in app_state
+        .config
+        .provision
+        .origins
+        .iter()
+        .zip(&filtered_channels)
     {
-        let new_channel = CreateChannel { name: channel,
-                                          origin,
-                                          owner_id: account.id };
+        let new_channel = CreateChannel {
+            name: channel,
+            origin,
+            owner_id: account.id,
+        };
 
         match Channel::create(&new_channel, &mut conn) {
             Ok(_) => {}
             Err(DieselError::DatabaseError(DatabaseErrorKind::UniqueViolation, _)) => {
                 // If there is a unique violation error (conflict), log that the origin already
                 // exists.
-                debug!("Channel {} for Origin {} already exists, skipping creation.",
-                       channel, origin);
+                debug!(
+                    "Channel {} for Origin {} already exists, skipping creation.",
+                    channel, origin
+                );
             }
             Err(err) => {
-                error!("Failed to create channel {} for origin {}, err={:?}",
-                       channel, origin, err); // Log the error
+                error!(
+                    "Failed to create channel {} for origin {}, err={:?}",
+                    channel, origin, err
+                ); // Log the error
                 return Err(Error::DieselError(err));
             }
         }
@@ -100,19 +110,24 @@ pub fn provision_bldr_environment(app_state: &AppState) -> Result<String, Error>
     }
 
     // Create token
-    let token = AccessToken::user_token(&app_state.config.api.key_path,
-                                        account.id as u64,
-                                        FeatureFlags::all().bits())?;
-    let new_token = NewAccountToken { account_id: account.id,
-                                      token:      &token.to_string(), };
+    let token = AccessToken::user_token(
+        &app_state.config.api.key_path,
+        account.id as u64,
+        FeatureFlags::all().bits(),
+    )?;
+    let new_token = NewAccountToken {
+        account_id: account.id,
+        token: &token.to_string(),
+    };
     AccountToken::create(&new_token, &mut conn).map_err(Error::DieselError)?;
 
     // Store the token in a file
     fs::create_dir_all(&app_state.config.provision.token_path).map_err(Error::IO)?;
-    let token_file_path = app_state.config
-                                   .provision
-                                   .token_path
-                                   .join(BLDR_TOKEN_FILE_NAME);
+    let token_file_path = app_state
+        .config
+        .provision
+        .token_path
+        .join(BLDR_TOKEN_FILE_NAME);
     let mut file = File::create(token_file_path).map_err(Error::IO)?;
     file.write_all(token.to_string().as_bytes())
         .map_err(Error::IO)?;

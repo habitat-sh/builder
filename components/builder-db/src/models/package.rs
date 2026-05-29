@@ -1,167 +1,166 @@
-use std::{fmt::{self,
-                Debug},
-          hash::{Hash,
-                 Hasher},
-          io::Write,
-          ops::Deref,
-          str::{self,
-                FromStr},
-          time::Instant};
+use std::{
+    fmt::{self, Debug},
+    hash::{Hash, Hasher},
+    io::Write,
+    ops::Deref,
+    str::{self, FromStr},
+    time::Instant,
+};
 
 use super::db_id_format;
-use crate::{hab_core::{self,
-                       package::{metadata::PackageType,
-                                 FromArchive,
-                                 Identifiable,
-                                 PackageArchive,
-                                 PackageIdent,
-                                 PackageTarget},
-                       ChannelIdent},
-            models::{channel::{Channel,
-                               OriginChannelPackage,
-                               OriginChannelPromote},
-                     settings::OriginPackageSettings},
-            schema::{channel::{origin_channel_packages,
-                               origin_channels},
-                     member::origin_members,
-                     origin::origins,
-                     package::{origin_package_versions,
-                               origin_packages,
-                               origin_packages_with_version_array,
-                               packages_with_channel_platform},
-                     settings::origin_package_settings}};
+use crate::{
+    hab_core::{
+        self,
+        package::{
+            metadata::PackageType, FromArchive, Identifiable, PackageArchive, PackageIdent,
+            PackageTarget,
+        },
+        ChannelIdent,
+    },
+    models::{
+        channel::{Channel, OriginChannelPackage, OriginChannelPromote},
+        settings::OriginPackageSettings,
+    },
+    schema::{
+        channel::{origin_channel_packages, origin_channels},
+        member::origin_members,
+        origin::origins,
+        package::{
+            origin_package_versions, origin_packages, origin_packages_with_version_array,
+            packages_with_channel_platform,
+        },
+        settings::origin_package_settings,
+    },
+};
 use chrono::NaiveDateTime;
-use diesel::{self,
-             deserialize::{self,
-                           FromSql},
-             dsl::{count,
-                   count_star,
-                   sql},
-             pg::{upsert::{excluded,
-                           on_constraint},
-                  Pg,
-                  PgConnection,
-                  PgValue},
-             prelude::*,
-             result::QueryResult,
-             serialize::{self,
-                         IsNull,
-                         Output,
-                         ToSql},
-             sql_types::Text,
-             PgArrayExpressionMethods,
-             RunQueryDsl};
-use diesel_full_text_search::{to_tsquery,
-                              TsQueryExtensions};
+use diesel::{
+    self,
+    deserialize::{self, FromSql},
+    dsl::{count, count_star, sql},
+    pg::{
+        upsert::{excluded, on_constraint},
+        Pg, PgConnection, PgValue,
+    },
+    prelude::*,
+    result::QueryResult,
+    serialize::{self, IsNull, Output, ToSql},
+    sql_types::Text,
+    PgArrayExpressionMethods, RunQueryDsl,
+};
+use diesel_full_text_search::{to_tsquery, TsQueryExtensions};
 use itertools::Itertools;
 
-use crate::{bldr_core::metrics::{CounterMetric,
-                                 HistogramMetric},
-            // error::Error as CrateError,
-            metrics::{Counter,
-                      Histogram},
-            protocol::originsrv::{OriginPackage,
-                                  OriginPackageIdent,
-                                  OriginPackageVisibility}};
+use crate::{
+    bldr_core::metrics::{CounterMetric, HistogramMetric},
+    // error::Error as CrateError,
+    metrics::{Counter, Histogram},
+    protocol::originsrv::{OriginPackage, OriginPackageIdent, OriginPackageVisibility},
+};
 use diesel_derive_enum::DbEnum;
 
-#[derive(Debug,
-         Serialize,
-         Deserialize,
-         QueryableByName,
-         Queryable,
-         Clone,
-         Identifiable)]
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    QueryableByName,
+    Queryable,
+    Clone,
+    Identifiable
+)]
 #[diesel(table_name = origin_packages)]
 pub struct Package {
     #[serde(with = "db_id_format")]
-    pub id:           i64,
+    pub id: i64,
     #[serde(with = "db_id_format")]
-    pub owner_id:     i64,
-    pub name:         String,
-    pub ident:        BuilderPackageIdent,
-    pub ident_array:  Vec<String>,
-    pub checksum:     String,
-    pub manifest:     String,
-    pub config:       String,
-    pub target:       BuilderPackageTarget,
-    pub deps:         Vec<BuilderPackageIdent>,
-    pub tdeps:        Vec<BuilderPackageIdent>,
-    pub build_deps:   Vec<BuilderPackageIdent>,
-    pub build_tdeps:  Vec<BuilderPackageIdent>,
-    pub exposes:      Vec<i32>,
-    pub visibility:   PackageVisibility,
-    pub created_at:   Option<NaiveDateTime>,
-    pub updated_at:   Option<NaiveDateTime>,
-    pub origin:       String,
+    pub owner_id: i64,
+    pub name: String,
+    pub ident: BuilderPackageIdent,
+    pub ident_array: Vec<String>,
+    pub checksum: String,
+    pub manifest: String,
+    pub config: String,
+    pub target: BuilderPackageTarget,
+    pub deps: Vec<BuilderPackageIdent>,
+    pub tdeps: Vec<BuilderPackageIdent>,
+    pub build_deps: Vec<BuilderPackageIdent>,
+    pub build_tdeps: Vec<BuilderPackageIdent>,
+    pub exposes: Vec<i32>,
+    pub visibility: PackageVisibility,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
+    pub origin: String,
     pub package_type: BuilderPackageType,
 }
 
-#[derive(Debug,
-         Serialize,
-         Deserialize,
-         QueryableByName,
-         Queryable,
-         Clone,
-         Identifiable)]
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    QueryableByName,
+    Queryable,
+    Clone,
+    Identifiable
+)]
 #[diesel(table_name = origin_packages_with_version_array)]
 pub struct PackageWithVersionArray {
     #[serde(with = "db_id_format")]
-    pub id:            i64,
+    pub id: i64,
     #[serde(with = "db_id_format")]
-    pub owner_id:      i64,
-    pub name:          String,
-    pub ident:         BuilderPackageIdent,
-    pub ident_array:   Vec<String>,
-    pub checksum:      String,
-    pub manifest:      String,
-    pub config:        String,
-    pub target:        BuilderPackageTarget,
-    pub deps:          Vec<BuilderPackageIdent>,
-    pub tdeps:         Vec<BuilderPackageIdent>,
-    pub exposes:       Vec<i32>,
-    pub created_at:    Option<NaiveDateTime>,
-    pub updated_at:    Option<NaiveDateTime>,
-    pub visibility:    PackageVisibility,
-    pub origin:        String,
-    pub build_deps:    Vec<BuilderPackageIdent>,
-    pub build_tdeps:   Vec<BuilderPackageIdent>,
+    pub owner_id: i64,
+    pub name: String,
+    pub ident: BuilderPackageIdent,
+    pub ident_array: Vec<String>,
+    pub checksum: String,
+    pub manifest: String,
+    pub config: String,
+    pub target: BuilderPackageTarget,
+    pub deps: Vec<BuilderPackageIdent>,
+    pub tdeps: Vec<BuilderPackageIdent>,
+    pub exposes: Vec<i32>,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
+    pub visibility: PackageVisibility,
+    pub origin: String,
+    pub build_deps: Vec<BuilderPackageIdent>,
+    pub build_tdeps: Vec<BuilderPackageIdent>,
     pub version_array: Vec<Option<String>>,
-    pub package_type:  BuilderPackageType,
+    pub package_type: BuilderPackageType,
 }
 
-#[derive(Debug,
-         Serialize,
-         Deserialize,
-         QueryableByName,
-         Queryable,
-         Clone,
-         Identifiable,
-         Eq)]
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    QueryableByName,
+    Queryable,
+    Clone,
+    Identifiable,
+    Eq
+)]
 #[diesel(table_name = packages_with_channel_platform)]
 pub struct PackageWithChannelPlatform {
     #[serde(with = "db_id_format")]
-    pub id:          i64,
+    pub id: i64,
     #[serde(with = "db_id_format")]
-    pub owner_id:    i64,
-    pub name:        String,
-    pub ident:       BuilderPackageIdent,
+    pub owner_id: i64,
+    pub name: String,
+    pub ident: BuilderPackageIdent,
     pub ident_array: Vec<String>,
-    pub checksum:    String,
-    pub manifest:    String,
-    pub config:      String,
-    pub target:      BuilderPackageTarget,
-    pub deps:        Vec<BuilderPackageIdent>,
-    pub tdeps:       Vec<BuilderPackageIdent>,
-    pub build_deps:  Vec<BuilderPackageIdent>,
+    pub checksum: String,
+    pub manifest: String,
+    pub config: String,
+    pub target: BuilderPackageTarget,
+    pub deps: Vec<BuilderPackageIdent>,
+    pub tdeps: Vec<BuilderPackageIdent>,
+    pub build_deps: Vec<BuilderPackageIdent>,
     pub build_tdeps: Vec<BuilderPackageIdent>,
-    pub exposes:     Vec<i32>,
-    pub visibility:  PackageVisibility,
-    pub created_at:  Option<NaiveDateTime>,
-    pub updated_at:  Option<NaiveDateTime>,
-    pub origin:      String,
-    pub channels:    Vec<String>,
-    pub platforms:   Vec<String>,
+    pub exposes: Vec<i32>,
+    pub visibility: PackageVisibility,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
+    pub origin: String,
+    pub channels: Vec<String>,
+    pub platforms: Vec<String>,
 }
 
 impl Hash for PackageWithChannelPlatform {
@@ -178,110 +177,117 @@ impl Hash for PackageWithChannelPlatform {
 impl PartialEq for PackageWithChannelPlatform {
     fn eq(&self, other: &PackageWithChannelPlatform) -> bool {
         self.name == other.name
-        && self.ident == other.ident
-        && self.visibility == other.visibility
-        && self.origin == other.origin
-        && self.channels == other.channels
-        && self.platforms == other.platforms
+            && self.ident == other.ident
+            && self.visibility == other.visibility
+            && self.origin == other.origin
+            && self.channels == other.channels
+            && self.platforms == other.platforms
     }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct PackageIdentWithChannelPlatform {
-    pub origin:    String,
-    pub name:      String,
-    pub version:   Option<String>,
-    pub release:   Option<String>,
-    pub channels:  Vec<String>,
+    pub origin: String,
+    pub name: String,
+    pub version: Option<String>,
+    pub release: Option<String>,
+    pub channels: Vec<String>,
     pub platforms: Vec<String>,
 }
 
 /// We literally never want to select `ident_vector`
 /// so we provide this type and constant to pass to `.select`
-type AllColumns = (origin_packages::id,
-                   origin_packages::owner_id,
-                   origin_packages::name,
-                   origin_packages::ident,
-                   origin_packages::ident_array,
-                   origin_packages::checksum,
-                   origin_packages::manifest,
-                   origin_packages::config,
-                   origin_packages::target,
-                   origin_packages::deps,
-                   origin_packages::tdeps,
-                   origin_packages::build_deps,
-                   origin_packages::build_tdeps,
-                   origin_packages::exposes,
-                   origin_packages::visibility,
-                   origin_packages::created_at,
-                   origin_packages::updated_at,
-                   origin_packages::origin,
-                   origin_packages::package_type);
+type AllColumns = (
+    origin_packages::id,
+    origin_packages::owner_id,
+    origin_packages::name,
+    origin_packages::ident,
+    origin_packages::ident_array,
+    origin_packages::checksum,
+    origin_packages::manifest,
+    origin_packages::config,
+    origin_packages::target,
+    origin_packages::deps,
+    origin_packages::tdeps,
+    origin_packages::build_deps,
+    origin_packages::build_tdeps,
+    origin_packages::exposes,
+    origin_packages::visibility,
+    origin_packages::created_at,
+    origin_packages::updated_at,
+    origin_packages::origin,
+    origin_packages::package_type,
+);
 
-pub const ALL_COLUMNS: AllColumns = (origin_packages::id,
-                                     origin_packages::owner_id,
-                                     origin_packages::name,
-                                     origin_packages::ident,
-                                     origin_packages::ident_array,
-                                     origin_packages::checksum,
-                                     origin_packages::manifest,
-                                     origin_packages::config,
-                                     origin_packages::target,
-                                     origin_packages::deps,
-                                     origin_packages::tdeps,
-                                     origin_packages::build_deps,
-                                     origin_packages::build_tdeps,
-                                     origin_packages::exposes,
-                                     origin_packages::visibility,
-                                     origin_packages::created_at,
-                                     origin_packages::updated_at,
-                                     origin_packages::origin,
-                                     origin_packages::package_type);
+pub const ALL_COLUMNS: AllColumns = (
+    origin_packages::id,
+    origin_packages::owner_id,
+    origin_packages::name,
+    origin_packages::ident,
+    origin_packages::ident_array,
+    origin_packages::checksum,
+    origin_packages::manifest,
+    origin_packages::config,
+    origin_packages::target,
+    origin_packages::deps,
+    origin_packages::tdeps,
+    origin_packages::build_deps,
+    origin_packages::build_tdeps,
+    origin_packages::exposes,
+    origin_packages::visibility,
+    origin_packages::created_at,
+    origin_packages::updated_at,
+    origin_packages::origin,
+    origin_packages::package_type,
+);
 
 type All = diesel::dsl::Select<origin_packages::table, AllColumns>;
 
-type AllColumnsWithVersion = (origin_packages_with_version_array::id,
-                              origin_packages_with_version_array::owner_id,
-                              origin_packages_with_version_array::name,
-                              origin_packages_with_version_array::ident,
-                              origin_packages_with_version_array::ident_array,
-                              origin_packages_with_version_array::checksum,
-                              origin_packages_with_version_array::manifest,
-                              origin_packages_with_version_array::config,
-                              origin_packages_with_version_array::target,
-                              origin_packages_with_version_array::deps,
-                              origin_packages_with_version_array::tdeps,
-                              origin_packages_with_version_array::exposes,
-                              origin_packages_with_version_array::created_at,
-                              origin_packages_with_version_array::updated_at,
-                              origin_packages_with_version_array::visibility,
-                              origin_packages_with_version_array::origin,
-                              origin_packages_with_version_array::build_deps,
-                              origin_packages_with_version_array::build_tdeps,
-                              origin_packages_with_version_array::version_array,
-                              origin_packages_with_version_array::package_type);
+type AllColumnsWithVersion = (
+    origin_packages_with_version_array::id,
+    origin_packages_with_version_array::owner_id,
+    origin_packages_with_version_array::name,
+    origin_packages_with_version_array::ident,
+    origin_packages_with_version_array::ident_array,
+    origin_packages_with_version_array::checksum,
+    origin_packages_with_version_array::manifest,
+    origin_packages_with_version_array::config,
+    origin_packages_with_version_array::target,
+    origin_packages_with_version_array::deps,
+    origin_packages_with_version_array::tdeps,
+    origin_packages_with_version_array::exposes,
+    origin_packages_with_version_array::created_at,
+    origin_packages_with_version_array::updated_at,
+    origin_packages_with_version_array::visibility,
+    origin_packages_with_version_array::origin,
+    origin_packages_with_version_array::build_deps,
+    origin_packages_with_version_array::build_tdeps,
+    origin_packages_with_version_array::version_array,
+    origin_packages_with_version_array::package_type,
+);
 
-pub const ALL_COLUMNS_WITH_VERSION: AllColumnsWithVersion =
-    (origin_packages_with_version_array::id,
-     origin_packages_with_version_array::owner_id,
-     origin_packages_with_version_array::name,
-     origin_packages_with_version_array::ident,
-     origin_packages_with_version_array::ident_array,
-     origin_packages_with_version_array::checksum,
-     origin_packages_with_version_array::manifest,
-     origin_packages_with_version_array::config,
-     origin_packages_with_version_array::target,
-     origin_packages_with_version_array::deps,
-     origin_packages_with_version_array::tdeps,
-     origin_packages_with_version_array::exposes,
-     origin_packages_with_version_array::created_at,
-     origin_packages_with_version_array::updated_at,
-     origin_packages_with_version_array::visibility,
-     origin_packages_with_version_array::origin,
-     origin_packages_with_version_array::build_deps,
-     origin_packages_with_version_array::build_tdeps,
-     origin_packages_with_version_array::version_array,
-     origin_packages_with_version_array::package_type);
+pub const ALL_COLUMNS_WITH_VERSION: AllColumnsWithVersion = (
+    origin_packages_with_version_array::id,
+    origin_packages_with_version_array::owner_id,
+    origin_packages_with_version_array::name,
+    origin_packages_with_version_array::ident,
+    origin_packages_with_version_array::ident_array,
+    origin_packages_with_version_array::checksum,
+    origin_packages_with_version_array::manifest,
+    origin_packages_with_version_array::config,
+    origin_packages_with_version_array::target,
+    origin_packages_with_version_array::deps,
+    origin_packages_with_version_array::tdeps,
+    origin_packages_with_version_array::exposes,
+    origin_packages_with_version_array::created_at,
+    origin_packages_with_version_array::updated_at,
+    origin_packages_with_version_array::visibility,
+    origin_packages_with_version_array::origin,
+    origin_packages_with_version_array::build_deps,
+    origin_packages_with_version_array::build_tdeps,
+    origin_packages_with_version_array::version_array,
+    origin_packages_with_version_array::package_type,
+);
 
 type AllWithVersion =
     diesel::dsl::Select<origin_packages_with_version_array::table, AllColumnsWithVersion>;
@@ -289,81 +295,81 @@ type AllWithVersion =
 #[derive(Debug, Serialize, Deserialize, Clone, Insertable)]
 #[diesel(table_name = origin_packages)]
 pub struct NewPackage {
-    pub origin:       String,
+    pub origin: String,
     #[serde(with = "db_id_format")]
-    pub owner_id:     i64,
-    pub name:         String,
-    pub ident:        BuilderPackageIdent,
-    pub ident_array:  Vec<String>,
-    pub checksum:     String,
-    pub manifest:     String,
-    pub config:       String,
-    pub target:       BuilderPackageTarget,
-    pub deps:         Vec<BuilderPackageIdent>,
-    pub tdeps:        Vec<BuilderPackageIdent>,
-    pub build_deps:   Vec<BuilderPackageIdent>,
-    pub build_tdeps:  Vec<BuilderPackageIdent>,
-    pub exposes:      Vec<i32>,
-    pub visibility:   PackageVisibility,
+    pub owner_id: i64,
+    pub name: String,
+    pub ident: BuilderPackageIdent,
+    pub ident_array: Vec<String>,
+    pub checksum: String,
+    pub manifest: String,
+    pub config: String,
+    pub target: BuilderPackageTarget,
+    pub deps: Vec<BuilderPackageIdent>,
+    pub tdeps: Vec<BuilderPackageIdent>,
+    pub build_deps: Vec<BuilderPackageIdent>,
+    pub build_tdeps: Vec<BuilderPackageIdent>,
+    pub exposes: Vec<i32>,
+    pub visibility: PackageVisibility,
     pub package_type: BuilderPackageType,
-    pub hidden:       bool,
+    pub hidden: bool,
 }
 
 #[derive(Debug)]
 pub struct GetLatestPackage {
-    pub ident:      BuilderPackageIdent,
-    pub target:     BuilderPackageTarget,
+    pub ident: BuilderPackageIdent,
+    pub target: BuilderPackageTarget,
     pub visibility: Vec<PackageVisibility>,
 }
 
 #[derive(Debug)]
 pub struct GetPackage {
-    pub ident:      BuilderPackageIdent,
+    pub ident: BuilderPackageIdent,
     pub visibility: Vec<PackageVisibility>,
-    pub target:     BuilderPackageTarget,
+    pub target: BuilderPackageTarget,
 }
 
 #[derive(Debug)]
 pub struct GetPackageGroup {
-    pub pkgs:       Vec<BuilderPackageIdent>,
+    pub pkgs: Vec<BuilderPackageIdent>,
     pub visibility: Vec<PackageVisibility>,
 }
 
 #[derive(Debug)]
 pub struct DeletePackage {
-    pub ident:  BuilderPackageIdent,
+    pub ident: BuilderPackageIdent,
     pub target: BuilderPackageTarget,
 }
 
 #[derive(Debug)]
 pub struct UpdatePackageVisibility {
     pub visibility: PackageVisibility,
-    pub ids:        Vec<i64>,
+    pub ids: Vec<i64>,
 }
 
 pub struct ListPackages {
-    pub ident:      BuilderPackageIdent,
+    pub ident: BuilderPackageIdent,
     pub visibility: Vec<PackageVisibility>,
-    pub offset:     i64,
-    pub limit:      i64,
+    pub offset: i64,
+    pub limit: i64,
 }
 
 pub struct SearchPackages {
-    pub query:      String,
+    pub query: String,
     pub account_id: Option<i64>,
-    pub page:       i64,
-    pub limit:      i64,
+    pub page: i64,
+    pub limit: i64,
 }
 #[derive(Debug, Serialize, Deserialize, Queryable)]
 pub struct OriginPackageVersions {
-    pub origin:        String,
-    pub name:          String,
-    pub version:       String,
+    pub origin: String,
+    pub name: String,
+    pub version: String,
     #[serde(with = "db_id_format")]
     pub release_count: i64,
-    pub latest:        String,
-    pub platforms:     Vec<String>,
-    pub visibility:    PackageVisibility,
+    pub latest: String,
+    pub platforms: Vec<String>,
+    pub visibility: PackageVisibility,
 }
 
 #[derive(DbEnum, Debug, Eq, Hash, Serialize, Deserialize, PartialEq, Clone)]
@@ -402,12 +408,16 @@ impl fmt::Display for PackageVisibility {
 
 impl PackageVisibility {
     pub fn all() -> Vec<Self> {
-        vec![PackageVisibility::Public,
-             PackageVisibility::Private,
-             PackageVisibility::Hidden,]
+        vec![
+            PackageVisibility::Public,
+            PackageVisibility::Private,
+            PackageVisibility::Hidden,
+        ]
     }
 
-    pub fn private() -> Vec<Self> { vec![PackageVisibility::Private, PackageVisibility::Hidden] }
+    pub fn private() -> Vec<Self> {
+        vec![PackageVisibility::Private, PackageVisibility::Hidden]
+    }
 }
 
 impl PackageWithVersionArray {
@@ -417,21 +427,25 @@ impl PackageWithVersionArray {
 }
 
 impl Package {
-    pub fn get_without_target(ident: BuilderPackageIdent,
-                              visibility: Vec<PackageVisibility>,
-                              conn: &mut PgConnection)
-                              -> QueryResult<Package> {
+    pub fn get_without_target(
+        ident: BuilderPackageIdent,
+        visibility: Vec<PackageVisibility>,
+        conn: &mut PgConnection,
+    ) -> QueryResult<Package> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let result = Self::all().filter(origin_packages::ident.eq(ident))
-                                .filter(origin_packages::visibility.eq_any(visibility))
-                                .filter(origin_packages::hidden.eq(false))
-                                .get_result(conn);
+        let result = Self::all()
+            .filter(origin_packages::ident.eq(ident))
+            .filter(origin_packages::visibility.eq_any(visibility))
+            .filter(origin_packages::hidden.eq(false))
+            .get_result(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
-        trace!("DBCall package::get_without_target time: {} ms",
-               duration_millis);
+        trace!(
+            "DBCall package::get_without_target time: {} ms",
+            duration_millis
+        );
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageGetWithoutTargetCallTime.set(duration_millis as f64);
         result
@@ -441,11 +455,12 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let result = Self::all().filter(origin_packages::ident.eq(req.ident))
-                                .filter(origin_packages::visibility.eq_any(req.visibility))
-                                .filter(origin_packages::target.eq(req.target))
-                                .filter(origin_packages::hidden.eq(false))
-                                .get_result(conn);
+        let result = Self::all()
+            .filter(origin_packages::ident.eq(req.ident))
+            .filter(origin_packages::visibility.eq_any(req.visibility))
+            .filter(origin_packages::target.eq(req.target))
+            .filter(origin_packages::hidden.eq(false))
+            .get_result(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::get time: {} ms", duration_millis);
@@ -468,10 +483,11 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let result = Self::all().filter(origin_packages::ident.eq_any(req.pkgs))
-                                .filter(origin_packages::visibility.eq_any(req.visibility))
-                                .filter(origin_packages::hidden.eq(false))
-                                .get_results(conn);
+        let result = Self::all()
+            .filter(origin_packages::ident.eq_any(req.pkgs))
+            .filter(origin_packages::visibility.eq_any(req.visibility))
+            .filter(origin_packages::hidden.eq(false))
+            .get_results(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::get_group time: {} ms", duration_millis);
@@ -480,18 +496,19 @@ impl Package {
         result
     }
 
-    pub fn get_all(req_ident: &BuilderPackageIdent,
-                   conn: &mut PgConnection)
-                   -> QueryResult<Vec<Package>> {
+    pub fn get_all(
+        req_ident: &BuilderPackageIdent,
+        conn: &mut PgConnection,
+    ) -> QueryResult<Vec<Package>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let result =
-            Self::all().filter(origin_packages::origin.eq(&req_ident.origin))
-                       .filter(origin_packages::name.eq(&req_ident.name))
-                       .filter(origin_packages::ident_array.contains(req_ident.clone().parts()))
-                       .filter(origin_packages::hidden.eq(false))
-                       .get_results(conn);
+        let result = Self::all()
+            .filter(origin_packages::origin.eq(&req_ident.origin))
+            .filter(origin_packages::name.eq(&req_ident.name))
+            .filter(origin_packages::ident_array.contains(req_ident.clone().parts()))
+            .filter(origin_packages::hidden.eq(false))
+            .get_results(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::get_all time: {} ms", duration_millis);
@@ -500,9 +517,10 @@ impl Package {
         result
     }
 
-    pub fn get_latest(req: GetLatestPackage,
-                      conn: &mut PgConnection)
-                      -> QueryResult<PackageWithVersionArray> {
+    pub fn get_latest(
+        req: GetLatestPackage,
+        conn: &mut PgConnection,
+    ) -> QueryResult<PackageWithVersionArray> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -548,8 +566,10 @@ impl Package {
             ))
             .get_results(conn);
         let duration_millis = start_time.elapsed().as_millis();
-        trace!("DBCall package::get_all_latest time: {} ms",
-               duration_millis);
+        trace!(
+            "DBCall package::get_all_latest time: {} ms",
+            duration_millis
+        );
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageGetAllLatestCallTime.set(duration_millis as f64);
         result
@@ -581,36 +601,43 @@ impl Package {
             ))
             .get_result::<Package>(conn)?;
 
-        OriginChannelPackage::promote(OriginChannelPromote { ident:   package.ident.clone(),
-                                                             target:  package.target.0,
-                                                             origin:  package.origin.clone(),
-                                                             channel: ChannelIdent::unstable(), },
-                                      conn)?;
+        OriginChannelPackage::promote(
+            OriginChannelPromote {
+                ident: package.ident.clone(),
+                target: package.target.0,
+                origin: package.origin.clone(),
+                channel: ChannelIdent::unstable(),
+            },
+            conn,
+        )?;
         Ok(pkg)
     }
 
-    pub fn update_visibility(vis: PackageVisibility,
-                             idt: BuilderPackageIdent,
-                             conn: &mut PgConnection)
-                             -> QueryResult<usize> {
+    pub fn update_visibility(
+        vis: PackageVisibility,
+        idt: BuilderPackageIdent,
+        conn: &mut PgConnection,
+    ) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origin_packages::table.filter(origin_packages::ident.eq(idt)))
             .set(origin_packages::visibility.eq(vis))
             .execute(conn)
     }
 
-    pub fn update_visibility_bulk(req: UpdatePackageVisibility,
-                                  conn: &mut PgConnection)
-                                  -> QueryResult<usize> {
+    pub fn update_visibility_bulk(
+        req: UpdatePackageVisibility,
+        conn: &mut PgConnection,
+    ) -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::update(origin_packages::table.filter(origin_packages::id.eq_any(req.ids)))
             .set(origin_packages::visibility.eq(req.visibility))
             .execute(conn)
     }
 
-    pub fn list(pl: &ListPackages,
-                conn: &mut PgConnection)
-                -> QueryResult<(Vec<PackageWithChannelPlatform>, i64)> {
+    pub fn list(
+        pl: &ListPackages,
+        conn: &mut PgConnection,
+    ) -> QueryResult<(Vec<PackageWithChannelPlatform>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -653,10 +680,10 @@ impl Package {
             let all_rows: Vec<PackageWithChannelPlatform> = query_all.load(conn)?;
 
             // Apply deduplication BEFORE pagination to ensure consistent page sizes
-            let deduplicated_rows: Vec<PackageWithChannelPlatform> =
-                all_rows.into_iter()
-                        .unique_by(|p| (p.ident.clone(), p.origin.clone()))
-                        .collect();
+            let deduplicated_rows: Vec<PackageWithChannelPlatform> = all_rows
+                .into_iter()
+                .unique_by(|p| (p.ident.clone(), p.origin.clone()))
+                .collect();
 
             let total_count = deduplicated_rows.len() as i64;
 
@@ -692,9 +719,10 @@ impl Package {
         }
     }
 
-    pub fn list_distinct(pl: &ListPackages,
-                         conn: &mut PgConnection)
-                         -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+    pub fn list_distinct(
+        pl: &ListPackages,
+        conn: &mut PgConnection,
+    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -706,33 +734,34 @@ impl Package {
         let offset_val = pl.offset;
         let limit = pl.limit;
 
-        let mut count_query =
-            origin_packages::table.filter(origin_packages::origin.eq(origin_str.clone()))
-                                  .into_boxed();
+        let mut count_query = origin_packages::table
+            .filter(origin_packages::origin.eq(origin_str.clone()))
+            .into_boxed();
         // We need the into_boxed above to be able to conditionally filter and not break the
         // typesystem.
         if !name_str.is_empty() {
             count_query = count_query.filter(origin_packages::name.eq(name_str.clone()));
         }
-        let total_count: i64 =
-            count_query.filter(origin_packages::ident_array.contains(parts.clone()))
-                       .filter(origin_packages::visibility.eq_any(visibility.clone()))
-                       .filter(origin_packages::hidden.eq(false))
-                       .select(sql::<diesel::sql_types::BigInt>("COUNT(DISTINCT \
+        let total_count: i64 = count_query
+            .filter(origin_packages::ident_array.contains(parts.clone()))
+            .filter(origin_packages::visibility.eq_any(visibility.clone()))
+            .filter(origin_packages::hidden.eq(false))
+            .select(sql::<diesel::sql_types::BigInt>(
+                "COUNT(DISTINCT \
                                                                  (origin_packages.origin, \
-                                                                 origin_packages.name))"))
-                       .first(conn)?;
+                                                                 origin_packages.name))",
+            ))
+            .first(conn)?;
 
-        let mut page_query =
-            origin_packages::table.filter(origin_packages::origin.eq(origin_str.clone()))
-                                  .filter(origin_packages::ident_array.contains(parts))
-                                  .filter(origin_packages::visibility.eq_any(visibility))
-                                  .filter(origin_packages::hidden.eq(false))
-                                  .select((origin_packages::origin, origin_packages::name))
-                                  .distinct()
-                                  .order((origin_packages::name.asc(),
-                                          origin_packages::origin.asc()))
-                                  .into_boxed();
+        let mut page_query = origin_packages::table
+            .filter(origin_packages::origin.eq(origin_str.clone()))
+            .filter(origin_packages::ident_array.contains(parts))
+            .filter(origin_packages::visibility.eq_any(visibility))
+            .filter(origin_packages::hidden.eq(false))
+            .select((origin_packages::origin, origin_packages::name))
+            .distinct()
+            .order((origin_packages::name.asc(), origin_packages::origin.asc()))
+            .into_boxed();
         if !pl.ident.name.is_empty() {
             page_query = page_query.filter(origin_packages::name.eq(pl.ident.name.clone()));
         }
@@ -743,14 +772,17 @@ impl Package {
         let rows: Vec<(String, String)> =
             page_query.limit(limit_i64).offset(offset_i64).load(conn)?;
 
-        let pkgs: Vec<BuilderPackageIdent> = rows.into_iter()
-                                                 .map(|(origin, name)| {
-                                                     BuilderPackageIdent(PackageIdent { origin,
-                                                       name,
-                                                       version: None,
-                                                       release: None })
-                                                 })
-                                                 .collect();
+        let pkgs: Vec<BuilderPackageIdent> = rows
+            .into_iter()
+            .map(|(origin, name)| {
+                BuilderPackageIdent(PackageIdent {
+                    origin,
+                    name,
+                    version: None,
+                    release: None,
+                })
+            })
+            .collect();
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::list_distinct time: {} ms", duration_millis);
@@ -767,9 +799,10 @@ impl Package {
         Ok((pkgs, total_count))
     }
 
-    pub fn distinct_for_origin(pl: &ListPackages,
-                               conn: &mut PgConnection)
-                               -> QueryResult<(Vec<OriginPackageSettings>, i64)> {
+    pub fn distinct_for_origin(
+        pl: &ListPackages,
+        conn: &mut PgConnection,
+    ) -> QueryResult<(Vec<OriginPackageSettings>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -791,9 +824,10 @@ impl Package {
 
         // Get all records and deduplicate in memory (this ensures consistent pagination)
         let all_rows: Vec<OriginPackageSettings> = base_query.load(conn)?;
-        let unique_by_name: Vec<OriginPackageSettings> = all_rows.into_iter()
-                                                                 .unique_by(|pkg| pkg.name.clone())
-                                                                 .collect();
+        let unique_by_name: Vec<OriginPackageSettings> = all_rows
+            .into_iter()
+            .unique_by(|pkg| pkg.name.clone())
+            .collect();
 
         let total_count = unique_by_name.len() as i64;
 
@@ -812,18 +846,21 @@ impl Package {
         };
 
         let duration_millis = start_time.elapsed().as_millis();
-        trace!("DBCall package::list_distinct_for_origin time: {} ms",
-               duration_millis);
+        trace!(
+            "DBCall package::list_distinct_for_origin time: {} ms",
+            duration_millis
+        );
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageListDistinctForOriginCallTime.set(duration_millis as f64);
         Ok((results, total_count))
     }
 
-    pub fn list_package_channels(ident: &BuilderPackageIdent,
-                                 target: PackageTarget,
-                                 visibility: Vec<PackageVisibility>,
-                                 conn: &mut PgConnection)
-                                 -> QueryResult<Vec<Channel>> {
+    pub fn list_package_channels(
+        ident: &BuilderPackageIdent,
+        target: PackageTarget,
+        visibility: Vec<PackageVisibility>,
+        conn: &mut PgConnection,
+    ) -> QueryResult<Vec<Channel>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -845,17 +882,20 @@ impl Package {
             .get_results(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
-        trace!("DBCall package::list_package_channels time: {} ms",
-               duration_millis);
+        trace!(
+            "DBCall package::list_package_channels time: {} ms",
+            duration_millis
+        );
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageListPackageChannelsCallTime.set(duration_millis as f64);
         result
     }
 
-    pub fn list_package_versions(ident: &BuilderPackageIdent,
-                                 visibility: Vec<PackageVisibility>,
-                                 conn: &mut PgConnection)
-                                 -> QueryResult<Vec<OriginPackageVersions>> {
+    pub fn list_package_versions(
+        ident: &BuilderPackageIdent,
+        visibility: Vec<PackageVisibility>,
+        conn: &mut PgConnection,
+    ) -> QueryResult<Vec<OriginPackageVersions>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -869,8 +909,10 @@ impl Package {
             .get_results(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
-        trace!("DBCall package::list_package_versions time: {} ms",
-               duration_millis);
+        trace!(
+            "DBCall package::list_package_versions time: {} ms",
+            duration_millis
+        );
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageListPackageVersionsCallTime.set(duration_millis as f64);
         result
@@ -880,22 +922,26 @@ impl Package {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
-        let result = origin_packages::table.select(count(origin_packages::id))
-                                           .filter(origin_packages::origin.eq(&origin))
-                                           .filter(origin_packages::hidden.eq(false))
-                                           .first(conn);
+        let result = origin_packages::table
+            .select(count(origin_packages::id))
+            .filter(origin_packages::origin.eq(&origin))
+            .filter(origin_packages::hidden.eq(false))
+            .first(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
-        trace!("DBCall package::count_origin_packages time: {} ms",
-               duration_millis);
+        trace!(
+            "DBCall package::count_origin_packages time: {} ms",
+            duration_millis
+        );
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageCountOriginPackages.set(duration_millis as f64);
         result
     }
 
-    pub fn search(sp: &SearchPackages,
-                  conn: &mut PgConnection)
-                  -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+    pub fn search(
+        sp: &SearchPackages,
+        conn: &mut PgConnection,
+    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -905,9 +951,9 @@ impl Package {
             .filter(origin_packages::hidden.eq(false));
 
         if let Some(session_id) = sp.account_id {
-            let owned_origins =
-                origin_members::table.select(origin_members::origin)
-                                     .filter(origin_members::account_id.eq(session_id));
+            let owned_origins = origin_members::table
+                .select(origin_members::origin)
+                .filter(origin_members::account_id.eq(session_id));
 
             count_query = count_query.filter(
                 origin_packages::visibility
@@ -928,9 +974,9 @@ impl Package {
             .filter(origin_packages::hidden.eq(false));
 
         if let Some(session_id) = sp.account_id {
-            let owned_origins =
-                origin_members::table.select(origin_members::origin)
-                                     .filter(origin_members::account_id.eq(session_id));
+            let owned_origins = origin_members::table
+                .select(origin_members::origin)
+                .filter(origin_members::account_id.eq(session_id));
 
             page_query = page_query.filter(
                 origin_packages::visibility
@@ -946,11 +992,12 @@ impl Package {
         let limit = sp.limit;
         let offset = (sp.page.saturating_sub(1)) * sp.limit;
 
-        let packages: Vec<BuilderPackageIdent> = page_query.select(origin_packages::ident)
-                                                           .order(origin_packages::ident.asc())
-                                                           .limit(limit)
-                                                           .offset(offset)
-                                                           .load(conn)?;
+        let packages: Vec<BuilderPackageIdent> = page_query
+            .select(origin_packages::ident)
+            .order(origin_packages::ident.asc())
+            .limit(limit)
+            .offset(offset)
+            .load(conn)?;
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall package::search time: {} ms", duration_millis);
@@ -961,9 +1008,10 @@ impl Package {
     }
 
     // This is me giving up on fighting the typechecker and just duplicating a bunch of code
-    pub fn search_distinct(sp: &SearchPackages,
-                           conn: &mut PgConnection)
-                           -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
+    pub fn search_distinct(
+        sp: &SearchPackages,
+        conn: &mut PgConnection,
+    ) -> QueryResult<(Vec<BuilderPackageIdent>, i64)> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -985,11 +1033,13 @@ impl Package {
                 count_query.filter(origin_packages::visibility.eq(PackageVisibility::Public));
         }
 
-        let total_count: i64 =
-            count_query.select(sql::<diesel::sql_types::BigInt>("COUNT(DISTINCT concat_ws('/', \
+        let total_count: i64 = count_query
+            .select(sql::<diesel::sql_types::BigInt>(
+                "COUNT(DISTINCT concat_ws('/', \
                                                                  origins.name, \
-                                                                 origin_packages.name))"))
-                       .first(conn)?;
+                                                                 origin_packages.name))",
+            ))
+            .first(conn)?;
 
         let mut page_query = origin_packages::table
             .inner_join(origins::table)
@@ -1027,12 +1077,15 @@ impl Package {
         Ok((packages, total_count))
     }
 
-    pub fn all() -> All { origin_packages::table.select(ALL_COLUMNS) }
+    pub fn all() -> All {
+        origin_packages::table.select(ALL_COLUMNS)
+    }
 
-    pub fn list_package_platforms(ident: &BuilderPackageIdent,
-                                  visibilities: Vec<PackageVisibility>,
-                                  conn: &mut PgConnection)
-                                  -> QueryResult<Vec<BuilderPackageTarget>> {
+    pub fn list_package_platforms(
+        ident: &BuilderPackageIdent,
+        visibilities: Vec<PackageVisibility>,
+        conn: &mut PgConnection,
+    ) -> QueryResult<Vec<BuilderPackageTarget>> {
         Counter::DBCall.increment();
         let start_time = Instant::now();
 
@@ -1046,8 +1099,10 @@ impl Package {
             .get_results(conn);
 
         let duration_millis = start_time.elapsed().as_millis();
-        trace!("DBCall package::list_package_platforms time: {} ms",
-               duration_millis);
+        trace!(
+            "DBCall package::list_package_platforms time: {} ms",
+            duration_millis
+        );
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::PackageListPackagePlatformsCallTime.set(duration_millis as f64);
         result
@@ -1058,8 +1113,8 @@ impl Package {
         // determining whether a package is a service from the DB instead of needing
         // to crack the archive file to look for a SVC_USER file
         self.manifest.contains("pkg_exposes")
-        || self.manifest.contains("pkg_binds")
-        || self.manifest.contains("pkg_exports")
+            || self.manifest.contains("pkg_binds")
+            || self.manifest.contains("pkg_exports")
     }
 }
 
@@ -1069,30 +1124,33 @@ impl PackageWithChannelPlatform {
         // determining whether a package is a service from the DB instead of needing
         // to crack the archive file to look for a SVC_USER file
         self.manifest.contains("pkg_exposes")
-        || self.manifest.contains("pkg_binds")
-        || self.manifest.contains("pkg_exports")
+            || self.manifest.contains("pkg_binds")
+            || self.manifest.contains("pkg_exports")
     }
 }
 
 fn searchable_ident(ident: &BuilderPackageIdent) -> Vec<String> {
     // https://github.com/rust-lang/rust-clippy/issues/3071U
     #[allow(clippy::redundant_closure)]
-    ident.to_string()
-         .split('/')
-         .map(|s| s.to_string())
-         .filter(|s| !s.is_empty())
-         .collect()
+    ident
+        .to_string()
+        .split('/')
+        .map(|s| s.to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
 }
 
-#[derive(Debug,
-         Serialize,
-         Deserialize,
-         Clone,
-         FromSqlRow,
-         AsExpression,
-         PartialEq,
-         Eq,
-         Hash)]
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    FromSqlRow,
+    AsExpression,
+    PartialEq,
+    Eq,
+    Hash
+)]
 #[diesel(sql_type = Text)]
 pub struct BuilderPackageType(pub PackageType);
 
@@ -1100,45 +1158,47 @@ impl FromStr for BuilderPackageType {
     type Err = crate::error::Error;
 
     fn from_str(s: &str) -> Result<Self, crate::error::Error> {
-        Ok(BuilderPackageType(PackageType::from_str(s).map_err(|_| {
-                                  crate::error::Error::ParseError(format!("BuilderPackageType {}",
-                                                                          s))
-                              })?))
+        Ok(BuilderPackageType(PackageType::from_str(s).map_err(
+            |_| crate::error::Error::ParseError(format!("BuilderPackageType {}", s)),
+        )?))
     }
 }
 
 impl ToSql<Text, Pg> for BuilderPackageType {
     fn to_sql<'a>(&'a self, out: &mut Output<'a, '_, Pg>) -> serialize::Result {
         out.write_all(self.to_string().as_bytes())
-           .map(|_| IsNull::No)
-           .map_err(Into::into)
+            .map(|_| IsNull::No)
+            .map_err(Into::into)
     }
 }
 
 impl FromSql<Text, Pg> for BuilderPackageType {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
         let s = std::str::from_utf8(bytes.as_bytes()).map_err(std::io::Error::other)?;
-        Ok(BuilderPackageType::from_str(s).map_err(|_| {
-                                              std::io::Error::other(format!("Invalid ident: {}", s))
-                                          })?)
+        Ok(BuilderPackageType::from_str(s)
+            .map_err(|_| std::io::Error::other(format!("Invalid ident: {}", s)))?)
     }
 }
 
 impl Deref for BuilderPackageType {
     type Target = PackageType;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-#[derive(Debug,
-         Serialize,
-         Deserialize,
-         Clone,
-         FromSqlRow,
-         AsExpression,
-         PartialEq,
-         Eq,
-         Hash)]
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    FromSqlRow,
+    AsExpression,
+    PartialEq,
+    Eq,
+    Hash
+)]
 #[diesel(sql_type = Text)]
 pub struct BuilderPackageIdent(pub PackageIdent);
 
@@ -1146,31 +1206,31 @@ impl FromStr for BuilderPackageIdent {
     type Err = crate::error::Error;
 
     fn from_str(s: &str) -> Result<Self, crate::error::Error> {
-        Ok(BuilderPackageIdent(PackageIdent::from_str(s).map_err(|_| {
-                                                            crate::error::Error::ParseError(format!(
+        Ok(BuilderPackageIdent(PackageIdent::from_str(s).map_err(
+            |_| {
+                crate::error::Error::ParseError(format!(
                     "BuilderPackageIdent \
                                                                             {}",
                     s
                 ))
-                                                        })?))
+            },
+        )?))
     }
 }
 
 impl ToSql<Text, Pg> for BuilderPackageIdent {
     fn to_sql<'a>(&'a self, out: &mut Output<'a, '_, Pg>) -> serialize::Result {
         out.write_all(self.to_string().as_bytes())
-           .map(|_| IsNull::No)
-           .map_err(Into::into)
+            .map(|_| IsNull::No)
+            .map_err(Into::into)
     }
 }
 
 impl FromSql<Text, Pg> for BuilderPackageIdent {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
         let s = std::str::from_utf8(bytes.as_bytes()).map_err(std::io::Error::other)?;
-        Ok(BuilderPackageIdent::from_str(s).map_err(|_| {
-                                               std::io::Error::other(format!("Invalid ident: {}",
-                                                                             s))
-                                           })?)
+        Ok(BuilderPackageIdent::from_str(s)
+            .map_err(|_| std::io::Error::other(format!("Invalid ident: {}", s)))?)
     }
 }
 
@@ -1188,25 +1248,31 @@ impl BuilderPackageIdent {
 }
 
 impl From<BuilderPackageIdent> for PackageIdent {
-    fn from(value: BuilderPackageIdent) -> PackageIdent { value.0 }
+    fn from(value: BuilderPackageIdent) -> PackageIdent {
+        value.0
+    }
 }
 
 impl Deref for BuilderPackageIdent {
     type Target = PackageIdent;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-#[derive(Debug,
-         Serialize,
-         Deserialize,
-         Clone,
-         FromSqlRow,
-         AsExpression,
-         PartialEq,
-         Hash,
-         Eq,
-         Copy)]
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    FromSqlRow,
+    AsExpression,
+    PartialEq,
+    Hash,
+    Eq,
+    Copy
+)]
 #[diesel(sql_type = Text)]
 pub struct BuilderPackageTarget(pub PackageTarget);
 
@@ -1223,25 +1289,25 @@ impl FromStr for BuilderPackageTarget {
 impl ToSql<Text, Pg> for BuilderPackageTarget {
     fn to_sql<'a>(&'a self, out: &mut Output<'a, '_, Pg>) -> serialize::Result {
         out.write_all(self.to_string().as_bytes())
-           .map(|_| IsNull::No)
-           .map_err(Into::into)
+            .map(|_| IsNull::No)
+            .map_err(Into::into)
     }
 }
 
 impl FromSql<Text, Pg> for BuilderPackageTarget {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
         let s = std::str::from_utf8(bytes.as_bytes()).map_err(std::io::Error::other)?;
-        Ok(BuilderPackageTarget::from_str(s).map_err(|_| {
-                                                std::io::Error::other(format!("Invalid ident: {}",
-                                                                              s))
-                                            })?)
+        Ok(BuilderPackageTarget::from_str(s)
+            .map_err(|_| std::io::Error::other(format!("Invalid ident: {}", s)))?)
     }
 }
 
 impl Deref for BuilderPackageTarget {
     type Target = PackageTarget;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl FromArchive for NewPackage {
@@ -1258,50 +1324,57 @@ impl FromArchive for NewPackage {
             None => String::from(""),
         };
 
-        let exposes = archive.exposes()?
-                             .into_iter()
-                             .map(i32::from)
-                             .collect::<Vec<i32>>();
+        let exposes = archive
+            .exposes()?
+            .into_iter()
+            .map(i32::from)
+            .collect::<Vec<i32>>();
 
-        let deps = archive.deps()?
-                          .into_iter()
-                          .map(BuilderPackageIdent)
-                          .collect::<Vec<BuilderPackageIdent>>();
+        let deps = archive
+            .deps()?
+            .into_iter()
+            .map(BuilderPackageIdent)
+            .collect::<Vec<BuilderPackageIdent>>();
 
-        let tdeps = archive.tdeps()?
-                           .into_iter()
-                           .map(BuilderPackageIdent)
-                           .collect::<Vec<BuilderPackageIdent>>();
+        let tdeps = archive
+            .tdeps()?
+            .into_iter()
+            .map(BuilderPackageIdent)
+            .collect::<Vec<BuilderPackageIdent>>();
 
-        let build_deps = archive.build_deps()?
-                                .into_iter()
-                                .map(BuilderPackageIdent)
-                                .collect::<Vec<BuilderPackageIdent>>();
+        let build_deps = archive
+            .build_deps()?
+            .into_iter()
+            .map(BuilderPackageIdent)
+            .collect::<Vec<BuilderPackageIdent>>();
 
-        let build_tdeps = archive.build_tdeps()?
-                                 .into_iter()
-                                 .map(BuilderPackageIdent)
-                                 .collect::<Vec<BuilderPackageIdent>>();
+        let build_tdeps = archive
+            .build_tdeps()?
+            .into_iter()
+            .map(BuilderPackageIdent)
+            .collect::<Vec<BuilderPackageIdent>>();
 
         // Some of the values here are made up because they are required in the db but not
         // necessarially requred for a valid package
-        Ok(NewPackage { ident: ident.clone(),
-                        ident_array: ident.clone().parts(),
-                        origin: ident.origin().to_string(),
-                        manifest: archive.manifest()?.to_string(),
-                        target: BuilderPackageTarget(archive.target()?),
-                        deps,
-                        tdeps,
-                        build_deps,
-                        build_tdeps,
-                        exposes,
-                        config,
-                        checksum: archive.checksum()?,
-                        name: ident.name.to_string(),
-                        owner_id: 999_999_999_999,
-                        visibility: PackageVisibility::Public,
-                        package_type: BuilderPackageType(archive.package_type()?),
-                        hidden: false })
+        Ok(NewPackage {
+            ident: ident.clone(),
+            ident_array: ident.clone().parts(),
+            origin: ident.origin().to_string(),
+            manifest: archive.manifest()?.to_string(),
+            target: BuilderPackageTarget(archive.target()?),
+            deps,
+            tdeps,
+            build_deps,
+            build_tdeps,
+            exposes,
+            config,
+            checksum: archive.checksum()?,
+            name: ident.name.to_string(),
+            owner_id: 999_999_999_999,
+            visibility: PackageVisibility::Public,
+            package_type: BuilderPackageType(archive.package_type()?),
+            hidden: false,
+        })
     }
 }
 
@@ -1328,10 +1401,11 @@ impl From<PackageVisibility> for OriginPackageVisibility {
 
 impl From<Package> for OriginPackage {
     fn from(value: Package) -> OriginPackage {
-        let exposes = value.exposes
-                           .into_iter()
-                           .map(|e| e as u32)
-                           .collect::<Vec<u32>>();
+        let exposes = value
+            .exposes
+            .into_iter()
+            .map(|e| e as u32)
+            .collect::<Vec<u32>>();
 
         let mut op = OriginPackage::new();
         let ident = &*value.ident;
@@ -1354,30 +1428,34 @@ impl From<Package> for OriginPackage {
 
 impl From<PackageWithVersionArray> for Package {
     fn from(value: PackageWithVersionArray) -> Package {
-        Package { id:           value.id,
-                  owner_id:     value.owner_id,
-                  name:         value.name.clone(),
-                  ident:        value.ident.clone(),
-                  ident_array:  value.ident_array.clone(),
-                  checksum:     value.checksum.clone(),
-                  manifest:     value.manifest.clone(),
-                  config:       value.config.clone(),
-                  target:       value.target,
-                  deps:         value.deps.clone(),
-                  tdeps:        value.tdeps.clone(),
-                  build_deps:   value.build_deps.clone(),
-                  build_tdeps:  value.build_tdeps.clone(),
-                  exposes:      value.exposes.clone(),
-                  visibility:   value.visibility,
-                  created_at:   value.created_at,
-                  updated_at:   value.updated_at,
-                  origin:       value.origin,
-                  package_type: value.package_type, }
+        Package {
+            id: value.id,
+            owner_id: value.owner_id,
+            name: value.name.clone(),
+            ident: value.ident.clone(),
+            ident_array: value.ident_array.clone(),
+            checksum: value.checksum.clone(),
+            manifest: value.manifest.clone(),
+            config: value.config.clone(),
+            target: value.target,
+            deps: value.deps.clone(),
+            tdeps: value.tdeps.clone(),
+            build_deps: value.build_deps.clone(),
+            build_tdeps: value.build_tdeps.clone(),
+            exposes: value.exposes.clone(),
+            visibility: value.visibility,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+            origin: value.origin,
+            package_type: value.package_type,
+        }
     }
 }
 
 impl From<BuilderPackageIdent> for OriginPackageIdent {
-    fn from(value: BuilderPackageIdent) -> OriginPackageIdent { value.0.into() }
+    fn from(value: BuilderPackageIdent) -> OriginPackageIdent {
+        value.0.into()
+    }
 }
 
 fn into_idents(column: Vec<BuilderPackageIdent>) -> Vec<OriginPackageIdent> {
@@ -1389,22 +1467,26 @@ impl From<PackageWithChannelPlatform> for PackageIdentWithChannelPlatform {
         let mut platforms = value.platforms.clone();
         platforms.dedup();
 
-        PackageIdentWithChannelPlatform { origin: value.ident.origin.clone(),
-                                          name: value.ident.name.clone(),
-                                          version: value.ident.version.clone(),
-                                          release: value.ident.release.clone(),
-                                          channels: value.channels,
-                                          platforms }
+        PackageIdentWithChannelPlatform {
+            origin: value.ident.origin.clone(),
+            name: value.ident.name.clone(),
+            version: value.ident.version.clone(),
+            release: value.ident.release.clone(),
+            channels: value.channels,
+            platforms,
+        }
     }
 }
 
 impl From<BuilderPackageIdent> for PackageIdentWithChannelPlatform {
     fn from(value: BuilderPackageIdent) -> PackageIdentWithChannelPlatform {
-        PackageIdentWithChannelPlatform { origin:    value.origin.clone(),
-                                          name:      value.name.clone(),
-                                          version:   value.version.clone(),
-                                          release:   value.release.clone(),
-                                          channels:  Vec::new(),
-                                          platforms: Vec::new(), }
+        PackageIdentWithChannelPlatform {
+            origin: value.origin.clone(),
+            name: value.name.clone(),
+            version: value.version.clone(),
+            release: value.release.clone(),
+            channels: Vec::new(),
+            platforms: Vec::new(),
+        }
     }
 }

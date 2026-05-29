@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{fmt,
-          result};
+use std::{fmt, result};
 
 #[derive(Debug)]
 pub enum Error {
@@ -53,8 +52,10 @@ impl fmt::Display for Error {
                 format!("Notification received, but the channel is malformed, {}", e)
             }
             Error::AsyncMalformedShardId(ref e) => {
-                format!("Notification received, but the channels shard id is malformed, {}",
-                        e)
+                format!(
+                    "Notification received, but the channels shard id is malformed, {}",
+                    e
+                )
             }
             Error::AsyncFunctionCheck(ref e) => {
                 format!("Async function database check failed, {}", e)
@@ -89,5 +90,7 @@ impl fmt::Display for Error {
 }
 
 impl From<r2d2::Error> for Error {
-    fn from(err: r2d2::Error) -> Error { Error::ConnectionTimeout(err) }
+    fn from(err: r2d2::Error) -> Error {
+        Error::ConnectionTimeout(err)
+    }
 }

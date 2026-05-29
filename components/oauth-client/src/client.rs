@@ -12,25 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{a2::A2,
-            active_directory::ActiveDirectory,
-            azure_ad::AzureAD,
-            bitbucket::Bitbucket,
-            config::OAuth2Cfg,
-            error::Result,
-            github::GitHub,
-            gitlab::GitLab,
-            metrics::Counter,
-            okta::Okta,
-            types::*};
-use builder_core::{http_client::{HttpClient,
-                                 USER_AGENT_BLDR},
-                   metrics::CounterMetric};
+use crate::{
+    a2::A2, active_directory::ActiveDirectory, azure_ad::AzureAD, bitbucket::Bitbucket,
+    config::OAuth2Cfg, error::Result, github::GitHub, gitlab::GitLab, metrics::Counter, okta::Okta,
+    types::*,
+};
+use builder_core::{
+    http_client::{HttpClient, USER_AGENT_BLDR},
+    metrics::CounterMetric,
+};
 use reqwest::header::HeaderMap;
 
 pub struct OAuth2Client {
-    inner:        HttpClient,
-    pub config:   OAuth2Cfg,
+    inner: HttpClient,
+    pub config: OAuth2Cfg,
     pub provider: Box<dyn OAuth2Provider>,
 }
 
@@ -52,9 +47,11 @@ impl OAuth2Client {
             _ => panic!("Unknown OAuth provider: {}", config.provider),
         };
 
-        Ok(OAuth2Client { inner: client,
-                          config,
-                          provider })
+        Ok(OAuth2Client {
+            inner: client,
+            config,
+            provider,
+        })
     }
 
     pub async fn authenticate(&self, code: &str) -> Result<(String, OAuth2User)> {

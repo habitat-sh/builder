@@ -7,44 +7,30 @@ pub mod provision;
 pub mod resources;
 pub mod services;
 
-use self::{framework::middleware::authentication_middleware,
-           resources::{authenticate::Authenticate,
-                       channels::Channels,
-                       events::Events,
-                       ext::Ext,
-                       origins::Origins,
-                       pkgs::Packages,
-                       profile::Profile,
-                       settings::Settings,
-                       user::User},
-           services::{memcache::MemcacheClient,
-                      s3::S3Handler}};
-use crate::{bldr_core::keys,
-            config::{Config,
-                     GatewayCfg},
-            db::{migration,
-                 DbPool}};
-use actix_web::{http::{KeepAlive,
-                       StatusCode},
-                middleware::Logger,
-                web,
-                App,
-                HttpResponse,
-                HttpServer};
+use self::{
+    framework::middleware::authentication_middleware,
+    resources::{
+        authenticate::Authenticate, channels::Channels, events::Events, ext::Ext, origins::Origins,
+        pkgs::Packages, profile::Profile, settings::Settings, user::User,
+    },
+    services::{memcache::MemcacheClient, s3::S3Handler},
+};
+use crate::{
+    bldr_core::keys,
+    config::{Config, GatewayCfg},
+    db::{migration, DbPool},
+};
+use actix_web::{
+    http::{KeepAlive, StatusCode},
+    middleware::Logger,
+    web, App, HttpResponse, HttpServer,
+};
 use artifactory_client::client::ArtifactoryClient;
 use oauth_client::client::OAuth2Client;
-use openssl::ssl::{SslAcceptor,
-                   SslFiletype,
-                   SslMethod,
-                   SslVerifyMode};
-use rand::{self,
-           RngExt};
+use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod, SslVerifyMode};
+use rand::{self, RngExt};
 use resources::jobs::Jobs;
-use std::{cell::RefCell,
-          collections::HashMap,
-          iter::FromIterator,
-          sync::Arc,
-          time::Duration};
+use std::{cell::RefCell, collections::HashMap, iter::FromIterator, sync::Arc, time::Duration};
 
 // This cipher list corresponds to the "intermediate" configuration
 // recommended by Mozilla:
@@ -71,33 +57,36 @@ features! {
 
 // Application state
 pub struct AppState {
-    config:      Config,
-    packages:    S3Handler,
-    oauth:       OAuth2Client,
-    memcache:    RefCell<MemcacheClient>,
+    config: Config,
+    packages: S3Handler,
+    oauth: OAuth2Client,
+    memcache: RefCell<MemcacheClient>,
     artifactory: ArtifactoryClient,
-    db:          DbPool,
+    db: DbPool,
 }
 
 impl AppState {
     pub fn new(config: &Config, db: DbPool) -> error::Result<AppState> {
-        let app_state =
-            AppState { config: config.clone(),
-                       packages: S3Handler::new(config.s3.clone()),
-                       oauth: OAuth2Client::new(config.oauth.clone())?,
-                       memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
-                       artifactory: ArtifactoryClient::new(config.artifactory.clone())?,
-                       db };
+        let app_state = AppState {
+            config: config.clone(),
+            packages: S3Handler::new(config.s3.clone()),
+            oauth: OAuth2Client::new(config.oauth.clone())?,
+            memcache: RefCell::new(MemcacheClient::new(&config.memcache.clone())),
+            artifactory: ArtifactoryClient::new(config.artifactory.clone())?,
+            db,
+        };
 
         Ok(app_state)
     }
 }
 
 fn enable_features(config: &Config) {
-    let features: HashMap<_, _> = HashMap::from_iter(vec![("LIST", feat::List),
-                                                          ("LEGACYPROJECT", feat::LegacyProject),
-                                                          ("ARTIFACTORY", feat::Artifactory),
-                                                          ("BUILDDEPS", feat::BuildDeps),]);
+    let features: HashMap<_, _> = HashMap::from_iter(vec![
+        ("LIST", feat::List),
+        ("LEGACYPROJECT", feat::LegacyProject),
+        ("ARTIFACTORY", feat::Artifactory),
+        ("BUILDDEPS", feat::BuildDeps),
+    ]);
 
     for key in &config.api.features_enabled {
         if features.contains_key(key.as_str()) {
@@ -117,7 +106,9 @@ fn enable_features(config: &Config) {
 /// Endpoint for determining availability of builder-api components.
 ///
 /// Returns a status 200 on success. Any non-200 responses are an outage or a partial outage.
-pub async fn status() -> HttpResponse { HttpResponse::new(StatusCode::OK) }
+pub async fn status() -> HttpResponse {
+    HttpResponse::new(StatusCode::OK)
+}
 
 pub async fn run(config: Config) -> error::Result<()> {
     enable_features(&config);
@@ -159,15 +150,15 @@ pub async fn run(config: Config) -> error::Result<()> {
     }
 
     let mut srv = HttpServer::new(move || {
-                      let app_state = match AppState::new(&config, db_pool.clone()) {
-                          Ok(state) => state,
-                          Err(err) => {
-                              error!("Unable to create application state, err = {}", err);
-                              panic!("Cannot start without valid application state");
-                          }
-                      };
+        let app_state = match AppState::new(&config, db_pool.clone()) {
+            Ok(state) => state,
+            Err(err) => {
+                error!("Unable to create application state, err = {}", err);
+                panic!("Cannot start without valid application state");
+            }
+        };
 
-                      App::new()
+        App::new()
             .app_data(web::Data::new(app_state))
             .wrap_fn(authentication_middleware)
             .wrap(Logger::default().exclude("/v1/status"))
@@ -189,17 +180,24 @@ pub async fn run(config: Config) -> error::Result<()> {
                             .route(web::head().to(status)),
                     ),
             )
-                  }).workers(cfg.handler_count())
-                    .keep_alive(KeepAlive::from(Duration::from_secs(cfg.http.keep_alive as u64)));
+    })
+    .workers(cfg.handler_count())
+    .keep_alive(KeepAlive::from(Duration::from_secs(
+        cfg.http.keep_alive as u64,
+    )));
 
-    info!("builder-api listening on {}:{}",
-          cfg.listen_addr(),
-          cfg.listen_port());
+    info!(
+        "builder-api listening on {}:{}",
+        cfg.listen_addr(),
+        cfg.listen_port()
+    );
 
     srv = match &cfg.http.tls {
         Some(tls_cfg) => {
-            info!("TLS enabled (key: {:?}, cert: {:?})",
-                  tls_cfg.key_path, tls_cfg.cert_path);
+            info!(
+                "TLS enabled (key: {:?}, cert: {:?})",
+                tls_cfg.key_path, tls_cfg.cert_path
+            );
             let mut builder = SslAcceptor::mozilla_modern(SslMethod::tls())?;
             builder.set_private_key_file(&tls_cfg.key_path, SslFiletype::PEM)?;
             builder.set_certificate_chain_file(&tls_cfg.cert_path)?;
@@ -229,7 +227,9 @@ pub async fn run(config: Config) -> error::Result<()> {
 }
 
 impl Clone for feat::Flags {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 impl Copy for feat::Flags {}

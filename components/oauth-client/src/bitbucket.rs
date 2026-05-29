@@ -11,17 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use reqwest::{header::HeaderMap,
-              Body};
+use reqwest::{header::HeaderMap, Body};
 
-use builder_core::http_client::{HttpClient,
-                                ACCEPT_APPLICATION_JSON,
-                                CONTENT_TYPE_FORM_URL_ENCODED};
+use builder_core::http_client::{
+    HttpClient, ACCEPT_APPLICATION_JSON, CONTENT_TYPE_FORM_URL_ENCODED,
+};
 
-use crate::{config::OAuth2Cfg,
-            error::{Error,
-                    Result},
-            types::*};
+use crate::{
+    config::OAuth2Cfg,
+    error::{Error, Result},
+    types::*,
+};
 use async_trait::async_trait;
 
 pub struct Bitbucket;
@@ -45,20 +45,22 @@ enum Utyped {
 }
 
 impl Bitbucket {
-    async fn user(&self,
-                  config: &OAuth2Cfg,
-                  client: &HttpClient,
-                  token: &str)
-                  -> Result<OAuth2User> {
+    async fn user(
+        &self,
+        config: &OAuth2Cfg,
+        client: &HttpClient,
+        token: &str,
+    ) -> Result<OAuth2User> {
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone()];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
-        let resp = client.get(&config.userinfo_url)
-                         .headers(headers)
-                         .bearer_auth(token)
-                         .send()
-                         .await
-                         .map_err(Error::HttpClient)?;
+        let resp = client
+            .get(&config.userinfo_url)
+            .headers(headers)
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(Error::HttpClient)?;
 
         let status = resp.status();
         let body = resp.text().await.map_err(Error::HttpClient)?;
@@ -75,9 +77,11 @@ impl Bitbucket {
                 Utyped::Username(val) => val,
             };
 
-            Ok(OAuth2User { id:       actual_uname.clone(),
-                            username: actual_uname,
-                            email:    None, })
+            Ok(OAuth2User {
+                id: actual_uname.clone(),
+                username: actual_uname,
+                email: None,
+            })
         } else {
             Err(Error::HttpResponse(status, body))
         }
@@ -86,27 +90,31 @@ impl Bitbucket {
 
 #[async_trait]
 impl OAuth2Provider for Bitbucket {
-    async fn authenticate(&self,
-                          config: &OAuth2Cfg,
-                          client: &HttpClient,
-                          code: &str)
-                          -> Result<(String, OAuth2User)> {
+    async fn authenticate(
+        &self,
+        config: &OAuth2Cfg,
+        client: &HttpClient,
+        code: &str,
+    ) -> Result<(String, OAuth2User)> {
         let url = config.token_url.to_string();
         let body = format!("grant_type=authorization_code&code={}", code);
 
-        let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),
-                                 CONTENT_TYPE_FORM_URL_ENCODED.clone(),];
+        let header_values = vec![
+            ACCEPT_APPLICATION_JSON.clone(),
+            CONTENT_TYPE_FORM_URL_ENCODED.clone(),
+        ];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         let body: Body = body.into();
 
-        let resp = client.post(&url)
-                         .headers(headers)
-                         .body(body)
-                         .basic_auth(&config.client_id[..], Some(&config.client_secret[..]))
-                         .send()
-                         .await
-                         .map_err(Error::HttpClient)?;
+        let resp = client
+            .post(&url)
+            .headers(headers)
+            .body(body)
+            .basic_auth(&config.client_id[..], Some(&config.client_secret[..]))
+            .send()
+            .await
+            .map_err(Error::HttpClient)?;
 
         let status = resp.status();
         let body = resp.text().await.map_err(Error::HttpClient)?;

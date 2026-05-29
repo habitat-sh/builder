@@ -20,14 +20,12 @@ pub mod secrets;
 pub mod settings;
 
 mod db_id_format {
-    use serde::{self,
-                Deserialize,
-                Deserializer,
-                Serializer};
+    use serde::{self, Deserialize, Deserializer, Serializer};
 
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn serialize<S>(id: &i64, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         let s = id.to_string();
         serializer.serialize_str(&s)
@@ -35,7 +33,8 @@ mod db_id_format {
 
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn deserialize<'de, D>(deserializer: D) -> Result<i64, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         s.parse::<i64>().map_err(serde::de::Error::custom)
@@ -43,12 +42,10 @@ mod db_id_format {
 }
 
 mod db_optional_id_format {
-    use serde::{self,
-                Deserialize,
-                Deserializer,
-                Serializer};
+    use serde::{self, Deserialize, Deserializer, Serializer};
     pub fn serialize<S>(id: &Option<i64>, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         let s = match id {
             Some(s) => s.to_string(),
@@ -57,7 +54,8 @@ mod db_optional_id_format {
         serializer.serialize_str(&s)
     }
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         match s.parse::<i64>().map_err(serde::de::Error::custom) {

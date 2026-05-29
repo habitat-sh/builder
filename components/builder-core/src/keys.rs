@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use habitat_core::{crypto::keys::{BuilderSecretEncryptionKey,
-                                  Key,
-                                  KeyCache,
-                                  NamedRevision},
-                   Error};
+use habitat_core::{
+    crypto::keys::{BuilderSecretEncryptionKey, Key, KeyCache, NamedRevision},
+    Error,
+};
 use std::env;
 
 pub const BUILDER_KEY_NAME: &str = "bldr";
@@ -54,20 +53,23 @@ pub fn get_latest_builder_key(key_cache: &KeyCache) -> Result<BuilderSecretEncry
 /// an error is returned with details about the mismatch.
 /// If the key is not found in the environment, the function falls back to fetching the key from
 /// the `key_cache` based on the provided `named_revision`.
-pub fn get_builder_key_for_revision(key_cache: &KeyCache,
-                                    named_revision: &NamedRevision)
-                                    -> Result<BuilderSecretEncryptionKey, Error> {
+pub fn get_builder_key_for_revision(
+    key_cache: &KeyCache,
+    named_revision: &NamedRevision,
+) -> Result<BuilderSecretEncryptionKey, Error> {
     if let Some(result) = get_bldr_secret_key_from_env() {
         let key = result?;
 
         // Generally, this should not happen if the BLDR_SECRET_KEY is used to configure the key.
         // This is an extra safeguard to inform that there is a mismatch in the key for some reason.
         if key.named_revision() != named_revision {
-            return Err(Error::CryptoError(format!("Revision mismatch from env \
+            return Err(Error::CryptoError(format!(
+                "Revision mismatch from env \
                                                    BLDR_SECRET_KEY. Expected \
                                                    revision: {}, Found: {}",
-                                                  named_revision,
-                                                  key.named_revision())));
+                named_revision,
+                key.named_revision()
+            )));
         }
 
         return Ok(key);
@@ -90,15 +92,19 @@ mod tests {
     use std::env;
 
     // Helper function to set the env variable
-    fn set_bldr_secret_key(key_value: &str) { env::set_var("BLDR_SECRET_KEY", key_value); }
+    fn set_bldr_secret_key(key_value: &str) {
+        env::set_var("BLDR_SECRET_KEY", key_value);
+    }
 
     #[test]
     #[ignore]
     fn test_bldr_secret_key_not_set() {
         let result = get_bldr_secret_key_from_env();
 
-        assert!(result.is_none(),
-                "Expected None when BLDR_SECRET_KEY is not set");
+        assert!(
+            result.is_none(),
+            "Expected None when BLDR_SECRET_KEY is not set"
+        );
     }
 
     // Test case for BLDR_SECRET_KEY with escaped newlines

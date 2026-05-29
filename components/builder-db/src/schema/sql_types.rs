@@ -1,5 +1,4 @@
-use diesel::{query_builder::QueryId,
-             sql_types::SqlType};
+use diesel::{query_builder::QueryId, sql_types::SqlType};
 
 /// Backing Postgres enum for PackageVisibility
 #[derive(SqlType, QueryId)]

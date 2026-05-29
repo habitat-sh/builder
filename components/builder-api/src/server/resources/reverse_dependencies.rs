@@ -1,14 +1,9 @@
-use diesel::{debug_query,
-             pg::Pg,
-             r2d2::ConnectionManager,
-             sql_query,
-             sql_types::Text,
-             PgConnection,
-             QueryableByName,
-             RunQueryDsl};
+use diesel::{
+    debug_query, pg::Pg, r2d2::ConnectionManager, sql_query, sql_types::Text, PgConnection,
+    QueryableByName, RunQueryDsl,
+};
 
-use crate::server::error::{Error,
-                           Result};
+use crate::server::error::{Error, Result};
 
 use r2d2::PooledConnection;
 #[derive(Clone, Debug, QueryableByName, Serialize, Deserialize)]
@@ -20,16 +15,17 @@ pub(crate) struct Dependent {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct ReverseDependencies {
     pub origin: String,
-    pub name:   String,
-    pub rdeps:  Vec<String>,
+    pub name: String,
+    pub rdeps: Vec<String>,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub(crate) async fn get_rdeps(conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
-                              origin: &str,
-                              name: &str,
-                              target: &str)
-                              -> Result<ReverseDependencies> {
+pub(crate) async fn get_rdeps(
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    origin: &str,
+    name: &str,
+    target: &str,
+) -> Result<ReverseDependencies> {
     let sql_stmt = r###"
         select * from (
             select distinct op3.origin||'/'||op3.name as short_id
@@ -43,18 +39,20 @@ pub(crate) async fn get_rdeps(conn: &mut PooledConnection<ConnectionManager<PgCo
              where op1.origin = $1 and op1.name = $2 and op1.target = $3
         ) as ordered_rdeps order by short_id"###;
 
-    let query = sql_query(sql_stmt).bind::<Text, _>(&origin)
-                                   .bind::<Text, _>(&name)
-                                   .bind::<Text, _>(&target);
+    let query = sql_query(sql_stmt)
+        .bind::<Text, _>(&origin)
+        .bind::<Text, _>(&name)
+        .bind::<Text, _>(&target);
 
     debug!("debug_query {}", debug_query::<Pg, _>(&query));
 
     let rdeps = query.load::<Dependent>(conn).map_err(Error::DieselError)?;
 
-    let reverse_dependencies =
-        ReverseDependencies { origin: origin.to_string(),
-                              name:   name.to_string(),
-                              rdeps:  rdeps.iter().map(|d| d.short_id.clone()).collect(), };
+    let reverse_dependencies = ReverseDependencies {
+        origin: origin.to_string(),
+        name: name.to_string(),
+        rdeps: rdeps.iter().map(|d| d.short_id.clone()).collect(),
+    };
     debug!("reverse_dependencies: {:?} ", reverse_dependencies);
     Ok(reverse_dependencies)
 }

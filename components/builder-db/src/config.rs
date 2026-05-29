@@ -12,76 +12,74 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use percent_encoding::{utf8_percent_encode,
-                       AsciiSet,
-                       CONTROLS};
-use postgres_shared::params::{ConnectParams,
-                              Host,
-                              IntoConnectParams};
-use std::{env,
-          error::Error,
-          fmt};
+use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
+use postgres_shared::params::{ConnectParams, Host, IntoConnectParams};
+use std::{env, error::Error, fmt};
 
 // The characters in this set are copied from
 // https://docs.rs/percent-encoding/1.0.1/percent_encoding/struct.PATH_SEGMENT_ENCODE_SET.html
-const PATH_SEGMENT_ENCODE_SET: &AsciiSet = &CONTROLS.add(b' ')
-                                                    .add(b'"')
-                                                    .add(b'#')
-                                                    .add(b'<')
-                                                    .add(b'>')
-                                                    .add(b'`')
-                                                    .add(b'?')
-                                                    .add(b'{')
-                                                    .add(b'}')
-                                                    .add(b'%')
-                                                    .add(b'/');
+const PATH_SEGMENT_ENCODE_SET: &AsciiSet = &CONTROLS
+    .add(b' ')
+    .add(b'"')
+    .add(b'#')
+    .add(b'<')
+    .add(b'>')
+    .add(b'`')
+    .add(b'?')
+    .add(b'{')
+    .add(b'}')
+    .add(b'%')
+    .add(b'/');
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
 pub struct DataStoreCfg {
-    pub host:                   String,
-    pub port:                   u16,
-    pub user:                   String,
-    pub password:               Option<String>,
-    pub database:               String,
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub password: Option<String>,
+    pub database: String,
     /// Timing to retry the connection to the data store if it cannot be established
-    pub connection_retry_ms:    u64,
+    pub connection_retry_ms: u64,
     /// How often to cycle a connection from the pool
     pub connection_timeout_sec: u64,
     /// If the datastore connection is under test
-    pub connection_test:        bool,
+    pub connection_test: bool,
     /// Number of database connections to start in pool.
-    pub pool_size:              u32,
-    pub ssl_mode:               Option<String>,
-    pub ssl_cert:               Option<String>,
-    pub ssl_key:                Option<String>,
-    pub ssl_root_cert:          Option<String>,
+    pub pool_size: u32,
+    pub ssl_mode: Option<String>,
+    pub ssl_cert: Option<String>,
+    pub ssl_key: Option<String>,
+    pub ssl_root_cert: Option<String>,
 }
 
 impl Default for DataStoreCfg {
     fn default() -> Self {
         let host = env::var("POSTGRES_HOST").unwrap_or_else(|_| String::from("localhost"));
-        let port = env::var("POSTGRES_PORT").ok()
-                                            .and_then(|val| val.parse::<u16>().ok())
-                                            .unwrap_or(5432);
+        let port = env::var("POSTGRES_PORT")
+            .ok()
+            .and_then(|val| val.parse::<u16>().ok())
+            .unwrap_or(5432);
         let user = env::var("POSTGRES_USER").unwrap_or_else(|_| String::from("hab"));
         let password = env::var("POSTGRES_PASSWORD").ok();
         let database = env::var("POSTGRES_DB").unwrap_or_else(|_| String::from("builder"));
         let ssl_mode = env::var("POSTGRES_SSLMODE").ok();
 
-        DataStoreCfg { host,
-                       port,
-                       user,
-                       password,
-                       database,
-                       connection_retry_ms: 300,
-                       connection_timeout_sec: 3600,
-                       connection_test: false,
-                       pool_size: (num_cpus::get() * 2) as u32,
-                       ssl_mode,
-                       ssl_cert: None,
-                       ssl_key: None,
-                       ssl_root_cert: None }
+        DataStoreCfg {
+            host,
+            port,
+            user,
+            password,
+            database,
+            connection_retry_ms: 300,
+            connection_timeout_sec: 3600,
+            connection_test: false,
+            pool_size: (num_cpus::get() * 2) as u32,
+            ssl_mode,
+            ssl_cert: None,
+            ssl_key: None,
+            ssl_root_cert: None,
+        }
     }
 }
 

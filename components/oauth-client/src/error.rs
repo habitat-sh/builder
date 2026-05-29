@@ -30,8 +30,10 @@ impl fmt::Display for Error {
             Error::BuilderCore(ref e) => format!("{}", e),
             Error::HttpClient(ref e) => format!("{}", e),
             Error::HttpResponse(ref code, ref response) => {
-                format!("Received a non-200 response, status={}, response={}",
-                        code, response)
+                format!(
+                    "Received a non-200 response, status={}, response={}",
+                    code, response
+                )
             }
             Error::Serialization(ref e) => format!("{}", e),
         };
@@ -40,5 +42,7 @@ impl fmt::Display for Error {
 }
 
 impl From<builder_core::Error> for Error {
-    fn from(err: builder_core::Error) -> Error { Error::BuilderCore(err) }
+    fn from(err: builder_core::Error) -> Error {
+        Error::BuilderCore(err)
+    }
 }

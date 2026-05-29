@@ -1,26 +1,19 @@
-use crate::{db::models::channel::{AuditPackage,
-                                  AuditPackageEvent,
-                                  ListEvents},
-            server::{authorize::authorize_session,
-                     error::{Error,
-                             Result},
-                     framework::headers,
-                     helpers::{self,
-                               req_state,
-                               DateRange,
-                               Pagination,
-                               SearchQuery,
-                               ToChannel},
-                     AppState}};
-use actix_web::{http,
-                web::{self,
-                      Data,
-                      Query,
-                      ServiceConfig},
-                HttpRequest,
-                HttpResponse};
-use builder_core::http_client::{HttpClient,
-                                USER_AGENT_BLDR};
+use crate::{
+    db::models::channel::{AuditPackage, AuditPackageEvent, ListEvents},
+    server::{
+        authorize::authorize_session,
+        error::{Error, Result},
+        framework::headers,
+        helpers::{self, req_state, DateRange, Pagination, SearchQuery, ToChannel},
+        AppState,
+    },
+};
+use actix_web::{
+    http,
+    web::{self, Data, Query, ServiceConfig},
+    HttpRequest, HttpResponse,
+};
+use builder_core::http_client::{HttpClient, USER_AGENT_BLDR};
 
 pub struct Events {}
 
@@ -29,17 +22,18 @@ impl Events {
     //
     pub fn register(cfg: &mut ServiceConfig) {
         cfg.route("/depot/events", web::get().to(get_events))
-           .route("/depot/events/saas", web::get().to(get_events_from_saas));
+            .route("/depot/events/saas", web::get().to(get_events_from_saas));
     }
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn get_events(req: HttpRequest,
-                    pagination: Query<Pagination>,
-                    channel: Query<ToChannel>,
-                    date_range: Query<DateRange>,
-                    search_query: Query<SearchQuery>)
-                    -> HttpResponse {
+async fn get_events(
+    req: HttpRequest,
+    pagination: Query<Pagination>,
+    channel: Query<ToChannel>,
+    date_range: Query<DateRange>,
+    search_query: Query<SearchQuery>,
+) -> HttpResponse {
     match do_get_events(&req, &pagination, &channel, &date_range, &search_query) {
         Ok((events, count)) => postprocess_event_list(&req, &events, count, &pagination),
         Err(err) => {
@@ -50,23 +44,29 @@ async fn get_events(req: HttpRequest,
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn get_events_from_saas(req: HttpRequest,
-                              pagination: Query<Pagination>,
-                              channel: Query<ToChannel>,
-                              date_range: Query<DateRange>,
-                              search_query: Query<SearchQuery>,
-                              state: Data<AppState>)
-                              -> HttpResponse {
+async fn get_events_from_saas(
+    req: HttpRequest,
+    pagination: Query<Pagination>,
+    channel: Query<ToChannel>,
+    date_range: Query<DateRange>,
+    search_query: Query<SearchQuery>,
+    state: Data<AppState>,
+) -> HttpResponse {
     let bldr_url = &state.config.api.saas_bldr_url;
 
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(USER_AGENT_BLDR.0.clone(), USER_AGENT_BLDR.1.clone());
     if req.headers().contains_key(http::header::AUTHORIZATION) {
-        headers.insert(reqwest::header::AUTHORIZATION,
-                       reqwest::header::HeaderValue::from_bytes(req.headers()
-                                                                   .get(http::header::AUTHORIZATION)
-                                                                   .unwrap()
-                                                                   .as_bytes()).unwrap());
+        headers.insert(
+            reqwest::header::AUTHORIZATION,
+            reqwest::header::HeaderValue::from_bytes(
+                req.headers()
+                    .get(http::header::AUTHORIZATION)
+                    .unwrap()
+                    .as_bytes(),
+            )
+            .unwrap(),
+        );
     }
 
     let http_client = match HttpClient::new(bldr_url, headers) {
@@ -80,36 +80,32 @@ async fn get_events_from_saas(req: HttpRequest,
     // We are expecting dates in YYYY-MM-DD format
     let from_date = date_range.from_date.date().format("%Y-%m-%d").to_string();
     let to_date = date_range.to_date.date().format("%Y-%m-%d").to_string();
-    let url = format!("{}/v1/depot/events?range={}&channel={}&from_date={}&to_date={}&query={}",
-                      bldr_url,
-                      pagination.range,
-                      channel.channel,
-                      from_date,
-                      to_date,
-                      search_query.query);
+    let url = format!(
+        "{}/v1/depot/events?range={}&channel={}&from_date={}&to_date={}&query={}",
+        bldr_url, pagination.range, channel.channel, from_date, to_date, search_query.query
+    );
     debug!("SaaS Url: {}", url);
-    match http_client.get(&url)
-                     .send()
-                     .await
-                     .map_err(Error::HttpClient)
+    match http_client
+        .get(&url)
+        .send()
+        .await
+        .map_err(Error::HttpClient)
     {
-        Ok(response) => {
-            match response.text().await {
-                Ok(body) => {
-                    let mut http_response = HttpResponse::Ok();
+        Ok(response) => match response.text().await {
+            Ok(body) => {
+                let mut http_response = HttpResponse::Ok();
 
-                    http_response.append_header((http::header::CONTENT_TYPE,
-                                                 headers::APPLICATION_JSON))
-                                 .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-                                 .body(body)
-                }
-                Err(err) => {
-                    let msg = format!("Error getting response text: {:?}", err);
-                    debug!("{}", msg);
-                    HttpResponse::InternalServerError().body(msg)
-                }
+                http_response
+                    .append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+                    .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
+                    .body(body)
             }
-        }
+            Err(err) => {
+                let msg = format!("Error getting response text: {:?}", err);
+                debug!("{}", msg);
+                HttpResponse::InternalServerError().body(msg)
+            }
+        },
         Err(err) => {
             let msg = format!("Error sending request: {:?}", err);
             debug!("{}", msg);
@@ -118,12 +114,13 @@ async fn get_events_from_saas(req: HttpRequest,
     }
 }
 
-fn do_get_events(req: &HttpRequest,
-                 pagination: &Query<Pagination>,
-                 channel: &Query<ToChannel>,
-                 date_range: &Query<DateRange>,
-                 search_query: &Query<SearchQuery>)
-                 -> Result<(Vec<AuditPackageEvent>, i64)> {
+fn do_get_events(
+    req: &HttpRequest,
+    pagination: &Query<Pagination>,
+    channel: &Query<ToChannel>,
+    date_range: &Query<DateRange>,
+    search_query: &Query<SearchQuery>,
+) -> Result<(Vec<AuditPackageEvent>, i64)> {
     let opt_session_id = match authorize_session(req, None, None) {
         Ok(session) => Some(session.id() as i64),
         Err(_) => None,
@@ -140,13 +137,15 @@ fn do_get_events(req: &HttpRequest,
             }
         };
 
-    let el = ListEvents { page:       page as i64,
-                          limit:      per_page as i64,
-                          account_id: opt_session_id,
-                          channel:    channel.channel.trim().to_string(),
-                          from_date:  date_range.from_date,
-                          to_date:    date_range.to_date,
-                          query:      decoded_query, };
+    let el = ListEvents {
+        page: page as i64,
+        limit: per_page as i64,
+        account_id: opt_session_id,
+        channel: channel.channel.trim().to_string(),
+        from_date: date_range.from_date,
+        to_date: date_range.to_date,
+        query: decoded_query,
+    };
     match AuditPackage::list(&el, &mut conn).map_err(Error::DieselError) {
         Ok((packages, count)) => {
             let pkg_events: Vec<AuditPackageEvent> =
@@ -158,11 +157,12 @@ fn do_get_events(req: &HttpRequest,
     }
 }
 
-pub fn postprocess_event_list(_req: &HttpRequest,
-                              events: &[AuditPackageEvent],
-                              count: i64,
-                              pagination: &Query<Pagination>)
-                              -> HttpResponse {
+pub fn postprocess_event_list(
+    _req: &HttpRequest,
+    events: &[AuditPackageEvent],
+    count: i64,
+    pagination: &Query<Pagination>,
+) -> HttpResponse {
     let (start, _) = helpers::extract_pagination(pagination);
     let event_count = events.len() as isize;
     let stop = match event_count {
@@ -170,8 +170,10 @@ pub fn postprocess_event_list(_req: &HttpRequest,
         _ => (start + event_count - 1) as i64,
     };
 
-    debug!("postprocessing event list, start: {}, stop: {}, total_count: {}",
-           start, stop, count);
+    debug!(
+        "postprocessing event list, start: {}, stop: {}, total_count: {}",
+        start, stop, count
+    );
 
     let body = helpers::package_results_json(events, count as isize, start, stop as isize);
 
@@ -181,7 +183,8 @@ pub fn postprocess_event_list(_req: &HttpRequest,
         HttpResponse::Ok()
     };
 
-    response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
-            .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-            .body(body)
+    response
+        .append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+        .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
+        .body(body)
 }

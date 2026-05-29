@@ -12,34 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::{self,
-                http::StatusCode,
-                HttpResponse,
-                ResponseError};
+use actix_web::{self, http::StatusCode, HttpResponse, ResponseError};
 use artifactory_client::error::ArtifactoryError;
 use github_api_client::HubError;
 use oauth_client::error::Error as OAuthError;
 
-use aws_sdk_s3::{error::SdkError,
-                 operation::{complete_multipart_upload::CompleteMultipartUploadError,
-                             create_bucket::CreateBucketError,
-                             create_multipart_upload::CreateMultipartUploadError,
-                             delete_object::DeleteObjectError,
-                             get_object::GetObjectError,
-                             head_object::HeadObjectError,
-                             list_buckets::ListBucketsError,
-                             put_object::PutObjectError,
-                             upload_part::UploadPartError}};
+use aws_sdk_s3::{
+    error::SdkError,
+    operation::{
+        complete_multipart_upload::CompleteMultipartUploadError, create_bucket::CreateBucketError,
+        create_multipart_upload::CreateMultipartUploadError, delete_object::DeleteObjectError,
+        get_object::GetObjectError, head_object::HeadObjectError, list_buckets::ListBucketsError,
+        put_object::PutObjectError, upload_part::UploadPartError,
+    },
+};
 
-use std::{fmt,
-          fs,
-          io,
-          result,
-          string};
+use std::{fmt, fs, io, result, string};
 
-use crate::{bldr_core,
-            db,
-            hab_core};
+use crate::{bldr_core, db, hab_core};
 
 #[derive(Debug)]
 pub enum Error {
@@ -214,75 +204,111 @@ fn bldr_core_err_to_http(err: &bldr_core::Error) -> StatusCode {
 // From handlers - these make application level error handling cleaner
 
 impl From<hab_core::Error> for Error {
-    fn from(err: hab_core::Error) -> Error { Error::HabitatCore(err) }
+    fn from(err: hab_core::Error) -> Error {
+        Error::HabitatCore(err)
+    }
 }
 
 impl From<bldr_core::Error> for Error {
-    fn from(err: bldr_core::Error) -> Error { Error::BuilderCore(err) }
+    fn from(err: bldr_core::Error) -> Error {
+        Error::BuilderCore(err)
+    }
 }
 
 impl From<diesel::result::Error> for Error {
-    fn from(err: diesel::result::Error) -> Error { Error::DieselError(err) }
+    fn from(err: diesel::result::Error) -> Error {
+        Error::DieselError(err)
+    }
 }
 
 impl From<HubError> for Error {
-    fn from(err: HubError) -> Error { Error::Github(err) }
+    fn from(err: HubError) -> Error {
+        Error::Github(err)
+    }
 }
 
 impl From<io::IntoInnerError<io::BufWriter<fs::File>>> for Error {
-    fn from(err: io::IntoInnerError<io::BufWriter<fs::File>>) -> Error { Error::InnerError(err) }
+    fn from(err: io::IntoInnerError<io::BufWriter<fs::File>>) -> Error {
+        Error::InnerError(err)
+    }
 }
 
 impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Self { Error::IO(err) }
+    fn from(err: io::Error) -> Self {
+        Error::IO(err)
+    }
 }
 
 impl From<OAuthError> for Error {
-    fn from(err: OAuthError) -> Error { Error::OAuth(err) }
+    fn from(err: OAuthError) -> Error {
+        Error::OAuth(err)
+    }
 }
 
 impl From<ArtifactoryError> for Error {
-    fn from(err: ArtifactoryError) -> Error { Error::Artifactory(err) }
+    fn from(err: ArtifactoryError) -> Error {
+        Error::Artifactory(err)
+    }
 }
 
 impl From<actix_web::error::PayloadError> for Error {
-    fn from(err: actix_web::error::PayloadError) -> Error { Error::PayloadError(err) }
+    fn from(err: actix_web::error::PayloadError) -> Error {
+        Error::PayloadError(err)
+    }
 }
 
 impl From<protobuf::Error> for Error {
-    fn from(err: protobuf::Error) -> Error { Error::Protobuf(err) }
+    fn from(err: protobuf::Error) -> Error {
+        Error::Protobuf(err)
+    }
 }
 
 impl From<db::error::Error> for Error {
-    fn from(err: db::error::Error) -> Error { Error::DbError(err) }
+    fn from(err: db::error::Error) -> Error {
+        Error::DbError(err)
+    }
 }
 
 impl From<serde_json::Error> for Error {
-    fn from(err: serde_json::Error) -> Error { Error::SerdeJson(err) }
+    fn from(err: serde_json::Error) -> Error {
+        Error::SerdeJson(err)
+    }
 }
 
 impl From<openssl::error::ErrorStack> for Error {
-    fn from(err: openssl::error::ErrorStack) -> Error { Error::TLSError(err) }
+    fn from(err: openssl::error::ErrorStack) -> Error {
+        Error::TLSError(err)
+    }
 }
 
 impl From<string::FromUtf8Error> for Error {
-    fn from(err: string::FromUtf8Error) -> Error { Error::Utf8(err) }
+    fn from(err: string::FromUtf8Error) -> Error {
+        Error::Utf8(err)
+    }
 }
 
 impl From<actix_web::error::BlockingError> for Error {
-    fn from(err: actix_web::error::BlockingError) -> Error { Error::BlockingError(err) }
+    fn from(err: actix_web::error::BlockingError) -> Error {
+        Error::BlockingError(err)
+    }
 }
 
 impl From<SdkError<CreateBucketError>> for Error {
-    fn from(e: SdkError<CreateBucketError>) -> Self { Error::CreateBucketError(Box::new(e)) }
+    fn from(e: SdkError<CreateBucketError>) -> Self {
+        Error::CreateBucketError(Box::new(e))
+    }
 }
 
 impl From<SdkError<HeadObjectError>> for Error {
-    fn from(e: SdkError<HeadObjectError>) -> Self { Error::HeadObject(Box::new(e)) }
+    fn from(e: SdkError<HeadObjectError>) -> Self {
+        Error::HeadObject(Box::new(e))
+    }
 }
 
 impl From<SdkError<ListBucketsError>> for Error {
-    fn from(e: SdkError<ListBucketsError>) -> Self { Error::ListBuckets(Box::new(e)) }
+    fn from(e: SdkError<ListBucketsError>) -> Self {
+        Error::ListBuckets(Box::new(e))
+    }
 }
 
 impl From<SdkError<CompleteMultipartUploadError>> for Error {
@@ -298,17 +324,25 @@ impl From<SdkError<CreateMultipartUploadError>> for Error {
 }
 
 impl From<SdkError<DeleteObjectError>> for Error {
-    fn from(e: SdkError<DeleteObjectError>) -> Self { Error::PackageDelete(Box::new(e)) }
+    fn from(e: SdkError<DeleteObjectError>) -> Self {
+        Error::PackageDelete(Box::new(e))
+    }
 }
 
 impl From<SdkError<GetObjectError>> for Error {
-    fn from(e: SdkError<GetObjectError>) -> Self { Error::PackageDownload(Box::new(e)) }
+    fn from(e: SdkError<GetObjectError>) -> Self {
+        Error::PackageDownload(Box::new(e))
+    }
 }
 
 impl From<SdkError<PutObjectError>> for Error {
-    fn from(e: SdkError<PutObjectError>) -> Self { Error::PackageUpload(Box::new(e)) }
+    fn from(e: SdkError<PutObjectError>) -> Self {
+        Error::PackageUpload(Box::new(e))
+    }
 }
 
 impl From<SdkError<UploadPartError>> for Error {
-    fn from(e: SdkError<UploadPartError>) -> Self { Error::PartialUpload(Box::new(e)) }
+    fn from(e: SdkError<UploadPartError>) -> Self {
+        Error::PartialUpload(Box::new(e))
+    }
 }

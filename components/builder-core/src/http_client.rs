@@ -1,23 +1,15 @@
 use std::ops::Deref;
 
-use std::{fs,
-          path::Path};
+use std::{fs, path::Path};
 
-use reqwest::{header::{HeaderMap,
-                       HeaderName,
-                       HeaderValue,
-                       ACCEPT,
-                       CONTENT_TYPE,
-                       USER_AGENT},
-              Certificate,
-              Client,
-              IntoUrl,
-              Proxy};
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, CONTENT_TYPE, USER_AGENT},
+    Certificate, Client, IntoUrl, Proxy,
+};
 
 use url::Url;
 
-use crate::error::{Error,
-                   Result};
+use crate::error::{Error, Result};
 
 const BLDR_USER_AGENT: &str = "Habitat-Builder";
 const APPLICATION_JSON: &str = "application/json";
@@ -40,14 +32,17 @@ pub struct HttpClient(Client);
 
 impl HttpClient {
     pub fn new<T>(url: T, headers: HeaderMap) -> Result<Self>
-        where T: IntoUrl
+    where
+        T: IntoUrl,
     {
         let url = url.into_url().map_err(Error::HttpClient)?;
-        let mut client = Client::builder().proxy(proxy_for(&url)?)
-                                          .default_headers(headers);
+        let mut client = Client::builder()
+            .proxy(proxy_for(&url)?)
+            .default_headers(headers);
 
-        client = certificates()?.into_iter()
-                                .fold(client, |client, cert| client.add_root_certificate(cert));
+        client = certificates()?
+            .into_iter()
+            .fold(client, |client, cert| client.add_root_certificate(cert));
 
         Ok(HttpClient(client.build()?))
     }
@@ -56,7 +51,9 @@ impl HttpClient {
 impl Deref for HttpClient {
     type Target = Client;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 fn proxy_for(url: &Url) -> reqwest::Result<Proxy> {
@@ -101,7 +98,8 @@ fn certificates() -> Result<Vec<Certificate>> {
 }
 
 fn process_cache_dir<P>(cache_path: P, certificates: &mut Vec<Certificate>)
-    where P: AsRef<Path>
+where
+    P: AsRef<Path>,
 {
     debug!("Processing cache directory: {:?}", cache_path.as_ref());
 
@@ -133,9 +131,11 @@ fn process_cert_file(certificates: &mut Vec<Certificate>, file_path: &Path) {
     match cert_from_file(file_path) {
         Ok(cert) => certificates.push(cert),
         Err(err) => {
-            error!("Unable to process cert file: {}, err={:?}",
-                   file_path.display(),
-                   err)
+            error!(
+                "Unable to process cert file: {}, err={:?}",
+                file_path.display(),
+                err
+            )
         }
     }
 }
@@ -143,6 +143,7 @@ fn process_cert_file(certificates: &mut Vec<Certificate>, file_path: &Path) {
 fn cert_from_file(file_path: &Path) -> Result<Certificate> {
     let buf = fs::read(file_path).map_err(Error::IO)?;
 
-    Certificate::from_pem(&buf).or_else(|_| Certificate::from_der(&buf))
-                               .map_err(Error::HttpClient)
+    Certificate::from_pem(&buf)
+        .or_else(|_| Certificate::from_der(&buf))
+        .map_err(Error::HttpClient)
 }

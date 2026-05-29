@@ -13,10 +13,11 @@
 // limitations under the License.
 
 use chrono::prelude::*;
-use std::{fs::{File,
-               OpenOptions},
-          io::Write,
-          path::Path};
+use std::{
+    fs::{File, OpenOptions},
+    io::Write,
+    path::Path,
+};
 
 pub struct Logger {
     file: File,
@@ -24,13 +25,17 @@ pub struct Logger {
 
 impl Logger {
     pub fn init<T, U>(log_path: T, filename: U) -> Self
-        where T: AsRef<Path>,
-              U: AsRef<Path>
+    where
+        T: AsRef<Path>,
+        U: AsRef<Path>,
     {
-        Logger { file: OpenOptions::new().append(true)
-                                         .create(true)
-                                         .open(log_path.as_ref().join(filename))
-                                         .expect("Failed to initialize log file"), }
+        Logger {
+            file: OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(log_path.as_ref().join(filename))
+                .expect("Failed to initialize log file"),
+        }
     }
 
     pub fn log(&mut self, msg: &str) {
@@ -44,5 +49,7 @@ impl Logger {
 }
 
 impl Drop for Logger {
-    fn drop(&mut self) { self.file.sync_all().expect("Unable to sync log file"); }
+    fn drop(&mut self) {
+        self.file.sync_all().expect("Unable to sync log file");
+    }
 }

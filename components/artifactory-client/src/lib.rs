@@ -23,7 +23,8 @@ pub mod error;
 
 use habitat_core as hab_core;
 
-pub use crate::{client::ArtifactoryClient,
-                config::ArtifactoryCfg,
-                error::{ArtifactoryError,
-                        ArtifactoryResult}};
+pub use crate::{
+    client::ArtifactoryClient,
+    config::ArtifactoryCfg,
+    error::{ArtifactoryError, ArtifactoryResult},
+};

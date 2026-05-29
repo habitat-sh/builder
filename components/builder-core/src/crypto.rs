@@ -1,13 +1,10 @@
 //! This module holds code that's common to dealing with the
 //! encrypting and decrytping data in Builder.
 
-use crate::{error::Result,
-            keys};
-use habitat_core::crypto::keys::{BuilderSecretEncryptionKey,
-                                 Key,
-                                 KeyCache,
-                                 KeyRevision,
-                                 SignedBox};
+use crate::{error::Result, keys};
+use habitat_core::crypto::keys::{
+    BuilderSecretEncryptionKey, Key, KeyCache, KeyRevision, SignedBox,
+};
 
 /// Encrypts bytes using the latest Builder encryption key in the
 /// `KeyCache`, returning the encrypted content as a string.
@@ -23,20 +20,26 @@ use habitat_core::crypto::keys::{BuilderSecretEncryptionKey,
 /// really important outside of this module what kind of encryption is
 /// being used, just that there _is_ encryption.
 pub fn encrypt<B>(key_cache: &KeyCache, bytes: B) -> Result<(String, KeyRevision)>
-    where B: AsRef<[u8]>
+where
+    B: AsRef<[u8]>,
 {
     let key = keys::get_latest_builder_key(key_cache)?;
     encrypt_with_key(&key, bytes)
 }
 
 /// Same as `encrypt`, but using a specific key.
-pub fn encrypt_with_key<B>(key: &BuilderSecretEncryptionKey,
-                           bytes: B)
-                           -> Result<(String, KeyRevision)>
-    where B: AsRef<[u8]>
+pub fn encrypt_with_key<B>(
+    key: &BuilderSecretEncryptionKey,
+    bytes: B,
+) -> Result<(String, KeyRevision)>
+where
+    B: AsRef<[u8]>,
 {
     let encrypted = key.encrypt(bytes)?;
-    Ok((encrypted.to_string(), key.named_revision().revision().clone()))
+    Ok((
+        encrypted.to_string(),
+        key.named_revision().revision().clone(),
+    ))
 }
 
 /// Decrypts a given string rendering of encrypted content using the
