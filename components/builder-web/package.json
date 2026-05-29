@@ -85,7 +85,7 @@
         "karma-webpack": "^5.0.1",
         "ng2-mock-component": "^0.1.0",
         "normalize-scss": "^7.0.0",
-        "sass": "^1.69.5",
+        "sass": "^1.100.0",
         "ts-loader": "^9.5.1",
         "ts-node": "^10.9.2",
         "typescript": "^5.8.0",
