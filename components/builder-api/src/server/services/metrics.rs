@@ -41,6 +41,9 @@ pub enum Counter {
     MemcacheChannelPackageHit,
     MemcacheChannelPackageMiss,
     MemcacheChannelPackage404,
+    ExtRegistryValidationRequests,
+    ExtRegistryInsecureUrlAllowed,
+    ExtRegistryInsecureUrlBlocked,
 }
 
 impl metrics::CounterMetric for Counter {}
@@ -70,6 +73,9 @@ impl metrics::Metric for Counter {
             Counter::MemcacheChannelPackageHit => "memcache-channel-package.hit".into(),
             Counter::MemcacheChannelPackageMiss => "memcache-channel-package.miss".into(),
             Counter::MemcacheChannelPackage404 => "memcache-channel-package.404".into(),
+            Counter::ExtRegistryValidationRequests => "ext-registry.validation".into(),
+            Counter::ExtRegistryInsecureUrlAllowed => "ext-registry.insecure-url.allowed".into(),
+            Counter::ExtRegistryInsecureUrlBlocked => "ext-registry.insecure-url.blocked".into(),
         }
     }
 }

@@ -28,6 +28,7 @@ Current flags include:
 - `LEGACYPROJECT`
 - `ARTIFACTORY`
 - `BUILDDEPS`
+- `STRICT_EXT_REGISTRY_HTTPS`
 
 Unknown flags are ignored unless explicitly mapped in `enable_features`, so keep
 README guidance and `mod.rs` in sync when adding or removing flags.
@@ -67,6 +68,22 @@ needs to validate registry credentials before saving integration settings.
 5. Transport failures currently return `403 Forbidden` via `Error::Authorization`
    to preserve existing behavior.
 
+### Safety switch: strict extension registry HTTPS
+
+`STRICT_EXT_REGISTRY_HTTPS` gates a higher-risk behavior change for custom
+registry URLs:
+
+- **OFF**: explicit custom `http://...` registry URLs are still forwarded for
+  compatibility.
+- **ON**: explicit custom URLs must parse as `https://...`; non-HTTPS custom
+  URLs are rejected with `400 Bad Request`.
+- The built-in Docker default remains `https://hub.docker.com/v2` in both
+  modes.
+
+This flag is intended as a rollout/rollback switch for tightening outbound
+credential validation without breaking existing internal HTTP registries all at
+once.
+
 ## Risk notes
 
 - **Credential handling:** this endpoint forwards raw credentials to an upstream
@@ -75,6 +92,9 @@ needs to validate registry credentials before saving integration settings.
 - **Registry defaults:** the Docker Hub fallback is hard-coded. Adding another
   registry type requires both code and doc updates so callers do not assume
   unsupported defaults.
+- **Flagged rollout:** enabling `STRICT_EXT_REGISTRY_HTTPS` can break callers
+  that still rely on explicit non-HTTPS registry URLs. Roll it out only after
+  validating the affected integrations.
 - **Error semantics:** transport failures still map to authorization-style
   errors for compatibility. If you change that mapping, coordinate any UI/API
   consumers that interpret `403` specially.
@@ -86,8 +106,23 @@ needs to validate registry credentials before saving integration settings.
 For focused local validation of the extension helper logic:
 
 ```bash
-cargo test -p habitat_builder_api ext::
+cargo check -p habitat_builder_api --tests
 ```
+
+ON/OFF validation for the safety switch should cover both compatibility paths:
+
+1. With `STRICT_EXT_REGISTRY_HTTPS` **disabled**, confirm an explicit
+   `http://...` registry URL is still accepted by the helper path/tests.
+2. With `STRICT_EXT_REGISTRY_HTTPS` **enabled**, confirm the same explicit
+   `http://...` URL is rejected with `400 Bad Request`.
+3. Confirm the Docker default URL and explicit `https://...` URLs continue to
+   work in both modes.
+
+Telemetry is available through the Builder API metrics surface:
+
+- `ext-registry.validation`
+- `ext-registry.insecure-url.allowed`
+- `ext-registry.insecure-url.blocked`
 
 ## Contract tests
 

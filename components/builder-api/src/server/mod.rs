@@ -65,7 +65,8 @@ features! {
         const List = 0b0000_0001,
         const LegacyProject = 0b0000_0011,
         const Artifactory = 0b0000_0100,
-        const BuildDeps = 0b0000_1000
+        const BuildDeps = 0b0000_1000,
+        const StrictExtRegistryHttps = 0b0001_0000
     }
 }
 
@@ -97,7 +98,9 @@ fn enable_features(config: &Config) {
     let features: HashMap<_, _> = HashMap::from_iter(vec![("LIST", feat::List),
                                                           ("LEGACYPROJECT", feat::LegacyProject),
                                                           ("ARTIFACTORY", feat::Artifactory),
-                                                          ("BUILDDEPS", feat::BuildDeps),]);
+                                                          ("BUILDDEPS", feat::BuildDeps),
+                                                          ("STRICT_EXT_REGISTRY_HTTPS",
+                                                           feat::StrictExtRegistryHttps),]);
 
     for key in &config.api.features_enabled {
         if features.contains_key(key.as_str()) {
