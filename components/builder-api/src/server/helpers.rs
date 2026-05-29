@@ -13,7 +13,8 @@ use chrono::{NaiveDate,
 use regex::Regex;
 use serde::Serialize;
 use serde_json::Value;
-use std::str::FromStr;
+use std::{str::FromStr,
+          sync::OnceLock};
 // TODO - this module should not just be a grab bag of stuff
 
 pub const PAGINATION_RANGE_MAX: isize = 50;
@@ -111,6 +112,17 @@ pub fn extract_pagination_in_pages(pagination: &Query<Pagination>) -> (isize, is
     (pagination.range / PAGINATION_RANGE_MAX + 1, PAGINATION_RANGE_MAX)
 }
 
+fn user_agent_target_regex() -> &'static Regex {
+    static USER_AGENT_TARGET_REGEX: OnceLock<Regex> = OnceLock::new();
+
+    USER_AGENT_TARGET_REGEX.get_or_init(|| {
+                             Regex::new(
+        r"(?P<client>[^\s]+)\s?(\((?P<target>\w+-\w+); (?P<kernel>.*)\))?",
+    )
+    .unwrap()
+                         })
+}
+
 // TODO: Deprecate getting target from User Agent header
 pub fn target_from_headers(req: &HttpRequest) -> PackageTarget {
     let user_agent_header = match req.headers().get(header::USER_AGENT) {
@@ -119,16 +131,13 @@ pub fn target_from_headers(req: &HttpRequest) -> PackageTarget {
     };
 
     let user_agent = match user_agent_header.to_str() {
-        Ok(s) => (*s).to_string(),
+        Ok(s) => s,
         Err(_) => return PackageTarget::from_str("x86_64-linux").unwrap(),
     };
 
     trace!("Parsing target from UserAgent header: {}", &user_agent);
 
-    let user_agent_regex =
-        Regex::new(r"(?P<client>[^\s]+)\s?(\((?P<target>\w+-\w+); (?P<kernel>.*)\))?").unwrap();
-
-    let target = match user_agent_regex.captures(&user_agent) {
+    let target = match user_agent_target_regex().captures(user_agent) {
         Some(user_agent_capture) => {
             if let Some(target_match) = user_agent_capture.name("target") {
                 target_match.as_str().to_string()
