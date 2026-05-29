@@ -2,20 +2,50 @@
 name: Rust Cargo Audit
 on:
   push:
+  workflow_dispatch:
+
+concurrency:
+  group: rust-cargo-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Recent successful runs sampled on 2026-05-29 averaged ~182s, mostly spent
+  # recompiling cargo-audit. Cache the pinned binary and skip install on hits.
+  CARGO_AUDIT_VERSION: "0.20.0"
+
 permissions:
   contents: read
 jobs:
   security_audit:
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.91.1
         id: toolchain
       - run: rustup override set ${{steps.toolchain.outputs.name}}
-      - uses: ClementTsang/cargo-action@v0.0.7
+      - name: Cache cargo-audit binary
+        id: cargo-audit-cache
+        uses: actions/cache@v4
         with:
-          command: install
-          args: cargo-audit
-      - uses: ClementTsang/cargo-action@v0.0.7
-        with:
-          command: audit
+          path: |
+            ~/.cargo/bin/cargo-audit
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: cargo-audit-${{ runner.os }}-${{ env.CARGO_AUDIT_VERSION }}
+      - name: Install cargo-audit on cache miss
+        if: steps.cargo-audit-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if cargo install cargo-audit --locked --version "$CARGO_AUDIT_VERSION"; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
+      - name: Run cargo audit
+        run: cargo audit

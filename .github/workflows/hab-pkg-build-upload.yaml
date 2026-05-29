@@ -19,6 +19,7 @@ jobs:
   changes:
     name: detect changed components
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       pull-requests: read
     outputs:
@@ -43,12 +44,16 @@ jobs:
   habitat-packaging:
     needs: changes
     if: ${{ needs.changes.outputs.components != '[]' && needs.changes.outputs.components != '' }}
-    name: hab pkg of changed components
+    name: hab pkg of ${{ matrix.components }}
     strategy:
       fail-fast: false
       matrix:
         components: ${{ fromJSON(needs.changes.outputs.components) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 75
+    concurrency:
+      group: hab-pkg-publish-${{ matrix.components }}
+      cancel-in-progress: false
     steps:
       - name: Checkout for ${{matrix.components}}
         uses: actions/checkout@v4

@@ -19,6 +19,18 @@ inputs:
     description: Which architecture to target
     required: true
     default: x86_64-linux
+  install-timeout-seconds:
+    description: Timeout for the Habitat install script
+    required: true
+    default: "600"
+  key-download-timeout-seconds:
+    description: Timeout for each Habitat key download
+    required: true
+    default: "180"
+  retry-attempts:
+    description: Retry attempts for transient network operations
+    required: true
+    default: "3"
 runs:
   using: composite
   steps:
@@ -36,8 +48,20 @@ runs:
         URL: ${{ inputs.curl-bash-url }}
         VERSION: ${{ inputs.habitat-version }}
         TARGET: ${{ inputs.habitat-target }}
+        INSTALL_TIMEOUT_SECONDS: ${{ inputs.install-timeout-seconds }}
+        RETRY_ATTEMPTS: ${{ inputs.retry-attempts }}
       run: |
-        curl "$URL" | sudo -E bash -s -- -v "$VERSION" -t "$TARGET"
+        set -euo pipefail
+        for attempt in $(seq 1 "$RETRY_ATTEMPTS"); do
+          if timeout "$INSTALL_TIMEOUT_SECONDS" \
+            bash -o pipefail -c 'curl --fail --location --show-error --silent --retry 3 --retry-delay 5 "$URL" | sudo -E bash -s -- -v "$VERSION" -t "$TARGET"'; then
+            exit 0
+          fi
+          if [ "$attempt" -eq "$RETRY_ATTEMPTS" ]; then
+            exit 1
+          fi
+          sleep $((attempt * 5))
+        done
 
     - name: accept hab license
       shell: bash
@@ -50,8 +74,27 @@ runs:
       env:
         HAB_ORIGIN: ${{ inputs.hab-origin }}
         HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
+        KEY_DOWNLOAD_TIMEOUT_SECONDS: ${{ inputs.key-download-timeout-seconds }}
+        RETRY_ATTEMPTS: ${{ inputs.retry-attempts }}
       run: |
-        hab origin key download $HAB_ORIGIN
-        hab origin key download $HAB_ORIGIN --auth $HAB_AUTH_TOKEN --secret
-        sudo hab origin key download $HAB_ORIGIN
-        sudo hab origin key download $HAB_ORIGIN --auth $HAB_AUTH_TOKEN --secret
+        set -euo pipefail
+        retry_command() {
+          local description="$1"
+          shift
+          local attempt
+          for attempt in $(seq 1 "$RETRY_ATTEMPTS"); do
+            if timeout "$KEY_DOWNLOAD_TIMEOUT_SECONDS" "$@"; then
+              return 0
+            fi
+            if [ "$attempt" -eq "$RETRY_ATTEMPTS" ]; then
+              echo "failed: $description" >&2
+              return 1
+            fi
+            sleep $((attempt * 5))
+          done
+        }
+
+        retry_command "public origin key" hab origin key download "$HAB_ORIGIN"
+        retry_command "secret origin key" hab origin key download "$HAB_ORIGIN" --auth "$HAB_AUTH_TOKEN" --secret
+        retry_command "sudo public origin key" sudo hab origin key download "$HAB_ORIGIN"
+        retry_command "sudo secret origin key" sudo hab origin key download "$HAB_ORIGIN" --auth "$HAB_AUTH_TOKEN" --secret

@@ -21,6 +21,10 @@ jobs:
   habitat-packaging:
     name: hab pkg of changed components
     runs-on: ubuntu-latest
+    timeout-minutes: 75
+    concurrency:
+      group: adhoc-hab-pkg-${{ inputs.bldr-component }}
+      cancel-in-progress: false
     steps:
       - name: Checkout for ${{ inputs.bldr-component }}
         uses: actions/checkout@v4

@@ -7,6 +7,22 @@ inputs:
   bldr-component:
     description: The Builder Component to build and package
     required: true
+  build-timeout-seconds:
+    description: Timeout for hab pkg build
+    required: true
+    default: "3600"
+  install-timeout-seconds:
+    description: Timeout for hab pkg install
+    required: true
+    default: "600"
+  upload-timeout-seconds:
+    description: Timeout for hab pkg upload
+    required: true
+    default: "900"
+  upload-retry-attempts:
+    description: Retry attempts for hab pkg upload
+    required: true
+    default: "3"
 runs:
   using: composite
   steps:
@@ -18,21 +34,41 @@ runs:
         HAB_BLDR_CHANNEL: base-2025
         HAB_REFRESH_CHANNEL: base-2025
         HAB_FALLBACK_CHANNEL: base-2025
+        BUILD_TIMEOUT_SECONDS: ${{ inputs.build-timeout-seconds }}
       run: |
-        hab pkg build $BLDR_COMPONENT
+        set -euo pipefail
+        timeout "$BUILD_TIMEOUT_SECONDS" hab pkg build "$BLDR_COMPONENT"
 
     - name: hab pkg install
       shell: bash
       env:
         HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
+        INSTALL_TIMEOUT_SECONDS: ${{ inputs.install-timeout-seconds }}
       run: |
+        set -euo pipefail
         source results/last_build.env
-        sudo hab pkg install --auth $HAB_AUTH_TOKEN results/$pkg_artifact
+        timeout "$INSTALL_TIMEOUT_SECONDS" sudo hab pkg install --auth "$HAB_AUTH_TOKEN" "results/$pkg_artifact"
 
     - name: hab pkg upload
       shell: bash
       env:
         HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
+        UPLOAD_TIMEOUT_SECONDS: ${{ inputs.upload-timeout-seconds }}
+        UPLOAD_RETRY_ATTEMPTS: ${{ inputs.upload-retry-attempts }}
       run: |
-        source results/last_build.env
-        hab pkg upload --auth $HAB_AUTH_TOKEN results/$pkg_artifact
+        set -euo pipefail
+        retry_upload() {
+          local attempt
+          for attempt in $(seq 1 "$UPLOAD_RETRY_ATTEMPTS"); do
+            source results/last_build.env
+            if timeout "$UPLOAD_TIMEOUT_SECONDS" hab pkg upload --auth "$HAB_AUTH_TOKEN" "results/$pkg_artifact"; then
+              return 0
+            fi
+            if [ "$attempt" -eq "$UPLOAD_RETRY_ATTEMPTS" ]; then
+              return 1
+            fi
+            sleep $((attempt * 10))
+          done
+        }
+
+        retry_upload
