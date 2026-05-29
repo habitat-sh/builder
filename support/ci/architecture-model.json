@@ -1,0 +1,48 @@
+{
+  "title": "Builder repository architecture",
+  "intro": "This diagram is generated from a checked-in architecture model. Solid arrows show request or data movement. Dashed arrows show shared code or configuration dependencies that shape how runtime pieces fit together.",
+  "groups": [
+    { "id": "entrypoints", "label": "Entry points" },
+    { "id": "services", "label": "Services and integrations" },
+    { "id": "data", "label": "Data and state" },
+    { "id": "shared", "label": "Shared crates and config" }
+  ],
+  "components": [
+    { "id": "web", "path": "components/builder-web", "label": "Angular SPA", "group": "entrypoints" },
+    { "id": "proxy", "path": "components/builder-api-proxy", "label": "Proxy + static asset host", "group": "entrypoints" },
+    { "id": "api", "path": "components/builder-api", "label": "HTTP API gateway", "group": "services" },
+    { "id": "oauth", "path": "components/oauth-client", "label": "OAuth exchange client", "group": "services" },
+    { "id": "github", "path": "components/github-api-client", "label": "GitHub API client", "group": "services" },
+    { "id": "artifactory", "path": "components/artifactory-client", "label": "External package publish client", "group": "services" },
+    { "id": "db", "path": "components/builder-db", "label": "PostgreSQL access layer", "group": "data" },
+    { "id": "minio", "path": "components/builder-minio", "label": "S3-compatible artifact store", "group": "data" },
+    { "id": "memcached", "path": "components/builder-memcached", "label": "Cache configuration and runtime cache path", "group": "data" },
+    { "id": "core", "path": "components/builder-core", "label": "Shared service logic", "group": "shared" },
+    { "id": "protocol", "path": "components/builder-protocol", "label": "Shared message contracts", "group": "shared" },
+    { "id": "datastore", "path": "components/builder-datastore", "label": "Datastore configuration", "group": "shared" }
+  ],
+  "edges": [
+    { "from": "web", "to": "proxy", "label": "Flow 1: browser requests", "style": "solid" },
+    { "from": "proxy", "to": "api", "label": "Flow 1: API/UI routing", "style": "solid" },
+    { "from": "api", "to": "oauth", "label": "Flow 2: sign-in and identity exchange", "style": "solid" },
+    { "from": "api", "to": "github", "label": "Flow 2: GitHub-backed repo and org lookups", "style": "solid" },
+    { "from": "api", "to": "db", "label": "Flow 3: package metadata", "style": "solid" },
+    { "from": "api", "to": "minio", "label": "Flow 3: package blobs", "style": "solid" },
+    { "from": "api", "to": "memcached", "label": "Flow 3: hot package/cache lookups", "style": "solid" },
+    { "from": "api", "to": "artifactory", "label": "Flow 3: external package publishing", "style": "solid" },
+    { "from": "api", "to": "core", "label": "shared helpers", "style": "dashed" },
+    { "from": "api", "to": "protocol", "label": "shared contracts", "style": "dashed" },
+    { "from": "db", "to": "datastore", "label": "configured by", "style": "dashed" },
+    { "from": "proxy", "to": "web", "label": "serves built UI assets from", "style": "dashed" }
+  ],
+  "data_flows": [
+    "**UI request flow:** `components/builder-web/` drives browser requests through `components/builder-api-proxy/`, which fronts the HTTP surface exposed by `components/builder-api/`.",
+    "**Authentication and GitHub flow:** `components/builder-api/` uses `components/oauth-client/` for OAuth exchanges and `components/github-api-client/` for GitHub-backed operations such as repository or organization lookups.",
+    "**Package storage and publishing flow:** `components/builder-api/` coordinates package metadata through `components/builder-db/`, stores package blobs through `components/builder-minio/`, uses `components/builder-memcached/` for cache-backed hot paths, and can publish outward through `components/artifactory-client/`."
+  ],
+  "notes": [
+    "`components/builder-core/` and `components/builder-protocol/` are shared crates used by `components/builder-api/`, so they appear as supporting dependencies rather than independent network hops.",
+    "`components/builder-datastore/` is shown as the configuration layer that shapes how `components/builder-db/` is wired, rather than as a separately exposed user-facing entry point.",
+    "`components/builder-memcached/` is represented as a cache-facing dependency near the API/data plane so the diagram reflects cache-backed lookup paths that were absent from the prior snapshot."
+  ]
+}

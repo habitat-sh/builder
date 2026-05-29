@@ -1,0 +1,29 @@
+name: Validate architecture doc
+
+on:
+  pull_request:
+    paths:
+      - "docs/architecture.md"
+      - "support/ci/architecture-model.json"
+      - "support/ci/architecture-previous.json"
+      - "support/ci/generate_architecture_doc.py"
+      - "Makefile"
+      - ".github/workflows/validate-architecture-doc.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  architecture-doc:
+    name: Check generated architecture doc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Regenerate architecture doc
+        run: make architecture-doc
+
+      - name: Ensure generated doc is up to date
+        run: git --no-pager diff --exit-code -- docs/architecture.md

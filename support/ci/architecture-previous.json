@@ -1,0 +1,83 @@
+{
+  "components": [
+    "components/builder-web",
+    "components/builder-api-proxy",
+    "components/builder-api",
+    "components/oauth-client",
+    "components/github-api-client",
+    "components/artifactory-client",
+    "components/builder-db",
+    "components/builder-minio",
+    "components/builder-core",
+    "components/builder-protocol",
+    "components/builder-datastore"
+  ],
+  "edges": [
+    {
+      "from": "components/builder-web",
+      "to": "components/builder-api-proxy",
+      "label": "Flow 1: browser requests",
+      "style": "solid"
+    },
+    {
+      "from": "components/builder-api-proxy",
+      "to": "components/builder-api",
+      "label": "Flow 1: API/UI routing",
+      "style": "solid"
+    },
+    {
+      "from": "components/builder-api",
+      "to": "components/oauth-client",
+      "label": "Flow 2: sign-in and identity exchange",
+      "style": "solid"
+    },
+    {
+      "from": "components/builder-api",
+      "to": "components/github-api-client",
+      "label": "Flow 2: GitHub-backed repo and org lookups",
+      "style": "solid"
+    },
+    {
+      "from": "components/builder-api",
+      "to": "components/builder-db",
+      "label": "Flow 3: package metadata",
+      "style": "solid"
+    },
+    {
+      "from": "components/builder-api",
+      "to": "components/builder-minio",
+      "label": "Flow 3: package blobs",
+      "style": "solid"
+    },
+    {
+      "from": "components/builder-api",
+      "to": "components/artifactory-client",
+      "label": "Flow 3: external package publishing",
+      "style": "solid"
+    },
+    {
+      "from": "components/builder-api",
+      "to": "components/builder-core",
+      "label": "shared helpers",
+      "style": "dashed"
+    },
+    {
+      "from": "components/builder-api",
+      "to": "components/builder-protocol",
+      "label": "shared contracts",
+      "style": "dashed"
+    },
+    {
+      "from": "components/builder-db",
+      "to": "components/builder-datastore",
+      "label": "configured by",
+      "style": "dashed"
+    },
+    {
+      "from": "components/builder-api-proxy",
+      "to": "components/builder-web",
+      "label": "serves built UI assets from",
+      "style": "dashed"
+    }
+  ]
+}

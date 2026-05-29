@@ -61,6 +61,10 @@ fmt:
 	bash ./support/ci/rustfmt.sh
 .PHONY: fmt
 
+architecture-doc: ## regenerates docs/architecture.md from the checked-in model
+	python3 ./support/ci/generate_architecture_doc.py
+.PHONY: architecture-doc
+
 help:
 	@perl -nle'print $& if m{^[a-zA-Z_-]+:.*?## .*$$}' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 .PHONY: help
