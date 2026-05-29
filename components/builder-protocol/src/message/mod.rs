@@ -18,15 +18,13 @@ pub mod originsrv;
 use crate::error::ProtocolError;
 
 pub fn decode<T>(bytes: &[u8]) -> Result<T, ProtocolError>
-where
-    T: protobuf::Message,
+    where T: protobuf::Message
 {
     protobuf::Message::parse_from_bytes(bytes).map_err(ProtocolError::Decode)
 }
 
 pub fn encode<T>(message: &T) -> Result<Vec<u8>, ProtocolError>
-where
-    T: protobuf::Message,
+    where T: protobuf::Message
 {
     message.write_to_bytes().map_err(ProtocolError::Encode)
 }

@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{fmt, result, string::FromUtf8Error};
+use std::{fmt,
+          result,
+          string::FromUtf8Error};
 
 #[derive(Debug)]
 pub enum ProtocolError {

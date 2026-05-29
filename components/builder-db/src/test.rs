@@ -1,15 +1,16 @@
-use std::sync::{atomic::AtomicUsize, Once};
+use std::sync::{atomic::AtomicUsize,
+                Once};
 
 pub static INIT_TEMPLATE: Once = Once::new();
 pub static TEST_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 pub mod postgres {
-    use std::{
-        path::PathBuf,
-        process::{Child, Command, Stdio},
-        sync::Once,
-        thread,
-    };
+    use std::{path::PathBuf,
+              process::{Child,
+                        Command,
+                        Stdio},
+              sync::Once,
+              thread};
 
     struct Postgres {
         inner: Child,
@@ -19,11 +20,11 @@ pub mod postgres {
 
     pub fn start() {
         POSTGRES.call_once(|| {
-            thread::spawn(move || {
-                let mut postgres = Postgres::new();
-                let _ = postgres.inner.wait();
-            });
-        });
+                    thread::spawn(move || {
+                        let mut postgres = Postgres::new();
+                        let _ = postgres.inner.wait();
+                    });
+                });
         std::thread::sleep(std::time::Duration::from_secs(4));
     }
 
@@ -35,20 +36,18 @@ pub mod postgres {
                 (Stdio::null(), Stdio::null(), Stdio::null())
             };
             // debug should be Stdio::inherit();
-            let root_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("tests")
-                .join("db");
+            let root_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests")
+                                                                     .join("db");
             let start_path = root_path.join("start.sh");
-            let child = Command::new("sudo")
-                .arg("-E")
-                .arg(start_path)
-                .stdin(stdin)
-                .stdout(stdout)
-                .stderr(stderr)
-                .env("DB_TEST_DIR", root_path)
-                .current_dir("/tmp")
-                .spawn()
-                .expect("Failed to launch core/postgresql17");
+            let child = Command::new("sudo").arg("-E")
+                                            .arg(start_path)
+                                            .stdin(stdin)
+                                            .stdout(stdout)
+                                            .stderr(stderr)
+                                            .env("DB_TEST_DIR", root_path)
+                                            .current_dir("/tmp")
+                                            .spawn()
+                                            .expect("Failed to launch core/postgresql17");
             Postgres { inner: child }
         }
     }
@@ -58,12 +57,13 @@ pub mod postgres {
 macro_rules! datastore_test {
     ($datastore:ident) => {{
         use diesel;
-        use std::sync::{atomic::Ordering, Arc};
-        use $crate::{
-            config::DataStoreCfg,
-            diesel_pool::DbPool,
-            test::{postgres, INIT_TEMPLATE, TEST_COUNT},
-        };
+        use std::sync::{atomic::Ordering,
+                        Arc};
+        use $crate::{config::DataStoreCfg,
+                     diesel_pool::DbPool,
+                     test::{postgres,
+                            INIT_TEMPLATE,
+                            TEST_COUNT}};
 
         postgres::start();
 
@@ -85,12 +85,12 @@ macro_rules! datastore_test {
             let conn = pool.get_conn().expect("Failed to get connection");
 
             diesel::sql_query(format!("DROP DATABASE IF EXISTS {}", db_template).as_str())
-                .execute(&conn)
-                .expect("Failed to drop existing template database");
+                        .execute(&conn)
+                        .expect("Failed to drop existing template database");
 
             diesel::sql_query(format!("CREATE DATABASE {}", db_template).as_str())
-                .execute(&conn)
-                .expect("Failed to create template database");
+                        .execute(&conn)
+                        .expect("Failed to create template database");
 
             // Now that the database is recreated, set config to use that database
             config.database = db_template.to_string();
@@ -118,12 +118,10 @@ macro_rules! datastore_test {
         let conn = create_pool.get_conn().expect("Failed to get connection");
         let drop_db = format!("DROP DATABASE IF EXISTS {}", db_name);
         let create_db = format!("CREATE DATABASE {} TEMPLATE {}", db_name, db_template);
-        diesel::sql_query(drop_db)
-            .execute(&conn)
-            .expect("Failed to drop test database");
-        diesel::sql_query(create_db)
-            .execute(&conn)
-            .expect("Failed to create test database from template");
+        diesel::sql_query(drop_db).execute(&conn)
+                                  .expect("Failed to drop test database");
+        diesel::sql_query(create_db).execute(&conn)
+                                    .expect("Failed to create test database from template");
 
         config.database = db_name;
         config.pool_size = 5;

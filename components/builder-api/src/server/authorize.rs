@@ -14,25 +14,24 @@
 
 use std::str::FromStr;
 
-use actix_web::{HttpMessage, HttpRequest};
+use actix_web::{HttpMessage,
+                HttpRequest};
 
-use crate::{
-    bldr_core::{access_token::BUILDER_ACCOUNT_ID, metrics::CounterMetric, privilege::*},
-    db::models::origin::*,
-    protocol::originsrv,
-};
+use crate::{bldr_core::{access_token::BUILDER_ACCOUNT_ID,
+                        metrics::CounterMetric,
+                        privilege::*},
+            db::models::origin::*,
+            protocol::originsrv};
 
-use crate::server::{
-    error::{Error, Result},
-    helpers::req_state,
-    services::metrics::Counter,
-};
+use crate::server::{error::{Error,
+                            Result},
+                    helpers::req_state,
+                    services::metrics::Counter};
 
-pub fn authorize_session(
-    req: &HttpRequest,
-    origin_opt: Option<&str>,
-    min_role: Option<OriginMemberRole>,
-) -> Result<originsrv::Session> {
+pub fn authorize_session(req: &HttpRequest,
+                         origin_opt: Option<&str>,
+                         min_role: Option<OriginMemberRole>)
+                         -> Result<originsrv::Session> {
     let session = {
         let extensions = req.extensions();
         match extensions.get::<originsrv::Session>() {
@@ -57,41 +56,33 @@ pub fn authorize_session(
             Some(r) => r,
             None => {
                 let r = OriginMemberRole::ReadonlyMember;
-                debug!(
-                    "authorize_session: minimum role parameter not set! Assuming {}",
-                    r
-                );
+                debug!("authorize_session: minimum role parameter not set! Assuming {}",
+                       r);
                 r
             }
         };
         match check_origin_member_role(req, origin, session.id()) {
             Some(member_role) => {
                 if member_role >= minimum_req_role {
-                    debug!(
-                        "authorize_session: account {} has {} permissions in origin {}",
-                        session.id(),
-                        minimum_req_role,
-                        origin
-                    );
+                    debug!("authorize_session: account {} has {} permissions in origin {}",
+                           session.id(),
+                           minimum_req_role,
+                           origin);
                     return Ok(session);
                 } else {
-                    debug!(
-                        "authorize_session: account {} does not have {} permissions in origin \
+                    debug!("authorize_session: account {} does not have {} permissions in origin \
                             {}. Current role: {}",
-                        session.id(),
-                        minimum_req_role,
-                        origin,
-                        member_role
-                    );
+                           session.id(),
+                           minimum_req_role,
+                           origin,
+                           member_role);
                     return Err(Error::Authorization);
                 }
             }
             None => {
-                debug!(
-                    "authorize_session: account {} is not a member of the origin {}",
-                    session.id(),
-                    origin
-                );
+                debug!("authorize_session: account {} is not a member of the origin {}",
+                       session.id(),
+                       origin);
                 return Err(Error::Authorization);
             }
         }
@@ -137,11 +128,10 @@ pub fn check_origin_member(req: &HttpRequest, origin: &str, account_id: u64) -> 
     }
 }
 
-fn check_origin_member_role(
-    req: &HttpRequest,
-    origin: &str,
-    account_id: u64,
-) -> Option<OriginMemberRole> {
+fn check_origin_member_role(req: &HttpRequest,
+                            origin: &str,
+                            account_id: u64)
+                            -> Option<OriginMemberRole> {
     if account_id == BUILDER_ACCOUNT_ID {
         Some(OriginMemberRole::Owner)
     } else {
@@ -149,10 +139,8 @@ fn check_origin_member_role(
         match memcache.get_origin_member_role(origin, account_id) {
             Some(val) => {
                 Counter::MemcacheMemberRoleHit.increment();
-                debug!(
-                    "Origin role membership {} {} Cache Hit!",
-                    origin, account_id
-                );
+                debug!("Origin role membership {} {} Cache Hit!",
+                       origin, account_id);
                 match OriginMemberRole::from_str(&val) {
                     Ok(role) => return Some(role),
                     Err(_) => debug!("Unable to unwrap role from memcache!"),
@@ -160,31 +148,29 @@ fn check_origin_member_role(
             }
             None => {
                 Counter::MemcacheMemberRoleMiss.increment();
-                debug!(
-                    "Origin role membership {} {} Cache Miss!",
-                    origin, account_id
-                );
+                debug!("Origin role membership {} {} Cache Miss!",
+                       origin, account_id);
             }
         }
         match req_state(req).db.get_conn() {
-            Ok(mut conn) => match OriginMember::member_role(origin, account_id as i64, &mut conn) {
-                Ok(member_role) => {
-                    memcache.set_origin_member_role(origin, account_id, &member_role.to_string());
-                    debug!(
-                        "Found account {} has member type {}",
-                        account_id, member_role
-                    );
-                    Some(member_role)
-                }
-                Err(err) => {
-                    debug!(
-                        "Unable to determine member type for account {} in origin {}. \
+            Ok(mut conn) => {
+                match OriginMember::member_role(origin, account_id as i64, &mut conn) {
+                    Ok(member_role) => {
+                        memcache.set_origin_member_role(origin,
+                                                        account_id,
+                                                        &member_role.to_string());
+                        debug!("Found account {} has member type {}",
+                               account_id, member_role);
+                        Some(member_role)
+                    }
+                    Err(err) => {
+                        debug!("Unable to determine member type for account {} in origin {}. \
                                 More than likely they are simply not a member: {}",
-                        account_id, origin, err
-                    );
-                    None
+                               account_id, origin, err);
+                        None
+                    }
                 }
-            },
+            }
             Err(err) => {
                 warn!("Unable to retrieve request state: {}", err);
                 None

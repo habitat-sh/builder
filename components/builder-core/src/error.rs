@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{error, fmt, io, path::PathBuf, result, string};
+use std::{error,
+          fmt,
+          io,
+          path::PathBuf,
+          result,
+          string};
 
-use crate::{hab_core, protocol};
+use crate::{hab_core,
+            protocol};
 
 #[derive(Debug)]
 pub enum Error {
@@ -49,10 +55,8 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
             Error::ApiError(ref code, ref response) => {
-                format!(
-                    "Received a non-200 response, status={}, response={:?}",
-                    code, response
-                )
+                format!("Received a non-200 response, status={}, response={:?}",
+                        code, response)
             }
             Error::RpcError(ref code, ref e) => format!("{} {}", code, e),
             Error::HttpClient(ref e) => format!("{}", e),
@@ -63,10 +67,8 @@ impl fmt::Display for Error {
                 format!("Error reading configuration file, {}, {}", f.display(), e)
             }
             Error::ConfigFileSyntax(ref e) => {
-                format!(
-                    "Syntax errors while parsing TOML configuration file:\n\n{}",
-                    e
-                )
+                format!("Syntax errors while parsing TOML configuration file:\n\n{}",
+                        e)
             }
             Error::DecryptError(ref e) => e.to_string(),
             Error::EncryptError(ref e) => e.to_string(),
@@ -90,37 +92,25 @@ impl fmt::Display for Error {
 impl error::Error for Error {}
 
 impl From<hab_core::Error> for Error {
-    fn from(err: hab_core::Error) -> Error {
-        Error::HabitatCore(err)
-    }
+    fn from(err: hab_core::Error) -> Error { Error::HabitatCore(err) }
 }
 
 impl From<protobuf::Error> for Error {
-    fn from(err: protobuf::Error) -> Error {
-        Error::Protobuf(err)
-    }
+    fn from(err: protobuf::Error) -> Error { Error::Protobuf(err) }
 }
 
 impl From<reqwest::Error> for Error {
-    fn from(err: reqwest::Error) -> Error {
-        Error::HttpClient(err)
-    }
+    fn from(err: reqwest::Error) -> Error { Error::HttpClient(err) }
 }
 
 impl From<serde_json::Error> for Error {
-    fn from(err: serde_json::Error) -> Error {
-        Error::Serialization(err)
-    }
+    fn from(err: serde_json::Error) -> Error { Error::Serialization(err) }
 }
 
 impl From<string::FromUtf8Error> for Error {
-    fn from(err: string::FromUtf8Error) -> Error {
-        Error::FromUtf8Error(err)
-    }
+    fn from(err: string::FromUtf8Error) -> Error { Error::FromUtf8Error(err) }
 }
 
 impl From<base64::DecodeError> for Error {
-    fn from(err: base64::DecodeError) -> Error {
-        Error::Base64Error(err)
-    }
+    fn from(err: base64::DecodeError) -> Error { Error::Base64Error(err) }
 }

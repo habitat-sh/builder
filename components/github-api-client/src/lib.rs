@@ -28,8 +28,8 @@ pub mod metrics;
 mod response;
 pub mod types;
 
-pub use crate::{
-    client::{AppToken, GitHubClient},
-    config::GitHubCfg,
-    error::{HubError, HubResult},
-};
+pub use crate::{client::{AppToken,
+                         GitHubClient},
+                config::GitHubCfg,
+                error::{HubError,
+                        HubResult}};

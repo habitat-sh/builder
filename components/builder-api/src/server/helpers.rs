@@ -1,12 +1,15 @@
-use crate::{
-    db::models::{
-        channel::PackageChannelTrigger as PCT, origin::OriginMemberRole, package::PackageVisibility,
-    },
-    hab_core::package::PackageTarget,
-    server::{authorize::authorize_session, AppState},
-};
-use actix_web::{http::header, web::Query, HttpRequest, HttpResponse};
-use chrono::{NaiveDate, NaiveDateTime};
+use crate::{db::models::{channel::PackageChannelTrigger as PCT,
+                         origin::OriginMemberRole,
+                         package::PackageVisibility},
+            hab_core::package::PackageTarget,
+            server::{authorize::authorize_session,
+                     AppState}};
+use actix_web::{http::header,
+                web::Query,
+                HttpRequest,
+                HttpResponse};
+use chrono::{NaiveDate,
+             NaiveDateTime};
 use regex::Regex;
 use serde::Serialize;
 use serde_json::Value;
@@ -24,7 +27,7 @@ pub struct Target {
 #[derive(Deserialize)]
 pub struct Pagination {
     #[serde(default)]
-    pub range: isize,
+    pub range:    isize,
     #[serde(default)]
     pub distinct: bool,
 }
@@ -38,16 +41,16 @@ pub struct SearchQuery {
 #[derive(Serialize)]
 pub struct PaginatedResults<'a, T: 'a> {
     range_start: isize,
-    range_end: isize,
+    range_end:   isize,
     total_count: isize,
-    data: &'a [T],
+    data:        &'a [T],
 }
 
 #[derive(Serialize)]
 pub struct ChannelListingResults<'a, T: 'a> {
     channel: String,
-    target: String,
-    data: &'a [T],
+    target:  String,
+    data:    &'a [T],
 }
 
 #[derive(Deserialize)]
@@ -61,7 +64,7 @@ pub struct DateRange {
     #[serde(with = "ymd_date_format")]
     pub from_date: NaiveDateTime,
     #[serde(with = "ymd_date_format")]
-    pub to_date: NaiveDateTime,
+    pub to_date:   NaiveDateTime,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -71,55 +74,41 @@ pub struct Role {
 }
 
 pub fn role_results_json(role: OriginMemberRole) -> String {
-    let resp = Role {
-        role: role.to_string(),
-    };
+    let resp = Role { role: role.to_string(), };
     serde_json::to_string(&resp).unwrap()
 }
 
-pub fn package_results_json<T: Serialize>(
-    packages: &[T],
-    count: isize,
-    start: isize,
-    end: isize,
-) -> String {
-    let results = PaginatedResults {
-        range_start: start,
-        range_end: end,
-        total_count: count,
-        data: packages,
-    };
+pub fn package_results_json<T: Serialize>(packages: &[T],
+                                          count: isize,
+                                          start: isize,
+                                          end: isize)
+                                          -> String {
+    let results = PaginatedResults { range_start: start,
+                                     range_end:   end,
+                                     total_count: count,
+                                     data:        packages, };
 
     serde_json::to_string(&results).unwrap()
 }
 
-pub fn channel_listing_results_json<T: Serialize>(
-    channel: &str,
-    target: &str,
-    packages: &[T],
-) -> String {
-    let results = ChannelListingResults {
-        channel: channel.to_string(),
-        target: target.to_string(),
-        data: packages,
-    };
+pub fn channel_listing_results_json<T: Serialize>(channel: &str,
+                                                  target: &str,
+                                                  packages: &[T])
+                                                  -> String {
+    let results = ChannelListingResults { channel: channel.to_string(),
+                                          target:  target.to_string(),
+                                          data:    packages, };
     serde_json::to_string(&results).unwrap()
 }
 
 pub fn extract_pagination(pagination: &Query<Pagination>) -> (isize, isize) {
-    (
-        pagination.range,
-        pagination.range + PAGINATION_RANGE_MAX - 1,
-    )
+    (pagination.range, pagination.range + PAGINATION_RANGE_MAX - 1)
 }
 
 // Returns the page number we are currently on and the per_page size
 pub fn extract_pagination_in_pages(pagination: &Query<Pagination>) -> (isize, isize) {
     #[allow(clippy::integer_division)]
-    (
-        pagination.range / PAGINATION_RANGE_MAX + 1,
-        PAGINATION_RANGE_MAX,
-    )
+    (pagination.range / PAGINATION_RANGE_MAX + 1, PAGINATION_RANGE_MAX)
 }
 
 // TODO: Deprecate getting target from User Agent header
@@ -162,35 +151,32 @@ pub fn target_from_headers(req: &HttpRequest) -> PackageTarget {
     }
 }
 
-pub fn fetch_license_expiration(
-    license_key: &str,
-    base_url: &str,
-) -> std::result::Result<NaiveDate, HttpResponse> {
-    let license_url = format!(
-        "{}/License/download?licenseId={}&version=2",
-        base_url.trim_end_matches('/'),
-        license_key
-    );
+pub fn fetch_license_expiration(license_key: &str,
+                                base_url: &str)
+                                -> std::result::Result<NaiveDate, HttpResponse> {
+    let license_url = format!("{}/License/download?licenseId={}&version=2",
+                              base_url.trim_end_matches('/'),
+                              license_key);
 
-    let response = reqwest::blocking::Client::new()
-        .get(license_url)
-        .header("Accept", "application/json")
-        .send()
-        .map_err(|e| {
-            debug!("License API request failed: {}", e);
-            HttpResponse::BadRequest().body(format!("License API error: {}", e))
-        })?;
+    let response =
+        reqwest::blocking::Client::new().get(license_url)
+                                        .header("Accept", "application/json")
+                                        .send()
+                                        .map_err(|e| {
+                                            debug!("License API request failed: {}", e);
+                                            HttpResponse::BadRequest().body(format!("License API \
+                                                                                     error: {}",
+                                                                                    e))
+                                        })?;
 
     let status = response.status();
     let body = response.text().map_err(|e| {
-        debug!("Failed to read license server response: {}", e);
-        HttpResponse::BadRequest().body(format!(
-            "Failed to read \
+                                   debug!("Failed to read license server response: {}", e);
+                                   HttpResponse::BadRequest().body(format!("Failed to read \
                                                                             license server \
                                                                             response: {}",
-            e
-        ))
-    })?;
+                                                                           e))
+                               })?;
 
     if !status.is_success() {
         debug!("License server returned error: {}", body);
@@ -202,51 +188,44 @@ pub fn fetch_license_expiration(
     }
 
     let json: Value = serde_json::from_str(&body).map_err(|e| {
-        debug!("Failed to parse license server response: {}", e);
-        HttpResponse::BadRequest().body(format!("JSON parse error: {}", e))
-    })?;
+                          debug!("Failed to parse license server response: {}", e);
+                          HttpResponse::BadRequest().body(format!("JSON parse error: {}", e))
+                      })?;
 
-    let entitlements = json["entitlements"]
-        .as_array()
-        .filter(|ents| !ents.is_empty())
-        .ok_or_else(|| {
-            debug!("No entitlements found in license data");
-            HttpResponse::BadRequest().body(
-                "Invalid license \
-                                                                                key.",
-            )
-        })?;
+    let entitlements = json["entitlements"].as_array()
+                                           .filter(|ents| !ents.is_empty())
+                                           .ok_or_else(|| {
+                                               debug!("No entitlements found in license data");
+                                               HttpResponse::BadRequest().body("Invalid license \
+                                                                                key.")
+                                           })?;
 
-    let expiration = entitlements
-        .iter()
-        .filter_map(|ent| {
-            ent.get("period")?
-                .get("end")?
-                .as_str()?
-                .parse::<NaiveDate>()
-                .ok()
-        })
-        .max()
-        .ok_or_else(|| {
-            debug!("No entitlement end dates found in license payload");
-            HttpResponse::BadRequest().body(
-                "No valid entitlement end \
-                                                                      date found.",
-            )
-        })?;
+    let expiration = entitlements.iter()
+                                 .filter_map(|ent| {
+                                     ent.get("period")?
+                                        .get("end")?
+                                        .as_str()?
+                                        .parse::<NaiveDate>()
+                                        .ok()
+                                 })
+                                 .max()
+                                 .ok_or_else(|| {
+                                     debug!("No entitlement end dates found in license payload");
+                                     HttpResponse::BadRequest().body("No valid entitlement end \
+                                                                      date found.")
+                                 })?;
 
     Ok(expiration)
 }
 
-pub fn visibility_for_optional_session(
-    req: &HttpRequest,
-    optional_session_id: Option<u64>,
-    origin: &str,
-) -> Vec<PackageVisibility> {
+pub fn visibility_for_optional_session(req: &HttpRequest,
+                                       optional_session_id: Option<u64>,
+                                       origin: &str)
+                                       -> Vec<PackageVisibility> {
     let mut v = vec![PackageVisibility::Public];
 
     if optional_session_id.is_some()
-        && authorize_session(req, Some(origin), Some(OriginMemberRole::ReadonlyMember)).is_ok()
+       && authorize_session(req, Some(origin), Some(OriginMemberRole::ReadonlyMember)).is_ok()
     {
         v.push(PackageVisibility::Hidden);
         v.push(PackageVisibility::Private);
@@ -281,18 +260,20 @@ pub fn trigger_from_request_model(req: &HttpRequest) -> PCT {
 
 pub fn req_state(req: &HttpRequest) -> &AppState {
     req.app_data::<actix_web::web::Data<AppState>>()
-        .expect("request state")
+       .expect("request state")
 }
 
 mod ymd_date_format {
-    use chrono::{NaiveDate, NaiveDateTime};
-    use serde::{self, Deserialize, Deserializer};
+    use chrono::{NaiveDate,
+                 NaiveDateTime};
+    use serde::{self,
+                Deserialize,
+                Deserializer};
 
     const FORMAT: &str = "%Y-%m-%d";
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
-    where
-        D: Deserializer<'de>,
+        where D: Deserializer<'de>
     {
         let s = String::deserialize(deserializer)?;
         let naive_date = NaiveDate::parse_from_str(&s, FORMAT).unwrap();

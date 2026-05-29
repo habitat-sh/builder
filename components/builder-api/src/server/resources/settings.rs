@@ -12,24 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::{
-    body::BoxBody,
-    http::StatusCode,
-    web::{self, Data, Json, Path, ServiceConfig},
-    HttpRequest, HttpResponse,
-};
+use actix_web::{body::BoxBody,
+                http::StatusCode,
+                web::{self,
+                      Data,
+                      Json,
+                      Path,
+                      ServiceConfig},
+                HttpRequest,
+                HttpResponse};
 
 use builder_core::Error::PackageSettingDeleteError;
 
-use crate::{
-    db::models::{origin::*, package::*, settings::*},
-    server::{
-        authorize::authorize_session,
-        error::{Error, Result},
-        helpers::req_state,
-        AppState,
-    },
-};
+use crate::{db::models::{origin::*,
+                         package::*,
+                         settings::*},
+            server::{authorize::authorize_session,
+                     error::{Error,
+                             Result},
+                     helpers::req_state,
+                     AppState}};
 
 use bytes::Bytes;
 use diesel::PgConnection;
@@ -46,31 +48,22 @@ impl Settings {
     // Route registration
     //
     pub fn register(cfg: &mut ServiceConfig) {
-        cfg.route(
-            "/settings/{origin}/{name}",
-            web::post().to(create_origin_package_settings),
-        )
-        .route(
-            "/settings/{origin}/{name}",
-            web::get().to(get_origin_package_settings),
-        )
-        .route(
-            "/settings/{origin}/{name}",
-            web::put().to(update_origin_package_settings),
-        )
-        .route(
-            "/settings/{origin}/{name}",
-            web::delete().to(delete_origin_package_settings),
-        );
+        cfg.route("/settings/{origin}/{name}",
+                  web::post().to(create_origin_package_settings))
+           .route("/settings/{origin}/{name}",
+                  web::get().to(get_origin_package_settings))
+           .route("/settings/{origin}/{name}",
+                  web::put().to(update_origin_package_settings))
+           .route("/settings/{origin}/{name}",
+                  web::delete().to(delete_origin_package_settings));
     }
 }
 
 // get_origin_package_settings
 #[allow(clippy::needless_pass_by_value)]
-async fn get_origin_package_settings(
-    req: HttpRequest,
-    path: Path<(String, String)>,
-) -> HttpResponse {
+async fn get_origin_package_settings(req: HttpRequest,
+                                     path: Path<(String, String)>)
+                                     -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), None) {
@@ -82,10 +75,8 @@ async fn get_origin_package_settings(
         Err(err) => return err.into(),
     };
 
-    let get_ops = &GetOriginPackageSettings {
-        origin: &origin,
-        name: &pkg,
-    };
+    let get_ops = &GetOriginPackageSettings { origin: &origin,
+                                              name:   &pkg, };
 
     match OriginPackageSettings::get(get_ops, &mut conn).map_err(Error::DieselError) {
         Ok(ops) => HttpResponse::Ok().json(ops),
@@ -98,11 +89,10 @@ async fn get_origin_package_settings(
 
 // create_origin_package_settings
 #[allow(clippy::needless_pass_by_value)]
-async fn create_origin_package_settings(
-    req: HttpRequest,
-    path: Path<(String, String)>,
-    state: Data<AppState>,
-) -> HttpResponse {
+async fn create_origin_package_settings(req: HttpRequest,
+                                        path: Path<(String, String)>,
+                                        state: Data<AppState>)
+                                        -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     let account_id =
@@ -145,11 +135,10 @@ async fn create_origin_package_settings(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn update_origin_package_settings(
-    req: HttpRequest,
-    path: Path<(String, String)>,
-    body: Json<UpdateOriginPackageSettingsReq>,
-) -> HttpResponse {
+async fn update_origin_package_settings(req: HttpRequest,
+                                        path: Path<(String, String)>,
+                                        body: Json<UpdateOriginPackageSettingsReq>)
+                                        -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     let account_id =
@@ -176,16 +165,12 @@ async fn update_origin_package_settings(
         }
     };
 
-    match OriginPackageSettings::update(
-        &UpdateOriginPackageSettings {
-            origin: &origin,
-            name: &pkg,
-            visibility: &pv,
-            owner_id: account_id as i64,
-        },
-        &mut conn,
-    )
-    .map_err(Error::DieselError)
+    match OriginPackageSettings::update(&UpdateOriginPackageSettings { origin:     &origin,
+                                                                       name:       &pkg,
+                                                                       visibility: &pv,
+                                                                       owner_id:   account_id
+                                                                                   as i64, },
+                                        &mut conn).map_err(Error::DieselError)
     {
         Ok(ups) => HttpResponse::Ok().json(ups),
         Err(err) => {
@@ -196,10 +181,9 @@ async fn update_origin_package_settings(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn delete_origin_package_settings(
-    req: HttpRequest,
-    path: Path<(String, String)>,
-) -> HttpResponse {
+async fn delete_origin_package_settings(req: HttpRequest,
+                                        path: Path<(String, String)>)
+                                        -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     let account_id =
@@ -218,15 +202,11 @@ async fn delete_origin_package_settings(
     match package_settings_delete_preflight(&origin, &pkg, &mut conn) {
         Ok(_) => {
             // Delete the package setting
-            match OriginPackageSettings::delete(
-                &DeleteOriginPackageSettings {
-                    origin: &origin,
-                    name: &pkg,
-                    owner_id: account_id as i64,
-                },
-                &mut conn,
-            )
-            .map_err(Error::DieselError)
+            match OriginPackageSettings::delete(&DeleteOriginPackageSettings { origin:   &origin,
+                                                                               name:     &pkg,
+                                                                               owner_id: account_id
+                                                                                         as i64, },
+                                                &mut conn).map_err(Error::DieselError)
             {
                 Ok(_) => HttpResponse::new(StatusCode::NO_CONTENT),
                 Err(err) => {
@@ -236,10 +216,8 @@ async fn delete_origin_package_settings(
             }
         }
         Err(err) => {
-            debug!(
-                "Origin preflight determined that {} is not deletable, err = {}!",
-                origin, err
-            );
+            debug!("Origin preflight determined that {} is not deletable, err = {}!",
+                   origin, err);
             // Here we want to enrich the http response with a sanitized error
             // by returning a 409 with a helpful message in the body.
             let body = Bytes::from(format!("{}", err).into_bytes());
@@ -249,18 +227,15 @@ async fn delete_origin_package_settings(
     }
 }
 
-fn package_settings_delete_preflight(
-    origin: &str,
-    pkg: &str,
-    conn: &mut PgConnection,
-) -> Result<()> {
+fn package_settings_delete_preflight(origin: &str,
+                                     pkg: &str,
+                                     conn: &mut PgConnection)
+                                     -> Result<()> {
     match OriginPackageSettings::count_packages_for_origin_package(origin, pkg, &mut *conn) {
         Ok(0) => {}
         Ok(count) => {
-            let err = format!(
-                "There are {} packages remaining for setting {}/{}. Must be zero.",
-                count, origin, pkg
-            );
+            let err = format!("There are {} packages remaining for setting {}/{}. Must be zero.",
+                              count, origin, pkg);
             return Err(Error::BuilderCore(PackageSettingDeleteError(err)));
         }
         Err(e) => return Err(Error::DieselError(e)),

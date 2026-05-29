@@ -12,30 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use reqwest::{header::HeaderMap, Client, StatusCode};
+use reqwest::{header::HeaderMap,
+              Client,
+              StatusCode};
 
-use crate::{
-    error::{Error, Result},
-    http_client::{ACCEPT_APPLICATION_JSON, CONTENT_TYPE_APPLICATION_JSON, USER_AGENT_BLDR},
-};
+use crate::{error::{Error,
+                    Result},
+            http_client::{ACCEPT_APPLICATION_JSON,
+                          CONTENT_TYPE_APPLICATION_JSON,
+                          USER_AGENT_BLDR}};
 
 // RPC message, transport as JSON over HTTP
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct RpcMessage {
     #[serde(default)]
-    pub id: String,
+    pub id:   String,
     #[serde(default)]
     pub body: Vec<u8>,
 }
 
 impl RpcMessage {
-    pub fn new(id: String, body: Vec<u8>) -> Self {
-        RpcMessage { id, body }
-    }
+    pub fn new(id: String, body: Vec<u8>) -> Self { RpcMessage { id, body } }
 
     pub fn make<T>(msg: &T) -> Result<RpcMessage>
-    where
-        T: protobuf::Message,
+        where T: protobuf::Message
     {
         let id = T::NAME.to_owned();
         let body = msg.write_to_bytes().map_err(Error::Protobuf)?;
@@ -44,8 +44,7 @@ impl RpcMessage {
     }
 
     pub fn parse<T>(&self) -> Result<T>
-    where
-        T: protobuf::Message,
+        where T: protobuf::Message
     {
         protobuf::Message::parse_from_bytes(&self.body).map_err(Error::Protobuf)
     }
@@ -53,7 +52,7 @@ impl RpcMessage {
 
 // RPC client
 pub struct RpcClient {
-    cli: Client,
+    cli:      Client,
     endpoint: String,
 }
 
@@ -61,11 +60,9 @@ impl RpcClient {
     pub fn new(url: &str) -> Self {
         debug!("Creating RPC client, url = {}", url);
 
-        let header_values = vec![
-            USER_AGENT_BLDR.clone(),
-            ACCEPT_APPLICATION_JSON.clone(),
-            CONTENT_TYPE_APPLICATION_JSON.clone(),
-        ];
+        let header_values = vec![USER_AGENT_BLDR.clone(),
+                                 ACCEPT_APPLICATION_JSON.clone(),
+                                 CONTENT_TYPE_APPLICATION_JSON.clone(),];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         let cli = match Client::builder().default_headers(headers).build() {
@@ -73,16 +70,13 @@ impl RpcClient {
             Err(err) => panic!("Unable to create Rpc client, err = {}", err),
         };
 
-        RpcClient {
-            cli,
-            endpoint: format!("{}/rpc", url),
-        }
+        RpcClient { cli,
+                    endpoint: format!("{}/rpc", url) }
     }
 
     pub async fn rpc<R, T>(&self, req: &R) -> Result<T>
-    where
-        R: protobuf::Message,
-        T: protobuf::Message,
+        where R: protobuf::Message,
+              T: protobuf::Message
     {
         let id = R::NAME.to_owned();
         let body = req.write_to_bytes()?;

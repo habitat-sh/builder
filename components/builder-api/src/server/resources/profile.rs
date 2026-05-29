@@ -1,21 +1,25 @@
-use crate::{
-    bldr_core,
-    db::models::{account::*, license_keys::*},
-    protocol::originsrv,
-    server::{
-        authorize::authorize_session,
-        error::{Error, Result},
-        framework::headers,
-        helpers::{fetch_license_expiration, req_state},
-        AppState,
-    },
-};
-use actix_web::{
-    body::BoxBody,
-    http::{self, StatusCode},
-    web::{self, Data, Json, Path, ServiceConfig},
-    HttpMessage, HttpRequest, HttpResponse,
-};
+use crate::{bldr_core,
+            db::models::{account::*,
+                         license_keys::*},
+            protocol::originsrv,
+            server::{authorize::authorize_session,
+                     error::{Error,
+                             Result},
+                     framework::headers,
+                     helpers::{fetch_license_expiration,
+                               req_state},
+                     AppState}};
+use actix_web::{body::BoxBody,
+                http::{self,
+                       StatusCode},
+                web::{self,
+                      Data,
+                      Json,
+                      Path,
+                      ServiceConfig},
+                HttpMessage,
+                HttpRequest,
+                HttpResponse};
 use bldr_core::access_token::AccessToken as CoreAccessToken;
 use bytes::Bytes;
 
@@ -27,7 +31,7 @@ pub struct UserUpdateReq {
 
 #[derive(Debug, Deserialize)]
 pub struct LicensePayload {
-    pub account_id: String,
+    pub account_id:  String,
     pub license_key: String,
 }
 
@@ -36,18 +40,14 @@ pub struct Profile {}
 impl Profile {
     pub fn register(cfg: &mut ServiceConfig) {
         cfg.route("/profile", web::get().to(get_account))
-            .route("/profile", web::patch().to(update_account))
-            .route("/profile/access-tokens", web::get().to(get_access_tokens))
-            .route(
-                "/profile/access-tokens",
-                web::post().to(generate_access_token),
-            )
-            .route(
-                "/profile/access-tokens/{id}",
-                web::delete().to(revoke_access_token),
-            )
-            .route("/profile/license", web::put().to(set_license))
-            .route("/profile/license", web::get().to(get_license));
+           .route("/profile", web::patch().to(update_account))
+           .route("/profile/access-tokens", web::get().to(get_access_tokens))
+           .route("/profile/access-tokens",
+                  web::post().to(generate_access_token))
+           .route("/profile/access-tokens/{id}",
+                  web::delete().to(revoke_access_token))
+           .route("/profile/license", web::put().to(set_license))
+           .route("/profile/license", web::get().to(get_license));
     }
 }
 
@@ -90,9 +90,8 @@ async fn get_access_tokens(req: HttpRequest) -> HttpResponse {
                 "tokens": serde_json::to_value(tokens).unwrap()
             });
 
-            HttpResponse::Ok()
-                .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-                .json(json)
+            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
+                              .json(json)
         }
         Err(err) => {
             debug!("{}", err);
@@ -136,10 +135,8 @@ async fn generate_access_token(req: HttpRequest, state: Data<AppState>) -> HttpR
         }
     };
 
-    let new_token = NewAccountToken {
-        account_id: account_id as i64,
-        token: &token,
-    };
+    let new_token = NewAccountToken { account_id: account_id as i64,
+                                      token:      &token, };
 
     match AccountToken::create(&new_token, &mut conn).map_err(Error::DieselError) {
         Ok(account_token) => {
@@ -157,11 +154,10 @@ async fn generate_access_token(req: HttpRequest, state: Data<AppState>) -> HttpR
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn revoke_access_token(
-    req: HttpRequest,
-    path: Path<String>,
-    state: Data<AppState>,
-) -> HttpResponse {
+async fn revoke_access_token(req: HttpRequest,
+                             path: Path<String>,
+                             state: Data<AppState>)
+                             -> HttpResponse {
     let token_id_str = path.into_inner();
     let token_id = match token_id_str.parse::<u64>() {
         Ok(id) => id,
@@ -190,9 +186,8 @@ async fn revoke_access_token(
         }
     };
 
-    let valid_token = access_tokens
-        .iter()
-        .find(|token| token.id == token_id as i64);
+    let valid_token = access_tokens.iter()
+                                   .find(|token| token.id == token_id as i64);
 
     if valid_token.is_none() {
         let body = Bytes::from_static(b"Unauthorized access.");
@@ -215,11 +210,10 @@ async fn revoke_access_token(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn set_license(
-    req: HttpRequest,
-    state: Data<AppState>,
-    Json(payload): Json<LicensePayload>,
-) -> HttpResponse {
+async fn set_license(req: HttpRequest,
+                     state: Data<AppState>,
+                     Json(payload): Json<LicensePayload>)
+                     -> HttpResponse {
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
@@ -227,26 +221,27 @@ async fn set_license(
 
     match authorize_session(&req, None, None) {
         Ok(_session) => {
-            let expiration_date = match fetch_license_expiration(
-                &payload.license_key,
-                &state.config.api.license_server_url,
-            ) {
-                Ok(date) => date,
-                Err(err) => {
-                    return err;
-                }
-            };
+            let expiration_date =
+                match fetch_license_expiration(&payload.license_key,
+                                               &state.config.api.license_server_url)
+                {
+                    Ok(date) => date,
+                    Err(err) => {
+                        return err;
+                    }
+                };
 
-            let new_license = NewLicenseKey {
-                account_id: payload.account_id.trim().parse::<i64>().unwrap(),
-                license_key: &payload.license_key,
-                expiration_date,
-            };
+            let new_license =
+                NewLicenseKey { account_id: payload.account_id.trim().parse::<i64>().unwrap(),
+                                license_key: &payload.license_key,
+                                expiration_date };
 
             match LicenseKey::create(&new_license, &mut conn).map_err(Error::DieselError) {
-                Ok(license) => HttpResponse::Ok().json(json!({
-                    "expiration_date": license.expiration_date.to_string()
-                })),
+                Ok(license) => {
+                    HttpResponse::Ok().json(json!({
+                              "expiration_date": license.expiration_date.to_string()
+                          }))
+                }
                 Err(err) => {
                     debug!("{}", err);
                     err.into()
@@ -274,21 +269,18 @@ async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
             let today = chrono::Utc::now().date_naive();
             if license.expiration_date >= today {
                 HttpResponse::Ok().json(json!({
-                    "license_key": license.license_key,
-                    "expiration_date": license.expiration_date.to_string()
-                }))
+                                            "license_key": license.license_key,
+                                            "expiration_date": license.expiration_date.to_string()
+                                        }))
             } else {
-                match fetch_license_expiration(
-                    &license.license_key,
-                    &state.config.api.license_server_url,
-                ) {
+                match fetch_license_expiration(&license.license_key,
+                                               &state.config.api.license_server_url)
+                {
                     Ok(expiration_date) => {
                         if expiration_date >= today {
-                            let new_record = NewLicenseKey {
-                                account_id,
-                                license_key: &license.license_key,
-                                expiration_date,
-                            };
+                            let new_record = NewLicenseKey { account_id,
+                                                             license_key: &license.license_key,
+                                                             expiration_date };
                             if let Err(err) = LicenseKey::create(&new_record, &mut conn)
                                 .map_err(Error::DieselError)
                             {
@@ -297,9 +289,9 @@ async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
                             }
                         }
                         HttpResponse::Ok().json(json!({
-                            "license_key": license.license_key,
-                            "expiration_date": expiration_date.to_string()
-                        }))
+                                                    "license_key": license.license_key,
+                                                    "expiration_date": expiration_date.to_string()
+                                                }))
                     }
                     Err(resp) => resp,
                 }
@@ -314,11 +306,10 @@ async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn update_account(
-    req: HttpRequest,
-    body: Json<UserUpdateReq>,
-    state: Data<AppState>,
-) -> HttpResponse {
+async fn update_account(req: HttpRequest,
+                        body: Json<UserUpdateReq>,
+                        state: Data<AppState>)
+                        -> HttpResponse {
     let account_id = match authorize_session(&req, None, None) {
         Ok(session) => session.id(),
         Err(_err) => return HttpResponse::new(StatusCode::UNAUTHORIZED),

@@ -46,7 +46,9 @@ table! {
     }
 }
 
-use super::{member::origin_members, origin::origins, package::origin_packages};
+use super::{member::origin_members,
+            origin::origins,
+            package::origin_packages};
 
 allow_tables_to_appear_in_same_query!(audit_package, origin_packages);
 allow_tables_to_appear_in_same_query!(audit_package, origins);

@@ -26,15 +26,13 @@ pub struct ArtifactoryCfg {
     /// Artifactory API key
     pub api_key: String,
     // Repo name
-    pub repo: String,
+    pub repo:    String,
 }
 
 impl Default for ArtifactoryCfg {
     fn default() -> Self {
-        ArtifactoryCfg {
-            api_url: DEFAULT_ARTIFACTORY_API_URL.to_string(),
-            api_key: "".to_string(),
-            repo: DEFAULT_ARTIFACTORY_REPO.to_string(),
-        }
+        ArtifactoryCfg { api_url: DEFAULT_ARTIFACTORY_API_URL.to_string(),
+                         api_key: "".to_string(),
+                         repo:    DEFAULT_ARTIFACTORY_REPO.to_string(), }
     }
 }

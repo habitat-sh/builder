@@ -4,14 +4,17 @@
 // this file ("Licensee") apply to Licensee's use of the Software until such time that the Software
 // is made available under an open source license such as the Apache 2.0 License.
 
-use std::{fmt, result, str::FromStr};
+use std::{fmt,
+          result,
+          str::FromStr};
 
-use serde::{ser::SerializeStruct, Serialize, Serializer};
+use serde::{ser::SerializeStruct,
+            Serialize,
+            Serializer};
 
-use crate::hab_core::{
-    self,
-    package::{self, Identifiable},
-};
+use crate::hab_core::{self,
+                      package::{self,
+                                Identifiable}};
 
 pub use crate::message::originsrv::*;
 
@@ -24,15 +27,12 @@ pub enum Error {
 pub trait Pageable {
     fn get_range(&self) -> [u64; 2];
 
-    fn limit(&self) -> i64 {
-        (self.get_range()[1] - self.get_range()[0] + 1) as i64
-    }
+    fn limit(&self) -> i64 { (self.get_range()[1] - self.get_range()[0] + 1) as i64 }
 }
 
 impl Serialize for OriginKeyIdent {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         let mut strukt = serializer.serialize_struct("origin_key", 3)?;
         strukt.serialize_field("origin", self.origin())?;
@@ -45,14 +45,12 @@ impl Serialize for OriginKeyIdent {
 impl fmt::Display for OriginPackageIdent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if !self.version().is_empty() && !self.release().is_empty() {
-            write!(
-                f,
-                "{}/{}/{}/{}",
-                self.origin(),
-                self.name(),
-                self.version(),
-                self.release()
-            )
+            write!(f,
+                   "{}/{}/{}/{}",
+                   self.origin(),
+                   self.name(),
+                   self.version(),
+                   self.release())
         } else if !self.version().is_empty() {
             write!(f, "{}/{}/{}", self.origin(), self.name(), self.version())
         } else {
@@ -124,13 +122,9 @@ impl FromStr for OriginPackageIdent {
 }
 
 impl Identifiable for OriginPackageIdent {
-    fn origin(&self) -> &str {
-        self.origin()
-    }
+    fn origin(&self) -> &str { self.origin() }
 
-    fn name(&self) -> &str {
-        self.name()
-    }
+    fn name(&self) -> &str { self.name() }
 
     fn version(&self) -> Option<&str> {
         let ver = self.version();
@@ -183,8 +177,7 @@ impl From<AccessToken> for Session {
 
 impl Serialize for Session {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where S: Serializer
     {
         let mut strukt = serializer.serialize_struct("session", 6)?;
         strukt.serialize_field("id", &self.id().to_string())?;

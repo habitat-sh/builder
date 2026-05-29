@@ -12,22 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{config::OAuth2Cfg, error::Result};
+use crate::{config::OAuth2Cfg,
+            error::Result};
 
 use async_trait::async_trait;
 use builder_core::http_client::HttpClient;
 pub struct OAuth2User {
-    pub id: String,
+    pub id:       String,
     pub username: String,
-    pub email: Option<String>,
+    pub email:    Option<String>,
 }
 
 #[async_trait]
 pub trait OAuth2Provider: Sync + Send {
-    async fn authenticate(
-        &self,
-        config: &OAuth2Cfg,
-        client: &HttpClient,
-        code: &str,
-    ) -> Result<(String, OAuth2User)>;
+    async fn authenticate(&self,
+                          config: &OAuth2Cfg,
+                          client: &HttpClient,
+                          code: &str)
+                          -> Result<(String, OAuth2User)>;
 }

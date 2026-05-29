@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap, fmt, io};
+use std::{collections::HashMap,
+          fmt,
+          io};
 
-use crate::{jwt, types};
+use crate::{jwt,
+            types};
 use reqwest::StatusCode;
 use serde_json::Value;
 
@@ -35,16 +38,17 @@ pub enum HubError {
 impl HubError {
     pub fn api_response(status: StatusCode, body: &str) -> Self {
         let response = match serde_json::from_str::<Value>(body) {
-            Ok(Value::Object(values)) => values
-                .into_iter()
-                .map(|(key, value)| {
-                    let value = match value {
-                        Value::String(value) => value,
-                        other => other.to_string(),
-                    };
-                    (key, value)
-                })
-                .collect(),
+            Ok(Value::Object(values)) => {
+                values.into_iter()
+                      .map(|(key, value)| {
+                          let value = match value {
+                              Value::String(value) => value,
+                              other => other.to_string(),
+                          };
+                          (key, value)
+                      })
+                      .collect()
+            }
             _ => {
                 let mut response = HashMap::new();
                 response.insert("message".to_string(), body.to_string());
@@ -60,10 +64,8 @@ impl fmt::Display for HubError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
             HubError::ApiError(ref code, ref response) => {
-                format!(
-                    "Received a non-200 response, status={}, response={:?}",
-                    code, response
-                )
+                format!("Received a non-200 response, status={}, response={:?}",
+                        code, response)
             }
             HubError::AppAuth(ref e) => format!("GitHub App Authentication error, {}", e),
             HubError::BuilderCore(ref e) => format!("{}", e),
@@ -78,27 +80,19 @@ impl fmt::Display for HubError {
 }
 
 impl From<io::Error> for HubError {
-    fn from(err: io::Error) -> Self {
-        HubError::IO(err)
-    }
+    fn from(err: io::Error) -> Self { HubError::IO(err) }
 }
 
 impl From<serde_json::Error> for HubError {
-    fn from(err: serde_json::Error) -> Self {
-        HubError::Serialization(err)
-    }
+    fn from(err: serde_json::Error) -> Self { HubError::Serialization(err) }
 }
 
 impl From<builder_core::Error> for HubError {
-    fn from(err: builder_core::Error) -> Self {
-        HubError::BuilderCore(err)
-    }
+    fn from(err: builder_core::Error) -> Self { HubError::BuilderCore(err) }
 }
 
 impl From<reqwest::Error> for HubError {
-    fn from(err: reqwest::Error) -> Self {
-        HubError::HttpClient(err)
-    }
+    fn from(err: reqwest::Error) -> Self { HubError::HttpClient(err) }
 }
 
 #[cfg(test)]
@@ -111,10 +105,8 @@ mod tests {
 
         match error {
             HubError::ApiError(StatusCode::BAD_GATEWAY, response) => {
-                assert_eq!(
-                    response.get("message"),
-                    Some(&"upstream timed out".to_string())
-                );
+                assert_eq!(response.get("message"),
+                           Some(&"upstream timed out".to_string()));
             }
             other => panic!("unexpected error: {:?}", other),
         }

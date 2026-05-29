@@ -30,23 +30,21 @@ pub const DEV_GITHUB_CLIENT_SECRET: &str = "fc7654ed8c65ccfe014cd339a55e3538f935
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct OAuth2Cfg {
-    pub provider: String,
-    pub token_url: String,
-    pub userinfo_url: String,
-    pub redirect_url: String,
-    pub client_id: String,
+    pub provider:      String,
+    pub token_url:     String,
+    pub userinfo_url:  String,
+    pub redirect_url:  String,
+    pub client_id:     String,
     pub client_secret: String,
 }
 
 impl Default for OAuth2Cfg {
     fn default() -> Self {
-        OAuth2Cfg {
-            provider: "github".to_string(),
-            token_url: DEFAULT_GITHUB_TOKEN_URL.to_string(),
-            userinfo_url: DEFAULT_GITHUB_USERINFO_URL.to_string(),
-            redirect_url: "http://localhost/".to_string(),
-            client_id: DEV_GITHUB_CLIENT_ID.to_string(),
-            client_secret: DEV_GITHUB_CLIENT_SECRET.to_string(),
-        }
+        OAuth2Cfg { provider:      "github".to_string(),
+                    token_url:     DEFAULT_GITHUB_TOKEN_URL.to_string(),
+                    userinfo_url:  DEFAULT_GITHUB_USERINFO_URL.to_string(),
+                    redirect_url:  "http://localhost/".to_string(),
+                    client_id:     DEV_GITHUB_CLIENT_ID.to_string(),
+                    client_secret: DEV_GITHUB_CLIENT_SECRET.to_string(), }
     }
 }

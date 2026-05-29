@@ -1,21 +1,22 @@
-use crate::{
-    config::GitHubCfg,
-    error::{HubError, HubResult},
-    jwt::{self, Algorithm},
-    metrics::Counter,
-    response,
-    types::*,
-};
-use builder_core::{
-    http_client::{HttpClient, ACCEPT_GITHUB_JSON, CONTENT_TYPE_APPLICATION_JSON, USER_AGENT_BLDR},
-    metrics::CounterMetric,
-};
+use crate::{config::GitHubCfg,
+            error::{HubError,
+                    HubResult},
+            jwt::{self,
+                  Algorithm},
+            metrics::Counter,
+            response,
+            types::*};
+use builder_core::{http_client::{HttpClient,
+                                 ACCEPT_GITHUB_JSON,
+                                 CONTENT_TYPE_APPLICATION_JSON,
+                                 USER_AGENT_BLDR},
+                   metrics::CounterMetric};
 use reqwest::header::HeaderMap;
 
-use std::{
-    path::Path,
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
+use std::{path::Path,
+          time::{Duration,
+                 SystemTime,
+                 UNIX_EPOCH}};
 
 pub type TokenString = String;
 pub type InstallationId = u32;
@@ -38,59 +39,50 @@ impl AppToken {
     // Not public, because you should only get these from
     // `GitHubClient::app_installation_token`
     fn new(inner_token: TokenString, installation_id: InstallationId) -> Self {
-        AppToken {
-            inner_token,
-            installation_id,
-        }
+        AppToken { inner_token,
+                   installation_id }
     }
 
     // Only providing this for builder-worker's benefit... it
     // currently needs a token for cloning via libgit2; once that's
     // gone, just delete this function.
     /// Retrieve the actual token content for use in HTTP calls.
-    pub fn inner_token(&self) -> &str {
-        self.inner_token.as_ref()
-    }
+    pub fn inner_token(&self) -> &str { self.inner_token.as_ref() }
 }
 
 #[derive(Clone)]
 pub struct GitHubClient {
-    inner: HttpClient,
-    pub api_url: String,
-    app_id: u32,
-    app_private_key: String,
+    inner:              HttpClient,
+    pub api_url:        String,
+    app_id:             u32,
+    app_private_key:    String,
     pub webhook_secret: String,
 }
 
 impl GitHubClient {
     pub fn new(config: GitHubCfg) -> HubResult<Self> {
-        let header_values = vec![
-            USER_AGENT_BLDR.clone(),
-            ACCEPT_GITHUB_JSON.clone(),
-            CONTENT_TYPE_APPLICATION_JSON.clone(),
-        ];
+        let header_values = vec![USER_AGENT_BLDR.clone(),
+                                 ACCEPT_GITHUB_JSON.clone(),
+                                 CONTENT_TYPE_APPLICATION_JSON.clone(),];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
-        Ok(GitHubClient {
-            inner: HttpClient::new(&config.api_url, headers)?,
-            api_url: config.api_url,
-            app_id: config.app_id,
-            app_private_key: config.app_private_key,
-            webhook_secret: config.webhook_secret,
-        })
+        Ok(GitHubClient { inner:           HttpClient::new(&config.api_url, headers)?,
+                          api_url:         config.api_url,
+                          app_id:          config.app_id,
+                          app_private_key: config.app_private_key,
+                          webhook_secret:  config.webhook_secret, })
     }
 
     pub async fn app(&self) -> HubResult<App> {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id)?;
         let url_path = format!("{}/app", self.api_url);
 
-        let rep = self
-            .inner
-            .get(&url_path)
-            .bearer_auth(&app_token)
-            .send()
-            .await
-            .map_err(HubError::HttpClient)?;
+        let rep = self.inner
+                      .get(&url_path)
+                      .bearer_auth(&app_token)
+                      .send()
+                      .await
+                      .map_err(HubError::HttpClient)?;
 
         response::read_json(rep).await
     }
@@ -98,20 +90,17 @@ impl GitHubClient {
     pub async fn app_installation_token(&self, install_id: u32) -> HubResult<AppToken> {
         let app_token = generate_app_token(&self.app_private_key, &self.app_id)?;
 
-        let url_path = format!(
-            "{}/app/installations/{}/access_tokens",
-            self.api_url, install_id
-        );
+        let url_path = format!("{}/app/installations/{}/access_tokens",
+                               self.api_url, install_id);
         debug!("app_installation_token posting to url path {:?}", url_path);
         Counter::InstallationToken.increment();
 
-        let rep = self
-            .inner
-            .post(&url_path)
-            .bearer_auth(&app_token)
-            .send()
-            .await
-            .map_err(HubError::HttpClient)?;
+        let rep = self.inner
+                      .post(&url_path)
+                      .bearer_auth(&app_token)
+                      .send()
+                      .await
+                      .map_err(HubError::HttpClient)?;
 
         let body = rep.text().await?;
         debug!("GitHub response body, {}", body);
@@ -125,23 +114,21 @@ impl GitHubClient {
     }
 
     /// Returns the contents of a file or directory in a repository.
-    pub async fn contents(
-        &self,
-        token: &AppToken,
-        repo: u32,
-        path: &str,
-    ) -> HubResult<Option<Contents>> {
+    pub async fn contents(&self,
+                          token: &AppToken,
+                          repo: u32,
+                          path: &str)
+                          -> HubResult<Option<Contents>> {
         let url_path = format!("{}/repositories/{}/contents/{}", self.api_url, repo, path);
 
         Counter::Contents.increment();
 
-        let rep = self
-            .inner
-            .get(&url_path)
-            .bearer_auth(&token.inner_token)
-            .send()
-            .await
-            .map_err(HubError::HttpClient)?;
+        let rep = self.inner
+                      .get(&url_path)
+                      .bearer_auth(&token.inner_token)
+                      .send()
+                      .await
+                      .map_err(HubError::HttpClient)?;
 
         let mut contents: Contents = match response::read_optional_json(rep).await? {
             Some(contents) => contents,
@@ -156,22 +143,20 @@ impl GitHubClient {
     }
 
     /// Returns the directory listing of a path in a repository.
-    pub async fn directory(
-        &self,
-        token: &AppToken,
-        repo: u32,
-        path: &str,
-    ) -> HubResult<Option<Vec<DirectoryEntry>>> {
+    pub async fn directory(&self,
+                           token: &AppToken,
+                           repo: u32,
+                           path: &str)
+                           -> HubResult<Option<Vec<DirectoryEntry>>> {
         let url_path = format!("{}/repositories/{}/contents/{}", self.api_url, repo, path);
 
         Counter::Contents.increment();
-        let rep = self
-            .inner
-            .get(&url_path)
-            .bearer_auth(&token.inner_token)
-            .send()
-            .await
-            .map_err(HubError::HttpClient)?;
+        let rep = self.inner
+                      .get(&url_path)
+                      .bearer_auth(&token.inner_token)
+                      .send()
+                      .await
+                      .map_err(HubError::HttpClient)?;
 
         response::read_optional_json(rep).await
     }
@@ -180,13 +165,12 @@ impl GitHubClient {
         let url_path = format!("{}/repositories/{}", self.api_url, repo);
         Counter::Repo.increment();
 
-        let rep = self
-            .inner
-            .get(&url_path)
-            .bearer_auth(&token.inner_token)
-            .send()
-            .await
-            .map_err(HubError::HttpClient)?;
+        let rep = self.inner
+                      .get(&url_path)
+                      .bearer_auth(&token.inner_token)
+                      .send()
+                      .await
+                      .map_err(HubError::HttpClient)?;
 
         response::read_optional_json(rep).await
     }
@@ -198,21 +182,19 @@ impl GitHubClient {
     pub async fn meta(&self) -> HubResult<()> {
         let url_path = format!("{}/meta", self.api_url);
 
-        let rep = self
-            .inner
-            .get(&url_path)
-            .send()
-            .await
-            .map_err(HubError::HttpClient)?;
+        let rep = self.inner
+                      .get(&url_path)
+                      .send()
+                      .await
+                      .map_err(HubError::HttpClient)?;
 
         response::expect_ok(rep).await
     }
 }
 
 fn generate_app_token<T, U>(key_path: T, app_id: &U) -> HubResult<String>
-where
-    T: AsRef<Path>,
-    U: ToString,
+    where T: AsRef<Path>,
+          U: ToString
 {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let expiration = now + Duration::from_secs(10 * 10);
@@ -223,13 +205,10 @@ where
     debug!("Payload = {:?}", payload);
 
     let header = json!({});
-    let res = jwt::encode(
-        header,
-        &key_path.as_ref().to_path_buf(),
-        &payload,
-        Algorithm::RS256,
-    )
-    .map_err(HubError::JWT);
+    let res = jwt::encode(header,
+                          &key_path.as_ref().to_path_buf(),
+                          &payload,
+                          Algorithm::RS256).map_err(HubError::JWT);
 
     if let Ok(ref t) = res {
         debug!("Encoded JWT token = {}", t);
@@ -243,12 +222,11 @@ mod tests {
     use super::*;
     use crate::config;
     use reqwest::StatusCode;
-    use std::{
-        env,
-        io::{Read, Write},
-        net::TcpListener,
-        thread,
-    };
+    use std::{env,
+              io::{Read,
+                   Write},
+              net::TcpListener,
+              thread};
 
     fn test_client(api_url: String) -> GitHubClient {
         let mut cfg = config::GitHubCfg::default();
@@ -256,16 +234,13 @@ mod tests {
         GitHubClient::new(cfg).unwrap()
     }
 
-    fn test_token() -> AppToken {
-        AppToken::new("opaque-token".to_string(), 42)
-    }
+    fn test_token() -> AppToken { AppToken::new("opaque-token".to_string(), 42) }
 
-    fn spawn_server(
-        status_line: &str,
-        body: &str,
-        expected_request_line: &str,
-        expected_auth: Option<&str>,
-    ) -> (String, thread::JoinHandle<()>) {
+    fn spawn_server(status_line: &str,
+                    body: &str,
+                    expected_request_line: &str,
+                    expected_auth: Option<&str>)
+                    -> (String, thread::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
         let status_line = status_line.to_string();
@@ -274,9 +249,8 @@ mod tests {
         let expected_auth = expected_auth.map(str::to_string);
         let handle = thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
-            stream
-                .set_read_timeout(Some(Duration::from_secs(2)))
-                .unwrap();
+            stream.set_read_timeout(Some(Duration::from_secs(2)))
+                  .unwrap();
 
             let mut request = Vec::new();
             loop {
@@ -292,26 +266,19 @@ mod tests {
             }
 
             let request = String::from_utf8(request).unwrap();
-            assert!(
-                request.starts_with(&expected_request_line),
-                "unexpected request line: {:?}",
-                request
-            );
+            assert!(request.starts_with(&expected_request_line),
+                    "unexpected request line: {:?}",
+                    request);
             if let Some(auth) = expected_auth {
-                assert!(
-                    request.contains(&format!("authorization: Bearer {auth}\r\n")),
-                    "missing authorization header: {:?}",
-                    request
-                );
+                assert!(request.contains(&format!("authorization: Bearer {auth}\r\n")),
+                        "missing authorization header: {:?}",
+                        request);
             }
 
-            write!(
-                stream,
-                "HTTP/1.1 {status_line}\r\nContent-Type: application/json\r\nContent-Length: \
+            write!(stream,
+                   "HTTP/1.1 {status_line}\r\nContent-Type: application/json\r\nContent-Length: \
                     {}\r\nConnection: close\r\n\r\n{body}",
-                body.len()
-            )
-            .unwrap();
+                   body.len()).unwrap();
             stream.flush().unwrap();
         });
 
@@ -345,12 +312,10 @@ mod tests {
 
     #[tokio::test]
     async fn meta_returns_api_error_on_non_200() {
-        let (api_url, server) = spawn_server(
-            "500 Internal Server Error",
-            r#"{"message":"boom"}"#,
-            "GET /meta HTTP/1.1",
-            None,
-        );
+        let (api_url, server) = spawn_server("500 Internal Server Error",
+                                             r#"{"message":"boom"}"#,
+                                             "GET /meta HTTP/1.1",
+                                             None);
         let client = test_client(api_url);
 
         let err = client.meta().await.err().unwrap();
@@ -366,19 +331,17 @@ mod tests {
 
     #[tokio::test]
     async fn contents_strips_newlines_from_base64_payloads() {
-        let (api_url, server) = spawn_server(
-            "200 OK",
-            r#"{"name":"plan.sh","path":"support/ci/plan.sh","sha":"abc123","size":8,"url":"https://example.test/url","html_url":"https://example.test/html","git_url":"https://example.test/git","download_url":"https://example.test/download","content":"aGVs\nbG8=","encoding":"base64"}"#,
-            "GET /repositories/77/contents/support/ci/plan.sh HTTP/1.1",
-            Some("opaque-token"),
-        );
+        let (api_url, server) = spawn_server("200 OK",
+                                             r#"{"name":"plan.sh","path":"support/ci/plan.sh","sha":"abc123","size":8,"url":"https://example.test/url","html_url":"https://example.test/html","git_url":"https://example.test/git","download_url":"https://example.test/download","content":"aGVs\nbG8=","encoding":"base64"}"#,
+                                             "GET /repositories/77/contents/support/ci/plan.sh \
+                                              HTTP/1.1",
+                                             Some("opaque-token"));
         let client = test_client(api_url);
 
-        let contents = client
-            .contents(&test_token(), 77, "support/ci/plan.sh")
-            .await
-            .unwrap()
-            .unwrap();
+        let contents = client.contents(&test_token(), 77, "support/ci/plan.sh")
+                             .await
+                             .unwrap()
+                             .unwrap();
         assert_eq!(contents.content, "aGVsbG8=");
 
         server.join().unwrap();
@@ -386,18 +349,15 @@ mod tests {
 
     #[tokio::test]
     async fn contents_returns_none_on_not_found() {
-        let (api_url, server) = spawn_server(
-            "404 Not Found",
-            r#"{"message":"missing"}"#,
-            "GET /repositories/88/contents/missing.txt HTTP/1.1",
-            Some("opaque-token"),
-        );
+        let (api_url, server) = spawn_server("404 Not Found",
+                                             r#"{"message":"missing"}"#,
+                                             "GET /repositories/88/contents/missing.txt HTTP/1.1",
+                                             Some("opaque-token"));
         let client = test_client(api_url);
 
-        let contents = client
-            .contents(&test_token(), 88, "missing.txt")
-            .await
-            .unwrap();
+        let contents = client.contents(&test_token(), 88, "missing.txt")
+                             .await
+                             .unwrap();
         assert!(contents.is_none());
 
         server.join().unwrap();
@@ -405,19 +365,16 @@ mod tests {
 
     #[tokio::test]
     async fn directory_returns_entries_on_200() {
-        let (api_url, server) = spawn_server(
-            "200 OK",
-            r#"[{"type":"file","name":"plan.sh","path":"support/ci/plan.sh","sha":"abc123","size":8,"url":"https://example.test/url","html_url":"https://example.test/html","git_url":"https://example.test/git","download_url":"https://example.test/download"}]"#,
-            "GET /repositories/99/contents/support/ci HTTP/1.1",
-            Some("opaque-token"),
-        );
+        let (api_url, server) = spawn_server("200 OK",
+                                             r#"[{"type":"file","name":"plan.sh","path":"support/ci/plan.sh","sha":"abc123","size":8,"url":"https://example.test/url","html_url":"https://example.test/html","git_url":"https://example.test/git","download_url":"https://example.test/download"}]"#,
+                                             "GET /repositories/99/contents/support/ci HTTP/1.1",
+                                             Some("opaque-token"));
         let client = test_client(api_url);
 
-        let directory = client
-            .directory(&test_token(), 99, "support/ci")
-            .await
-            .unwrap()
-            .unwrap();
+        let directory = client.directory(&test_token(), 99, "support/ci")
+                              .await
+                              .unwrap()
+                              .unwrap();
         assert_eq!(directory.len(), 1);
         assert_eq!(directory[0].name, "plan.sh");
 
@@ -426,12 +383,10 @@ mod tests {
 
     #[tokio::test]
     async fn repo_returns_none_on_not_found() {
-        let (api_url, server) = spawn_server(
-            "404 Not Found",
-            r#"{"message":"missing"}"#,
-            "GET /repositories/100 HTTP/1.1",
-            Some("opaque-token"),
-        );
+        let (api_url, server) = spawn_server("404 Not Found",
+                                             r#"{"message":"missing"}"#,
+                                             "GET /repositories/100 HTTP/1.1",
+                                             Some("opaque-token"));
         let client = test_client(api_url);
 
         let repo = client.repo(&test_token(), 100).await.unwrap();

@@ -10,11 +10,10 @@ table! {
     }
 }
 
-use super::{
-    account::accounts,
-    origin::{origins, origins_with_stats},
-    package::origin_packages,
-};
+use super::{account::accounts,
+            origin::{origins,
+                     origins_with_stats},
+            package::origin_packages};
 
 joinable!(origin_members -> origins (origin));
 joinable!(origin_members -> origins_with_stats (origin));

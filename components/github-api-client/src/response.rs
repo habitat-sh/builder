@@ -1,5 +1,7 @@
-use crate::error::{HubError, HubResult};
-use reqwest::{Response, StatusCode};
+use crate::error::{HubError,
+                   HubResult};
+use reqwest::{Response,
+              StatusCode};
 use serde::de::DeserializeOwned;
 
 async fn read_status_and_body(response: Response) -> HubResult<(StatusCode, String)> {
@@ -10,8 +12,7 @@ async fn read_status_and_body(response: Response) -> HubResult<(StatusCode, Stri
 }
 
 pub async fn read_json<T>(response: Response) -> HubResult<T>
-where
-    T: DeserializeOwned,
+    where T: DeserializeOwned
 {
     let (status, body) = read_status_and_body(response).await?;
     if status != StatusCode::OK {
@@ -22,14 +23,14 @@ where
 }
 
 pub async fn read_optional_json<T>(response: Response) -> HubResult<Option<T>>
-where
-    T: DeserializeOwned,
+    where T: DeserializeOwned
 {
     let (status, body) = read_status_and_body(response).await?;
     match status {
-        StatusCode::OK => serde_json::from_str(&body)
-            .map(Some)
-            .map_err(HubError::from),
+        StatusCode::OK => {
+            serde_json::from_str(&body).map(Some)
+                                       .map_err(HubError::from)
+        }
         StatusCode::NOT_FOUND => Ok(None),
         status => Err(HubError::api_response(status, &body)),
     }

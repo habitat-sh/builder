@@ -13,55 +13,75 @@
 // limitations under the License.
 
 use super::reverse_dependencies::{self};
-use crate::{
-    bldr_core::metrics::CounterMetric,
-    db::models::{
-        channel::{Channel, ChannelWithPromotion},
-        license_keys::*,
-        origin::*,
-        package::{
-            BuilderPackageIdent, BuilderPackageTarget, DeletePackage, GetLatestPackage, GetPackage,
-            ListPackages, NewPackage, Package, PackageIdentWithChannelPlatform, PackageVisibility,
-            SearchPackages,
-        },
-        settings::{GetOriginPackageSettings, NewOriginPackageSettings, OriginPackageSettings},
-    },
-    hab_core::{
-        package::{FromArchive, Identifiable, PackageArchive, PackageIdent, PackageTarget},
-        ChannelIdent,
-    },
-    server::{
-        authorize::authorize_session,
-        error::{Error, Result},
-        feat,
-        framework::headers,
-        helpers::{self, fetch_license_expiration, req_state, Pagination, Target},
-        resources::channels::channels_for_package_ident,
-        services::metrics::Counter,
-        AppState,
-    },
-};
-use actix_web::{
-    body::BoxBody,
-    http::{
-        self,
-        header::{ContentDisposition, ContentType, DispositionParam, DispositionType},
-        StatusCode,
-    },
-    web::{self, Data, Path, Query, ServiceConfig},
-    HttpRequest, HttpResponse,
-};
+use crate::{bldr_core::metrics::CounterMetric,
+            db::models::{channel::{Channel,
+                                   ChannelWithPromotion},
+                         license_keys::*,
+                         origin::*,
+                         package::{BuilderPackageIdent,
+                                   BuilderPackageTarget,
+                                   DeletePackage,
+                                   GetLatestPackage,
+                                   GetPackage,
+                                   ListPackages,
+                                   NewPackage,
+                                   Package,
+                                   PackageIdentWithChannelPlatform,
+                                   PackageVisibility,
+                                   SearchPackages},
+                         settings::{GetOriginPackageSettings,
+                                    NewOriginPackageSettings,
+                                    OriginPackageSettings}},
+            hab_core::{package::{FromArchive,
+                                 Identifiable,
+                                 PackageArchive,
+                                 PackageIdent,
+                                 PackageTarget},
+                       ChannelIdent},
+            server::{authorize::authorize_session,
+                     error::{Error,
+                             Result},
+                     feat,
+                     framework::headers,
+                     helpers::{self,
+                               fetch_license_expiration,
+                               req_state,
+                               Pagination,
+                               Target},
+                     resources::channels::channels_for_package_ident,
+                     services::metrics::Counter,
+                     AppState}};
+use actix_web::{body::BoxBody,
+                http::{self,
+                       header::{ContentDisposition,
+                                ContentType,
+                                DispositionParam,
+                                DispositionType},
+                       StatusCode},
+                web::{self,
+                      Data,
+                      Path,
+                      Query,
+                      ServiceConfig},
+                HttpRequest,
+                HttpResponse};
 use bytes::Bytes;
-use diesel::{connection::SimpleConnection, result::Error::NotFound};
-use futures::{channel::mpsc, StreamExt};
+use diesel::{connection::SimpleConnection,
+             result::Error::NotFound};
+use futures::{channel::mpsc,
+              StreamExt};
 use serde::ser::Serialize;
-use std::{
-    convert::Infallible,
-    fs::{self, remove_file, File},
-    io::{BufReader, BufWriter, Read, Write},
-    path::{self, PathBuf},
-    str::FromStr,
-};
+use std::{convert::Infallible,
+          fs::{self,
+               remove_file,
+               File},
+          io::{BufReader,
+               BufWriter,
+               Read,
+               Write},
+          path::{self,
+                 PathBuf},
+          str::FromStr};
 use tempfile::tempdir_in;
 use uuid::Uuid;
 
@@ -69,11 +89,11 @@ use uuid::Uuid;
 #[derive(Debug, Deserialize)]
 pub struct Upload {
     #[serde(default)]
-    target: Option<String>,
+    target:   Option<String>,
     #[serde(default)]
     checksum: String,
     #[serde(default)]
-    forced: bool,
+    forced:   bool,
 }
 
 pub struct Packages {}
@@ -82,55 +102,31 @@ impl Packages {
     // Route registration
     //
     pub fn register(cfg: &mut ServiceConfig) {
-        cfg.route(
-            "/depot/pkgs/{origin}",
-            web::get().to(get_packages_for_origin),
-        )
-        .route("/depot/pkgs/search/{query}", web::get().to(search_packages))
-        .route(
-            "/depot/pkgs/{origin}/{pkg}",
-            web::get().to(get_packages_for_origin_package),
-        )
-        .route(
-            "/depot/pkgs/{origin}/{pkg}/latest",
-            web::get().to(get_latest_package_for_origin_package),
-        )
-        .route(
-            "/depot/pkgs/{origin}/{pkg}/versions",
-            web::get().to(list_package_versions),
-        )
-        .route(
-            "/depot/pkgs/{origin}/{pkg}/{version}",
-            web::get().to(get_packages_for_origin_package_version),
-        )
-        .route(
-            "/depot/pkgs/{origin}/{pkg}/{version}/latest",
-            web::get().to(get_latest_package_for_origin_package_version),
-        )
-        .route(
-            "/depot/pkgs/{origin}/{pkg}/{version}/{release}",
-            web::post().to(upload_package),
-        )
-        .route(
-            "/depot/pkgs/{origin}/{pkg}/{version}/{release}",
-            web::get().to(get_package),
-        )
-        .route(
-            "/depot/pkgs/{origin}/{pkg}/{version}/{release}",
-            web::delete().to(delete_package),
-        )
-        .route(
-            "/depot/pkgs/{origin}/{pkg}/{version}/{release}/download",
-            web::get().to(download_package),
-        )
-        .route(
-            "/depot/pkgs/{origin}/{pkg}/{version}/{release}/channels",
-            web::get().to(get_package_channels),
-        )
-        .route(
-            "/depot/pkgs/{origin}/{pkg}/{version}/{release}/{visibility}",
-            web::patch().to(package_privacy_toggle),
-        );
+        cfg.route("/depot/pkgs/{origin}",
+                  web::get().to(get_packages_for_origin))
+           .route("/depot/pkgs/search/{query}", web::get().to(search_packages))
+           .route("/depot/pkgs/{origin}/{pkg}",
+                  web::get().to(get_packages_for_origin_package))
+           .route("/depot/pkgs/{origin}/{pkg}/latest",
+                  web::get().to(get_latest_package_for_origin_package))
+           .route("/depot/pkgs/{origin}/{pkg}/versions",
+                  web::get().to(list_package_versions))
+           .route("/depot/pkgs/{origin}/{pkg}/{version}",
+                  web::get().to(get_packages_for_origin_package_version))
+           .route("/depot/pkgs/{origin}/{pkg}/{version}/latest",
+                  web::get().to(get_latest_package_for_origin_package_version))
+           .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}",
+                  web::post().to(upload_package))
+           .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}",
+                  web::get().to(get_package))
+           .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}",
+                  web::delete().to(delete_package))
+           .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}/download",
+                  web::get().to(download_package))
+           .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}/channels",
+                  web::get().to(get_package_channels))
+           .route("/depot/pkgs/{origin}/{pkg}/{version}/{release}/{visibility}",
+                  web::patch().to(package_privacy_toggle));
     }
 }
 
@@ -138,11 +134,10 @@ impl Packages {
 //
 
 #[allow(clippy::needless_pass_by_value)]
-async fn get_packages_for_origin(
-    req: HttpRequest,
-    path: Path<String>,
-    pagination: Query<Pagination>,
-) -> HttpResponse {
+async fn get_packages_for_origin(req: HttpRequest,
+                                 path: Path<String>,
+                                 pagination: Query<Pagination>)
+                                 -> HttpResponse {
     let origin = path.into_inner();
     let ident = PackageIdent::new(origin, String::from(""), None, None);
 
@@ -158,11 +153,10 @@ async fn get_packages_for_origin(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn get_packages_for_origin_package(
-    req: HttpRequest,
-    path: Path<(String, String)>,
-    pagination: Query<Pagination>,
-) -> HttpResponse {
+async fn get_packages_for_origin_package(req: HttpRequest,
+                                         path: Path<(String, String)>,
+                                         pagination: Query<Pagination>)
+                                         -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, None, None);
@@ -179,11 +173,10 @@ async fn get_packages_for_origin_package(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn get_packages_for_origin_package_version(
-    req: HttpRequest,
-    path: Path<(String, String, String)>,
-    pagination: Query<Pagination>,
-) -> HttpResponse {
+async fn get_packages_for_origin_package_version(req: HttpRequest,
+                                                 path: Path<(String, String, String)>,
+                                                 pagination: Query<Pagination>)
+                                                 -> HttpResponse {
     let (origin, pkg, version) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
@@ -200,23 +193,22 @@ async fn get_packages_for_origin_package_version(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn get_latest_package_for_origin_package(
-    req: HttpRequest,
-    path: Path<(String, String)>,
-    qtarget: Query<Target>,
-) -> HttpResponse {
+async fn get_latest_package_for_origin_package(req: HttpRequest,
+                                               path: Path<(String, String)>,
+                                               qtarget: Query<Target>)
+                                               -> HttpResponse {
     let (origin, pkg) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, None, None);
 
     match do_get_package(&req, &qtarget, &ident).await {
-        Ok(json_body) => HttpResponse::Ok()
-            .append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
-            .append_header((
-                http::header::CACHE_CONTROL,
-                headers::Cache::NoCache.to_string(),
-            ))
-            .body(json_body),
+        Ok(json_body) => {
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
+                              .append_header((http::header::CACHE_CONTROL,
+                                              headers::Cache::NoCache.to_string()))
+                              .body(json_body)
+        }
         Err(err) => {
             debug!("{}", err);
             err.into()
@@ -225,23 +217,22 @@ async fn get_latest_package_for_origin_package(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn get_latest_package_for_origin_package_version(
-    req: HttpRequest,
-    path: Path<(String, String, String)>,
-    qtarget: Query<Target>,
-) -> HttpResponse {
+async fn get_latest_package_for_origin_package_version(req: HttpRequest,
+                                                       path: Path<(String, String, String)>,
+                                                       qtarget: Query<Target>)
+                                                       -> HttpResponse {
     let (origin, pkg, version) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, Some(version), None);
 
     match do_get_package(&req, &qtarget, &ident).await {
-        Ok(json_body) => HttpResponse::Ok()
-            .append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
-            .append_header((
-                http::header::CACHE_CONTROL,
-                headers::Cache::NoCache.to_string(),
-            ))
-            .body(json_body),
+        Ok(json_body) => {
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
+                              .append_header((http::header::CACHE_CONTROL,
+                                              headers::Cache::NoCache.to_string()))
+                              .body(json_body)
+        }
         Err(err) => {
             debug!("{}", err);
             err.into()
@@ -250,23 +241,22 @@ async fn get_latest_package_for_origin_package_version(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn get_package(
-    req: HttpRequest,
-    path: Path<(String, String, String, String)>,
-    qtarget: Query<Target>,
-) -> HttpResponse {
+async fn get_package(req: HttpRequest,
+                     path: Path<(String, String, String, String)>,
+                     qtarget: Query<Target>)
+                     -> HttpResponse {
     let (origin, pkg, version, release) = path.into_inner();
 
     let ident = PackageIdent::new(origin, pkg, Some(version), Some(release));
 
     match do_get_package(&req, &qtarget, &ident).await {
-        Ok(json_body) => HttpResponse::Ok()
-            .append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
-            .append_header((
-                http::header::CACHE_CONTROL,
-                headers::Cache::default().to_string(),
-            ))
-            .body(json_body),
+        Ok(json_body) => {
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
+                              .append_header((http::header::CACHE_CONTROL,
+                                              headers::Cache::default().to_string()))
+                              .body(json_body)
+        }
         Err(err) => {
             debug!("{}", err);
             err.into()
@@ -275,12 +265,11 @@ async fn get_package(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn delete_package(
-    req: HttpRequest,
-    path: Path<(String, String, String, String)>,
-    qtarget: Query<Target>,
-    state: Data<AppState>,
-) -> HttpResponse {
+async fn delete_package(req: HttpRequest,
+                        path: Path<(String, String, String, String)>,
+                        qtarget: Query<Target>,
+                        state: Data<AppState>)
+                        -> HttpResponse {
     let (origin, pkg, version, release) = path.into_inner();
 
     if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Member)) {
@@ -298,10 +287,8 @@ async fn delete_package(
                 Err(err) => {
                     debug!("Invalid target requested: {}, err = {:?}", t, err);
                     let body = Bytes::from(format!("Invalid package target '{}'", t).into_bytes());
-                    return HttpResponse::with_body(
-                        StatusCode::UNPROCESSABLE_ENTITY,
-                        BoxBody::new(body),
-                    );
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   BoxBody::new(body));
                 }
             }
         }
@@ -314,30 +301,21 @@ async fn delete_package(
     };
 
     // Check whether package is in stable channel
-    match Package::list_package_channels(
-        &BuilderPackageIdent(ident.clone()),
-        target,
-        PackageVisibility::all(),
-        &mut conn,
-    ) {
+    match Package::list_package_channels(&BuilderPackageIdent(ident.clone()),
+                                         target,
+                                         PackageVisibility::all(),
+                                         &mut conn)
+    {
         Ok(channels) => {
-            if channels
-                .iter()
-                .any(|c| c.name == ChannelIdent::stable().to_string())
+            if channels.iter()
+                       .any(|c| c.name == ChannelIdent::stable().to_string())
             {
                 debug!("Deleting package in stable channel not allowed: {}", ident);
-                let body = Bytes::from(
-                    format!(
-                        "Deleting package in stable channel not allowed \
+                let body = Bytes::from(format!("Deleting package in stable channel not allowed \
                                                 '{}'",
-                        ident
-                    )
-                    .into_bytes(),
-                );
-                return HttpResponse::with_body(
-                    StatusCode::UNPROCESSABLE_ENTITY,
-                    BoxBody::new(body),
-                );
+                                               ident).into_bytes());
+                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                               BoxBody::new(body));
             }
         }
         Err(err) => {
@@ -349,13 +327,10 @@ async fn delete_package(
     match reverse_dependencies::get_rdeps(&mut conn, &origin, &pkg, &target).await {
         Ok(reverse_depenencies) => {
             if !reverse_depenencies.rdeps.is_empty() {
-                let body = Bytes::from(
-                    format!("Deleting package with rdeps not allowed '{}'", ident).into_bytes(),
-                );
-                return HttpResponse::with_body(
-                    StatusCode::UNPROCESSABLE_ENTITY,
-                    BoxBody::new(body),
-                );
+                let body = Bytes::from(format!("Deleting package with rdeps not allowed '{}'",
+                                               ident).into_bytes());
+                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                               BoxBody::new(body));
             }
         }
         Err(err) => {
@@ -365,15 +340,10 @@ async fn delete_package(
     }
 
     // Fetch the package record so we have its id for channel association cleanup.
-    let pkg = match Package::get(
-        GetPackage {
-            ident: BuilderPackageIdent(ident.clone()),
-            visibility: PackageVisibility::all(),
-            target: BuilderPackageTarget(target),
-        },
-        &mut conn,
-    )
-    .map_err(Error::DieselError)
+    let pkg = match Package::get(GetPackage { ident:      BuilderPackageIdent(ident.clone()),
+                                              visibility: PackageVisibility::all(),
+                                              target:     BuilderPackageTarget(target), },
+                                 &mut conn).map_err(Error::DieselError)
     {
         Ok(pkg) => pkg,
         Err(err) => return err.into(),
@@ -393,14 +363,9 @@ async fn delete_package(
         return err.into();
     }
 
-    if let Err(err) = Package::delete(
-        DeletePackage {
-            ident: BuilderPackageIdent(ident.clone()),
-            target: BuilderPackageTarget(target),
-        },
-        &mut conn,
-    )
-    .map_err(Error::DieselError)
+    if let Err(err) = Package::delete(DeletePackage { ident:  BuilderPackageIdent(ident.clone()),
+                                                      target: BuilderPackageTarget(target), },
+                                      &mut conn).map_err(Error::DieselError)
     {
         let _ = conn.batch_execute("ROLLBACK");
         error!("{}", err);
@@ -411,25 +376,20 @@ async fn delete_package(
     // failure, roll back so the DB record is preserved and the caller gets a
     // clear error.
     if feat::is_enabled(feat::Artifactory) {
-        if let Err(err) = req_state(&req)
-            .artifactory
-            .delete(&ident, target)
-            .await
-            .map_err(Error::Artifactory)
+        if let Err(err) = req_state(&req).artifactory
+                                         .delete(&ident, target)
+                                         .await
+                                         .map_err(Error::Artifactory)
         {
-            error!(
-                "Unable to delete package from Artifactory, rolling back DB transaction. \
+            error!("Unable to delete package from Artifactory, rolling back DB transaction. \
                     ident={}: {:?}",
-                ident, err
-            );
+                   ident, err);
             let _ = conn.batch_execute("ROLLBACK");
             return err.into();
         }
     } else if let Err(err) = req_state(&req).packages.delete(&ident, target).await {
-        error!(
-            "Unable to delete package from S3, rolling back DB transaction. ident={}: {:?}",
-            ident, err
-        );
+        error!("Unable to delete package from S3, rolling back DB transaction. ident={}: {:?}",
+               ident, err);
         let _ = conn.batch_execute("ROLLBACK");
         return err.into();
     }
@@ -440,11 +400,9 @@ async fn delete_package(
         // failed. Roll back to return the connection to the pool in a clean
         // state, then log loudly so operators can reconcile the inconsistency.
         let _ = conn.batch_execute("ROLLBACK");
-        error!(
-            "COMMIT failed after artifact store delete succeeded for ident={}: {:?} DB and \
+        error!("COMMIT failed after artifact store delete succeeded for ident={}: {:?} DB and \
                 artifact store may be inconsistent",
-            ident, err
-        );
+               ident, err);
         return err.into();
     }
 
@@ -454,12 +412,11 @@ async fn delete_package(
 
 // TODO : Convert to async
 #[allow(clippy::needless_pass_by_value)]
-async fn download_package(
-    req: HttpRequest,
-    path: Path<(String, String, String, String)>,
-    qtarget: Query<Target>,
-    state: Data<AppState>,
-) -> HttpResponse {
+async fn download_package(req: HttpRequest,
+                          path: Path<(String, String, String, String)>,
+                          qtarget: Query<Target>,
+                          state: Data<AppState>)
+                          -> HttpResponse {
     let (origin, name, version, release) = path.into_inner();
 
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
@@ -486,10 +443,8 @@ async fn download_package(
                 Err(err) => {
                     debug!("Invalid target requested: {}, err = {:?}", t, err);
                     let body = Bytes::from(format!("Invalid package target '{}'", t).into_bytes());
-                    return HttpResponse::with_body(
-                        StatusCode::UNPROCESSABLE_ENTITY,
-                        BoxBody::new(body),
-                    );
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   BoxBody::new(body));
                 }
             }
         }
@@ -501,14 +456,11 @@ async fn download_package(
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
-    match Package::get(
-        GetPackage {
-            ident: BuilderPackageIdent(ident.clone()),
-            visibility: vis,
-            target: BuilderPackageTarget(target),
-        },
-        &mut conn,
-    ) {
+    match Package::get(GetPackage { ident:      BuilderPackageIdent(ident.clone()),
+                                    visibility: vis,
+                                    target:     BuilderPackageTarget(target), },
+                       &mut conn)
+    {
         Ok(package) => {
             let channels = match channels_for_package_ident(&req, &package.ident, target, &mut conn)
             {
@@ -520,29 +472,26 @@ async fn download_package(
             };
 
             let should_restrict = if let Some(chs_vec) = channels.as_ref() {
-                let in_unrestricted_channels = state
-                    .config
-                    .api
-                    .unrestricted_channels
-                    .iter()
-                    .any(|c| chs_vec.contains(c));
+                let in_unrestricted_channels = state.config
+                                                    .api
+                                                    .unrestricted_channels
+                                                    .iter()
+                                                    .any(|c| chs_vec.contains(c));
 
                 if in_unrestricted_channels || state.config.api.restricted_if_present.is_empty() {
                     false
                 } else {
-                    let in_partially_unrestricted_channels = state
-                        .config
-                        .api
-                        .partially_unrestricted_channels
-                        .iter()
-                        .any(|c| chs_vec.contains(c));
+                    let in_partially_unrestricted_channels = state.config
+                                                                  .api
+                                                                  .partially_unrestricted_channels
+                                                                  .iter()
+                                                                  .any(|c| chs_vec.contains(c));
 
-                    let in_restricted_if_present = state
-                        .config
-                        .api
-                        .restricted_if_present
-                        .iter()
-                        .any(|c| chs_vec.contains(c));
+                    let in_restricted_if_present = state.config
+                                                        .api
+                                                        .restricted_if_present
+                                                        .iter()
+                                                        .any(|c| chs_vec.contains(c));
 
                     !in_partially_unrestricted_channels || in_restricted_if_present
                 }
@@ -557,16 +506,17 @@ async fn download_package(
                             Ok(Some(license)) => {
                                 let today = chrono::Utc::now().date_naive();
                                 if license.expiration_date < today {
-                                    match fetch_license_expiration(
-                                        &license.license_key,
-                                        &state.config.api.license_server_url,
-                                    ) {
+                                    match fetch_license_expiration(&license.license_key,
+                                                                   &state.config
+                                                                         .api
+                                                                         .license_server_url)
+                                    {
                                         Ok(new_expiration) => {
-                                            let update = NewLicenseKey {
-                                                account_id: account_id as i64,
-                                                license_key: &license.license_key,
-                                                expiration_date: new_expiration,
-                                            };
+                                            let update =
+                                                NewLicenseKey { account_id:      account_id as i64,
+                                                                license_key:
+                                                                    &license.license_key,
+                                                                expiration_date: new_expiration, };
 
                                             if let Err(err) = LicenseKey::create(&update, &mut conn)
                                             {
@@ -582,10 +532,8 @@ async fn download_package(
                                 }
                             }
                             Ok(None) => {
-                                return HttpResponse::Forbidden().body(
-                                    "No valid license key \
-                                                                       found.",
-                                );
+                                return HttpResponse::Forbidden().body("No valid license key \
+                                                                       found.");
                             }
                             Err(err) => {
                                 debug!("License DB error: {}", err);
@@ -607,36 +555,30 @@ async fn download_package(
 
             // TODO: Aggregate Artifactory/S3 into a provider model
             if feat::is_enabled(feat::Artifactory) {
-                match state
-                    .artifactory
-                    .download(&file_path, &temp_ident, target)
-                    .await
+                match state.artifactory
+                           .download(&file_path, &temp_ident, target)
+                           .await
                 {
                     Ok(archive) => {
                         download_response_for_archive(&archive, &file_path, is_private, &state)
                     }
                     Err(e) => {
-                        warn!(
-                            "Failed to download package, ident={}, err={:?}",
-                            temp_ident, e
-                        );
+                        warn!("Failed to download package, ident={}, err={:?}",
+                              temp_ident, e);
                         HttpResponse::new(StatusCode::NOT_FOUND)
                     }
                 }
             } else {
-                match state
-                    .packages
-                    .download(&file_path, &temp_ident, target)
-                    .await
+                match state.packages
+                           .download(&file_path, &temp_ident, target)
+                           .await
                 {
                     Ok(archive) => {
                         download_response_for_archive(&archive, &file_path, is_private, &state)
                     }
                     Err(e) => {
-                        warn!(
-                            "Failed to download package, ident={}, err={:?}",
-                            temp_ident, e
-                        );
+                        warn!("Failed to download package, ident={}, err={:?}",
+                              temp_ident, e);
                         HttpResponse::new(StatusCode::NOT_FOUND)
                     }
                 }
@@ -647,33 +589,22 @@ async fn download_package(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn upload_package(
-    req: HttpRequest,
-    path: Path<(String, String, String, String)>,
-    qupload: Query<Upload>,
-    stream: web::Payload,
-    state: Data<AppState>,
-) -> Result<HttpResponse> {
+async fn upload_package(req: HttpRequest,
+                        path: Path<(String, String, String, String)>,
+                        qupload: Query<Upload>,
+                        stream: web::Payload,
+                        state: Data<AppState>)
+                        -> Result<HttpResponse> {
     let (origin, name, version, release) = path.into_inner();
 
     let ident = PackageIdent::new(origin, name, Some(version), Some(release));
 
     if !ident.valid() || !ident.fully_qualified() {
-        info!(
-            "Invalid or not fully qualified package identifier: {}",
-            ident
-        );
-        let body = Bytes::from(
-            format!(
-                "Invalid or not fully qualified package identifier '{}'",
-                ident
-            )
-            .into_bytes(),
-        );
-        return Ok(HttpResponse::with_body(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            BoxBody::new(body),
-        ));
+        info!("Invalid or not fully qualified package identifier: {}",
+              ident);
+        let body = Bytes::from(format!("Invalid or not fully qualified package identifier '{}'",
+                                       ident).into_bytes());
+        return Ok(HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body)));
     }
 
     match do_upload_package_start(&req, &qupload, &ident) {
@@ -682,10 +613,8 @@ async fn upload_package(
             do_upload_package_async(req, stream, qupload, ident, temp_path, writer).await
         }
         Err(Error::Conflict) => {
-            debug!(
-                "Failed to upload package {}, metadata already exists",
-                &ident
-            );
+            debug!("Failed to upload package {}, metadata already exists",
+                   &ident);
             Ok(HttpResponse::new(StatusCode::CONFLICT))
         }
         Err(err) => {
@@ -696,12 +625,11 @@ async fn upload_package(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn get_package_channels(
-    req: HttpRequest,
-    path: Path<(String, String, String, String)>,
-    qtarget: Query<Target>,
-    state: Data<AppState>,
-) -> HttpResponse {
+async fn get_package_channels(req: HttpRequest,
+                              path: Path<(String, String, String, String)>,
+                              qtarget: Query<Target>,
+                              state: Data<AppState>)
+                              -> HttpResponse {
     let (origin, name, version, release) = path.into_inner();
 
     let opt_session_id = match authorize_session(&req, None, None) {
@@ -732,28 +660,26 @@ async fn get_package_channels(
                 Err(err) => {
                     debug!("Invalid target requested: {}, err = {:?}", t, err);
                     let body = Bytes::from(format!("Invalid package target '{}'", t).into_bytes());
-                    return HttpResponse::with_body(
-                        StatusCode::UNPROCESSABLE_ENTITY,
-                        BoxBody::new(body),
-                    );
+                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
+                                                   BoxBody::new(body));
                 }
             }
         }
         None => helpers::target_from_headers(&req),
     };
 
-    match Package::list_package_channels(
-        &BuilderPackageIdent(ident.clone()),
-        target,
-        helpers::visibility_for_optional_session(&req, opt_session_id, &ident.origin),
-        &mut conn,
-    ) {
+    match Package::list_package_channels(&BuilderPackageIdent(ident.clone()),
+                                         target,
+                                         helpers::visibility_for_optional_session(&req,
+                                                                                  opt_session_id,
+                                                                                  &ident.origin),
+                                         &mut conn)
+    {
         Ok(channels) => {
             let list: Vec<ChannelWithPromotion> =
                 channels.into_iter().map(|channel| channel.into()).collect();
-            HttpResponse::Ok()
-                .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-                .json(list)
+            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
+                              .json(list)
         }
         Err(err) => {
             debug!("{}", err);
@@ -763,11 +689,10 @@ async fn get_package_channels(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn list_package_versions(
-    req: HttpRequest,
-    path: Path<(String, String)>,
-    state: Data<AppState>,
-) -> HttpResponse {
+async fn list_package_versions(req: HttpRequest,
+                               path: Path<(String, String)>,
+                               state: Data<AppState>)
+                               -> HttpResponse {
     let (origin, name) = path.into_inner();
 
     let opt_session_id = match authorize_session(&req, None, None) {
@@ -782,19 +707,20 @@ async fn list_package_versions(
 
     let ident = PackageIdent::new(origin.to_string(), name, None, None);
 
-    match Package::list_package_versions(
-        &BuilderPackageIdent(ident.clone()),
-        helpers::visibility_for_optional_session(&req, opt_session_id, &origin),
-        &mut conn,
-    ) {
+    match Package::list_package_versions(&BuilderPackageIdent(ident.clone()),
+                                         helpers::visibility_for_optional_session(&req,
+                                                                                  opt_session_id,
+                                                                                  &origin),
+                                         &mut conn)
+    {
         Ok(packages) => {
             trace!(target: "habitat_builder_api::server::resources::pkgs::versions", "list_package_versions for {} found {} package versions: {:?}", ident, packages.len(), packages);
 
             let body = serde_json::to_string(&packages).unwrap();
-            HttpResponse::Ok()
-                .append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
-                .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-                .body(body)
+            HttpResponse::Ok().append_header((http::header::CONTENT_TYPE,
+                                              headers::APPLICATION_JSON))
+                              .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
+                              .body(body)
         }
         Err(err) => {
             debug!("{}", err);
@@ -804,12 +730,11 @@ async fn list_package_versions(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn search_packages(
-    req: HttpRequest,
-    path: Path<String>,
-    pagination: Query<Pagination>,
-    state: Data<AppState>,
-) -> HttpResponse {
+async fn search_packages(req: HttpRequest,
+                         path: Path<String>,
+                         pagination: Query<Pagination>,
+                         state: Data<AppState>)
+                         -> HttpResponse {
     Counter::SearchPackages.increment();
 
     let query = path.into_inner();
@@ -847,12 +772,10 @@ async fn search_packages(
 
     debug!("search_packages called with: {}", decoded_query);
 
-    let search_packages = SearchPackages {
-        query: decoded_query,
-        page: page as i64,
-        limit: per_page as i64,
-        account_id: opt_session_id,
-    };
+    let search_packages = SearchPackages { query:      decoded_query,
+                                           page:       page as i64,
+                                           limit:      per_page as i64,
+                                           account_id: opt_session_id, };
 
     if pagination.distinct {
         return match Package::search_distinct(&search_packages, &mut conn) {
@@ -874,11 +797,10 @@ async fn search_packages(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-async fn package_privacy_toggle(
-    req: HttpRequest,
-    path: Path<(String, String, String, String, String)>,
-    state: Data<AppState>,
-) -> HttpResponse {
+async fn package_privacy_toggle(req: HttpRequest,
+                                path: Path<(String, String, String, String, String)>,
+                                state: Data<AppState>)
+                                -> HttpResponse {
     let (origin, name, version, release, visibility) = path.into_inner();
 
     let ident = PackageIdent::new(origin.clone(), name, Some(version), Some(release));
@@ -930,28 +852,24 @@ async fn package_privacy_toggle(
 // Public helpers
 //
 
-pub fn postprocess_package_list<T: Serialize>(
-    _req: &HttpRequest,
-    packages: &[T],
-    count: i64,
-    pagination: &Query<Pagination>,
-) -> HttpResponse {
+pub fn postprocess_package_list<T: Serialize>(_req: &HttpRequest,
+                                              packages: &[T],
+                                              count: i64,
+                                              pagination: &Query<Pagination>)
+                                              -> HttpResponse {
     let (page, per_page) = helpers::extract_pagination_in_pages(pagination);
     let safe_page = page.max(1);
-    let start = safe_page
-        .checked_sub(1)
-        .and_then(|p| p.checked_mul(per_page))
-        .unwrap_or_default();
+    let start = safe_page.checked_sub(1)
+                         .and_then(|p| p.checked_mul(per_page))
+                         .unwrap_or_default();
     let pkg_count = packages.len() as isize;
     let stop = match pkg_count {
         0 => count,
         _ => (start + pkg_count - 1) as i64,
     };
 
-    debug!(
-        "postprocessing package list, start: {}, stop: {}, total_count: {}",
-        start, stop, count
-    );
+    debug!("postprocessing package list, start: {}, stop: {}, total_count: {}",
+           start, stop, count);
 
     let body = helpers::package_results_json(packages, count as isize, start, stop as isize);
 
@@ -961,18 +879,16 @@ pub fn postprocess_package_list<T: Serialize>(
         HttpResponse::Ok()
     };
 
-    response
-        .append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
-        .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-        .body(body)
+    response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
+            .body(body)
 }
 
-pub fn postprocess_extended_package_list(
-    _req: &HttpRequest,
-    packages: &[PackageIdentWithChannelPlatform],
-    count: i64,
-    pagination: &Query<Pagination>,
-) -> HttpResponse {
+pub fn postprocess_extended_package_list(_req: &HttpRequest,
+                                         packages: &[PackageIdentWithChannelPlatform],
+                                         count: i64,
+                                         pagination: &Query<Pagination>)
+                                         -> HttpResponse {
     let start = if pagination.range < 0 {
         0
     } else {
@@ -984,10 +900,8 @@ pub fn postprocess_extended_package_list(
         _ => start + pkg_count - 1,
     };
 
-    debug!(
-        "postprocessing extended package list, start: {}, stop: {}, total_count: {}",
-        start, stop, count
-    );
+    debug!("postprocessing extended package list, start: {}, stop: {}, total_count: {}",
+           start, stop, count);
 
     let body =
         helpers::package_results_json(packages, count as isize, start as isize, stop as isize);
@@ -998,19 +912,17 @@ pub fn postprocess_extended_package_list(
         HttpResponse::Ok()
     };
 
-    response
-        .append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
-        .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-        .body(body)
+    response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
+            .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
+            .body(body)
 }
 
 // Internal - these functions should return Result<..>
 //
-fn do_get_packages(
-    req: &HttpRequest,
-    ident: &PackageIdent,
-    pagination: &Query<Pagination>,
-) -> Result<(Vec<PackageIdentWithChannelPlatform>, i64)> {
+fn do_get_packages(req: &HttpRequest,
+                   ident: &PackageIdent,
+                   pagination: &Query<Pagination>)
+                   -> Result<(Vec<PackageIdentWithChannelPlatform>, i64)> {
     let opt_session_id = match authorize_session(req, None, None) {
         Ok(session) => Some(session.id()),
         Err(_) => None,
@@ -1021,20 +933,18 @@ fn do_get_packages(
         (0i64, -1i64)
     } else {
         // Use range directly as offset
-        (
-            pagination.range as i64,
-            helpers::PAGINATION_RANGE_MAX as i64,
-        )
+        (pagination.range as i64, helpers::PAGINATION_RANGE_MAX as i64)
     };
 
     let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
-    let lpr = ListPackages {
-        ident: BuilderPackageIdent(ident.clone()),
-        visibility: helpers::visibility_for_optional_session(req, opt_session_id, &ident.origin),
-        offset,
-        limit,
-    };
+    let lpr = ListPackages { ident: BuilderPackageIdent(ident.clone()),
+                             visibility:
+                                 helpers::visibility_for_optional_session(req,
+                                                                          opt_session_id,
+                                                                          &ident.origin),
+                             offset,
+                             limit };
 
     if pagination.distinct {
         match Package::list_distinct(&lpr, &mut conn).map_err(Error::DieselError) {
@@ -1062,20 +972,17 @@ fn do_get_packages(
 
 //  Async helpers
 //
-fn do_upload_package_start(
-    req: &HttpRequest,
-    qupload: &Query<Upload>,
-    ident: &PackageIdent,
-) -> Result<(PathBuf, BufWriter<File>)> {
+fn do_upload_package_start(req: &HttpRequest,
+                           qupload: &Query<Upload>,
+                           ident: &PackageIdent)
+                           -> Result<(PathBuf, BufWriter<File>)> {
     authorize_session(req, Some(&ident.origin), Some(OriginMemberRole::Member))?;
 
     let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     if qupload.forced {
-        debug!(
-            "Upload was forced (bypassing existing package check) for: {}",
-            ident
-        );
+        debug!("Upload was forced (bypassing existing package check) for: {}",
+               ident);
     } else {
         let target = match qupload.target {
             Some(ref t) => {
@@ -1113,12 +1020,11 @@ fn do_upload_package_start(
 
 // TODO: Break this up further, convert S3 upload to async
 #[allow(clippy::cognitive_complexity)]
-async fn do_upload_package_finish(
-    req: &HttpRequest,
-    qupload: &Query<Upload>,
-    ident: &PackageIdent,
-    temp_path: &path::Path,
-) -> HttpResponse {
+async fn do_upload_package_finish(req: &HttpRequest,
+                                  qupload: &Query<Upload>,
+                                  ident: &PackageIdent,
+                                  temp_path: &path::Path)
+                                  -> HttpResponse {
     let archive = match PackageArchive::new(temp_path) {
         Ok(archive) => archive,
         Err(e) => {
@@ -1134,10 +1040,8 @@ async fn do_upload_package_finish(
     let package_type = match archive.package_type() {
         Ok(pkg_type) => pkg_type,
         Err(e) => {
-            info!(
-                "Could not read the package type for {:#?}: {:#?}",
-                archive, e
-            );
+            info!("Could not read the package type for {:#?}: {:#?}",
+                  archive, e);
             let body = Bytes::from(format!("ds:up:0, err={:?}", e).into_bytes());
             let body = BoxBody::new(body);
             return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
@@ -1154,16 +1058,13 @@ async fn do_upload_package_finish(
         }
     };
 
-    if !req_state(req)
-        .config
-        .api
-        .targets
-        .contains(&target_from_artifact)
+    if !req_state(req).config
+                      .api
+                      .targets
+                      .contains(&target_from_artifact)
     {
-        debug!(
-            "Unsupported package platform or architecture {}.",
-            target_from_artifact
-        );
+        debug!("Unsupported package platform or architecture {}.",
+               target_from_artifact);
         return HttpResponse::new(StatusCode::NOT_IMPLEMENTED);
     };
 
@@ -1178,10 +1079,8 @@ async fn do_upload_package_finish(
     };
 
     if qupload.checksum != checksum_from_artifact {
-        debug!(
-            "Checksums did not match: from_param={:?}, from_artifact={:?}",
-            qupload.checksum, checksum_from_artifact
-        );
+        debug!("Checksums did not match: from_param={:?}, from_artifact={:?}",
+               qupload.checksum, checksum_from_artifact);
         let body = Bytes::from_static(b"ds:up:3");
         let body = BoxBody::new(body);
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
@@ -1264,10 +1163,8 @@ async fn do_upload_package_finish(
     match fs::rename(temp_path, &filename) {
         Ok(_) => {}
         Err(e) => {
-            warn!(
-                "Unable to rename temp archive {:?} to {:?}, err={:?}",
-                temp_path, filename, e
-            );
+            warn!("Unable to rename temp archive {:?} to {:?}, err={:?}",
+                  temp_path, filename, e);
             return Error::IO(e).into();
         }
     }
@@ -1275,19 +1172,17 @@ async fn do_upload_package_finish(
     // TODO: Make upload async
     // TODO: Aggregate Artifactory/S3 into a provider model
     if feat::is_enabled(feat::Artifactory) {
-        if let Err(err) = req_state(req)
-            .artifactory
-            .upload(&filename, &temp_ident, target_from_artifact)
-            .await
-            .map_err(Error::Artifactory)
+        if let Err(err) = req_state(req).artifactory
+                                        .upload(&filename, &temp_ident, target_from_artifact)
+                                        .await
+                                        .map_err(Error::Artifactory)
         {
             warn!("Unable to upload archive to artifactory!");
             return err.into();
         }
-    } else if let Err(err) = req_state(req)
-        .packages
-        .upload(&filename, &temp_ident, target_from_artifact)
-        .await
+    } else if let Err(err) = req_state(req).packages
+                                           .upload(&filename, &temp_ident, target_from_artifact)
+                                           .await
     {
         warn!("Unable to upload archive to s3!");
         return err.into();
@@ -1312,10 +1207,8 @@ async fn do_upload_package_finish(
     };
 
     if !ident.satisfies(&*package.ident) {
-        debug!(
-            "Ident mismatch, expected={:?}, got={:?}",
-            ident, package.ident
-        );
+        debug!("Ident mismatch, expected={:?}, got={:?}",
+               ident, package.ident);
         let body = Bytes::from_static(b"ds:up:6");
         let body = BoxBody::new(body);
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
@@ -1368,32 +1261,26 @@ async fn do_upload_package_finish(
 
     match remove_file(&filename) {
         Ok(_) => {
-            debug!(
-                "Successfully removed cached file after upload. {:?}",
-                &filename
-            )
+            debug!("Successfully removed cached file after upload. {:?}",
+                   &filename)
         }
         Err(e) => {
-            warn!(
-                "Failed to remove cached file after upload: {:?}, {}",
-                &filename, e
-            )
+            warn!("Failed to remove cached file after upload: {:?}, {}",
+                  &filename, e)
         }
     }
 
-    HttpResponse::Created()
-        .append_header((http::header::LOCATION, format!("{}", req.uri())))
-        .body(format!("/pkgs/{}/download", *package.ident))
+    HttpResponse::Created().append_header((http::header::LOCATION, format!("{}", req.uri())))
+                           .body(format!("/pkgs/{}/download", *package.ident))
 }
 
-async fn do_upload_package_async(
-    req: HttpRequest,
-    mut stream: web::Payload,
-    qupload: Query<Upload>,
-    ident: PackageIdent,
-    temp_path: PathBuf,
-    mut writer: BufWriter<File>,
-) -> Result<HttpResponse> {
+async fn do_upload_package_async(req: HttpRequest,
+                                 mut stream: web::Payload,
+                                 qupload: Query<Upload>,
+                                 ident: PackageIdent,
+                                 temp_path: PathBuf,
+                                 mut writer: BufWriter<File>)
+                                 -> Result<HttpResponse> {
     while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
         debug!("Writing file upload chunk, size: {}", chunk.len());
@@ -1409,11 +1296,10 @@ async fn do_upload_package_async(
     }
 }
 
-async fn do_get_package(
-    req: &HttpRequest,
-    qtarget: &Query<Target>,
-    ident: &PackageIdent,
-) -> Result<String> {
+async fn do_get_package(req: &HttpRequest,
+                        qtarget: &Query<Target>,
+                        ident: &PackageIdent)
+                        -> Result<String> {
     let opt_session_id = match authorize_session(req, None, None) {
         Ok(session) => Some(session.id()),
         Err(_) => None,
@@ -1437,12 +1323,10 @@ async fn do_get_package(
         let mut memcache = req_state(req).memcache.borrow_mut();
         match memcache.get_package(ident, &ChannelIdent::unstable(), &target, opt_session_id) {
             (true, Some(pkg_json)) => {
-                trace!(
-                    "Package {} {} {:?} - cache hit with pkg json",
-                    ident,
-                    target,
-                    opt_session_id
-                );
+                trace!("Package {} {} {:?} - cache hit with pkg json",
+                       ident,
+                       target,
+                       opt_session_id);
                 // Note: the Package specifier is needed even though the variable is un-used
                 let _p: Package = match serde_json::from_str(&pkg_json) {
                     Ok(p) => p,
@@ -1455,43 +1339,38 @@ async fn do_get_package(
                 return Ok(pkg_json);
             }
             (true, None) => {
-                trace!(
-                    "Channel package {} {} {:?} - cache hit with 404",
-                    ident,
-                    target,
-                    opt_session_id
-                );
+                trace!("Channel package {} {} {:?} - cache hit with 404",
+                       ident,
+                       target,
+                       opt_session_id);
                 Counter::MemcachePackage404.increment();
                 return Err(Error::NotFound);
             }
             (false, _) => {
-                trace!(
-                    "Channel package {} {} {:?} - cache miss",
-                    ident,
-                    target,
-                    opt_session_id
-                );
+                trace!("Channel package {} {} {:?} - cache miss",
+                       ident,
+                       target,
+                       opt_session_id);
                 Counter::MemcachePackageMiss.increment();
             }
         };
     }
 
     let pkg = if ident.fully_qualified() {
-        match Package::get_without_target(
-            BuilderPackageIdent(ident.clone()),
-            helpers::visibility_for_optional_session(req, opt_session_id, &ident.origin),
-            &mut conn,
-        ) {
+        match Package::get_without_target(BuilderPackageIdent(ident.clone()),
+                                          helpers::visibility_for_optional_session(req,
+                                                                                   opt_session_id,
+                                                                                   &ident.origin),
+                                          &mut conn)
+        {
             Ok(pkg) => pkg,
             Err(NotFound) => {
                 let mut memcache = req_state(req).memcache.borrow_mut();
-                memcache.set_package(
-                    ident,
-                    None,
-                    &ChannelIdent::unstable(),
-                    &target,
-                    opt_session_id,
-                );
+                memcache.set_package(ident,
+                                     None,
+                                     &ChannelIdent::unstable(),
+                                     &target,
+                                     opt_session_id);
                 return Err(Error::NotFound);
             }
 
@@ -1539,10 +1418,9 @@ async fn do_get_package(
     pkg_json["manifest"] = json!("");
     pkg_json["channels"] = json!(channels);
     pkg_json["is_a_service"] = json!(pkg.is_a_service());
-    let size = match req_state(req)
-        .packages
-        .size_of(&pkg.ident, *pkg.target)
-        .await
+    let size = match req_state(req).packages
+                                   .size_of(&pkg.ident, *pkg.target)
+                                   .await
     {
         Ok(size) => size,
         Err(err) => {
@@ -1557,13 +1435,11 @@ async fn do_get_package(
 
     {
         let mut memcache = req_state(req).memcache.borrow_mut();
-        memcache.set_package(
-            ident,
-            Some(&json_body),
-            &ChannelIdent::unstable(),
-            &target,
-            opt_session_id,
-        );
+        memcache.set_package(ident,
+                             Some(&json_body),
+                             &ChannelIdent::unstable(),
+                             &target,
+                             opt_session_id);
     }
 
     Ok(json_body)
@@ -1576,20 +1452,17 @@ async fn do_get_package(
 // identifier pieces.
 fn archive_name(ident: &PackageIdent, target: PackageTarget) -> PathBuf {
     PathBuf::from(ident.archive_name_with_target(target).unwrap_or_else(|_| {
-        panic!(
-            "Package ident should be fully \
+                                                            panic!("Package ident should be fully \
                                                                     qualified, ident={}",
-            &ident
-        )
-    }))
+                                                                   &ident)
+                                                        }))
 }
 
-fn download_response_for_archive(
-    archive: &PackageArchive,
-    file_path: &path::Path,
-    is_private: bool,
-    state: &Data<AppState>,
-) -> HttpResponse {
+fn download_response_for_archive(archive: &PackageArchive,
+                                 file_path: &path::Path,
+                                 is_private: bool,
+                                 state: &Data<AppState>)
+                                 -> HttpResponse {
     let filename = archive.file_name();
     let file = match File::open(file_path) {
         Ok(f) => f,

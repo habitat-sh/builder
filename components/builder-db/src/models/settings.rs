@@ -1,36 +1,39 @@
 use super::db_id_format;
 use chrono::NaiveDateTime;
-use diesel::{
-    self, dsl::count, pg::PgConnection, result::QueryResult, ExpressionMethods, QueryDsl,
-    RunQueryDsl,
-};
+use diesel::{self,
+             dsl::count,
+             pg::PgConnection,
+             result::QueryResult,
+             ExpressionMethods,
+             QueryDsl,
+             RunQueryDsl};
 
 use crate::schema::settings::origin_package_settings;
 
-use crate::{models::package::PackageVisibility, schema::package::origin_packages};
+use crate::{models::package::PackageVisibility,
+            schema::package::origin_packages};
 
-use crate::{bldr_core::metrics::CounterMetric, metrics::Counter};
+use crate::{bldr_core::metrics::CounterMetric,
+            metrics::Counter};
 
-#[derive(
-    Debug,
-    Serialize,
-    Deserialize,
-    QueryableByName,
-    Queryable,
-    Clone,
-    PartialEq,
-    Identifiable
-)]
+#[derive(Debug,
+         Serialize,
+         Deserialize,
+         QueryableByName,
+         Queryable,
+         Clone,
+         PartialEq,
+         Identifiable)]
 #[diesel(table_name = origin_package_settings)]
 pub struct OriginPackageSettings {
     #[serde(with = "db_id_format")]
-    pub id: i64,
-    pub origin: String,
-    pub name: String,
+    pub id:         i64,
+    pub origin:     String,
+    pub name:       String,
     pub visibility: PackageVisibility,
     #[serde(with = "db_id_format")]
-    pub owner_id: i64,
-    pub hidden: bool,
+    pub owner_id:   i64,
+    pub hidden:     bool,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }
@@ -38,60 +41,55 @@ pub struct OriginPackageSettings {
 #[derive(Debug, Insertable)]
 #[diesel(table_name = origin_package_settings)]
 pub struct NewOriginPackageSettings<'a> {
-    pub origin: &'a str,
-    pub name: &'a str,
+    pub origin:     &'a str,
+    pub name:       &'a str,
     pub visibility: &'a PackageVisibility,
-    pub owner_id: i64,
+    pub owner_id:   i64,
 }
 
 #[derive(AsChangeset, Debug)]
 #[diesel(table_name = origin_package_settings)]
 pub struct UpdateOriginPackageSettings<'a> {
-    pub origin: &'a str,
-    pub name: &'a str,
+    pub origin:     &'a str,
+    pub name:       &'a str,
     pub visibility: &'a PackageVisibility,
-    pub owner_id: i64,
+    pub owner_id:   i64,
 }
 
 #[derive(Debug)]
 pub struct GetOriginPackageSettings<'a> {
     pub origin: &'a str,
-    pub name: &'a str,
+    pub name:   &'a str,
 }
 
 #[derive(Debug)]
 pub struct DeleteOriginPackageSettings<'a> {
-    pub origin: &'a str,
-    pub name: &'a str,
+    pub origin:   &'a str,
+    pub name:     &'a str,
     pub owner_id: i64,
 }
 
 impl OriginPackageSettings {
-    pub fn get(
-        req: &GetOriginPackageSettings,
-        conn: &mut PgConnection,
-    ) -> QueryResult<OriginPackageSettings> {
+    pub fn get(req: &GetOriginPackageSettings,
+               conn: &mut PgConnection)
+               -> QueryResult<OriginPackageSettings> {
         Counter::DBCall.increment();
-        origin_package_settings::table
-            .filter(origin_package_settings::origin.eq(&req.origin))
-            .filter(origin_package_settings::name.eq(&req.name))
-            .get_result(conn)
+        origin_package_settings::table.filter(origin_package_settings::origin.eq(&req.origin))
+                                      .filter(origin_package_settings::name.eq(&req.name))
+                                      .get_result(conn)
     }
 
-    pub fn create(
-        req: &NewOriginPackageSettings,
-        conn: &mut PgConnection,
-    ) -> QueryResult<OriginPackageSettings> {
+    pub fn create(req: &NewOriginPackageSettings,
+                  conn: &mut PgConnection)
+                  -> QueryResult<OriginPackageSettings> {
         Counter::DBCall.increment();
-        diesel::insert_into(origin_package_settings::table)
-            .values(req)
-            .get_result(conn)
+        diesel::insert_into(origin_package_settings::table).values(req)
+                                                           .get_result(conn)
     }
 
-    pub fn update(
-        req: &UpdateOriginPackageSettings,
-        conn: &mut PgConnection,
-    ) -> QueryResult<OriginPackageSettings> {
+    pub fn update(req: &UpdateOriginPackageSettings,
+                  conn: &mut PgConnection)
+                  -> QueryResult<OriginPackageSettings> {
         Counter::DBCall.increment();
         diesel::update(
             origin_package_settings::table
@@ -102,10 +100,9 @@ impl OriginPackageSettings {
         .get_result(conn)
     }
 
-    pub fn delete(
-        req: &DeleteOriginPackageSettings,
-        conn: &mut PgConnection,
-    ) -> QueryResult<usize> {
+    pub fn delete(req: &DeleteOriginPackageSettings,
+                  conn: &mut PgConnection)
+                  -> QueryResult<usize> {
         Counter::DBCall.increment();
         diesel::delete(
             origin_package_settings::table
@@ -115,27 +112,23 @@ impl OriginPackageSettings {
         .execute(conn)
     }
 
-    pub fn count_origin_package_settings(
-        origin: &str,
-        conn: &mut PgConnection,
-    ) -> QueryResult<i64> {
+    pub fn count_origin_package_settings(origin: &str,
+                                         conn: &mut PgConnection)
+                                         -> QueryResult<i64> {
         Counter::DBCall.increment();
-        origin_package_settings::table
-            .select(count(origin_package_settings::id))
-            .filter(origin_package_settings::origin.eq(&origin))
-            .first(conn)
+        origin_package_settings::table.select(count(origin_package_settings::id))
+                                      .filter(origin_package_settings::origin.eq(&origin))
+                                      .first(conn)
     }
 
-    pub fn count_packages_for_origin_package(
-        origin: &str,
-        pkg: &str,
-        conn: &mut PgConnection,
-    ) -> QueryResult<i64> {
+    pub fn count_packages_for_origin_package(origin: &str,
+                                             pkg: &str,
+                                             conn: &mut PgConnection)
+                                             -> QueryResult<i64> {
         Counter::DBCall.increment();
-        origin_packages::table
-            .select(count(origin_packages::id))
-            .filter(origin_packages::origin.eq(&origin))
-            .filter(origin_packages::name.eq(&pkg))
-            .first(conn)
+        origin_packages::table.select(count(origin_packages::id))
+                              .filter(origin_packages::origin.eq(&origin))
+                              .filter(origin_packages::name.eq(&pkg))
+                              .first(conn)
     }
 }

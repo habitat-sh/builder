@@ -14,13 +14,13 @@
 
 use reqwest::header::HeaderMap;
 
-use builder_core::http_client::{HttpClient, ACCEPT_APPLICATION_JSON};
+use builder_core::http_client::{HttpClient,
+                                ACCEPT_APPLICATION_JSON};
 
-use crate::{
-    config::OAuth2Cfg,
-    error::{Error, Result},
-    types::*,
-};
+use crate::{config::OAuth2Cfg,
+            error::{Error,
+                    Result},
+            types::*};
 use async_trait::async_trait;
 
 pub struct GitLab;
@@ -32,28 +32,26 @@ struct AuthOk {
 
 #[derive(Deserialize)]
 struct User {
-    pub sub: String,
+    pub sub:      String,
     pub nickname: String,
-    pub email: Option<String>,
+    pub email:    Option<String>,
 }
 
 impl GitLab {
-    async fn user(
-        &self,
-        config: &OAuth2Cfg,
-        client: &HttpClient,
-        token: &str,
-    ) -> Result<OAuth2User> {
+    async fn user(&self,
+                  config: &OAuth2Cfg,
+                  client: &HttpClient,
+                  token: &str)
+                  -> Result<OAuth2User> {
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone()];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
-        let resp = client
-            .get(&config.userinfo_url)
-            .headers(headers)
-            .bearer_auth(token)
-            .send()
-            .await
-            .map_err(Error::HttpClient)?;
+        let resp = client.get(&config.userinfo_url)
+                         .headers(headers)
+                         .bearer_auth(token)
+                         .send()
+                         .await
+                         .map_err(Error::HttpClient)?;
 
         let status = resp.status();
         let body = resp.text().await.map_err(Error::HttpClient)?;
@@ -65,11 +63,9 @@ impl GitLab {
                 Err(e) => return Err(Error::Serialization(e)),
             };
 
-            Ok(OAuth2User {
-                id: user.sub,
-                username: user.nickname,
-                email: user.email,
-            })
+            Ok(OAuth2User { id:       user.sub,
+                            username: user.nickname,
+                            email:    user.email, })
         } else {
             Err(Error::HttpResponse(status, body))
         }
@@ -78,27 +74,27 @@ impl GitLab {
 
 #[async_trait]
 impl OAuth2Provider for GitLab {
-    async fn authenticate(
-        &self,
-        config: &OAuth2Cfg,
-        client: &HttpClient,
-        code: &str,
-    ) -> Result<(String, OAuth2User)> {
-        let url = format!(
-            "{}?client_id={}&client_secret={}&grant_type=authorization_code&\
+    async fn authenticate(&self,
+                          config: &OAuth2Cfg,
+                          client: &HttpClient,
+                          code: &str)
+                          -> Result<(String, OAuth2User)> {
+        let url = format!("{}?client_id={}&client_secret={}&grant_type=authorization_code&\
                            code={}&redirect_uri={}",
-            config.token_url, config.client_id, config.client_secret, code, config.redirect_url
-        );
+                          config.token_url,
+                          config.client_id,
+                          config.client_secret,
+                          code,
+                          config.redirect_url);
 
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone()];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
-        let resp = client
-            .post(&url)
-            .headers(headers)
-            .send()
-            .await
-            .map_err(Error::HttpClient)?;
+        let resp = client.post(&url)
+                         .headers(headers)
+                         .send()
+                         .await
+                         .map_err(Error::HttpClient)?;
 
         let status = resp.status();
         let body = resp.text().await.map_err(Error::HttpClient)?;

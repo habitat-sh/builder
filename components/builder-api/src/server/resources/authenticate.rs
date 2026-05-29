@@ -14,22 +14,21 @@
 
 use std::env;
 
-use actix_web::{
-    http::StatusCode,
-    web::{self, Data, Path, ServiceConfig},
-    HttpResponse,
-};
+use actix_web::{http::StatusCode,
+                web::{self,
+                      Data,
+                      Path,
+                      ServiceConfig},
+                HttpResponse};
 
 use oauth_client::error::Error as OAuthError;
 
-use crate::{
-    protocol::originsrv,
-    server::{
-        error::{Error, Result},
-        framework::middleware::{session_create_oauth, session_create_short_circuit},
-        AppState,
-    },
-};
+use crate::{protocol::originsrv,
+            server::{error::{Error,
+                             Result},
+                     framework::middleware::{session_create_oauth,
+                                             session_create_short_circuit},
+                     AppState}};
 
 pub struct Authenticate {}
 

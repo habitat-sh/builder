@@ -12,75 +12,70 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap,
+          path::Path};
 
-use crate::{
-    config::ArtifactoryCfg,
-    error::{ArtifactoryError, ArtifactoryResult},
-};
+use crate::{config::ArtifactoryCfg,
+            error::{ArtifactoryError,
+                    ArtifactoryResult}};
 use futures::stream::StreamExt;
-use reqwest::{
-    header::{HeaderMap, HeaderName, HeaderValue},
-    Body, Response,
-};
+use reqwest::{header::{HeaderMap,
+                       HeaderName,
+                       HeaderValue},
+              Body,
+              Response};
 
-use crate::hab_core::package::{PackageArchive, PackageIdent, PackageTarget};
+use crate::hab_core::package::{PackageArchive,
+                               PackageIdent,
+                               PackageTarget};
 
-use builder_core::http_client::{HttpClient, USER_AGENT_BLDR};
+use builder_core::http_client::{HttpClient,
+                                USER_AGENT_BLDR};
 use tokio::io::AsyncWriteExt;
 const X_JFROG_ART_API: &str = "x-jfrog-art-api";
 
 #[derive(Clone)]
 pub struct ArtifactoryClient {
-    inner: HttpClient,
+    inner:       HttpClient,
     pub api_url: String,
     pub api_key: String,
-    pub repo: String,
+    pub repo:    String,
 }
 
 impl ArtifactoryClient {
     pub fn new(config: ArtifactoryCfg) -> ArtifactoryResult<Self> {
         let mut headers = HeaderMap::new();
         headers.insert(USER_AGENT_BLDR.0.clone(), USER_AGENT_BLDR.1.clone());
-        headers.insert(
-            HeaderName::from_static(X_JFROG_ART_API),
-            HeaderValue::from_str(&config.api_key).expect("Invalid API key value"),
-        );
+        headers.insert(HeaderName::from_static(X_JFROG_ART_API),
+                       HeaderValue::from_str(&config.api_key).expect("Invalid API key value"));
 
-        Ok(ArtifactoryClient {
-            inner: HttpClient::new(&config.api_url, headers)?,
-            api_url: config.api_url,
-            api_key: config.api_key,
-            repo: config.repo,
-        })
+        Ok(ArtifactoryClient { inner:   HttpClient::new(&config.api_url, headers)?,
+                               api_url: config.api_url,
+                               api_key: config.api_key,
+                               repo:    config.repo, })
     }
 
-    pub async fn upload(
-        &self,
-        source_path: &Path,
-        ident: &PackageIdent,
-        target: PackageTarget,
-    ) -> ArtifactoryResult<Response> {
-        debug!(
-            "ArtifactoryClient upload request for file path: {:?}",
-            source_path
-        );
+    pub async fn upload(&self,
+                        source_path: &Path,
+                        ident: &PackageIdent,
+                        target: PackageTarget)
+                        -> ArtifactoryResult<Response> {
+        debug!("ArtifactoryClient upload request for file path: {:?}",
+               source_path);
 
         let url = self.url_path_for(ident, target);
         debug!("ArtifactoryClient upload url = {}", url);
 
-        let body: Body = tokio::fs::read(source_path)
-            .await
-            .map_err(ArtifactoryError::IO)?
-            .into();
+        let body: Body = tokio::fs::read(source_path).await
+                                                     .map_err(ArtifactoryError::IO)?
+                                                     .into();
 
-        let resp = match self
-            .inner
-            .put(&url)
-            .body(body)
-            .send()
-            .await
-            .map_err(ArtifactoryError::HttpClient)
+        let resp = match self.inner
+                             .put(&url)
+                             .body(body)
+                             .send()
+                             .await
+                             .map_err(ArtifactoryError::HttpClient)
         {
             Ok(resp) => resp,
             Err(err) => {
@@ -99,26 +94,22 @@ impl ArtifactoryClient {
         }
     }
 
-    pub async fn download(
-        &self,
-        destination_path: &Path,
-        ident: &PackageIdent,
-        target: PackageTarget,
-    ) -> ArtifactoryResult<PackageArchive> {
-        debug!(
-            "ArtifactoryClient download request for {} ({}) to destination path: {:?}",
-            ident, target, destination_path
-        );
+    pub async fn download(&self,
+                          destination_path: &Path,
+                          ident: &PackageIdent,
+                          target: PackageTarget)
+                          -> ArtifactoryResult<PackageArchive> {
+        debug!("ArtifactoryClient download request for {} ({}) to destination path: {:?}",
+               ident, target, destination_path);
 
         let url = self.url_path_for(ident, target);
         debug!("ArtifactoryClient download url = {}", url);
 
-        let resp = match self
-            .inner
-            .get(&url)
-            .send()
-            .await
-            .map_err(ArtifactoryError::HttpClient)
+        let resp = match self.inner
+                             .get(&url)
+                             .send()
+                             .await
+                             .map_err(ArtifactoryError::HttpClient)
         {
             Ok(resp) => resp,
             Err(err) => {
@@ -130,37 +121,32 @@ impl ArtifactoryClient {
         debug!("Artifactory response status: {:?}", resp.status());
 
         if resp.status().is_success() {
-            let mut file = tokio::fs::File::create(destination_path)
-                .await
-                .map_err(ArtifactoryError::IO)?;
+            let mut file = tokio::fs::File::create(destination_path).await
+                                                                    .map_err(ArtifactoryError::IO)?;
             let mut stream = resp.bytes_stream();
             while let Some(chunk) = stream.next().await {
                 file.write_all(&chunk?).await?;
             }
             Ok(PackageArchive::new(destination_path)?)
         } else {
-            error!(
-                "Artifactory download non-success status: {:?}",
-                resp.status()
-            );
+            error!("Artifactory download non-success status: {:?}",
+                   resp.status());
             Err(ArtifactoryError::ApiError(resp.status(), HashMap::new()))
         }
     }
 
-    pub async fn delete(
-        &self,
-        ident: &PackageIdent,
-        target: PackageTarget,
-    ) -> ArtifactoryResult<()> {
+    pub async fn delete(&self,
+                        ident: &PackageIdent,
+                        target: PackageTarget)
+                        -> ArtifactoryResult<()> {
         let url = self.url_path_for(ident, target);
         debug!("ArtifactoryClient delete url = {}", url);
 
-        let resp = match self
-            .inner
-            .delete(&url)
-            .send()
-            .await
-            .map_err(ArtifactoryError::HttpClient)
+        let resp = match self.inner
+                             .delete(&url)
+                             .send()
+                             .await
+                             .map_err(ArtifactoryError::HttpClient)
         {
             Ok(resp) => resp,
             Err(err) => {
@@ -174,15 +160,13 @@ impl ArtifactoryClient {
         if resp.status().is_success() {
             Ok(())
         } else if resp.status() == reqwest::StatusCode::NOT_FOUND
-            || resp.status() == reqwest::StatusCode::GONE
+                  || resp.status() == reqwest::StatusCode::GONE
         {
-            warn!(
-                "Artifactory delete returned {} for {} ({}); artifact may have already been \
+            warn!("Artifactory delete returned {} for {} ({}); artifact may have already been \
                    removed",
-                resp.status(),
-                ident,
-                target
-            );
+                  resp.status(),
+                  ident,
+                  target);
             Ok(())
         } else {
             error!("Artifactory delete non-success status: {:?}", resp.status());
@@ -191,18 +175,15 @@ impl ArtifactoryClient {
     }
 
     fn url_path_for(&self, ident: &PackageIdent, target: PackageTarget) -> String {
-        let hart_name = ident
-            .archive_name_with_target(target)
-            .expect("ident is fully qualified");
+        let hart_name = ident.archive_name_with_target(target)
+                             .expect("ident is fully qualified");
 
-        let url = format!(
-            "{}/artifactory/{}/{}/{}/{}",
-            self.api_url,
-            self.repo,
-            ident.iter().collect::<Vec<&str>>().join("/"),
-            target.iter().collect::<Vec<&str>>().join("/"),
-            hart_name
-        );
+        let url = format!("{}/artifactory/{}/{}/{}/{}",
+                          self.api_url,
+                          self.repo,
+                          ident.iter().collect::<Vec<&str>>().join("/"),
+                          target.iter().collect::<Vec<&str>>().join("/"),
+                          hart_name);
 
         url
     }

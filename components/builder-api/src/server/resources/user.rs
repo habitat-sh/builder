@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::{
-    web::{self, Data, ServiceConfig},
-    HttpRequest, HttpResponse,
-};
+use actix_web::{web::{self,
+                      Data,
+                      ServiceConfig},
+                HttpRequest,
+                HttpResponse};
 
-use crate::db::models::{invitations::OriginInvitation, origin::Origin};
+use crate::db::models::{invitations::OriginInvitation,
+                        origin::Origin};
 
-use crate::server::{authorize::authorize_session, error::Error, AppState};
+use crate::server::{authorize::authorize_session,
+                    error::Error,
+                    AppState};
 
 pub struct User {}
 
@@ -28,7 +32,7 @@ impl User {
     //
     pub fn register(cfg: &mut ServiceConfig) {
         cfg.route("/user/invitations", web::get().to(get_invitations))
-            .route("/user/origins", web::get().to(get_origins));
+           .route("/user/origins", web::get().to(get_origins));
     }
 }
 

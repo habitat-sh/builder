@@ -2,14 +2,21 @@
 //! interact with restricted portions of the Builder API.
 
 use super::privilege::FeatureFlags;
-use crate::{
-    crypto,
-    error::{Error, Result},
-    protocol::{message, originsrv},
-};
-use chrono::{self, DateTime, Duration, LocalResult::Single, TimeZone, Utc};
-use habitat_core::crypto::keys::{KeyCache, SignedBox};
-use std::{fmt, str::FromStr};
+use crate::{crypto,
+            error::{Error,
+                    Result},
+            protocol::{message,
+                       originsrv}};
+use chrono::{self,
+             DateTime,
+             Duration,
+             LocalResult::Single,
+             TimeZone,
+             Utc};
+use habitat_core::crypto::keys::{KeyCache,
+                                 SignedBox};
+use std::{fmt,
+          str::FromStr};
 
 pub const BUILDER_ACCOUNT_ID: u64 = 0;
 pub const BUILDER_ACCOUNT_NAME: &str = "BUILDER";
@@ -69,12 +76,10 @@ impl AccessToken {
     /// Constructor for creating a short-lived access token to be used by
     /// Builder workers when running builds.
     pub fn bldr_token(key_cache: &KeyCache) -> Result<Self> {
-        Self::generate_access_token(
-            key_cache,
-            BUILDER_ACCOUNT_ID,
-            FeatureFlags::all().bits(),
-            Duration::hours(BUILDER_TOKEN_LIFETIME_HOURS),
-        )
+        Self::generate_access_token(key_cache,
+                                    BUILDER_ACCOUNT_ID,
+                                    FeatureFlags::all().bits(),
+                                    Duration::hours(BUILDER_TOKEN_LIFETIME_HOURS))
     }
 
     /// Constructor used for creating never-expiring access tokens for "normal"
@@ -119,11 +124,9 @@ impl AccessToken {
                 // in the near future but this will allow the many keys currently
                 // out in the wild with this value to authenticate.
                 if payload.expires() != 8_210_298_326_400 {
-                    trace!(
-                        "unable to parse timestamp from expires {} for token {}",
-                        payload.expires(),
-                        token
-                    );
+                    trace!("unable to parse timestamp from expires {} for token {}",
+                           payload.expires(),
+                           token);
                     return Err(Error::TokenInvalid);
                 }
             }
@@ -137,12 +140,11 @@ impl AccessToken {
 
     /// Helper function with common logic creating an `AccessToken` from all the
     /// necessary inputs.
-    fn generate_access_token(
-        key_cache: &KeyCache,
-        account_id: u64,
-        flags: u32,
-        lifetime: Duration,
-    ) -> Result<Self> {
+    fn generate_access_token(key_cache: &KeyCache,
+                             account_id: u64,
+                             flags: u32,
+                             lifetime: Duration)
+                             -> Result<Self> {
         // Create originsrv::AccessToken protobuf struct
         let token = AccessToken::new_proto(account_id, flags, lifetime);
 
@@ -161,10 +163,9 @@ impl AccessToken {
     /// Would call this function `new`, but that's already taken by the
     /// protobuf-generated code :/
     fn new_proto(account_id: u64, flags: u32, lifetime: Duration) -> originsrv::AccessToken {
-        let expires = Utc::now()
-            .checked_add_signed(lifetime)
-            .unwrap_or(DateTime::<Utc>::MAX_UTC)
-            .timestamp();
+        let expires = Utc::now().checked_add_signed(lifetime)
+                                .unwrap_or(DateTime::<Utc>::MAX_UTC)
+                                .timestamp();
 
         let mut token = originsrv::AccessToken::new();
         token.set_account_id(account_id);
@@ -188,10 +189,11 @@ impl AccessToken {
     /// original `originsrv::AccessToken`.
     fn decrypt(&self, key_cache: &KeyCache) -> Result<originsrv::AccessToken> {
         let bytes = crypto::decrypt(key_cache, &self.0)?;
-        let payload: originsrv::AccessToken = message::decode(&bytes).map_err(|e| {
-            warn!("Unable to deserialize access token, err={:?}", e);
-            Error::TokenInvalid
-        })?;
+        let payload: originsrv::AccessToken =
+            message::decode(&bytes).map_err(|e| {
+                                       warn!("Unable to deserialize access token, err={:?}", e);
+                                       Error::TokenInvalid
+                                   })?;
         Ok(payload)
     }
 }
@@ -204,12 +206,10 @@ impl fmt::Display for AccessToken {
     ///
     /// (but longer)
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}{}",
-            ACCESS_TOKEN_PREFIX,
-            habitat_core::base64::encode(&self.0)
-        )
+        write!(f,
+               "{}{}",
+               ACCESS_TOKEN_PREFIX,
+               habitat_core::base64::encode(&self.0))
     }
 }
 
@@ -243,10 +243,8 @@ impl FromStr for AccessToken {
                 Ok(Self(encrypted))
             }
         } else {
-            trace!(
-                "token {} is not prefixed with an underscore and is invalid",
-                s
-            );
+            trace!("token {} is not prefixed with an underscore and is invalid",
+                   s);
             Err(Error::TokenInvalid)
         }
     }
@@ -256,7 +254,8 @@ impl FromStr for AccessToken {
 mod tests {
     use super::*;
     use habitat_core::crypto::keys::KeyCache;
-    use tempfile::{Builder, TempDir};
+    use tempfile::{Builder,
+                   TempDir};
 
     /// Create a new KeyCache *with a new Builder encryption key* for use in
     /// tests.
@@ -293,11 +292,9 @@ mod tests {
 
         let encrypted = token.0;
         let parsed = encrypted.parse::<SignedBox>();
-        assert!(
-            parsed.is_ok(),
-            "Expected '{}' to parse as a SignedBox, but it didn't!",
-            encrypted
-        );
+        assert!(parsed.is_ok(),
+                "Expected '{}' to parse as a SignedBox, but it didn't!",
+                encrypted);
     }
 
     #[test]
@@ -307,16 +304,12 @@ mod tests {
 
         let inner = token.decrypt(&cache).unwrap();
 
-        assert_eq!(
-            inner.account_id(),
-            BUILDER_ACCOUNT_ID,
-            "Builder tokens should be for the Builder account only"
-        );
-        assert_eq!(
-            inner.flags(),
-            FeatureFlags::all().bits(),
-            "Builder tokens should have all flags enabled"
-        );
+        assert_eq!(inner.account_id(),
+                   BUILDER_ACCOUNT_ID,
+                   "Builder tokens should be for the Builder account only");
+        assert_eq!(inner.flags(),
+                   FeatureFlags::all().bits(),
+                   "Builder tokens should have all flags enabled");
 
         // Expiration times are given as seconds-past-the-epoch. Here, we figure
         // out what that will be 2 hours from now. Generally, the token's
@@ -324,20 +317,18 @@ mod tests {
         // second of wiggle room to account for slow machines, as well as cases
         // where we happen to generate a token on the last nanosecond of a
         // second.
-        let expected_expiration = Utc::now()
-            .checked_add_signed(Duration::hours(BUILDER_TOKEN_LIFETIME_HOURS))
-            .unwrap()
-            .timestamp();
+        let expected_expiration =
+            Utc::now().checked_add_signed(Duration::hours(BUILDER_TOKEN_LIFETIME_HOURS))
+                      .unwrap()
+                      .timestamp();
         let upper_bound = expected_expiration;
         let lower_bound = expected_expiration - 1;
         let acceptable_range = lower_bound..=upper_bound;
 
-        assert!(
-            acceptable_range.contains(&inner.expires()),
-            "Builder tokens should expire in 2 hours (expected {}, got {})",
-            expected_expiration,
-            inner.expires()
-        );
+        assert!(acceptable_range.contains(&inner.expires()),
+                "Builder tokens should expire in 2 hours (expected {}, got {})",
+                expected_expiration,
+                inner.expires());
     }
 
     #[test]
@@ -388,10 +379,8 @@ mod tests {
             // marked as expired.
             std::thread::sleep(std::time::Duration::from_secs(2));
 
-            assert!(
-                AccessToken::validate_access_token(&token.to_string(), &cache).is_err(),
-                "Expired tokens can never validate!"
-            );
+            assert!(AccessToken::validate_access_token(&token.to_string(), &cache).is_err(),
+                    "Expired tokens can never validate!");
         }
     }
 
@@ -407,10 +396,8 @@ mod tests {
             assert!(token.starts_with('_'), "Token must start with a '_'");
 
             let rest_of_token = token.trim_start_matches('_');
-            assert!(
-                habitat_core::base64::decode(rest_of_token).is_ok(),
-                "Token after '_' must be base64-encoded"
-            )
+            assert!(habitat_core::base64::decode(rest_of_token).is_ok(),
+                    "Token after '_' must be base64-encoded")
         }
     }
 
@@ -450,10 +437,8 @@ mod tests {
         fn cannot_take_just_any_base64_content_as_a_token() {
             let bad_token = "_DEADBEEFDEADBEEFDEADBEEF";
             let parsed = bad_token.parse::<AccessToken>();
-            assert!(
-                parsed.is_err(),
-                "Not just any base64 string can parse as a token"
-            );
+            assert!(parsed.is_err(),
+                    "Not just any base64 string can parse as a token");
         }
 
         #[test]
@@ -475,11 +460,9 @@ mod tests {
             let parsed = token.parse::<AccessToken>();
             assert!(parsed.is_ok(), "It should parse because it's encrypted");
 
-            assert!(
-                AccessToken::validate_access_token(&token, &cache).is_err(),
-                "There is no way this token could ever validate, because the right data \
-                     wasn't encrypted to begin with"
-            );
+            assert!(AccessToken::validate_access_token(&token, &cache).is_err(),
+                    "There is no way this token could ever validate, because the right data \
+                     wasn't encrypted to begin with");
         }
     }
 }

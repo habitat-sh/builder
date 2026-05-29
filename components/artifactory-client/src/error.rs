@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap, fmt, io};
+use std::{collections::HashMap,
+          fmt,
+          io};
 
 pub type ArtifactoryResult<T> = Result<T, ArtifactoryError>;
 
@@ -30,10 +32,8 @@ impl fmt::Display for ArtifactoryError {
         let msg = match *self {
             ArtifactoryError::HttpClient(ref e) => format!("{}", e),
             ArtifactoryError::ApiError(ref code, ref response) => {
-                format!(
-                    "Received a non-200 response, status={}, response={:?}",
-                    code, response
-                )
+                format!("Received a non-200 response, status={}, response={:?}",
+                        code, response)
             }
             ArtifactoryError::BuilderCore(ref e) => format!("{}", e),
             ArtifactoryError::IO(ref e) => format!("{}", e),
@@ -44,25 +44,17 @@ impl fmt::Display for ArtifactoryError {
 }
 
 impl From<io::Error> for ArtifactoryError {
-    fn from(err: io::Error) -> Self {
-        ArtifactoryError::IO(err)
-    }
+    fn from(err: io::Error) -> Self { ArtifactoryError::IO(err) }
 }
 
 impl From<builder_core::Error> for ArtifactoryError {
-    fn from(err: builder_core::Error) -> Self {
-        ArtifactoryError::BuilderCore(err)
-    }
+    fn from(err: builder_core::Error) -> Self { ArtifactoryError::BuilderCore(err) }
 }
 
 impl From<reqwest::Error> for ArtifactoryError {
-    fn from(err: reqwest::Error) -> Self {
-        ArtifactoryError::HttpClient(err)
-    }
+    fn from(err: reqwest::Error) -> Self { ArtifactoryError::HttpClient(err) }
 }
 
 impl From<habitat_core::error::Error> for ArtifactoryError {
-    fn from(err: habitat_core::error::Error) -> Self {
-        ArtifactoryError::HabitatCore(err)
-    }
+    fn from(err: habitat_core::error::Error) -> Self { ArtifactoryError::HabitatCore(err) }
 }

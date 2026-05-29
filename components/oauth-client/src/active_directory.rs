@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use reqwest::{header::HeaderMap, Body};
+use reqwest::{header::HeaderMap,
+              Body};
 
-use builder_core::http_client::{
-    HttpClient, ACCEPT_APPLICATION_JSON, CONTENT_TYPE_FORM_URL_ENCODED,
-};
+use builder_core::http_client::{HttpClient,
+                                ACCEPT_APPLICATION_JSON,
+                                CONTENT_TYPE_FORM_URL_ENCODED};
 
-use crate::{
-    config::OAuth2Cfg,
-    error::{Error, Result},
-    types::*,
-};
+use crate::{config::OAuth2Cfg,
+            error::{Error,
+                    Result},
+            types::*};
 use async_trait::async_trait;
 
 pub struct ActiveDirectory;
@@ -38,22 +38,20 @@ struct User {
 }
 
 impl ActiveDirectory {
-    async fn user(
-        &self,
-        config: &OAuth2Cfg,
-        client: &HttpClient,
-        token: &str,
-    ) -> Result<OAuth2User> {
+    async fn user(&self,
+                  config: &OAuth2Cfg,
+                  client: &HttpClient,
+                  token: &str)
+                  -> Result<OAuth2User> {
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone()];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
-        let resp = client
-            .get(&config.userinfo_url)
-            .headers(headers)
-            .bearer_auth(token)
-            .send()
-            .await
-            .map_err(Error::HttpClient)?;
+        let resp = client.get(&config.userinfo_url)
+                         .headers(headers)
+                         .bearer_auth(token)
+                         .send()
+                         .await
+                         .map_err(Error::HttpClient)?;
 
         let status = resp.status();
         let body = resp.text().await.map_err(Error::HttpClient)?;
@@ -65,11 +63,9 @@ impl ActiveDirectory {
                 Err(e) => return Err(Error::Serialization(e)),
             };
 
-            Ok(OAuth2User {
-                id: user.sub.to_string(),
-                username: user.sub,
-                email: None,
-            })
+            Ok(OAuth2User { id:       user.sub.to_string(),
+                            username: user.sub,
+                            email:    None, })
         } else {
             Err(Error::HttpResponse(status, body))
         }
@@ -78,34 +74,28 @@ impl ActiveDirectory {
 
 #[async_trait]
 impl OAuth2Provider for ActiveDirectory {
-    async fn authenticate(
-        &self,
-        config: &OAuth2Cfg,
-        client: &HttpClient,
-        code: &str,
-    ) -> Result<(String, OAuth2User)> {
+    async fn authenticate(&self,
+                          config: &OAuth2Cfg,
+                          client: &HttpClient,
+                          code: &str)
+                          -> Result<(String, OAuth2User)> {
         let url = config.token_url.to_string();
-        let body = format!(
-            "client_id={}&client_secret={}&grant_type=authorization_code&code={}&\
+        let body = format!("client_id={}&client_secret={}&grant_type=authorization_code&code={}&\
                             redirect_uri={}",
-            config.client_id, config.client_secret, code, config.redirect_url
-        );
+                           config.client_id, config.client_secret, code, config.redirect_url);
 
-        let header_values = vec![
-            ACCEPT_APPLICATION_JSON.clone(),
-            CONTENT_TYPE_FORM_URL_ENCODED.clone(),
-        ];
+        let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),
+                                 CONTENT_TYPE_FORM_URL_ENCODED.clone(),];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
         let body: Body = body.into();
 
-        let resp = client
-            .post(&url)
-            .headers(headers)
-            .body(body)
-            .send()
-            .await
-            .map_err(Error::HttpClient)?;
+        let resp = client.post(&url)
+                         .headers(headers)
+                         .body(body)
+                         .send()
+                         .await
+                         .map_err(Error::HttpClient)?;
 
         let status = resp.status();
         let body = resp.text().await.map_err(Error::HttpClient)?;
