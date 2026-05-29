@@ -133,15 +133,18 @@ pub struct GitHubWebhookPush {
 impl GitHubWebhookPush {
     pub fn branch(&self) -> &str {
         self.git_ref
-            .split("refs/heads/")
-            .collect::<Vec<&str>>()
-            .last()
+            .strip_prefix("refs/heads/")
             .expect("bad git ref")
     }
 
     pub fn changed(&self) -> Vec<&String> {
-        let mut paths = vec![];
-        for commit in self.commits.iter() {
+        let capacity =
+            self.commits
+                .iter()
+                .map(|commit| commit.added.len() + commit.removed.len() + commit.modified.len())
+                .sum();
+        let mut paths = Vec::with_capacity(capacity);
+        for commit in &self.commits {
             paths.extend(&commit.added);
             paths.extend(&commit.removed);
             paths.extend(&commit.modified);
@@ -366,5 +369,31 @@ mod test {
         let hook = GitHubWebhookPush { git_ref: "refs/heads/master".to_string(),
                                        ..Default::default() };
         assert_eq!(hook.branch(), "master");
+    }
+
+    #[test]
+    fn changed_deduplicates_and_sorts_paths() {
+        let hook = GitHubWebhookPush { commits: vec![GitHubWebhookCommit {
+                              added: vec!["components/a".to_string(), "components/c".to_string()],
+                              removed: vec!["components/b".to_string()],
+                              modified: vec!["components/a".to_string()],
+                              ..Default::default()
+                          },
+                          GitHubWebhookCommit {
+                              added: vec!["components/d".to_string()],
+                              removed: vec!["components/c".to_string()],
+                              modified: vec!["components/e".to_string()],
+                              ..Default::default()
+                          }],
+                                       ..Default::default() };
+
+        let changed = hook.changed();
+
+        assert_eq!(changed.iter().map(|path| path.as_str()).collect::<Vec<_>>(),
+                   vec!["components/a",
+                        "components/b",
+                        "components/c",
+                        "components/d",
+                        "components/e"]);
     }
 }

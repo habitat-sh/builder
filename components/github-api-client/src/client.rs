@@ -134,11 +134,7 @@ impl GitHubClient {
             Some(contents) => contents,
             None => return Ok(None),
         };
-        // We need to strip line feeds as the Github API has started to return
-        // base64 content with line feeds.
-        if contents.encoding == "base64" {
-            contents.content = contents.content.replace('\n', "");
-        }
+        normalize_base64_content(&mut contents);
         Ok(Some(contents))
     }
 
@@ -189,6 +185,14 @@ impl GitHubClient {
                       .map_err(HubError::HttpClient)?;
 
         response::expect_ok(rep).await
+    }
+}
+
+fn normalize_base64_content(contents: &mut Contents) {
+    // GitHub may wrap base64 payloads with line feeds; avoid allocating when
+    // the payload is already normalized.
+    if contents.encoding == "base64" && contents.content.contains('\n') {
+        contents.content.retain(|ch| ch != '\n');
     }
 }
 
@@ -345,6 +349,26 @@ mod tests {
         assert_eq!(contents.content, "aGVsbG8=");
 
         server.join().unwrap();
+    }
+
+    #[test]
+    fn normalize_base64_content_leaves_already_normalized_payloads_untouched() {
+        let mut contents = Contents { name:         "plan.sh".to_string(),
+                                      path:         "support/ci/plan.sh".to_string(),
+                                      sha:          "abc123".to_string(),
+                                      size:         8,
+                                      url:          "https://example.test/url".to_string(),
+                                      html_url:     "https://example.test/html".to_string(),
+                                      git_url:      "https://example.test/git".to_string(),
+                                      download_url: "https://example.test/download".to_string(),
+                                      content:      "aGVsbG8=".to_string(),
+                                      encoding:     "base64".to_string(), };
+        let initial_capacity = contents.content.capacity();
+
+        normalize_base64_content(&mut contents);
+
+        assert_eq!(contents.content, "aGVsbG8=");
+        assert_eq!(contents.content.capacity(), initial_capacity);
     }
 
     #[tokio::test]
