@@ -211,9 +211,9 @@ async fn promote_channel_packages(req: HttpRequest,
                                   -> HttpResponse {
     let (origin, channel) = path.into_inner();
 
-    let session = match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
-        Ok(session) => session,
-        Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
+    let Ok(session) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer))
+    else {
+        return HttpResponse::new(StatusCode::UNAUTHORIZED);
     };
 
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
@@ -269,9 +269,9 @@ async fn demote_channel_packages(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let session = match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
-        Ok(session) => session,
-        Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
+    let Ok(session) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer))
+    else {
+        return HttpResponse::new(StatusCode::UNAUTHORIZED);
     };
 
     let ch_source = ChannelIdent::from(channel);
@@ -392,9 +392,9 @@ async fn promote_package(req: HttpRequest,
     let (origin, channel, pkg, version, release) = path.into_inner();
     let channel = ChannelIdent::from(channel);
 
-    let session = match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
-        Ok(session) => session,
-        Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
+    let Ok(session) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer))
+    else {
+        return HttpResponse::new(StatusCode::UNAUTHORIZED);
     };
 
     let ident = PackageIdent::new(origin.clone(), pkg, Some(version), Some(release));
@@ -472,9 +472,9 @@ async fn demote_package(req: HttpRequest,
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
-    let session = match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
-        Ok(session) => session,
-        Err(_) => return HttpResponse::new(StatusCode::UNAUTHORIZED),
+    let Ok(session) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer))
+    else {
+        return HttpResponse::new(StatusCode::UNAUTHORIZED);
     };
 
     let ident = PackageIdent::new(origin.clone(), pkg, Some(version), Some(release));

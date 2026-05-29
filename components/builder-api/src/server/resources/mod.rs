@@ -1,3 +1,5 @@
+#![warn(clippy::manual_let_else)]
+
 pub mod authenticate;
 pub mod channels;
 pub mod events;

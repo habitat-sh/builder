@@ -124,6 +124,37 @@ Telemetry is available through the Builder API metrics surface:
 - `ext-registry.insecure-url.allowed`
 - `ext-registry.insecure-url.blocked`
 
+## Resources-folder Clippy strictness
+
+`src/server/resources/` now opts into `clippy::manual_let_else` at the module
+boundary in `src/server/resources/mod.rs`.
+
+This scope is intentionally narrow:
+
+- the folder contains many request handlers that share the same
+  early-return-on-auth-or-parse-failure shape
+- `let ... else` keeps those guard clauses uniform without enabling a new lint
+  across unrelated startup and middleware code
+- handlers already keep targeted `#[allow(clippy::needless_pass_by_value)]`
+  suppressions because Actix extractors are passed by value; those suppressions
+  remain valid and are not part of this sweep
+
+Use a targeted `#[allow(clippy::manual_let_else)]` only when the `match` form is
+materially clearer, typically because the error arm needs richer logging,
+structured response construction, or shared cleanup before returning.
+
+For repeatable autofix runs on this folder:
+
+```bash
+./support/ci/fix_builder_api_resources_clippy.sh
+```
+
+Then validate the scope with:
+
+```bash
+cargo clippy -p habitat_builder_api --all-targets --tests
+```
+
 ## Contract tests
 
 This component now has focused contract coverage for two request boundaries:

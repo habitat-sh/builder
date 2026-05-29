@@ -159,12 +159,9 @@ async fn revoke_access_token(req: HttpRequest,
                              state: Data<AppState>)
                              -> HttpResponse {
     let token_id_str = path.into_inner();
-    let token_id = match token_id_str.parse::<u64>() {
-        Ok(id) => id,
-        Err(_) => {
-            let body = Bytes::from_static(b"Error parsing access token.");
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
-        }
+    let Ok(token_id) = token_id_str.parse::<u64>() else {
+        let body = Bytes::from_static(b"Error parsing access token.");
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     };
 
     let account_id = match authorize_session(&req, None, None) {

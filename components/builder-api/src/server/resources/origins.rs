@@ -957,12 +957,9 @@ async fn accept_invitation(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    let invitation_id = match invitation.parse::<u64>() {
-        Ok(invitation_id) => invitation_id,
-        Err(_) => {
-            let body = Bytes::from(format!("Invalid invitation id '{}'", invitation).into_bytes());
-            return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
-        }
+    let Ok(invitation_id) = invitation.parse::<u64>() else {
+        let body = Bytes::from(format!("Invalid invitation id '{}'", invitation).into_bytes());
+        return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     };
 
     debug!("Accepting invitation for user {} origin {}",
