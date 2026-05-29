@@ -84,6 +84,13 @@ pub fn package_results_json<T: Serialize>(packages: &[T],
                                           start: isize,
                                           end: isize)
                                           -> String {
+    trace!("Serializing paginated response: items={}, total_count={}, range_start={}, \
+            range_end={}",
+           packages.len(),
+           count,
+           start,
+           end);
+
     let results = PaginatedResults { range_start: start,
                                      range_end:   end,
                                      total_count: count,
