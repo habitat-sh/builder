@@ -95,6 +95,10 @@ lint:
 	                                 test/denied_lints.txt
 .PHONY: lint
 
+scan-shell: ## runs shellcheck against repository shell scripts
+	bash ./test/shellcheck.sh
+.PHONY: scan-shell
+
 define FUNCTIONAL
 functional-$1: linux ## executes the $1 component's functional test suite
 	sh -c 'cd components/$1 && cargo test --features functional'

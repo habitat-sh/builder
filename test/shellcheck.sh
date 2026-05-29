@@ -5,7 +5,7 @@ set -euo pipefail
 shellcheck --version
 
 # Run shellcheck against any files that appear to be shell script based on
-# filename or `file` output
+# filename or `file` output.
 #
 # Exclude *.sample files because they are automatically created by git
 #
@@ -17,16 +17,24 @@ shellcheck --version
 # https://github.com/koalaman/shellcheck/wiki/SC2148
 # https://github.com/koalaman/shellcheck/wiki/SC2154
 # https://github.com/koalaman/shellcheck/wiki/SC2034
-find . -type f \
+files=()
+while IFS= read -r -d '' file; do
+  files+=("$file")
+done < <(find . -type f \
   -and \( -name "*.*sh" \
       -or -exec sh -c 'file -b "$1" | grep -q "shell script"' -- {} \; \) \
   -and \! -path "*.sample" \
   -and \! -path "*.ps1" \
+  -and \! -path "./.git/*" \
+  -and \! -path "./target/*" \
+  -and \! -path "*/coverage/*" \
+  -and \! -path "*/node_modules/*" \
   -and \! -path "./test/builder-api/node_modules/*" \
   -and \! -path "./test/test_helper/*" \
   -and \! -path "./components/builder-api-proxy/habitat/hooks/health-check" \
   -and \! -path "./components/builder-api-proxy/habitat/hooks/init" \
-  -print \
-  | xargs shellcheck --external-sources --exclude=1090,1091,2148,2034,2154
+  -print0)
+
+shellcheck --external-sources --exclude=1090,1091,2148,2034,2154 "${files[@]}"
 
 echo "shellcheck found no errors"
