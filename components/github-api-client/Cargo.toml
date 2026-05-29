@@ -22,7 +22,7 @@ git = "https://github.com/habitat-sh/habitat.git"
 
 [dependencies.tokio]
 version = "*"
-features = ["macros", "rt-multi-thread"]
+features = ["macros", "rt-multi-thread", "time"]
 
 [package.metadata.cargo-machete]
 ignored = ["serde"]

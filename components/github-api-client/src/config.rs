@@ -18,6 +18,12 @@ pub const DEFAULT_GITHUB_API_URL: &str = "https://api.github.com";
 pub const DEFAULT_GITHUB_APP_ID: u32 = 5629;
 /// Webhook secret token
 pub const DEV_GITHUB_WEBHOOK_SECRET: &str = "58d4afaf5e5617ab0f8c39e505605e78a054d003";
+/// Per-attempt timeout for retryable GitHub GET requests
+pub const DEFAULT_GITHUB_REQUEST_TIMEOUT_MS: u64 = 2_000;
+/// Delay between retry attempts for retryable GitHub GET requests
+pub const DEFAULT_GITHUB_RETRY_BACKOFF_MS: u64 = 250;
+/// Number of retry attempts for retryable GitHub GET requests
+pub const DEFAULT_GITHUB_RETRY_ATTEMPTS: usize = 2;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -30,6 +36,12 @@ pub struct GitHubCfg {
     pub app_id:          u32,
     /// Secret key for validating payloads sent by a GitHub WebHook
     pub webhook_secret:  String,
+    /// Per-attempt timeout for retryable GitHub GET requests
+    pub request_timeout_ms: u64,
+    /// Delay between retry attempts for retryable GitHub GET requests
+    pub retry_backoff_ms: u64,
+    /// Number of retry attempts for retryable GitHub GET requests
+    pub retry_attempts: usize,
 }
 
 impl Default for GitHubCfg {
@@ -37,6 +49,9 @@ impl Default for GitHubCfg {
         GitHubCfg { api_url:         DEFAULT_GITHUB_API_URL.to_string(),
                     app_private_key: "/src/.secrets/builder-github-app.pem".to_string(),
                     app_id:          DEFAULT_GITHUB_APP_ID,
-                    webhook_secret:  DEV_GITHUB_WEBHOOK_SECRET.to_string(), }
+                    webhook_secret:  DEV_GITHUB_WEBHOOK_SECRET.to_string(),
+                    request_timeout_ms: DEFAULT_GITHUB_REQUEST_TIMEOUT_MS,
+                    retry_backoff_ms: DEFAULT_GITHUB_RETRY_BACKOFF_MS,
+                    retry_attempts: DEFAULT_GITHUB_RETRY_ATTEMPTS, }
     }
 }

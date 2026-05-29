@@ -26,6 +26,9 @@ client_secret = ""
 api_url = "https://api.github.com"
 app_id = 5565
 webhook_secret = ""
+request_timeout_ms = 2000
+retry_backoff_ms = 250
+retry_attempts = 2
 
 [s3]
 backend = "minio"
