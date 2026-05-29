@@ -49,21 +49,13 @@ binary caching and cache-miss-only retries.
 Validate the workflow and action YAML parses cleanly:
 
 ```bash
-python3 - <<'PY'
-from pathlib import Path
-import yaml
-
-paths = [
-    Path('.github/workflows/rust-cargo-audit-check.yml'),
-    Path('.github/workflows/hab-pkg-build-upload.yaml'),
-    Path('.github/workflows/adhoc-hab-pkg-build-upload.yaml'),
-    Path('.github/actions/hab-install-linux/action.yaml'),
-    Path('.github/actions/hab-pkg-build-and-upload-linux/action.yaml'),
-]
-for path in paths:
-    yaml.safe_load(path.read_text())
-    print(f'parsed {path}')
-PY
+ruby -e 'require "yaml"; %w[
+.github/workflows/rust-cargo-audit-check.yml
+.github/workflows/hab-pkg-build-upload.yaml
+.github/workflows/adhoc-hab-pkg-build-upload.yaml
+.github/actions/hab-install-linux/action.yaml
+.github/actions/hab-pkg-build-and-upload-linux/action.yaml
+].each { |path| YAML.safe_load(File.read(path)); puts "validated #{path}" }'
 ```
 
 ## Rollback
