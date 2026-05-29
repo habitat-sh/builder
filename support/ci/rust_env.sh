@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 # This version corresponds to the build in `support/ci/compile_libsodium.sh`
 export LIBSODIUM_PREFIX="$HOME/pkgs/libsodium/1.0.13"
 echo "--> Setting LIBSODIUM_PREFIX='$LIBSODIUM_PREFIX'"

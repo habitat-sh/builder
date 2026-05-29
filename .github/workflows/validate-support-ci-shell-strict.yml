@@ -1,0 +1,36 @@
+name: Validate support/ci shell strictness
+
+on:
+  pull_request:
+    paths:
+      - "support/ci/*.sh"
+      - "Makefile"
+      - ".github/workflows/validate-support-ci-shell-strict.yml"
+      - "support/ci/README.md"
+  push:
+    branches:
+      - main
+      - release/**
+    paths:
+      - "support/ci/*.sh"
+      - "Makefile"
+      - ".github/workflows/validate-support-ci-shell-strict.yml"
+      - "support/ci/README.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck-support-ci:
+    name: Run strict ShellCheck on support/ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run strict support/ci shell scan
+        run: make scan-shell-ci-strict

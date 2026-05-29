@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 pkg_version() {
   # TED: After migrating the builder repo we needed to add to
   # the rev-count to keep version sorting working
