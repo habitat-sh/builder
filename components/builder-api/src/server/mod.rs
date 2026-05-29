@@ -105,6 +105,8 @@ fn enable_features(config: &Config) {
             if let Some(flag) = features.get(key.as_str()) {
                 feat::enable(*flag);
             }
+        } else {
+            warn!("Ignoring unknown feature flag: {}", key);
         }
     }
 
