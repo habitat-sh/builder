@@ -1,0 +1,79 @@
+name: Post builder-web coverage summary
+
+on:
+  pull_request:
+    paths:
+      - components/builder-web/**
+      - Makefile
+      - support/ci/write_builder_web_coverage_summary.sh
+      - .github/workflows/post-builder-web-coverage-summary.yml
+  push:
+    branches:
+      - main
+      - release/**
+    paths:
+      - components/builder-web/**
+      - Makefile
+      - support/ci/write_builder_web_coverage_summary.sh
+      - .github/workflows/post-builder-web-coverage-summary.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage-summary:
+    name: Post builder-web coverage evidence
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: components/builder-web/package-lock.json
+
+      - name: Install builder-web dependencies
+        id: install
+        continue-on-error: true
+        run: npm ci 2>&1 | tee "$RUNNER_TEMP/builder-web-install.log"
+        working-directory: components/builder-web
+
+      - name: Run builder-web coverage
+        id: coverage
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        working-directory: components/builder-web
+        run: |
+          npm run test-unit-coverage 2>&1 | tee "$RUNNER_TEMP/builder-web-coverage.log"
+
+      - name: Find coverage summary file
+        id: coverage-summary-file
+        if: always()
+        run: |
+          summary_file="$(find components/builder-web/coverage -name coverage-summary.json -print -quit || true)"
+          echo "path=$summary_file" >> "$GITHUB_OUTPUT"
+
+      - name: Find evidence log file
+        id: evidence-log-file
+        if: always()
+        run: |
+          log_file="$RUNNER_TEMP/builder-web-coverage.log"
+          if [[ ! -f "$log_file" ]]; then
+            log_file="$RUNNER_TEMP/builder-web-install.log"
+          fi
+          echo "path=$log_file" >> "$GITHUB_OUTPUT"
+
+      - name: Post coverage evidence to job summary
+        if: always()
+        env:
+          COVERAGE_SUMMARY_FILE: ${{ steps.coverage-summary-file.outputs.path }}
+          EVIDENCE_LOG_FILE: ${{ steps.evidence-log-file.outputs.path }}
+        run: |
+          ./support/ci/write_builder_web_coverage_summary.sh \
+            "$COVERAGE_SUMMARY_FILE" \
+            "$EVIDENCE_LOG_FILE"

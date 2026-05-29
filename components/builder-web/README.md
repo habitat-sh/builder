@@ -103,6 +103,10 @@ The coverage run prints Karma's `TOTAL` summary in the terminal and writes artif
 The root `make coverage` target currently delegates to `make coverage-web`, which is the only
 repository coverage flow wired today.
 
+GitHub Actions also has a non-blocking `Post builder-web coverage summary` workflow that writes
+coverage totals, or failure evidence if the run does not produce coverage artifacts, to the job
+summary.
+
 ### PR snippet template
 
 Use the reported terminal `TOTAL` percentage in the PR body:
