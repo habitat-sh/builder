@@ -32,22 +32,28 @@ pub const DEV_GITHUB_CLIENT_SECRET: &str = "fc7654ed8c65ccfe014cd339a55e3538f935
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(default)]
 pub struct OAuth2Cfg {
-    pub provider:      String,
-    pub token_url:     String,
-    pub userinfo_url:  String,
-    pub redirect_url:  String,
-    pub client_id:     String,
-    pub client_secret: String,
+    pub provider:                String,
+    pub token_url:               String,
+    pub userinfo_url:            String,
+    pub redirect_url:            String,
+    pub client_id:               String,
+    pub client_secret:           String,
+    pub request_timeout_ms:      u64,
+    pub request_retry_count:     u32,
+    pub request_backoff_base_ms: u64,
 }
 
 impl Default for OAuth2Cfg {
     fn default() -> Self {
-        OAuth2Cfg { provider:      "github".to_string(),
-                    token_url:     DEFAULT_GITHUB_TOKEN_URL.to_string(),
-                    userinfo_url:  DEFAULT_GITHUB_USERINFO_URL.to_string(),
-                    redirect_url:  "http://localhost/".to_string(),
-                    client_id:     DEV_GITHUB_CLIENT_ID.to_string(),
-                    client_secret: DEV_GITHUB_CLIENT_SECRET.to_string(), }
+        OAuth2Cfg { provider:                "github".to_string(),
+                    token_url:               DEFAULT_GITHUB_TOKEN_URL.to_string(),
+                    userinfo_url:            DEFAULT_GITHUB_USERINFO_URL.to_string(),
+                    redirect_url:            "http://localhost/".to_string(),
+                    client_id:               DEV_GITHUB_CLIENT_ID.to_string(),
+                    client_secret:           DEV_GITHUB_CLIENT_SECRET.to_string(),
+                    request_timeout_ms:      3_000,
+                    request_retry_count:     2,
+                    request_backoff_base_ms: 250, }
     }
 }
 
@@ -60,6 +66,9 @@ impl fmt::Debug for OAuth2Cfg {
          .field("redirect_url", &self.redirect_url)
          .field("client_id", &self.client_id)
          .field("client_secret", &"[redacted]")
+         .field("request_timeout_ms", &self.request_timeout_ms)
+         .field("request_retry_count", &self.request_retry_count)
+         .field("request_backoff_base_ms", &self.request_backoff_base_ms)
          .finish()
     }
 }
@@ -77,5 +86,14 @@ mod test {
 
         assert!(rendered.contains("client_secret: \"[redacted]\""));
         assert!(!rendered.contains("super-secret"));
+    }
+
+    #[test]
+    fn default_retry_tuning_is_conservative() {
+        let cfg = OAuth2Cfg::default();
+
+        assert_eq!(cfg.request_timeout_ms, 3_000);
+        assert_eq!(cfg.request_retry_count, 2);
+        assert_eq!(cfg.request_backoff_base_ms, 250);
     }
 }

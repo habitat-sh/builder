@@ -2,6 +2,9 @@
 
 Shared OAuth provider client code used by Builder authentication flows.
 
+This crate also carries the shared timeout/backoff helper for provider HTTP
+requests so retry behavior stays consistent where it is enabled.
+
 ## Security hygiene rules
 
 This component exchanges authorization codes for access tokens and then fetches
@@ -43,6 +46,16 @@ raw body should treat it as secret-bearing data.
 cargo test -p oauth-client
 ```
 
+Timeout/backoff defaults:
+
+- `request_timeout_ms = 3000`
+- `request_retry_count = 2`
+- `request_backoff_base_ms = 250`
+
+The helper retries only transport-layer request errors. HTTP status failures and
+JSON parse failures remain single-attempt results so invalid OAuth exchanges are
+not repeated.
+
 For live metric validation, point `HAB_STATS_ADDR` at a local UDP listener and
 exercise a login flow that uses the provider you want to inspect:
 
@@ -72,6 +85,41 @@ If a provider rejects the encoded form submission unexpectedly:
 1. Revert the affected provider file(s) in `src/`.
 2. Re-run `cargo test -p oauth-client`.
 3. Re-test the matching Builder login flow before restoring any broader logging.
+
+If timeout/backoff tuning causes unwanted latency:
+
+1. Reset the provider config to the default timeout/backoff fields.
+2. Re-run `cargo test -p oauth-client`.
+3. Confirm retry-attempt log lines disappear during the next healthy login flow.
+
+## Ops runbook: timeout and backoff
+
+Symptoms:
+
+- intermittent connect or TLS failures to an upstream OAuth provider
+- slow upstream responses that usually succeed on the next attempt
+- short-lived provider edge instability during token or userinfo requests
+
+Tuning guidance:
+
+1. Raise `request_timeout_ms` if the provider is slow but healthy.
+2. Raise `request_retry_count` only for transient transport failures; do not use
+   it to mask persistent 4xx or 5xx OAuth responses.
+3. Raise `request_backoff_base_ms` if retries need more spacing to reduce load
+   against an unstable provider.
+
+Worst-case latency for a helper-managed request is approximately:
+
+```text
+(request_retry_count + 1) * request_timeout_ms + backoff_delays
+```
+
+Validation after tuning:
+
+1. Run `cargo test -p oauth-client`.
+2. Exercise a staging login flow for the provider you changed.
+3. Inspect logs for `retry attempt=` entries to confirm whether failures are
+   transport retries or one-shot OAuth response failures.
 
 ## Patch provenance
 

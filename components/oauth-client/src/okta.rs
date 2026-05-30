@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use reqwest::{header::HeaderMap,
-              Body};
+use reqwest::header::HeaderMap;
 
 use builder_core::http_client::{HttpClient,
                                 ACCEPT_APPLICATION_JSON,
@@ -29,6 +28,7 @@ use crate::{config::OAuth2Cfg,
                       observe_request,
                       FailureKind,
                       Operation},
+            request::send_with_retry,
             types::*};
 use async_trait::async_trait;
 
@@ -56,17 +56,18 @@ impl Okta {
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone()];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
 
-        let resp = client.get(&config.userinfo_url)
-                         .headers(headers)
-                         .bearer_auth(token)
-                         .send()
-                         .await
-                         .map_err(|e| {
-                             observe_failure(&config.provider,
-                                             Operation::UserInfo,
-                                             FailureKind::Transport);
-                             Error::HttpClient(e)
-                         })?;
+        let provider = config.provider.as_str();
+        let userinfo_url = config.userinfo_url.as_str();
+        let token = token.to_string();
+        let resp = send_with_retry(config, "userinfo", || {
+                       client.get(userinfo_url)
+                             .headers(headers.clone())
+                             .bearer_auth(token.as_str())
+                   }).await
+                     .map_err(|e| {
+                         observe_failure(provider, Operation::UserInfo, FailureKind::Transport);
+                         Error::HttpClient(e)
+                     })?;
 
         let status = resp.status();
         let body = resp.text().await.map_err(|e| {
@@ -113,18 +114,18 @@ impl OAuth2Provider for Okta {
         let header_values = vec![ACCEPT_APPLICATION_JSON.clone(),
                                  CONTENT_TYPE_FORM_URL_ENCODED.clone(),];
         let headers = header_values.into_iter().collect::<HeaderMap<_>>();
-        let body: Body = body.into();
 
-        let resp =
-            client.post(&config.token_url)
-                  .headers(headers)
-                  .body(body)
-                  .send()
-                  .await
-                  .map_err(|e| {
-                      observe_failure(&config.provider, Operation::Token, FailureKind::Transport);
-                      Error::HttpClient(e)
-                  })?;
+        let provider = config.provider.as_str();
+        let token_url = config.token_url.as_str();
+        let resp = send_with_retry(config, "token", || {
+                       client.post(token_url)
+                             .headers(headers.clone())
+                             .body(body.clone())
+                   }).await
+                     .map_err(|e| {
+                         observe_failure(provider, Operation::Token, FailureKind::Transport);
+                         Error::HttpClient(e)
+                     })?;
 
         let status = resp.status();
         let body = resp.text().await.map_err(|e| {

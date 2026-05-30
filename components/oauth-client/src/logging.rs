@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::time::Duration;
+
 use reqwest::StatusCode;
 
 pub(crate) fn debug_authenticate_start(provider: &str) {
@@ -23,6 +25,19 @@ pub(crate) fn debug_response(provider: &str, operation: &str, status: StatusCode
            provider,
            operation,
            response_summary(status, body));
+}
+
+pub(crate) fn debug_retry_attempt(provider: &str,
+                                  operation: &str,
+                                  attempt: u32,
+                                  delay: Duration,
+                                  error: &reqwest::Error) {
+    debug!("{} {} retry attempt={} delay_ms={} err={:?}",
+           provider,
+           operation,
+           attempt,
+           delay.as_millis(),
+           error);
 }
 
 pub(crate) fn redacted_body(body: &str) -> String { format!("<redacted {} bytes>", body.len()) }
@@ -48,4 +63,10 @@ mod test {
 
     #[test]
     fn debug_authenticate_start_uses_provider_key() { debug_authenticate_start("chef-automate"); }
+
+    #[test]
+    fn debug_retry_attempt_uses_provider_key() {
+        let err = reqwest::Client::new().get("http://").build().unwrap_err();
+        debug_retry_attempt("github", "token", 2, Duration::from_millis(250), &err);
+    }
 }

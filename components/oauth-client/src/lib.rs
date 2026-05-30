@@ -31,4 +31,5 @@ pub mod gitlab;
 pub mod logging;
 pub mod metrics;
 pub mod okta;
+pub mod request;
 pub mod types;

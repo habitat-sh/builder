@@ -13,6 +13,7 @@ reqwest = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
+tokio = { version = "*", features = ["time"] }
 url = "*"
 
 [dependencies.builder_core]
