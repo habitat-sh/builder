@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import * as cookies from 'js-cookie';
+import cookies from 'js-cookie';
 import * as actions from './actions/index';
 import * as depotApi from './client/depot-api';
 import { Browser } from './browser';
