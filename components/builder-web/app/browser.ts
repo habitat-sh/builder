@@ -1,4 +1,4 @@
-import * as cookies from 'js-cookie';
+import cookies from 'js-cookie';
 import config from './config';
 
 export class Browser {
