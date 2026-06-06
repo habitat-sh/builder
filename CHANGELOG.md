@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- fixing errors after bumping js-cookie [#2000](https://github.com/habitat-sh/builder/pull/2000) ([mwrock](https://github.com/mwrock))
 - Bump js-cookie from 2.2.1 to 3.0.7 in /components/builder-web [#1988](https://github.com/habitat-sh/builder/pull/1988) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - fixing changelog [#1997](https://github.com/habitat-sh/builder/pull/1997) ([mwrock](https://github.com/mwrock))
 - Bump qs from 6.15.1 to 6.15.2 in /test/builder-api [#1989](https://github.com/habitat-sh/builder/pull/1989) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -19,6 +20,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- fixing errors after bumping js-cookie [#2000](https://github.com/habitat-sh/builder/pull/2000) ([mwrock](https://github.com/mwrock))
 - Bump js-cookie from 2.2.1 to 3.0.7 in /components/builder-web [#1988](https://github.com/habitat-sh/builder/pull/1988) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - fixing changelog [#1997](https://github.com/habitat-sh/builder/pull/1997) ([mwrock](https://github.com/mwrock))
 - Bump qs from 6.15.1 to 6.15.2 in /test/builder-api [#1989](https://github.com/habitat-sh/builder/pull/1989) ([dependabot[bot]](https://github.com/dependabot[bot]))
