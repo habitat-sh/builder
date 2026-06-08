@@ -9,8 +9,8 @@
 - Bump tmp from 0.2.5 to 0.2.7 in /components/builder-web [#1990](https://github.com/habitat-sh/builder/pull/1990) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump fast-uri from 3.1.0 to 3.1.2 in /components/builder-web [#1987](https://github.com/habitat-sh/builder/pull/1987) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump qs from 6.15.1 to 6.15.2 in /components/builder-web [#1998](https://github.com/habitat-sh/builder/pull/1998) ([dependabot[bot]](https://github.com/dependabot[bot]))
+<!-- latest_release -->
 
-<!-- latest_release 20260608 -->
 ## [20260608](https://github.com/habitat-sh/builder/tree/20260608) (2026-06-08)
 
 #### Merged Pull Requests
