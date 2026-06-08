@@ -5,31 +5,25 @@
 #### Merged Pull Requests
 - fixing errors after bumping js-cookie [#2000](https://github.com/habitat-sh/builder/pull/2000) ([mwrock](https://github.com/mwrock))
 - Bump js-cookie from 2.2.1 to 3.0.7 in /components/builder-web [#1988](https://github.com/habitat-sh/builder/pull/1988) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- fixing changelog [#1997](https://github.com/habitat-sh/builder/pull/1997) ([mwrock](https://github.com/mwrock))
 - Bump qs from 6.15.1 to 6.15.2 in /test/builder-api [#1989](https://github.com/habitat-sh/builder/pull/1989) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump openssl from 0.10.79 to 0.10.80 [#1993](https://github.com/habitat-sh/builder/pull/1993) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump tmp from 0.2.5 to 0.2.7 in /components/builder-web [#1990](https://github.com/habitat-sh/builder/pull/1990) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump fast-uri from 3.1.0 to 3.1.2 in /components/builder-web [#1987](https://github.com/habitat-sh/builder/pull/1987) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump tar from 0.4.45 to 0.4.46 [#1995](https://github.com/habitat-sh/builder/pull/1995) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump qs from 6.15.1 to 6.15.2 in /components/builder-web [#1998](https://github.com/habitat-sh/builder/pull/1998) ([dependabot[bot]](https://github.com/dependabot[bot]))
+
+<!-- latest_release 20260608 -->
+## [20260608](https://github.com/habitat-sh/builder/tree/20260608) (2026-06-08)
+
+#### Merged Pull Requests
+- fixing changelog [#1997](https://github.com/habitat-sh/builder/pull/1997) ([mwrock](https://github.com/mwrock))
+- Bump openssl from 0.10.79 to 0.10.80 [#1993](https://github.com/habitat-sh/builder/pull/1993) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump tar from 0.4.45 to 0.4.46 [#1995](https://github.com/habitat-sh/builder/pull/1995) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - bump diesel from 2.3.8 to 2.3.10 [#1999](https://github.com/habitat-sh/builder/pull/1999) ([mwrock](https://github.com/mwrock))
 - When deleting a package, remove from artifact storage [#1986](https://github.com/habitat-sh/builder/pull/1986) ([mwrock](https://github.com/mwrock))
 - Bump openssl from 0.10.78 to 0.10.79 [#1983](https://github.com/habitat-sh/builder/pull/1983) ([dependabot[bot]](https://github.com/dependabot[bot]))
 
-<!-- latest_release 20260604 -->
-## Unreleased
+## [20260604](https://github.com/habitat-sh/builder/tree/20260604) (2026-06-04)
 
 #### Merged Pull Requests
-- fixing errors after bumping js-cookie [#2000](https://github.com/habitat-sh/builder/pull/2000) ([mwrock](https://github.com/mwrock))
-- Bump js-cookie from 2.2.1 to 3.0.7 in /components/builder-web [#1988](https://github.com/habitat-sh/builder/pull/1988) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- fixing changelog [#1997](https://github.com/habitat-sh/builder/pull/1997) ([mwrock](https://github.com/mwrock))
-- Bump qs from 6.15.1 to 6.15.2 in /test/builder-api [#1989](https://github.com/habitat-sh/builder/pull/1989) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump openssl from 0.10.79 to 0.10.80 [#1993](https://github.com/habitat-sh/builder/pull/1993) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump tmp from 0.2.5 to 0.2.7 in /components/builder-web [#1990](https://github.com/habitat-sh/builder/pull/1990) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump fast-uri from 3.1.0 to 3.1.2 in /components/builder-web [#1987](https://github.com/habitat-sh/builder/pull/1987) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump tar from 0.4.45 to 0.4.46 [#1995](https://github.com/habitat-sh/builder/pull/1995) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump qs from 6.15.1 to 6.15.2 in /components/builder-web [#1998](https://github.com/habitat-sh/builder/pull/1998) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- bump diesel from 2.3.8 to 2.3.10 [#1999](https://github.com/habitat-sh/builder/pull/1999) ([mwrock](https://github.com/mwrock))
 - bumping version to 20260604 [#1996](https://github.com/habitat-sh/builder/pull/1996) ([mwrock](https://github.com/mwrock))
 - bump serialize-javascript [#1985](https://github.com/habitat-sh/builder/pull/1985) ([mwrock](https://github.com/mwrock))
 - Angular upgrade [#1982](https://github.com/habitat-sh/builder/pull/1982) ([mwrock](https://github.com/mwrock))
