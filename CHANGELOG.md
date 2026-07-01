@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump js-yaml from 4.1.1 to 4.3.0 in /test/builder-api [#2007](https://github.com/habitat-sh/builder/pull/2007) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - trying to fix the changelog [#2002](https://github.com/habitat-sh/builder/pull/2002) ([mwrock](https://github.com/mwrock))
 - fixing errors after bumping js-cookie [#2000](https://github.com/habitat-sh/builder/pull/2000) ([mwrock](https://github.com/mwrock))
 - Bump js-cookie from 2.2.1 to 3.0.7 in /components/builder-web [#1988](https://github.com/habitat-sh/builder/pull/1988) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -15,6 +16,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump js-yaml from 4.1.1 to 4.3.0 in /test/builder-api [#2007](https://github.com/habitat-sh/builder/pull/2007) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - trying to fix the changelog [#2002](https://github.com/habitat-sh/builder/pull/2002) ([mwrock](https://github.com/mwrock))
 - fixing changelog [#1997](https://github.com/habitat-sh/builder/pull/1997) ([mwrock](https://github.com/mwrock))
 - Bump openssl from 0.10.79 to 0.10.80 [#1993](https://github.com/habitat-sh/builder/pull/1993) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -26,6 +28,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump js-yaml from 4.1.1 to 4.3.0 in /test/builder-api [#2007](https://github.com/habitat-sh/builder/pull/2007) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - trying to fix the changelog [#2002](https://github.com/habitat-sh/builder/pull/2002) ([mwrock](https://github.com/mwrock))
 - bumping version to 20260604 [#1996](https://github.com/habitat-sh/builder/pull/1996) ([mwrock](https://github.com/mwrock))
 - bump serialize-javascript [#1985](https://github.com/habitat-sh/builder/pull/1985) ([mwrock](https://github.com/mwrock))
