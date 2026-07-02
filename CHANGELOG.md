@@ -3,6 +3,8 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump form-data from 2.5.5 to 2.5.6 in /test/builder-api [#2006](https://github.com/habitat-sh/builder/pull/2006) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump js-yaml from 4.1.1 to 4.3.0 in /test/builder-api [#2007](https://github.com/habitat-sh/builder/pull/2007) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - trying to fix the changelog [#2002](https://github.com/habitat-sh/builder/pull/2002) ([mwrock](https://github.com/mwrock))
 - fixing errors after bumping js-cookie [#2000](https://github.com/habitat-sh/builder/pull/2000) ([mwrock](https://github.com/mwrock))
@@ -16,6 +18,8 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump form-data from 2.5.5 to 2.5.6 in /test/builder-api [#2006](https://github.com/habitat-sh/builder/pull/2006) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump js-yaml from 4.1.1 to 4.3.0 in /test/builder-api [#2007](https://github.com/habitat-sh/builder/pull/2007) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - trying to fix the changelog [#2002](https://github.com/habitat-sh/builder/pull/2002) ([mwrock](https://github.com/mwrock))
 - fixing changelog [#1997](https://github.com/habitat-sh/builder/pull/1997) ([mwrock](https://github.com/mwrock))
@@ -28,6 +32,8 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump form-data from 2.5.5 to 2.5.6 in /test/builder-api [#2006](https://github.com/habitat-sh/builder/pull/2006) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump js-yaml from 4.1.1 to 4.3.0 in /test/builder-api [#2007](https://github.com/habitat-sh/builder/pull/2007) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - trying to fix the changelog [#2002](https://github.com/habitat-sh/builder/pull/2002) ([mwrock](https://github.com/mwrock))
 - bumping version to 20260604 [#1996](https://github.com/habitat-sh/builder/pull/1996) ([mwrock](https://github.com/mwrock))
