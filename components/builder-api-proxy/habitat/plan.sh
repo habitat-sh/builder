@@ -55,7 +55,8 @@ do_build() {
   pushd "$HAB_CACHE_SRC_PATH" >/dev/null || exit
   export HOME=$HAB_CACHE_SRC_PATH
   export PATH=./node_modules/.bin:$PATH
-  npm install
+  npm install -g --prefix /tmp/npm-upgrade npm@11.17.0
+  node /tmp/npm-upgrade/lib/node_modules/npm/bin/npm-cli.js install
   for b in node_modules/.bin/*; do
     fix_interpreter "$(readlink -f -n "$b")" core/coreutils bin/env
   done
