@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump cmov from 0.5.2 to 0.5.4 [#2009](https://github.com/habitat-sh/builder/pull/2009) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump form-data from 2.5.5 to 2.5.6 in /test/builder-api [#2006](https://github.com/habitat-sh/builder/pull/2006) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump js-yaml from 4.1.1 to 4.3.0 in /test/builder-api [#2007](https://github.com/habitat-sh/builder/pull/2007) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -18,6 +19,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump cmov from 0.5.2 to 0.5.4 [#2009](https://github.com/habitat-sh/builder/pull/2009) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump form-data from 2.5.5 to 2.5.6 in /test/builder-api [#2006](https://github.com/habitat-sh/builder/pull/2006) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump js-yaml from 4.1.1 to 4.3.0 in /test/builder-api [#2007](https://github.com/habitat-sh/builder/pull/2007) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -32,6 +34,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Bump cmov from 0.5.2 to 0.5.4 [#2009](https://github.com/habitat-sh/builder/pull/2009) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump form-data from 2.5.5 to 2.5.6 in /test/builder-api [#2006](https://github.com/habitat-sh/builder/pull/2006) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump js-yaml from 4.1.1 to 4.3.0 in /test/builder-api [#2007](https://github.com/habitat-sh/builder/pull/2007) ([dependabot[bot]](https://github.com/dependabot[bot]))
