@@ -3,6 +3,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- use harness.io for package resolution and bump angular deps [#2010](https://github.com/habitat-sh/builder/pull/2010) ([mwrock](https://github.com/mwrock))
 - Bump cmov from 0.5.2 to 0.5.4 [#2009](https://github.com/habitat-sh/builder/pull/2009) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump form-data from 2.5.5 to 2.5.6 in /test/builder-api [#2006](https://github.com/habitat-sh/builder/pull/2006) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -19,6 +20,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- use harness.io for package resolution and bump angular deps [#2010](https://github.com/habitat-sh/builder/pull/2010) ([mwrock](https://github.com/mwrock))
 - Bump cmov from 0.5.2 to 0.5.4 [#2009](https://github.com/habitat-sh/builder/pull/2009) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump form-data from 2.5.5 to 2.5.6 in /test/builder-api [#2006](https://github.com/habitat-sh/builder/pull/2006) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -34,6 +36,7 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- use harness.io for package resolution and bump angular deps [#2010](https://github.com/habitat-sh/builder/pull/2010) ([mwrock](https://github.com/mwrock))
 - Bump cmov from 0.5.2 to 0.5.4 [#2009](https://github.com/habitat-sh/builder/pull/2009) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump form-data from 2.5.5 to 2.5.6 in /test/builder-api [#2006](https://github.com/habitat-sh/builder/pull/2006) ([dependabot[bot]](https://github.com/dependabot[bot]))
