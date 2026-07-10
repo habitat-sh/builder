@@ -15,11 +15,7 @@
 use percent_encoding::{utf8_percent_encode,
                        AsciiSet,
                        CONTROLS};
-use postgres_shared::params::{ConnectParams,
-                              Host,
-                              IntoConnectParams};
 use std::{env,
-          error::Error,
           fmt};
 
 // The characters in this set are copied from
@@ -120,15 +116,5 @@ impl fmt::Display for DataStoreCfg {
         }
 
         write!(f, "{}", connect)
-    }
-}
-
-impl IntoConnectParams for &DataStoreCfg {
-    fn into_connect_params(self) -> Result<ConnectParams, Box<dyn Error + Sync + Send>> {
-        let mut builder = ConnectParams::builder();
-        builder.port(self.port);
-        builder.user(&self.user, self.password.as_deref());
-        builder.database(&self.database);
-        Ok(builder.build(Host::Tcp(self.host.to_string())))
     }
 }

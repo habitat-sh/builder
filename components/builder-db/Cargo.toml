@@ -24,7 +24,6 @@ fallible-iterator = "*" # TODO: Do we need this? Machete says we don't.
 percent-encoding = "*"
 postgres = "*"
 postgres-types = { version = "*", features = ["derive"] }
-postgres-shared = "*"
 r2d2_postgres = "*"
 
 [dependencies.habitat_core]
