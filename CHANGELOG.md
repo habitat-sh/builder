@@ -3,6 +3,11 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Update crates [#2016](https://github.com/habitat-sh/builder/pull/2016) ([mwrock](https://github.com/mwrock))
+- Bump ws, engine.io and socket.io-adapter in /components/builder-web [#2011](https://github.com/habitat-sh/builder/pull/2011) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump shell-quote from 1.8.3 to 1.9.0 in /components/builder-web [#2013](https://github.com/habitat-sh/builder/pull/2013) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump tmp from 0.2.5 to 0.2.7 in /components/builder-web [#2014](https://github.com/habitat-sh/builder/pull/2014) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump qs from 6.15.1 to 6.15.3 in /components/builder-web [#2015](https://github.com/habitat-sh/builder/pull/2015) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - use harness.io for package resolution and bump angular deps [#2010](https://github.com/habitat-sh/builder/pull/2010) ([mwrock](https://github.com/mwrock))
 - Bump cmov from 0.5.2 to 0.5.4 [#2009](https://github.com/habitat-sh/builder/pull/2009) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -20,6 +25,11 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Update crates [#2016](https://github.com/habitat-sh/builder/pull/2016) ([mwrock](https://github.com/mwrock))
+- Bump ws, engine.io and socket.io-adapter in /components/builder-web [#2011](https://github.com/habitat-sh/builder/pull/2011) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump shell-quote from 1.8.3 to 1.9.0 in /components/builder-web [#2013](https://github.com/habitat-sh/builder/pull/2013) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump tmp from 0.2.5 to 0.2.7 in /components/builder-web [#2014](https://github.com/habitat-sh/builder/pull/2014) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump qs from 6.15.1 to 6.15.3 in /components/builder-web [#2015](https://github.com/habitat-sh/builder/pull/2015) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - use harness.io for package resolution and bump angular deps [#2010](https://github.com/habitat-sh/builder/pull/2010) ([mwrock](https://github.com/mwrock))
 - Bump cmov from 0.5.2 to 0.5.4 [#2009](https://github.com/habitat-sh/builder/pull/2009) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -36,6 +46,11 @@
 ## Unreleased
 
 #### Merged Pull Requests
+- Update crates [#2016](https://github.com/habitat-sh/builder/pull/2016) ([mwrock](https://github.com/mwrock))
+- Bump ws, engine.io and socket.io-adapter in /components/builder-web [#2011](https://github.com/habitat-sh/builder/pull/2011) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump shell-quote from 1.8.3 to 1.9.0 in /components/builder-web [#2013](https://github.com/habitat-sh/builder/pull/2013) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump tmp from 0.2.5 to 0.2.7 in /components/builder-web [#2014](https://github.com/habitat-sh/builder/pull/2014) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump qs from 6.15.1 to 6.15.3 in /components/builder-web [#2015](https://github.com/habitat-sh/builder/pull/2015) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - use harness.io for package resolution and bump angular deps [#2010](https://github.com/habitat-sh/builder/pull/2010) ([mwrock](https://github.com/mwrock))
 - Bump cmov from 0.5.2 to 0.5.4 [#2009](https://github.com/habitat-sh/builder/pull/2009) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
