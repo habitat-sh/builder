@@ -107,7 +107,7 @@ export default function origins(state = initialState['origins'], action) {
       if (action.payload) {
         return state.setIn(['current', 'channels'], action.payload);
       } else {
-        return state.set('channels', List());
+        return state.setIn(['current', 'channels'], List());
       }
 
     case actionTypes.SET_CURRENT_ORIGIN:
