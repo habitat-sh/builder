@@ -1,0 +1,7 @@
+# Ensure shell scripts and GitHub Actions workflow files always use LF line
+# endings, even when checked out/edited on Windows. Scripts with CRLF fail at
+# runtime on Linux CI runners with errors like:
+#   line 1: $'\r': command not found
+*.sh text eol=lf
+.github/workflows/*.yml text eol=lf
+.github/workflows/*.yaml text eol=lf
