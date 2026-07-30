@@ -109,24 +109,27 @@ jobs:
       # udf3: 'default' # user defined flag 3  
 
   # ---------------------------------------------------------------------------
-  # Combined Rust + Habitat-package SBOM generation, BlackDuck import
+  # Combined Rust + npm + Habitat-package SBOM generation, BlackDuck import
   #
   # Motivation: BlackDuck Detect's `cargo tree` scan (above) only covers
   # components/builder-api, the only Rust project in this repo — all other
   # deployable components (builder-api-proxy, builder-memcached,
   # builder-minio, builder-datastore) wrap third-party binaries packaged as
   # plain Habitat packages, which are invisible to any Cargo-based tooling.
+  # components/builder-web is an npm/Angular frontend whose dependencies are
+  # likewise invisible to Cargo-based tooling.
   #
   # This job generates a CycloneDX SBOM for builder-api via cargo-cyclonedx
-  # (single target — everything here ships x86_64-linux only), plus a second
-  # CycloneDX fragment built by querying the public Builder API for the
-  # dependency trees (tdeps) of this repo's top-level Habitat packages in the
-  # on-prem-base channel, filtered to core-origin packages. Both are merged
-  # into one SBOM and imported into the same BlackDuck project/version the
-  # SCA scan above already created.
+  # (single target — everything here ships x86_64-linux only), a second
+  # CycloneDX SBOM for builder-web's npm dependencies via cyclonedx-npm, plus
+  # a third CycloneDX fragment built by querying the public Builder API for
+  # the dependency trees (tdeps) of this repo's top-level Habitat packages in
+  # the on-prem-base channel, filtered to core-origin packages. All three are
+  # merged into one SBOM and imported into the same BlackDuck project/version
+  # the SCA scan above already created.
   # ---------------------------------------------------------------------------
   generate-habitat-sbom:
-    name: 'Generate Habitat Package + Cargo SBOM and Import to BlackDuck'
+    name: 'Generate Habitat Package + Cargo + npm SBOM and Import to BlackDuck'
     runs-on: ubuntu-latest
     env:
       # Match the project name used by call-ci-main-pr-check-pipeline above
@@ -173,6 +176,28 @@ jobs:
       - name: Generate Cargo SBOM — Linux x86_64
         run: cargo cyclonedx --all --format json --target x86_64-unknown-linux-gnu --target-in-filename
 
+      # components/builder-web is the only npm project in this repo.
+      - name: Read Node.js version
+        id: node-version
+        run: |
+          echo "version=$(jq -r '.engines.node' components/builder-web/package.json | grep -oE '[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Install Node.js toolchain
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.node-version.outputs.version }}
+
+      - name: Install builder-web npm dependencies
+        working-directory: components/builder-web
+        run: npm ci
+
+      # Generate the npm dependency SBOM for builder-web using the official
+      # CycloneDX npm generator. Written to the repo root so the merge step
+      # below (which globs for "*.cdx.json") picks it up automatically.
+      - name: Generate npm SBOM for builder-web
+        working-directory: components/builder-web
+        run: npx --yes @cyclonedx/cyclonedx-npm --output-format json --output-file ../../builder-web-npm.cdx.json
+
       # Query the public Builder API for the core-origin transitive
       # dependencies of this repo's top-level, deployable Habitat packages
       # (habitat/builder-api-proxy, habitat/builder-api,
@@ -181,11 +206,12 @@ jobs:
       - name: Generate Habitat package dependency SBOM fragment
         run: bash support/sbom/generate-habitat-pkg-deps.sh > habitat-pkg-deps.cdx.json
 
-      # Merge the per-crate cargo SBOMs plus the Habitat package dependency
-      # fragment into one deduplicated CycloneDX document.
-      # cargo cyclonedx writes one *.cdx.json per workspace member into each
-      # member's directory. We use find to collect them all, excluding the
-      # target/ build directory.
+      # Merge the per-crate cargo SBOMs, the builder-web npm SBOM, and the
+      # Habitat package dependency fragment into one deduplicated CycloneDX
+      # document. cargo cyclonedx writes one *.cdx.json per workspace member
+      # into each member's directory, and builder-web-npm.cdx.json was
+      # written to the repo root above. We use find to collect them all,
+      # excluding the target/ build directory.
       - name: Merge SBOMs
         run: |
           SBOM_FILES=$(find . -name "*.cdx.json" -not -path "*/target/*" -not -name "habitat-pkg-deps.cdx.json" | sort | tr '\n' ' ')
