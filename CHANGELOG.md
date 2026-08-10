@@ -22,20 +22,9 @@
 - Bump qs from 6.15.1 to 6.15.2 in /components/builder-web [#1998](https://github.com/habitat-sh/builder/pull/1998) ([dependabot[bot]](https://github.com/dependabot[bot]))
 <!-- latest_release -->
 
-## Unreleased
+## [20260608](https://github.com/habitat-sh/builder/tree/20260608) (2026-06-08)
 
 #### Merged Pull Requests
-- Update crates [#2016](https://github.com/habitat-sh/builder/pull/2016) ([mwrock](https://github.com/mwrock))
-- Bump ws, engine.io and socket.io-adapter in /components/builder-web [#2011](https://github.com/habitat-sh/builder/pull/2011) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump shell-quote from 1.8.3 to 1.9.0 in /components/builder-web [#2013](https://github.com/habitat-sh/builder/pull/2013) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump tmp from 0.2.5 to 0.2.7 in /components/builder-web [#2014](https://github.com/habitat-sh/builder/pull/2014) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump qs from 6.15.1 to 6.15.3 in /components/builder-web [#2015](https://github.com/habitat-sh/builder/pull/2015) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- use harness.io for package resolution and bump angular deps [#2010](https://github.com/habitat-sh/builder/pull/2010) ([mwrock](https://github.com/mwrock))
-- Bump cmov from 0.5.2 to 0.5.4 [#2009](https://github.com/habitat-sh/builder/pull/2009) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump form-data from 2.5.5 to 2.5.6 in /test/builder-api [#2006](https://github.com/habitat-sh/builder/pull/2006) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump js-yaml from 4.1.1 to 4.3.0 in /test/builder-api [#2007](https://github.com/habitat-sh/builder/pull/2007) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- trying to fix the changelog [#2002](https://github.com/habitat-sh/builder/pull/2002) ([mwrock](https://github.com/mwrock))
 - fixing changelog [#1997](https://github.com/habitat-sh/builder/pull/1997) ([mwrock](https://github.com/mwrock))
 - Bump openssl from 0.10.79 to 0.10.80 [#1993](https://github.com/habitat-sh/builder/pull/1993) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump tar from 0.4.45 to 0.4.46 [#1995](https://github.com/habitat-sh/builder/pull/1995) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -43,20 +32,9 @@
 - When deleting a package, remove from artifact storage [#1986](https://github.com/habitat-sh/builder/pull/1986) ([mwrock](https://github.com/mwrock))
 - Bump openssl from 0.10.78 to 0.10.79 [#1983](https://github.com/habitat-sh/builder/pull/1983) ([dependabot[bot]](https://github.com/dependabot[bot]))
 
-## Unreleased
+## [20260604](https://github.com/habitat-sh/builder/tree/20260604) (2026-06-04)
 
 #### Merged Pull Requests
-- Update crates [#2016](https://github.com/habitat-sh/builder/pull/2016) ([mwrock](https://github.com/mwrock))
-- Bump ws, engine.io and socket.io-adapter in /components/builder-web [#2011](https://github.com/habitat-sh/builder/pull/2011) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump shell-quote from 1.8.3 to 1.9.0 in /components/builder-web [#2013](https://github.com/habitat-sh/builder/pull/2013) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump tmp from 0.2.5 to 0.2.7 in /components/builder-web [#2014](https://github.com/habitat-sh/builder/pull/2014) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump qs from 6.15.1 to 6.15.3 in /components/builder-web [#2015](https://github.com/habitat-sh/builder/pull/2015) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- use harness.io for package resolution and bump angular deps [#2010](https://github.com/habitat-sh/builder/pull/2010) ([mwrock](https://github.com/mwrock))
-- Bump cmov from 0.5.2 to 0.5.4 [#2009](https://github.com/habitat-sh/builder/pull/2009) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump form-data from 2.5.5 to 2.5.6 in /test/builder-api [#2006](https://github.com/habitat-sh/builder/pull/2006) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump js-yaml from 4.1.1 to 4.3.0 in /test/builder-api [#2007](https://github.com/habitat-sh/builder/pull/2007) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- trying to fix the changelog [#2002](https://github.com/habitat-sh/builder/pull/2002) ([mwrock](https://github.com/mwrock))
 - bumping version to 20260604 [#1996](https://github.com/habitat-sh/builder/pull/1996) ([mwrock](https://github.com/mwrock))
 - bump serialize-javascript [#1985](https://github.com/habitat-sh/builder/pull/1985) ([mwrock](https://github.com/mwrock))
 - Angular upgrade [#1982](https://github.com/habitat-sh/builder/pull/1982) ([mwrock](https://github.com/mwrock))
@@ -66,7 +44,6 @@
 - Bump picomatch from 2.3.1 to 2.3.2 in /test/builder-api [#1968](https://github.com/habitat-sh/builder/pull/1968) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump js-yaml from 4.1.0 to 4.1.1 in /test/builder-api [#1944](https://github.com/habitat-sh/builder/pull/1944) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump minimatch from 5.1.6 to 5.1.9 in /test/builder-api [#1963](https://github.com/habitat-sh/builder/pull/1963) ([dependabot[bot]](https://github.com/dependabot[bot]))
-<!-- latest_release -->
 
 ## [20260430](https://github.com/habitat-sh/builder/tree/20260430) (2026-04-30)
 
