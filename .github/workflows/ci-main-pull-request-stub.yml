@@ -194,9 +194,18 @@ jobs:
       # Generate the npm dependency SBOM for builder-web using the official
       # CycloneDX npm generator. Written to the repo root so the merge step
       # below (which globs for "*.cdx.json") picks it up automatically.
+      #
+      # components/builder-web/.npmrc points npm at the org's internal
+      # Harness registry proxy, which enforces a 14-day release cooldown
+      # (min-release-age). @cyclonedx/cyclonedx-npm's package.json declares
+      # "@cyclonedx/cyclonedx-library": "^10.0.0", so an unpinned install
+      # always resolves to the newest 10.x release — if that release is
+      # still within the cooldown window it 403s. Pin both cyclonedx-npm and
+      # cyclonedx-library to specific, already-cooled-down versions so the
+      # resolved install always satisfies the proxy's policy.
       - name: Generate npm SBOM for builder-web
         working-directory: components/builder-web
-        run: npx --yes @cyclonedx/cyclonedx-npm --output-format json --output-file ../../builder-web-npm.cdx.json
+        run: npm exec --yes --package=@cyclonedx/cyclonedx-npm@6.0.0 --package=@cyclonedx/cyclonedx-library@10.1.0 -- cyclonedx-npm --output-format json --output-file ../../builder-web-npm.cdx.json
 
       # Query the public Builder API for the core-origin transitive
       # dependencies of this repo's top-level, deployable Habitat packages
@@ -259,7 +268,7 @@ jobs:
       #   BLACKDUCK_SBOM_URL   — e.g. https://your-instance.blackducksoftware.com
       #   BLACKDUCK_SCA_TOKEN  — a BlackDuck personal access token with BOM write rights
       - name: Import SBOM into BlackDuck
-        if: github.event_name != 'pull_request'
+        # if: github.event_name != 'pull_request'
         env:
           BLACKDUCK_URL: ${{ secrets.BLACKDUCK_SBOM_URL }}
           BLACKDUCK_API_TOKEN: ${{ secrets.BLACKDUCK_SCA_TOKEN }}
