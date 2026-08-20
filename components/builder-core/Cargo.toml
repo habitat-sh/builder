@@ -21,7 +21,6 @@ serde_derive = "*"
 serde_json = "*"
 toml = { version = "*", default-features = false }
 url = "*"
-zmq = "*"
 
 [dependencies.habitat_core]
 git = "https://github.com/habitat-sh/habitat.git"
@@ -32,6 +31,3 @@ features = ["stream", "query"]
 
 [dev-dependencies]
 tempfile = "*"
-
-[package.metadata.cargo-machete]
-ignored = ["zmq"]

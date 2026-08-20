@@ -14,10 +14,8 @@ pkg_deps=(
   core/curl
   core/gcc-base
   core/glibc
-  core/libarchive
   core/openssl
   core/postgresql17-client
-  core/zeromq
 )
 
 pkg_build_deps=(
