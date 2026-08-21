@@ -175,6 +175,16 @@ jobs:
 
       # Full/persistent scan on push to main/release branches, matching the
       # shared pipeline's behavior for non-PR events.
+      #
+      # --detect.project.codelocation.suffix: Detect's default BDIO
+      # code-location name for a package-manager scan is just "<project>/
+      # <version> bdio" — it does NOT incorporate detect.source.path. The
+      # shared pipeline's cargo scan (also project "builder", version
+      # "20260820") gets that exact same default name, so without a unique
+      # suffix here, whichever of the two scans runs second overwrites the
+      # other's code location and its components vanish from the BOM. The
+      # Signature Scanner tool doesn't have this problem since it already
+      # names its code location after detect.source.path.
       - name: BlackDuck SCA Full Scan — builder-web (npm)
         if: ${{ github.event_name != 'pull_request' }}
         uses: blackduck-inc/black-duck-security-scan@v2.1.1
@@ -186,7 +196,7 @@ jobs:
           blackducksca_url: ${{ secrets.BLACKDUCK_SBOM_URL }}
           blackducksca_token: ${{ secrets.BLACKDUCK_SCA_TOKEN }}
           blackducksca_scan_full: true
-          detect_args: --detect.source.path=components/builder-web --detect.excluded.detector.types=PIP --detect.timeout=1800
+          detect_args: --detect.source.path=components/builder-web --detect.excluded.detector.types=PIP --detect.timeout=1800 --detect.project.codelocation.suffix=builder-web-npm
 
       # Rapid/PR scan for pull requests, matching the shared pipeline's PR
       # behavior (BOM_COMPARE rapid mode + PR comment).
@@ -214,7 +224,7 @@ jobs:
           blackducksca_url: ${{ secrets.BLACKDUCK_SBOM_URL }}
           blackducksca_token: ${{ secrets.BLACKDUCK_SCA_TOKEN }}
           blackducksca_scan_full: false
-          detect_args: --detect.source.path=components/builder-web --detect.excluded.detector.types=PIP --detect.timeout=1800 --detect.blackduck.scan.mode=RAPID
+          detect_args: --detect.source.path=components/builder-web --detect.excluded.detector.types=PIP --detect.timeout=1800 --detect.blackduck.scan.mode=RAPID --detect.project.codelocation.suffix=builder-web-npm
           github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           blackducksca_prComment_enabled: true
 
