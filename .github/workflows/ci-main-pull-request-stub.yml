@@ -222,12 +222,24 @@ jobs:
       - name: Generate Habitat package dependency SBOM fragment
         run: bash support/sbom/generate-habitat-pkg-deps.sh > habitat-pkg-deps.cdx.json
 
-      # Inject a version-based serialNumber and the current version so BlackDuck
-      # treats each release upload as a distinct scan (prevents "already mapped" errors).
+      # Inject a version-based serialNumber plus a metadata.component block
+      # identifying this SBOM as the "builder" project at BD_VERSION_NAME.
+      # generate-habitat-pkg-deps.sh only emits bomFormat/specVersion/version/
+      # components — it has no metadata block at all. Previously the now
+      # removed cyclonedx-cli merge step supplied a default metadata block;
+      # without it BlackDuck's /api/scan/data validator rejects the file with
+      # "Validation failed: The SBOM file validation failed on field
+      # 'metadata'", so we add it explicitly here instead.
       - name: Version the SBOM fragment
         run: |
           jq --arg serial "urn:uuid:builder-${BD_VERSION_NAME}" \
-            '.serialNumber = $serial' \
+             --arg name "${BD_PROJECT_NAME}" \
+             --arg ver "${BD_VERSION_NAME}" \
+            '.serialNumber = $serial
+             | .metadata = {
+                 timestamp: (now | strftime("%Y-%m-%dT%H:%M:%SZ")),
+                 component: {type: "application", name: $name, version: $ver}
+               }' \
             habitat-pkg-deps.cdx.json > sbom-all.json
           echo "Components: $(jq '.components|length' sbom-all.json)"
 
