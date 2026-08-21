@@ -109,27 +109,99 @@ jobs:
       # udf3: 'default' # user defined flag 3  
 
   # ---------------------------------------------------------------------------
-  # Combined Rust + npm + Habitat-package SBOM generation, BlackDuck import
+  # Live BlackDuck Detect scan for builder-web's npm dependencies
   #
-  # Motivation: BlackDuck Detect's `cargo tree` scan (above) only covers
-  # components/builder-api, the only Rust project in this repo — all other
-  # deployable components (builder-api-proxy, builder-memcached,
-  # builder-minio, builder-datastore) wrap third-party binaries packaged as
-  # plain Habitat packages, which are invisible to any Cargo-based tooling.
-  # components/builder-web is an npm/Angular frontend whose dependencies are
-  # likewise invisible to Cargo-based tooling.
+  # Motivation: the shared call-ci-main-pr-check-pipeline job above runs
+  # BlackDuck Detect (via perform-blackduck-sca-scan), but that scan only
+  # widens Detect's default search depth (0 = repo root only) for
+  # Ruby/Ruby-Erlang/Erlang or when a go.work file exists. It does nothing
+  # special for Rust or JavaScript/npm. components/Cargo.toml (the Rust
+  # workspace manifest) happens to live at the repo root, so it's still found
+  # and scanned correctly at depth 0 — but components/builder-web/package.json
+  # sits 2 directories below the repo root and is never discovered, so
+  # builder-web's npm dependencies are invisible to that scan.
   #
-  # This job generates a CycloneDX SBOM for builder-api via cargo-cyclonedx
-  # (single target — everything here ships x86_64-linux only), a second
-  # CycloneDX SBOM for builder-web's npm dependencies via cyclonedx-npm, plus
-  # a third CycloneDX fragment built by querying the public Builder API for
-  # the dependency trees (tdeps) of this repo's top-level Habitat packages in
-  # the on-prem-base channel, filtered to core-origin packages. All three are
-  # merged into one SBOM and imported into the same BlackDuck project/version
-  # the SCA scan above already created.
+  # This job runs a second, independent Detect scan pointed directly at
+  # components/builder-web so its npm dependencies get accurately classified
+  # (Usage, license risk, etc.) into the SAME BlackDuck project/version,
+  # the same way Detect already classifies builder-api's Rust crates —
+  # instead of relying on a plain CycloneDX file import, which can only ever
+  # set the generic "Prerequisite" Usage.
+  # ---------------------------------------------------------------------------
+  blackduck-npm-scan:
+    name: 'BlackDuck SCA Scan for builder-web (npm)'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set DETECT_PROJECT_VERSION_NAME from VERSION file
+        run: echo "DETECT_PROJECT_VERSION_NAME=$(cat VERSION)" >> "$GITHUB_ENV"
+
+      # Full/persistent scan on push to main/release branches, matching the
+      # shared pipeline's behavior for non-PR events.
+      - name: BlackDuck SCA Full Scan — builder-web (npm)
+        # if: ${{ github.event_name != 'pull_request' }}
+        uses: blackduck-inc/black-duck-security-scan@v2.1.1
+        env:
+          DETECT_PROJECT_GROUP_NAME: 'Chef-Habitat'
+          DETECT_PROJECT_NAME: ${{ github.event.repository.name }}
+          DETECT_PROJECT_VERSION_NAME: ${{ env.DETECT_PROJECT_VERSION_NAME }}
+        with:
+          blackducksca_url: ${{ secrets.BLACKDUCK_SBOM_URL }}
+          blackducksca_token: ${{ secrets.BLACKDUCK_SCA_TOKEN }}
+          blackducksca_scan_full: true
+          detect_args: --detect.source.path=components/builder-web --detect.excluded.detector.types=PIP --detect.timeout=1800
+
+      # Rapid/PR scan for pull requests, matching the shared pipeline's PR
+      # behavior (BOM_COMPARE rapid mode + PR comment).
+      - name: BlackDuck SCA PR Scan — builder-web (npm)
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: blackduck-inc/black-duck-security-scan@v2.1.1
+        env:
+          DETECT_PROJECT_GROUP_NAME: 'Chef-Habitat'
+          DETECT_PROJECT_NAME: ${{ github.event.repository.name }}
+          DETECT_PROJECT_VERSION_NAME: ${{ env.DETECT_PROJECT_VERSION_NAME }}
+          DETECT_BLACKDUCK_RAPID_COMPARE_MODE: BOM_COMPARE
+        with:
+          blackducksca_url: ${{ secrets.BLACKDUCK_SBOM_URL }}
+          blackducksca_token: ${{ secrets.BLACKDUCK_SCA_TOKEN }}
+          blackducksca_scan_full: false
+          detect_args: --detect.source.path=components/builder-web --detect.excluded.detector.types=PIP --detect.timeout=1800 --detect.blackduck.scan.mode=RAPID
+          github_token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          blackducksca_prComment_enabled: true
+
+  # ---------------------------------------------------------------------------
+  # Habitat package dependency SBOM generation, BlackDuck import
+  #
+  # Motivation: the deployable components that wrap third-party binaries as
+  # plain Habitat packages (builder-api-proxy, builder-memcached,
+  # builder-minio, builder-datastore) are invisible to any BlackDuck Detect
+  # package-manager detector, since they have no Cargo.toml/package.json of
+  # their own — Detect can't discover their dependencies by scanning source.
+  #
+  # builder-api's Cargo dependencies and builder-web's npm dependencies are
+  # NOT generated here anymore — they're covered directly by live BlackDuck
+  # Detect scans instead (see the SCA scan job in the shared pipeline for
+  # builder-api, and the "blackduck-npm-scan" job below for builder-web).
+  # A live Detect scan classifies each dependency's Usage (e.g. "Dynamically
+  # Linked") correctly; a plain CycloneDX file import can only ever set the
+  # generic "Prerequisite" Usage, since the CycloneDX schema has no linkage
+  # concept beyond scope=required/optional/excluded. Re-uploading the same
+  # Cargo/npm dependencies here as a separate CycloneDX import was actively
+  # clobbering Detect's correct classification for builder-api's crates in
+  # the same BlackDuck project/version.
+  #
+  # This job generates a CycloneDX fragment by querying the public Builder
+  # API for the dependency trees (tdeps) of this repo's top-level Habitat
+  # packages in the on-prem-base channel, filtered to core-origin packages,
+  # and imports just that fragment into the same BlackDuck project/version
+  # the SCA scan(s) above already created.
   # ---------------------------------------------------------------------------
   generate-habitat-sbom:
-    name: 'Generate Habitat Package + Cargo + npm SBOM and Import to BlackDuck'
+    name: 'Generate Habitat Package SBOM and Import to BlackDuck'
     runs-on: ubuntu-latest
     env:
       # Match the project name used by call-ci-main-pr-check-pipeline above
@@ -142,71 +214,6 @@ jobs:
       - name: Set BD_VERSION_NAME from VERSION file
         run: echo "BD_VERSION_NAME=$(cat VERSION)" >> "$GITHUB_ENV"
 
-      # Read the pinned toolchain from rust-toolchain at the repo root so we
-      # don't have to hardcode the version here.
-      - name: Read Rust toolchain version
-        id: rust-version
-        run: |
-          echo "toolchain=$(grep ^channel rust-toolchain | cut -d'"' -f2)" >> "$GITHUB_OUTPUT"
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        id: toolchain
-        with:
-          toolchain: ${{ steps.rust-version.outputs.toolchain }}
-      - run: rustup override set ${{ steps.toolchain.outputs.name }}
-
-      - name: Install cargo-cyclonedx
-        uses: ClementTsang/cargo-action@v0.0.7
-        with:
-          command: install
-          args: cargo-cyclonedx --locked
-
-      # Download the CycloneDX CLI used to merge the cargo SBOM with the
-      # Habitat package dependency fragment.
-      - name: Install CycloneDX CLI
-        run: |
-          curl -sSL https://github.com/CycloneDX/cyclonedx-cli/releases/latest/download/cyclonedx-linux-x64 \
-            -o /usr/local/bin/cyclonedx-cli
-          chmod +x /usr/local/bin/cyclonedx-cli
-
-      # Generate the Rust dependency SBOM for the whole workspace (only
-      # components/builder-api and its internal library crates are Rust;
-      # everything ships x86_64-linux only, so a single target is enough).
-      - name: Generate Cargo SBOM — Linux x86_64
-        run: cargo cyclonedx --all --format json --target x86_64-unknown-linux-gnu --target-in-filename
-
-      # components/builder-web is the only npm project in this repo.
-      - name: Read Node.js version
-        id: node-version
-        run: |
-          echo "version=$(jq -r '.engines.node' components/builder-web/package.json | grep -oE '[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
-
-      - name: Install Node.js toolchain
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ steps.node-version.outputs.version }}
-
-      - name: Install builder-web npm dependencies
-        working-directory: components/builder-web
-        run: npm ci
-
-      # Generate the npm dependency SBOM for builder-web using the official
-      # CycloneDX npm generator. Written to the repo root so the merge step
-      # below (which globs for "*.cdx.json") picks it up automatically.
-      #
-      # components/builder-web/.npmrc points npm at the org's internal
-      # Harness registry proxy, which enforces a 14-day release cooldown
-      # (min-release-age). @cyclonedx/cyclonedx-npm's package.json declares
-      # "@cyclonedx/cyclonedx-library": "^10.0.0", so an unpinned install
-      # always resolves to the newest 10.x release — if that release is
-      # still within the cooldown window it 403s. Pin both cyclonedx-npm and
-      # cyclonedx-library to specific, already-cooled-down versions so the
-      # resolved install always satisfies the proxy's policy.
-      - name: Generate npm SBOM for builder-web
-        working-directory: components/builder-web
-        run: npm exec --yes --package=@cyclonedx/cyclonedx-npm@6.0.0 --package=@cyclonedx/cyclonedx-library@10.1.0 -- cyclonedx-npm --output-format json --output-file ../../builder-web-npm.cdx.json
-
       # Query the public Builder API for the core-origin transitive
       # dependencies of this repo's top-level, deployable Habitat packages
       # (habitat/builder-api-proxy, habitat/builder-api,
@@ -215,42 +222,14 @@ jobs:
       - name: Generate Habitat package dependency SBOM fragment
         run: bash support/sbom/generate-habitat-pkg-deps.sh > habitat-pkg-deps.cdx.json
 
-      # Merge the per-crate cargo SBOMs, the builder-web npm SBOM, and the
-      # Habitat package dependency fragment into one deduplicated CycloneDX
-      # document. cargo cyclonedx writes one *.cdx.json per workspace member
-      # into each member's directory, and builder-web-npm.cdx.json was
-      # written to the repo root above. We use find to collect them all,
-      # excluding the target/ build directory.
-      - name: Merge SBOMs
+      # Inject a version-based serialNumber and the current version so BlackDuck
+      # treats each release upload as a distinct scan (prevents "already mapped" errors).
+      - name: Version the SBOM fragment
         run: |
-          SBOM_FILES=$(find . -name "*.cdx.json" -not -path "*/target/*" -not -name "habitat-pkg-deps.cdx.json" | sort | tr '\n' ' ')
-          echo "Merging files: $SBOM_FILES habitat-pkg-deps.cdx.json"
-          cyclonedx-cli merge \
-            --input-files $SBOM_FILES habitat-pkg-deps.cdx.json \
-            --output-file sbom-all.json \
-            --output-format json \
-            --output-version v1_4
-
-          # Inject a version-based serialNumber and the current version so BlackDuck
-          # treats each release upload as a distinct scan (prevents "already mapped" errors).
-          # Also strip first-party crates from this workspace so only third-party
-          # dependencies and the Habitat package fragment remain:
-          #   artifactory-client, builder_core, github-api-client, oauth-client,
-          #   token-generator, and anything starting with "habitat" (except the
-          #   "Habitat core_" prefixed entries from the Habitat package fragment).
-          jq --arg serial "urn:uuid:builder-${BD_VERSION_NAME}" --arg ver "$BD_VERSION_NAME" \
-            '.serialNumber = $serial
-             | .metadata.component.version = $ver
-             | .components = [.components[] | select(
-                 (.name | ascii_downcase | startswith("habitat core_")) or
-                 (
-                   (.name | ascii_downcase | startswith("habitat") | not) and
-                   ([.name] | inside(["artifactory-client","builder_core","github-api-client","oauth-client","token-generator"]) | not)
-                 )
-               )]' \
-            sbom-all.json > sbom-versioned.json
-          mv sbom-versioned.json sbom-all.json
-          echo "Components after filtering: $(jq '.components|length' sbom-all.json)"
+          jq --arg serial "urn:uuid:builder-${BD_VERSION_NAME}" \
+            '.serialNumber = $serial' \
+            habitat-pkg-deps.cdx.json > sbom-all.json
+          echo "Components: $(jq '.components|length' sbom-all.json)"
 
       # Always upload the merged SBOM as an artifact for auditing/review
       - name: Upload merged SBOM artifact
