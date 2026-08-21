@@ -28,7 +28,38 @@ jobs:
         run: |
           echo "CI main pull request stub version $STUB_VERSION"
 
+  # ---------------------------------------------------------------------------
+  # Read the repo VERSION file so we can pass it explicitly to the shared
+  # pipeline below.
+  #
+  # chef/common-github-actions' ci-main-pull-request.yml has a
+  # detect-version-source-type/-parameter input pair that's *supposed* to
+  # read a version from a file like ours, but that logic (the
+  # "set-application-version" job) is an unimplemented TODO stub in the
+  # shared workflow — it never actually sets anything, and the workflow just
+  # forwards its own top-level "version" input (empty, if unset) straight
+  # through to the BlackDuck Detect scan. Since we never set "version",
+  # Detect fell back to creating a brand new "1.0.0" project version for
+  # builder-api's cargo scan, separate from the "20260810"-style version our
+  # own jobs (blackduck-npm-scan, generate-habitat-sbom) create by reading
+  # VERSION directly. Reading VERSION here and passing it as "version:"
+  # keeps all three BlackDuck uploads (cargo Detect scan, npm Detect scan,
+  # Habitat package import) landing in the same project version.
+  # ---------------------------------------------------------------------------
+  read-version:
+    name: 'Read VERSION file'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Read VERSION
+        id: read
+        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
   call-ci-main-pr-check-pipeline:
+    needs: read-version
     uses: chef/common-github-actions/.github/workflows/ci-main-pull-request.yml@main
     secrets: inherit
     permissions: 
@@ -40,7 +71,8 @@ jobs:
       # go-private-modules: GOPRIVATE for Go private modules, default is 'github.com/progress-platform-services/*
 
       # if version specified, it takes precedence; can be a semver like 1.0.2-xyz or a tag like "latest"
-      # version is sourced from the repo VERSION file to keep BlackDuck/SBOM steps aligned
+      version: ${{ needs.read-version.outputs.version }} # explicit — see read-version job comment above for why detect-version-source-type/-parameter alone doesn't work
+      # kept for documentation/future-proofing only — currently unused by the shared workflow (see read-version job comment)
       detect-version-source-type: 'file' # options include "none" (do not detect), "file", "github-tag" or "github-release"
       detect-version-source-parameter: 'VERSION' # filename to read the version from
       language: 'rust'  # Go, Ruby, Rust, JavaScript, TypeScript, Python, Java, C#, PHP, other - used for build and SonarQube language setting
