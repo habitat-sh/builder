@@ -2,12 +2,36 @@
 <!-- latest_release unreleased -->
 ## Unreleased
 
+<!-- latest_release -->
+
+## [20260820](https://github.com/habitat-sh/builder/tree/20260820) (2026-08-21)
+
 #### Merged Pull Requests
+- prevent the cargo scan fromoverwriting the npm scan [#2034](https://github.com/habitat-sh/builder/pull/2034) ([mwrock](https://github.com/mwrock))
+- Bump to 20260820 and fix cargo blackduck versioning [#2033](https://github.com/habitat-sh/builder/pull/2033) ([mwrock](https://github.com/mwrock))
+- use blackduck detect for rust and npm deps [#2032](https://github.com/habitat-sh/builder/pull/2032) ([mwrock](https://github.com/mwrock))
+- removing uneeded zmq and libarchive dependencies [#2031](https://github.com/habitat-sh/builder/pull/2031) ([mwrock](https://github.com/mwrock))
+- pin cyclonedx [#2030](https://github.com/habitat-sh/builder/pull/2030) ([mwrock](https://github.com/mwrock))
+
+## [20260810](https://github.com/habitat-sh/builder/tree/20260810) (2026-08-10)
+
+#### Merged Pull Requests
+- bump version for SAAS release [#2028](https://github.com/habitat-sh/builder/pull/2028) ([mwrock](https://github.com/mwrock))
+- Add aarch64 linux/darwin as default platforms [#2027](https://github.com/habitat-sh/builder/pull/2027) ([mwrock](https://github.com/mwrock))
+- add custom sbom generation [#2020](https://github.com/habitat-sh/builder/pull/2020) ([mwrock](https://github.com/mwrock))
+
+## [20260728](https://github.com/habitat-sh/builder/tree/20260728) (2026-07-28)
+
+#### Merged Pull Requests
+- bumping builder version to 20260728 [#2019](https://github.com/habitat-sh/builder/pull/2019) ([mwrock](https://github.com/mwrock))
+- Bump fast-uri from 3.1.3 to 3.1.4 in /components/builder-web [#2018](https://github.com/habitat-sh/builder/pull/2018) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump immutable in /components/builder-web [#2017](https://github.com/habitat-sh/builder/pull/2017) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump fast-uri from 3.1.0 to 3.1.3 in /components/builder-web [#2012](https://github.com/habitat-sh/builder/pull/2012) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Update crates [#2016](https://github.com/habitat-sh/builder/pull/2016) ([mwrock](https://github.com/mwrock))
-- Bump ws, engine.io and socket.io-adapter in /components/builder-web [#2011](https://github.com/habitat-sh/builder/pull/2011) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump shell-quote from 1.8.3 to 1.9.0 in /components/builder-web [#2013](https://github.com/habitat-sh/builder/pull/2013) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump tmp from 0.2.5 to 0.2.7 in /components/builder-web [#2014](https://github.com/habitat-sh/builder/pull/2014) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump qs from 6.15.1 to 6.15.3 in /components/builder-web [#2015](https://github.com/habitat-sh/builder/pull/2015) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump tmp from 0.2.5 to 0.2.7 in /components/builder-web [#2014](https://github.com/habitat-sh/builder/pull/2014) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump shell-quote from 1.8.3 to 1.9.0 in /components/builder-web [#2013](https://github.com/habitat-sh/builder/pull/2013) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump ws, engine.io and socket.io-adapter in /components/builder-web [#2011](https://github.com/habitat-sh/builder/pull/2011) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - use harness.io for package resolution and bump angular deps [#2010](https://github.com/habitat-sh/builder/pull/2010) ([mwrock](https://github.com/mwrock))
 - Bump cmov from 0.5.2 to 0.5.4 [#2009](https://github.com/habitat-sh/builder/pull/2009) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump shell-quote from 1.8.3 to 1.8.4 in /components/builder-web [#2003](https://github.com/habitat-sh/builder/pull/2003) ([dependabot[bot]](https://github.com/dependabot[bot]))
@@ -16,11 +40,10 @@
 - trying to fix the changelog [#2002](https://github.com/habitat-sh/builder/pull/2002) ([mwrock](https://github.com/mwrock))
 - fixing errors after bumping js-cookie [#2000](https://github.com/habitat-sh/builder/pull/2000) ([mwrock](https://github.com/mwrock))
 - Bump js-cookie from 2.2.1 to 3.0.7 in /components/builder-web [#1988](https://github.com/habitat-sh/builder/pull/1988) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump qs from 6.15.1 to 6.15.2 in /test/builder-api [#1989](https://github.com/habitat-sh/builder/pull/1989) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump tmp from 0.2.5 to 0.2.7 in /components/builder-web [#1990](https://github.com/habitat-sh/builder/pull/1990) ([dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump fast-uri from 3.1.0 to 3.1.2 in /components/builder-web [#1987](https://github.com/habitat-sh/builder/pull/1987) ([dependabot[bot]](https://github.com/dependabot[bot]))
 - Bump qs from 6.15.1 to 6.15.2 in /components/builder-web [#1998](https://github.com/habitat-sh/builder/pull/1998) ([dependabot[bot]](https://github.com/dependabot[bot]))
-<!-- latest_release -->
+- Bump fast-uri from 3.1.0 to 3.1.2 in /components/builder-web [#1987](https://github.com/habitat-sh/builder/pull/1987) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump tmp from 0.2.5 to 0.2.7 in /components/builder-web [#1990](https://github.com/habitat-sh/builder/pull/1990) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump qs from 6.15.1 to 6.15.2 in /test/builder-api [#1989](https://github.com/habitat-sh/builder/pull/1989) ([dependabot[bot]](https://github.com/dependabot[bot]))
 
 ## [20260608](https://github.com/habitat-sh/builder/tree/20260608) (2026-06-08)
 
