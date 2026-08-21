@@ -222,8 +222,10 @@ jobs:
       - name: Generate Habitat package dependency SBOM fragment
         run: bash support/sbom/generate-habitat-pkg-deps.sh > habitat-pkg-deps.cdx.json
 
-      # Inject a version-based serialNumber plus a metadata.component block
-      # identifying this SBOM as the "builder" project at BD_VERSION_NAME.
+      # Inject a CycloneDX-conformant serialNumber (urn:uuid: + RFC 4122 UUID
+      # — NOT a version-derived string, which fails strict schema validation)
+      # plus a metadata.component block identifying this SBOM as the
+      # "builder" project at BD_VERSION_NAME.
       # generate-habitat-pkg-deps.sh only emits bomFormat/specVersion/version/
       # components — it has no metadata block at all. Previously the now
       # removed cyclonedx-cli merge step supplied a default metadata block;
@@ -232,7 +234,8 @@ jobs:
       # 'metadata'", so we add it explicitly here instead.
       - name: Version the SBOM fragment
         run: |
-          jq --arg serial "urn:uuid:builder-${BD_VERSION_NAME}" \
+          SERIAL="urn:uuid:$(cat /proc/sys/kernel/random/uuid)"
+          jq --arg serial "$SERIAL" \
              --arg name "${BD_PROJECT_NAME}" \
              --arg ver "${BD_VERSION_NAME}" \
             '.serialNumber = $serial
