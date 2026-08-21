@@ -143,7 +143,7 @@ jobs:
       # Full/persistent scan on push to main/release branches, matching the
       # shared pipeline's behavior for non-PR events.
       - name: BlackDuck SCA Full Scan — builder-web (npm)
-        # if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name != 'pull_request' }}
         uses: blackduck-inc/black-duck-security-scan@v2.1.1
         env:
           DETECT_PROJECT_GROUP_NAME: 'Chef-Habitat'
@@ -259,7 +259,7 @@ jobs:
       #   BLACKDUCK_SBOM_URL   — e.g. https://your-instance.blackducksoftware.com
       #   BLACKDUCK_SCA_TOKEN  — a BlackDuck personal access token with BOM write rights
       - name: Import SBOM into BlackDuck
-        # if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request'
         env:
           BLACKDUCK_URL: ${{ secrets.BLACKDUCK_SBOM_URL }}
           BLACKDUCK_API_TOKEN: ${{ secrets.BLACKDUCK_SCA_TOKEN }}
