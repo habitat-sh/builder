@@ -40,9 +40,10 @@ jobs:
   # forwards its own top-level "version" input (empty, if unset) straight
   # through to the BlackDuck Detect scan. Since we never set "version",
   # Detect fell back to creating a brand new "1.0.0" project version for
-  # builder-api's cargo scan, separate from the "20260810"-style version our
-  # own jobs (blackduck-npm-scan, generate-habitat-sbom) create by reading
-  # VERSION directly. Reading VERSION here and passing it as "version:"
+  # builder-api's cargo scan, separate from the VERSION-file-derived version
+  # (e.g. a YYYYMMDD-style value) our own jobs (blackduck-npm-scan,
+  # generate-habitat-sbom) create by reading VERSION directly. Reading
+  # VERSION here and passing it as "version:"
   # keeps all three BlackDuck uploads (cargo Detect scan, npm Detect scan,
   # Habitat package import) landing in the same project version.
   # ---------------------------------------------------------------------------
