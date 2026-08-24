@@ -77,6 +77,7 @@ do_build() {
 
 do_install() {
   cp -a "${HAB_CACHE_SRC_PATH}/dist/." "${pkg_prefix}/app/"
+  cp "$PLAN_CONTEXT/../../../NOTICES.txt" "${pkg_prefix}/NOTICES.txt"
 }
 
 _tar_pipe_app_cp_to() {
