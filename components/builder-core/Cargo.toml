@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 base64 = "*"
-bitflags = "*"
+bitflags = "2"
 chrono = { version = "*", features = ["serde"] }
 dogstatsd = "0.6"
 env_proxy = "*"

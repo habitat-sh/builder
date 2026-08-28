@@ -15,7 +15,7 @@ doc = false
 [dependencies]
 actix-rt = "*"
 bytes = "*"
-bitflags = "*"
+bitflags = "2"
 chrono = { version = "*", features = ["serde"] }
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
 env_logger = "*"

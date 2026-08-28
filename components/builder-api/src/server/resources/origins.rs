@@ -273,7 +273,7 @@ async fn delete_origin(req: HttpRequest,
         return HttpResponse::new(StatusCode::FORBIDDEN);
     }
 
-    debug!("Request to delete origin {}", &origin);
+    debug!("Request to delete origin {}", origin);
 
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -470,8 +470,7 @@ async fn list_origin_keys(path: Path<String>, state: Data<AppState>) -> HttpResp
                 list.iter()
                     .map(|key| {
                         let mut ident = OriginKeyIdent::new();
-                        ident.set_location(format!("/origins/{}/keys/{}",
-                                                   &key.name, &key.revision));
+                        ident.set_location(format!("/origins/{}/keys/{}", key.name, key.revision));
                         ident.set_origin(key.name.to_string());
                         ident.set_revision(key.revision.to_string());
                         ident
@@ -913,7 +912,7 @@ async fn invite_to_origin(req: HttpRequest,
             Err(err) => return err.into(),
         };
 
-    debug!("Creating invitation for user {} origin {}", &user, &origin);
+    debug!("Creating invitation for user {} origin {}", user, origin);
 
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -1009,7 +1008,7 @@ async fn ignore_invitation(req: HttpRequest,
     };
 
     debug!("Ignoring invitation id {} for origin {}",
-           invitation_id, &origin);
+           invitation_id, origin);
 
     match OriginInvitation::ignore(invitation_id, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
@@ -1042,7 +1041,7 @@ async fn rescind_invitation(req: HttpRequest,
     };
 
     debug!("Rescinding invitation id {} for user from origin {}",
-           invitation_id, &origin);
+           invitation_id, origin);
 
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -1147,8 +1146,7 @@ async fn update_origin_member_role(req: HttpRequest,
         }
         Err(err) => {
             debug!("{}", err);
-            let body =
-                Bytes::from(format!("Invalid member role '{}'", &req_role.role).into_bytes());
+            let body = Bytes::from(format!("Invalid member role '{}'", req_role.role).into_bytes());
             return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
         }
     };
@@ -1225,7 +1223,7 @@ async fn transfer_origin_ownership(req: HttpRequest,
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
-    debug!(" Transferring origin {} to new owner {}", &origin, &user);
+    debug!(" Transferring origin {} to new owner {}", origin, user);
 
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -1293,7 +1291,7 @@ async fn depart_from_origin(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    debug!("Departing user {} from origin {}", session.name(), &origin);
+    debug!("Departing user {} from origin {}", session.name(), origin);
 
     match Origin::depart(&origin, session.id() as i64, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
@@ -1360,7 +1358,7 @@ async fn origin_member_delete(req: HttpRequest,
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
 
-    debug!("Deleting origin member {} from origin {}", &user, &origin);
+    debug!("Deleting origin member {} from origin {}", user, origin);
 
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,

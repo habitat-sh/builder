@@ -420,10 +420,10 @@ impl Channel {
             Channel::list_all_packages_by_channel_id(ch_source, &PackageVisibility::all(), conn)?;
 
         if promote {
-            debug!("Bulk promoting Pkg IDs: {:?}", &pkg_ids);
+            debug!("Bulk promoting Pkg IDs: {:?}", pkg_ids);
             Channel::promote_packages(ch_target, &pkg_ids, conn)?;
         } else {
-            debug!("Bulk demoting Pkg IDs: {:?}", &pkg_ids);
+            debug!("Bulk demoting Pkg IDs: {:?}", pkg_ids);
             Channel::demote_packages(ch_target, &pkg_ids, conn)?;
         }
         Ok(pkg_ids)
