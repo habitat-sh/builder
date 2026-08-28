@@ -113,7 +113,7 @@ async fn do_validate_registry_credentials(body: Json<Body>, registry_type: &str)
             match response.status() {
                 reqwest::StatusCode::OK => Ok(()),
                 _ => {
-                    debug!("Non-OK Response: {}", &response.status());
+                    debug!("Non-OK Response: {}", response.status());
                     Err(Error::BadRequest)
                 }
             }

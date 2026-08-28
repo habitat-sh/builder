@@ -351,7 +351,7 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
                     },
                 &mut conn)?
             } else {
-                warn!("Unable to retrieve target channel: {}", &ch_target);
+                warn!("Unable to retrieve target channel: {}", ch_target);
                 return Err(Error::DieselError(NotFound));
             }
         }
@@ -374,10 +374,10 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
     pkg_ids.append(&mut ids);
 
     if promote {
-        debug!("Bulk promoting Pkg IDs: {:?}", &pkg_ids);
+        debug!("Bulk promoting Pkg IDs: {:?}", pkg_ids);
         Channel::promote_packages(channel.id, &pkg_ids, &mut conn)?;
     } else {
-        debug!("Bulk demoting Pkg IDs: {:?}", &pkg_ids);
+        debug!("Bulk demoting Pkg IDs: {:?}", pkg_ids);
         Channel::demote_packages(channel.id, &pkg_ids, &mut conn)?;
     }
     Ok(pkg_ids)
@@ -860,10 +860,7 @@ fn do_get_channel_package(req: &HttpRequest,
         };
     }
 
-    let mut conn = match req_state(req).db.get_conn() {
-        Ok(conn_ref) => conn_ref,
-        Err(e) => return Err(e.into()),
-    };
+    let mut conn = req_state(req).db.get_conn()?;
 
     let pkg: Package = match Channel::get_latest_package(
         &GetLatestPackage {

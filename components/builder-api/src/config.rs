@@ -315,22 +315,16 @@ impl MemcacheCfgHosts {
     pub fn to_string_with_params(&self) -> String {
         let mut url = format!("{}?tcp_nodelay=true", self); // tcp_nodelay is a significant perf gain
         if let Some(tls_config) = &self.tls {
-            if tls_config.ca_cert_path.is_some() {
-                let _ = write!(url,
-                               "&ca_path={}",
-                               tls_config.ca_cert_path.as_ref().unwrap().to_string_lossy());
+            if let Some(ca_cert_path) = &tls_config.ca_cert_path {
+                let _ = write!(url, "&ca_path={}", ca_cert_path.to_string_lossy());
             }
 
-            if tls_config.key_path.is_some() {
-                let _ = write!(url,
-                               "&key_path={}",
-                               tls_config.key_path.as_ref().unwrap().to_string_lossy());
+            if let Some(key_path) = &tls_config.key_path {
+                let _ = write!(url, "&key_path={}", key_path.to_string_lossy());
             }
 
-            if tls_config.cert_path.is_some() {
-                let _ = write!(url,
-                               "&cert_path={}",
-                               tls_config.cert_path.as_ref().unwrap().to_string_lossy());
+            if let Some(cert_path) = &tls_config.cert_path {
+                let _ = write!(url, "&cert_path={}", cert_path.to_string_lossy());
             }
 
             if tls_config.verify {

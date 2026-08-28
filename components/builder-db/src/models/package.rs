@@ -1248,10 +1248,7 @@ impl FromArchive for NewPackage {
     type Error = hab_core::Error;
 
     fn from_archive(archive: &mut PackageArchive) -> hab_core::Result<Self> {
-        let ident = match archive.ident() {
-            Ok(value) => BuilderPackageIdent(value),
-            Err(e) => return Err(e),
-        };
+        let ident = BuilderPackageIdent(archive.ident()?);
 
         let config = match archive.config() {
             Some(config) => config.to_string(),

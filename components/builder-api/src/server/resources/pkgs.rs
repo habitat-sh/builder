@@ -614,11 +614,11 @@ async fn upload_package(req: HttpRequest,
         }
         Err(Error::Conflict) => {
             debug!("Failed to upload package {}, metadata already exists",
-                   &ident);
+                   ident);
             Ok(HttpResponse::new(StatusCode::CONFLICT))
         }
         Err(err) => {
-            warn!("Failed to upload package {}, err={:?}", &ident, err);
+            warn!("Failed to upload package {}, err={:?}", ident, err);
             Ok(err.into())
         }
     }
@@ -1188,7 +1188,7 @@ async fn do_upload_package_finish(req: &HttpRequest,
         return err.into();
     }
 
-    debug!("File added to Depot: {:?}", &filename);
+    debug!("File added to Depot: {:?}", filename);
 
     let mut archive = match PackageArchive::new(filename.clone()) {
         Ok(archive) => archive,
@@ -1262,11 +1262,11 @@ async fn do_upload_package_finish(req: &HttpRequest,
     match remove_file(&filename) {
         Ok(_) => {
             debug!("Successfully removed cached file after upload. {:?}",
-                   &filename)
+                   filename)
         }
         Err(e) => {
             warn!("Failed to remove cached file after upload: {:?}, {}",
-                  &filename, e)
+                  filename, e)
         }
     }
 
@@ -1454,7 +1454,7 @@ fn archive_name(ident: &PackageIdent, target: PackageTarget) -> PathBuf {
     PathBuf::from(ident.archive_name_with_target(target).unwrap_or_else(|_| {
                                                             panic!("Package ident should be fully \
                                                                     qualified, ident={}",
-                                                                   &ident)
+                                                                   ident)
                                                         }))
 }
 
