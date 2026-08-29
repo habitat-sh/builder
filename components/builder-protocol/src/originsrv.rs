@@ -1,4 +1,4 @@
-// Copyright:: Copyright (c) 2015-2016 Chef Software, Inc.
+// Copyright:: Copyright (c) 2018-2025 Progress Software Corporation and/or its subsidiaries or affiliates. All Rights Reserved.
 //
 // The terms of the Evaluation Agreement (Bldr) between Chef Software Inc. and the party accessing
 // this file ("Licensee") apply to Licensee's use of the Software until such time that the Software

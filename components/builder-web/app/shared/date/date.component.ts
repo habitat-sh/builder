@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Chef Software Inc. and/or applicable contributors
+// Copyright (c) 2018-2025 Progress Software Corporation and/or its subsidiaries, affiliates or applicable contributors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
