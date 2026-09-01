@@ -28,7 +28,7 @@ import { setBldrSessionToken } from './sessions';
 import { Browser } from '../browser';
 import { OAuthProvider } from '../oauth-providers';
 
-const uuid = require('uuid').v4;
+import { v4 as uuid } from 'uuid';
 const authenticateEndpoint = 'v1/authenticate';
 
 export const LOAD_OAUTH_STATE = 'LOAD_OAUTH_STATE';

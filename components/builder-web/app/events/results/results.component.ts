@@ -15,7 +15,7 @@
 import { Component, Input } from '@angular/core';
 import { Router } from '@angular/router';
 import { List } from 'immutable';
-import * as moment from 'moment';
+import moment from 'moment';
 
 import { packageString } from '../../util';
 import { Browser } from '../../browser';

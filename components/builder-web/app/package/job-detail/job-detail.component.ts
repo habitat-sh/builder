@@ -15,7 +15,7 @@
 import { Component, HostListener, Input, OnChanges, OnDestroy, ElementRef, SimpleChanges } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { default as AnsiUp } from 'ansi_up';
-import * as moment from 'moment';
+import moment from 'moment';
 import { fetchJobLog, streamJobLog } from '../../actions/index';
 import { iconForJobState, labelForJobState } from '../../util';
 import { AppStore } from '../../app.store';
