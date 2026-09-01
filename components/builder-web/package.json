@@ -78,7 +78,7 @@
     },
     "devDependencies": {
         "@angular/compiler-cli": "22.1.2",
-        "@ngtools/webpack": "22.1.4",
+        "@ngtools/webpack": "22.1.2",
         "@types/jasmine": "^4.3.0",
         "@types/node": "22.19.21",
         "babel-loader": "^10.1.1",
