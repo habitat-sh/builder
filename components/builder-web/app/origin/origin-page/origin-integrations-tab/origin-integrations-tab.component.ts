@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
@@ -30,13 +30,15 @@ import { fetchIntegrations } from '../../../actions/index';
 export class OriginIntegrationsTabComponent implements OnInit, OnDestroy {
 
   private sub: Subscription;
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     private store: AppStore,
     private credsDialog: MatDialog,
     private confirmDialog: MatDialog,
     private route: ActivatedRoute,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
@@ -44,9 +46,12 @@ export class OriginIntegrationsTabComponent implements OnInit, OnDestroy {
       this.store.dispatch(fetchIntegrations(params.origin, this.token));
       this.title.setTitle(`Origins › ${params.origin} › Integrations | ${this.store.getState().app.name}`);
     });
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
+    if (this._storeUnsub) { this._storeUnsub(); }
     if (this.sub) {
       this.sub.unsubscribe();
     }

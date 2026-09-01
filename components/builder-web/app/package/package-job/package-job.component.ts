@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -11,11 +11,13 @@ import { AppStore } from '../../app.store';
 })
 export class PackageJobComponent implements OnInit, OnDestroy {
   private sub: Subscription;
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     private store: AppStore,
     private route: ActivatedRoute,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) { }
 
   ngOnInit() {
@@ -26,9 +28,12 @@ export class PackageJobComponent implements OnInit, OnDestroy {
       const name = this.route.parent.snapshot.params['name'];
       this.title.setTitle(`Packages › ${origin}/${name} › Build Jobs › ${p.id} | ${this.store.getState().app.name}`);
     });
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
+    if (this._storeUnsub) { this._storeUnsub(); }
     if (this.sub) {
       this.sub.unsubscribe();
     }

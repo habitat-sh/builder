@@ -14,7 +14,7 @@
 
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { List } from 'immutable';
-import * as moment from 'moment';
+import moment from 'moment';
 import { iconForJobState } from '../../util';
 
 @Component({

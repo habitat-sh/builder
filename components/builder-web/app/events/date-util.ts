@@ -1,4 +1,4 @@
-import * as moment from 'moment';
+import moment from 'moment';
 
 export const dateFilters = [
     { label: 'Last 1 Week', type: 'days', interval: 7 },

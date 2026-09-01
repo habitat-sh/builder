@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
@@ -29,21 +29,26 @@ import config from '../../../config';
 export class OriginSettingsTabComponent implements OnInit, OnDestroy {
 
   private sub: Subscription;
+  private _storeUnsub: (() => void) | null = null;
 
   constructor(
     private store: AppStore,
     private route: ActivatedRoute,
     private confirmDialog: MatDialog,
-    private title: Title
+    private title: Title,
+    private cdr: ChangeDetectorRef
   ) { }
 
   ngOnInit() {
     this.sub = this.route.parent.params.subscribe((params) => {
       this.title.setTitle(`Origins › ${params.origin} › Settings | ${this.store.getState().app.name}`);
     });
+
+    this._storeUnsub = this.store.subscribe(() => this.cdr.detectChanges());
   }
 
   ngOnDestroy() {
+    if (this._storeUnsub) { this._storeUnsub(); }
     if (this.sub) {
       this.sub.unsubscribe();
     }
