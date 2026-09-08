@@ -7,6 +7,7 @@ use crate::{bldr_core::metrics::{CounterMetric,
             metrics::{Counter,
                       Histogram},
             models::package::{BuilderPackageIdent,
+                              Package,
                               PackageVisibility,
                               PackageWithVersionArray},
             schema::{audit::{audit_package,
@@ -371,6 +372,32 @@ impl Channel {
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::ChannelListAllPackagesCallTime.set(duration_millis as f64);
+        result
+    }
+
+    pub fn list_head_packages(channel_id: i64,
+                              conn: &mut PgConnection)
+                              -> QueryResult<Vec<Package>> {
+        Counter::DBCall.increment();
+        let start_time = Instant::now();
+        let result = diesel::sql_query(
+            "SELECT DISTINCT ON (origin, name) \
+             origin_packages.* \
+             FROM origin_packages \
+             JOIN origin_channel_packages \
+               ON origin_packages.id = origin_channel_packages.package_id \
+             WHERE origin_channel_packages.channel_id = $1 \
+             ORDER BY origin, name, \
+                      string_to_array(ident_array[3], '.')::numeric[] DESC, \
+                      ident_array[4] DESC",
+        )
+        .bind::<diesel::sql_types::BigInt, _>(channel_id)
+        .get_results(conn);
+
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("DBCall channel::list_head_packages time: {} ms",
+               duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
         result
     }
 

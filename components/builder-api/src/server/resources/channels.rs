@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::str::FromStr;
+use std::{collections::HashMap,
+          str::FromStr};
 
 use actix_web::{body::BoxBody,
                 http::{self,
@@ -25,6 +26,7 @@ use actix_web::{body::BoxBody,
                 HttpRequest,
                 HttpResponse};
 use bytes::Bytes;
+use chrono::Utc;
 use diesel::{pg::PgConnection,
              result::{DatabaseErrorKind,
                       Error::{DatabaseError,
@@ -50,6 +52,7 @@ use crate::server::{authorize::authorize_session,
                               req_state,
                               visibility_for_optional_session,
                               Pagination,
+                              PromoteChannelQuery,
                               Target,
                               ToChannel},
                     services::metrics::Counter,
@@ -203,11 +206,49 @@ async fn delete_channel(req: HttpRequest,
     }
 }
 
+// Response structs for the snapshot=true path of promote_channel_packages
+#[derive(Serialize)]
+struct SnapshotResponse {
+    snapshot_channel: String,
+    packages:         HashMap<String, HashMap<String, PackageFqiEntry>>,
+}
+
+#[derive(Serialize)]
+struct PackageFqiEntry {
+    ident:   String,
+    origin:  String,
+    name:    String,
+    version: String,
+    release: String,
+}
+
+// Parses an ident string of the form "origin/name/version/release" (release may be
+// absent) and inserts it into the deduped origin -> name -> entry map. A duplicate
+// origin/name pair is a no-op, so the first insertion for a given package wins.
+fn insert_ident(set: &mut HashMap<String, HashMap<String, PackageFqiEntry>>, ident_str: &str) {
+    let mut parts = ident_str.splitn(4, '/');
+    let origin = parts.next().unwrap_or_default().to_string();
+    let name = parts.next().unwrap_or_default().to_string();
+    let version = parts.next().unwrap_or_default().to_string();
+    let release = parts.next().unwrap_or_default().to_string();
+
+    set.entry(origin.clone())
+       .or_default()
+       .entry(name.clone())
+       .or_insert_with(|| {
+           PackageFqiEntry { ident: ident_str.to_string(),
+                             origin,
+                             name,
+                             version,
+                             release }
+       });
+}
+
 #[allow(clippy::needless_pass_by_value)]
 async fn promote_channel_packages(req: HttpRequest,
                                   path: Path<(String, String)>,
                                   state: Data<AppState>,
-                                  to_channel: Query<ToChannel>)
+                                  query: Query<PromoteChannelQuery>)
                                   -> HttpResponse {
     let (origin, channel) = path.into_inner();
 
@@ -222,39 +263,103 @@ async fn promote_channel_packages(req: HttpRequest,
     };
 
     let ch_source = ChannelIdent::from(channel);
-    let ch_target = ChannelIdent::from(to_channel.channel.as_ref());
+    let ch_target = ChannelIdent::from(query.channel.as_ref());
 
-    match do_promote_or_demote_channel_packages(&req,
-                                                &ch_source,
-                                                &ch_target,
-                                                &origin,
-                                                true,
-                                                session.id() as i64)
+    let pkg_ids = match do_promote_or_demote_channel_packages(&req,
+                                                              &ch_source,
+                                                              &ch_target,
+                                                              &origin,
+                                                              true,
+                                                              session.id() as i64)
     {
-        Ok(pkg_ids) => {
-            match PackageGroupChannelAudit::audit(
-                PackageGroupChannelAudit {
-                    origin: &origin,
-                    channel: ch_target.as_str(),
-                    package_ids: pkg_ids,
-                    operation: PackageChannelOperation::Promote,
-                    trigger: helpers::trigger_from_request_model(&req),
-                    requester_id: session.id() as i64,
-                    requester_name: session.name(),
-                    group_id: 0_i64,
-                },
-                &mut conn,
-            ) {
-                Ok(_) => {}
-                Err(e) => debug!("Failed to save rank change to audit log: {}", e),
-            };
-            HttpResponse::new(StatusCode::OK)
-        }
+        Ok(pkg_ids) => pkg_ids,
         Err(e) => {
             debug!("Failed to promote channel packages, err={}", e);
-            e.into()
+            return e.into();
+        }
+    };
+
+    match PackageGroupChannelAudit::audit(
+        PackageGroupChannelAudit {
+            origin: &origin,
+            channel: ch_target.as_str(),
+            package_ids: pkg_ids,
+            operation: PackageChannelOperation::Promote,
+            trigger: helpers::trigger_from_request_model(&req),
+            requester_id: session.id() as i64,
+            requester_name: session.name(),
+            group_id: 0_i64,
+        },
+        &mut conn,
+    ) {
+        Ok(_) => {}
+        Err(e) => debug!("Failed to save rank change to audit log: {}", e),
+    };
+
+    if query.snapshot != Some(true) {
+        return HttpResponse::new(StatusCode::OK);
+    }
+
+    // query.check is parsed but has no effect until Story 10.
+
+    let timestamp = Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
+    let snapshot_name = format!("{}_SS_{}", ch_target.as_str(), timestamp);
+
+    let snapshot_channel = match Channel::create(&CreateChannel { name:     &snapshot_name,
+                                                                  origin:   &origin,
+                                                                  owner_id: session.id() as i64, },
+                                                 &mut conn)
+    {
+        Ok(channel) => channel,
+        Err(e) => {
+            debug!("Failed to create snapshot channel, err={}", e);
+            return Error::DieselError(e).into();
+        }
+    };
+
+    let target_channel = match Channel::get(&origin, &ch_target, &mut conn) {
+        Ok(channel) => channel,
+        Err(e) => {
+            debug!("Failed to look up target channel for snapshot, err={}", e);
+            return Error::DieselError(e).into();
+        }
+    };
+
+    let all_target_pkg_ids = match Channel::list_all_packages_by_channel_id(target_channel.id,
+                                                                            &PackageVisibility::all(),
+                                                                            &mut conn)
+    {
+        Ok(ids) => ids,
+        Err(e) => {
+            debug!("Failed to list target channel packages for snapshot, err={}",
+                   e);
+            return Error::DieselError(e).into();
+        }
+    };
+
+    if let Err(e) = Channel::promote_packages(snapshot_channel.id, &all_target_pkg_ids, &mut conn) {
+        debug!("Failed to populate snapshot channel, err={}", e);
+        return Error::DieselError(e).into();
+    }
+
+    let head_packages = match Channel::list_head_packages(snapshot_channel.id, &mut conn) {
+        Ok(pkgs) => pkgs,
+        Err(e) => {
+            debug!("Failed to list head packages for snapshot, err={}", e);
+            return Error::DieselError(e).into();
+        }
+    };
+
+    let mut pkg_set: HashMap<String, HashMap<String, PackageFqiEntry>> = HashMap::new();
+    for pkg in &head_packages {
+        insert_ident(&mut pkg_set, &pkg.ident.to_string());
+        for dep in &pkg.tdeps {
+            insert_ident(&mut pkg_set, &dep.to_string());
         }
     }
+
+    HttpResponse::Ok().json(SnapshotResponse { snapshot_channel: snapshot_name,
+                                               packages:         pkg_set, })
 }
 
 #[allow(clippy::needless_pass_by_value)]
