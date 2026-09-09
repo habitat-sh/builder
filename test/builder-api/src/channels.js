@@ -865,6 +865,38 @@ describe('Channels API', function () {
         });
     });
 
+    it('rejects attempts to promote packages when the target channel query param is omitted', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/promote')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects attempts to promote packages when the target channel query param is empty', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/promote?channel=')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('does not create a channel with an empty name', function (done) {
+      request.get('/depot/channels/neurosis')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          const names = res.body.map((c) => c.name);
+          expect(names).to.not.include('');
+          done(err);
+        });
+    });
+
     it('puts all channel packages into a specified channel', function (done) {
       request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=foo')
         .set('Authorization', global.boboBearer)
@@ -1123,6 +1155,38 @@ describe('Channels API', function () {
         .expect(400)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects attempts to demote packages when the target channel query param is omitted', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/demote')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects attempts to demote packages when the target channel query param is empty', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/demote?channel=')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('does not create a channel with an empty name', function (done) {
+      request.get('/depot/channels/neurosis')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          const names = res.body.map((c) => c.name);
+          expect(names).to.not.include('');
           done(err);
         });
     });

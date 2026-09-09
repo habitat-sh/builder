@@ -458,6 +458,10 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
     let mut pkg_ids = Vec::new();
 
     // Simple guards to protect users from bad decisioning
+    if ch_target.as_str().is_empty() {
+        return Err(Error::BadRequest);
+    }
+
     if !promote
        && (*ch_target == ChannelIdent::unstable() || *ch_source == ChannelIdent::unstable())
     {
