@@ -296,7 +296,7 @@ async fn promote_channel_packages(req: HttpRequest,
         Err(e) => debug!("Failed to save rank change to audit log: {}", e),
     };
 
-    if query.snapshot != Some(true) {
+    if !query.snapshot {
         return HttpResponse::new(StatusCode::OK);
     }
 

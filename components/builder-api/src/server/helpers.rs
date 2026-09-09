@@ -63,8 +63,10 @@ pub struct ToChannel {
 pub struct PromoteChannelQuery {
     #[serde(default)]
     pub channel:  String,
-    pub snapshot: Option<bool>,
-    pub check:    Option<bool>,
+    #[serde(default)]
+    pub snapshot: bool,
+    #[serde(default)]
+    pub check:    bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -166,16 +168,16 @@ pub fn fetch_license_expiration(license_key: &str,
                               base_url.trim_end_matches('/'),
                               license_key);
 
-    let response =
-        reqwest::blocking::Client::new().get(license_url)
-                                        .header("Accept", "application/json")
-                                        .send()
-                                        .map_err(|e| {
-                                            debug!("License API request failed: {}", e);
-                                            HttpResponse::BadRequest().body(format!("License API \
-                                                                                     error: {}",
-                                                                                    e))
-                                        })?;
+    let response = reqwest::blocking::Client::new().get(license_url)
+                                                   .header("Accept", "application/json")
+                                                   .send()
+                                                   .map_err(|e| {
+                                                       debug!("License API request failed: {}", e);
+                                                       HttpResponse::BadRequest().body(format!(
+            "License API error: {}",
+            e
+        ))
+                                                   })?;
 
     let status = response.status();
     let body = response.text().map_err(|e| {

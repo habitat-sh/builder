@@ -382,13 +382,13 @@ impl Channel {
         let start_time = Instant::now();
         let result = diesel::sql_query(
             "SELECT DISTINCT ON (origin, name) \
-             origin_packages.* \
-             FROM origin_packages \
+             origin_packages_with_version_array.* \
+             FROM origin_packages_with_version_array \
              JOIN origin_channel_packages \
-               ON origin_packages.id = origin_channel_packages.package_id \
+               ON origin_packages_with_version_array.id = origin_channel_packages.package_id \
              WHERE origin_channel_packages.channel_id = $1 \
              ORDER BY origin, name, \
-                      string_to_array(ident_array[3], '.')::numeric[] DESC, \
+                      string_to_array(version_array[1], '.')::numeric[] DESC, \
                       ident_array[4] DESC",
         )
         .bind::<diesel::sql_types::BigInt, _>(channel_id)
