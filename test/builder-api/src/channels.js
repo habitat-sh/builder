@@ -1013,7 +1013,7 @@ describe('Channels API', function () {
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.body.snapshot_channel).to.match(/^snapshot-target_SS_\d{8}T\d{6}Z$/);
+          expect(res.body.snapshot_channel).to.match(/^snapshot-target_SS_\d{8}T\d{6}\.\d{6}Z_[0-9a-f]{8}$/);
           expect(res.body.packages).to.be.an('object');
           expect(res.body.packages.neurosis).to.be.an('object');
           expect(Object.keys(res.body.packages.neurosis).length).to.be.at.least(13);
@@ -1059,7 +1059,7 @@ describe('Channels API', function () {
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
-          expect(res.body.snapshot_channel).to.match(/^snapshot-target-check_SS_\d{8}T\d{6}Z$/);
+          expect(res.body.snapshot_channel).to.match(/^snapshot-target-check_SS_\d{8}T\d{6}\.\d{6}Z_[0-9a-f]{8}$/);
           expect(res.body.packages).to.be.an('object');
           expect(res.body.packages.neurosis).to.be.an('object');
           expect(Object.keys(res.body.packages.neurosis).length).to.be.at.least(13);

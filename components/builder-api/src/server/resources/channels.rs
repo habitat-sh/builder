@@ -30,7 +30,10 @@ use chrono::Utc;
 use diesel::{pg::PgConnection,
              result::{DatabaseErrorKind,
                       Error::{DatabaseError,
-                              NotFound}}};
+                              NotFound}},
+             Connection};
+use rand::{self,
+           RngExt};
 
 use crate::{bldr_core::metrics::CounterMetric,
             hab_core::{package::{PackageIdent,
@@ -302,64 +305,92 @@ async fn promote_channel_packages(req: HttpRequest,
 
     // query.check is parsed but has no effect until Story 10.
 
-    let timestamp = Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
-    let snapshot_name = format!("{}_SS_{}", ch_target.as_str(), timestamp);
+    // Snapshot channel names include a microsecond timestamp plus a random
+    // suffix, making collisions extremely unlikely; we still retry with a
+    // freshly generated name on a unique-constraint violation just in case.
+    // All of the snapshot creation/population steps run inside a single DB
+    // transaction (on the connection already in use in this handler), so a
+    // failure at any step rolls back cleanly instead of leaving behind an
+    // empty or partially populated snapshot channel.
+    const MAX_SNAPSHOT_NAME_ATTEMPTS: u32 = 5;
 
-    let snapshot_channel = match Channel::create(&CreateChannel { name:     &snapshot_name,
-                                                                  origin:   &origin,
-                                                                  owner_id: session.id() as i64, },
-                                                 &mut conn)
-    {
-        Ok(channel) => channel,
-        Err(e) => {
-            debug!("Failed to create snapshot channel, err={}", e);
-            return Error::DieselError(e).into();
+    let mut response = None;
+    let mut final_err = None;
+
+    for attempt in 0..MAX_SNAPSHOT_NAME_ATTEMPTS {
+        let timestamp = Utc::now().format("%Y%m%dT%H%M%S%.6fZ").to_string();
+        let suffix: u32 = rand::rng().random();
+        let snapshot_name = format!("{}_SS_{}_{:08x}", ch_target.as_str(), timestamp, suffix);
+
+        let txn_result =
+            conn.transaction::<SnapshotResponse, diesel::result::Error, _>(|conn| {
+                    let snapshot_channel =
+                        Channel::create(&CreateChannel { name:     &snapshot_name,
+                                                         origin:   &origin,
+                                                         owner_id: session.id() as i64, },
+                                        conn)?;
+
+                    let target_channel = Channel::get(&origin, &ch_target, conn)?;
+
+                    let all_target_pkg_ids =
+                        Channel::list_all_packages_by_channel_id(target_channel.id,
+                                                                 &PackageVisibility::all(),
+                                                                 conn)?;
+
+                    Channel::promote_packages(snapshot_channel.id, &all_target_pkg_ids, conn)?;
+
+                    let head_packages = Channel::list_head_packages(snapshot_channel.id, conn)?;
+
+                    let mut pkg_set: HashMap<String, HashMap<String, PackageFqiEntry>> =
+                        HashMap::new();
+                    // Insert all head packages first so they always win the
+                    // origin/name slot. Otherwise a dependency (processed via
+                    // some other package's tdeps) could claim that slot with
+                    // an older ident before the actual head package for that
+                    // origin/name is reached later in this iteration.
+                    for pkg in &head_packages {
+                        insert_ident(&mut pkg_set, &pkg.ident.to_string());
+                    }
+                    for pkg in &head_packages {
+                        for dep in &pkg.tdeps {
+                            insert_ident(&mut pkg_set, &dep.to_string());
+                        }
+                    }
+
+                    Ok(SnapshotResponse { snapshot_channel: snapshot_name.clone(),
+                                          packages:         pkg_set, })
+                });
+
+        match txn_result {
+            Ok(r) => {
+                response = Some(r);
+                break;
+            }
+            Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _))
+                if attempt + 1 < MAX_SNAPSHOT_NAME_ATTEMPTS =>
+            {
+                debug!("Snapshot channel name {} collided, retrying with a new name",
+                       snapshot_name);
+                continue;
+            }
+            Err(e) => {
+                final_err = Some(e);
+                break;
+            }
         }
-    };
-
-    let target_channel = match Channel::get(&origin, &ch_target, &mut conn) {
-        Ok(channel) => channel,
-        Err(e) => {
-            debug!("Failed to look up target channel for snapshot, err={}", e);
-            return Error::DieselError(e).into();
-        }
-    };
-
-    let all_target_pkg_ids = match Channel::list_all_packages_by_channel_id(target_channel.id,
-                                                                            &PackageVisibility::all(),
-                                                                            &mut conn)
-    {
-        Ok(ids) => ids,
-        Err(e) => {
-            debug!("Failed to list target channel packages for snapshot, err={}",
-                   e);
-            return Error::DieselError(e).into();
-        }
-    };
-
-    if let Err(e) = Channel::promote_packages(snapshot_channel.id, &all_target_pkg_ids, &mut conn) {
-        debug!("Failed to populate snapshot channel, err={}", e);
-        return Error::DieselError(e).into();
     }
 
-    let head_packages = match Channel::list_head_packages(snapshot_channel.id, &mut conn) {
-        Ok(pkgs) => pkgs,
-        Err(e) => {
-            debug!("Failed to list head packages for snapshot, err={}", e);
-            return Error::DieselError(e).into();
-        }
-    };
-
-    let mut pkg_set: HashMap<String, HashMap<String, PackageFqiEntry>> = HashMap::new();
-    for pkg in &head_packages {
-        insert_ident(&mut pkg_set, &pkg.ident.to_string());
-        for dep in &pkg.tdeps {
-            insert_ident(&mut pkg_set, &dep.to_string());
+    match response {
+        Some(response) => HttpResponse::Ok().json(response),
+        None => {
+            debug!("Failed to create/populate snapshot channel, err={:?}",
+                   final_err);
+            match final_err {
+                Some(e) => Error::DieselError(e).into(),
+                None => HttpResponse::new(StatusCode::CONFLICT),
+            }
         }
     }
-
-    HttpResponse::Ok().json(SnapshotResponse { snapshot_channel: snapshot_name,
-                                               packages:         pkg_set, })
 }
 
 #[allow(clippy::needless_pass_by_value)]
