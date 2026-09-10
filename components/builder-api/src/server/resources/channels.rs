@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap,
+use std::{collections::{HashMap,
+                        HashSet},
           str::FromStr};
 
 use actix_web::{body::BoxBody,
@@ -225,6 +226,14 @@ struct PackageFqiEntry {
     release: String,
 }
 
+// Response body for the check=true compatibility-check failure path of
+// promote_channel_packages.
+#[derive(Serialize)]
+struct CompatibilityError {
+    error:     String,
+    conflicts: HashMap<String, Vec<String>>,
+}
+
 // Parses an ident string of the form "origin/name/version/release" (release may be
 // absent) and inserts it into the deduped origin -> name -> entry map. A duplicate
 // origin/name pair is a no-op, so the first insertion for a given package wins.
@@ -245,6 +254,39 @@ fn insert_ident(set: &mut HashMap<String, HashMap<String, PackageFqiEntry>>, ide
                              version,
                              release }
        });
+}
+
+// Returns, for every "origin/name" key with more than one distinct ident, the
+// sorted list of conflicting idents. An empty map means the merged closure
+// (target's existing packages plus the source's incoming head+tdeps closure)
+// is internally consistent -- at most one distinct ident per origin/name.
+fn find_conflicts(by_name: &HashMap<String, HashSet<String>>) -> HashMap<String, Vec<String>> {
+    by_name.iter()
+           .filter(|(_, versions)| versions.len() > 1)
+           .map(|(name, versions)| {
+               let mut v: Vec<String> = versions.iter().cloned().collect();
+               v.sort();
+               (name.clone(), v)
+           })
+           .collect()
+}
+
+// Error type produced by the promotion transaction closure in
+// promote_channel_packages. A `Conflict` causes the transaction to roll back
+// (nothing gets written to the target channel); `Diesel` wraps any
+// underlying database error.
+enum PromoteTxnError {
+    Diesel(diesel::result::Error),
+    Conflict(HashMap<String, Vec<String>>),
+}
+
+impl From<diesel::result::Error> for PromoteTxnError {
+    fn from(e: diesel::result::Error) -> Self { PromoteTxnError::Diesel(e) }
+}
+
+struct PromoteTxnSuccess {
+    pkg_ids:  Vec<i64>,
+    snapshot: Option<SnapshotResponse>,
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -268,54 +310,134 @@ async fn promote_channel_packages(req: HttpRequest,
     let ch_source = ChannelIdent::from(channel);
     let ch_target = ChannelIdent::from(query.channel.as_ref());
 
-    let pkg_ids = match do_promote_or_demote_channel_packages(&req,
-                                                              &ch_source,
-                                                              &ch_target,
-                                                              &origin,
-                                                              true,
-                                                              session.id() as i64)
+    // Simple guards to protect users from bad decisioning (mirrors the
+    // equivalent guards used by the demote path's
+    // do_promote_or_demote_channel_packages).
+    if ch_target.as_str().is_empty()
+       || ch_target == ch_source
+       || ch_target == ChannelIdent::unstable()
     {
-        Ok(pkg_ids) => pkg_ids,
-        Err(e) => {
-            debug!("Failed to promote channel packages, err={}", e);
-            return e.into();
-        }
-    };
-
-    match PackageGroupChannelAudit::audit(
-        PackageGroupChannelAudit {
-            origin: &origin,
-            channel: ch_target.as_str(),
-            package_ids: pkg_ids,
-            operation: PackageChannelOperation::Promote,
-            trigger: helpers::trigger_from_request_model(&req),
-            requester_id: session.id() as i64,
-            requester_name: session.name(),
-            group_id: 0_i64,
-        },
-        &mut conn,
-    ) {
-        Ok(_) => {}
-        Err(e) => debug!("Failed to save rank change to audit log: {}", e),
-    };
-
-    if !query.snapshot {
-        return HttpResponse::new(StatusCode::OK);
+        return HttpResponse::new(StatusCode::BAD_REQUEST);
     }
 
-    // query.check is parsed but has no effect until Story 10.
+    let check = query.check;
+    let want_snapshot = query.snapshot;
 
-    // Snapshot channel names include a microsecond timestamp plus a random
-    // suffix, making collisions extremely unlikely; we still retry with a
-    // freshly generated name on a unique-constraint violation just in case.
-    // All of the snapshot creation/population steps run inside a single DB
-    // transaction (on the connection already in use in this handler), so a
-    // failure at any step rolls back cleanly instead of leaving behind an
-    // empty or partially populated snapshot channel.
+    let txn_result = conn.transaction::<PromoteTxnSuccess, PromoteTxnError, _>(|conn| {
+
+        Channel::lock_for_promotion(&origin, ch_target.as_str(), conn)?;
+
+        #[rustfmt::skip]
+        let target_channel = match Channel::get(&origin, &ch_target, conn) {
+            Ok(channel) => channel,
+            Err(NotFound) => {
+                if (ch_target != ChannelIdent::stable()) && (ch_target != ChannelIdent::unstable()) {
+                    Channel::create(
+                        &CreateChannel {
+                            name:     ch_target.as_str(),
+                            origin:   &origin,
+                            owner_id: session.id() as i64,
+                        },
+                    conn)?
+                } else {
+                    warn!("Unable to retrieve target channel: {}", ch_target);
+                    return Err(PromoteTxnError::Diesel(NotFound));
+                }
+            }
+            Err(e) => {
+                info!("Unable to retrieve channel, err: {:?}", e);
+                return Err(PromoteTxnError::Diesel(e));
+            }
+        };
+
+        if check {
+            let source_channel_id = Channel::get(&origin, &ch_source, conn).ok().map(|c| c.id);
+
+            let target_closure = helpers::channel_package_closure(Some(target_channel.id), conn)?;
+            let source_closure = helpers::channel_package_closure(source_channel_id, conn)?;
+
+            let mut by_name: HashMap<String, HashSet<String>> = HashMap::new();
+            for ident in target_closure.iter().chain(source_closure.iter()) {
+                by_name.entry(format!("{}/{}", ident.origin, ident.name))
+                       .or_default()
+                       .insert(ident.to_string());
+            }
+
+            let conflicts = find_conflicts(&by_name);
+            if !conflicts.is_empty() {
+                return Err(PromoteTxnError::Conflict(conflicts));
+            }
+        }
+
+        let pkgs =
+            Channel::list_all_packages(&ListAllChannelPackages { visibility:
+                                                                     &PackageVisibility::all(),
+                                                                 origin: &origin,
+                                                                 channel: &ch_source, },
+                                       conn)?;
+
+        let op = Package::get_group(GetPackageGroup { pkgs,
+                                                       visibility: PackageVisibility::all(), },
+                                    conn)?;
+
+        let pkg_ids: Vec<i64> = op.iter().map(|x| x.id).collect();
+
+        debug!("Bulk promoting Pkg IDs: {:?}", pkg_ids);
+        Channel::promote_packages(target_channel.id, &pkg_ids, conn)?;
+
+        let snapshot = if want_snapshot {
+            Some(create_snapshot_channel(&origin, &ch_target, session.id() as i64, conn)?)
+        } else {
+            None
+        };
+
+        Ok(PromoteTxnSuccess { pkg_ids, snapshot })
+    });
+
+    match txn_result {
+        Ok(success) => {
+            match PackageGroupChannelAudit::audit(
+                PackageGroupChannelAudit {
+                    origin: &origin,
+                    channel: ch_target.as_str(),
+                    package_ids: success.pkg_ids,
+                    operation: PackageChannelOperation::Promote,
+                    trigger: helpers::trigger_from_request_model(&req),
+                    requester_id: session.id() as i64,
+                    requester_name: session.name(),
+                    group_id: 0_i64,
+                },
+                &mut conn,
+            ) {
+                Ok(_) => {}
+                Err(e) => debug!("Failed to save rank change to audit log: {}", e),
+            };
+
+            match success.snapshot {
+                Some(response) => HttpResponse::Ok().json(response),
+                None => HttpResponse::new(StatusCode::OK),
+            }
+        }
+        Err(PromoteTxnError::Conflict(conflicts)) => {
+            HttpResponse::Conflict().json(CompatibilityError { error:
+                                                                   "compatibility_check_failed".to_string(),
+                                                               conflicts, })
+        }
+        Err(PromoteTxnError::Diesel(e)) => {
+            debug!("Failed to promote channel packages, err={}", e);
+            Error::DieselError(e).into()
+        }
+    }
+}
+
+fn create_snapshot_channel(origin: &str,
+                           ch_target: &ChannelIdent,
+                           owner_id: i64,
+                           conn: &mut PgConnection)
+                           -> std::result::Result<SnapshotResponse, PromoteTxnError> {
     const MAX_SNAPSHOT_NAME_ATTEMPTS: u32 = 5;
 
-    let mut response = None;
-    let mut final_err = None;
+    let mut last_err = None;
 
     for attempt in 0..MAX_SNAPSHOT_NAME_ATTEMPTS {
         let timestamp = Utc::now().format("%Y%m%dT%H%M%S%.6fZ").to_string();
@@ -324,13 +446,13 @@ async fn promote_channel_packages(req: HttpRequest,
 
         let txn_result =
             conn.transaction::<SnapshotResponse, diesel::result::Error, _>(|conn| {
-                    let snapshot_channel =
-                        Channel::create(&CreateChannel { name:     &snapshot_name,
-                                                         origin:   &origin,
-                                                         owner_id: session.id() as i64, },
-                                        conn)?;
+                    let snapshot_channel = Channel::create(&CreateChannel { name:
+                                                                                &snapshot_name,
+                                                                            origin,
+                                                                            owner_id },
+                                                           conn)?;
 
-                    let target_channel = Channel::get(&origin, &ch_target, conn)?;
+                    let target_channel = Channel::get(origin, ch_target, conn)?;
 
                     let all_target_pkg_ids =
                         Channel::list_all_packages_by_channel_id(target_channel.id,
@@ -362,10 +484,7 @@ async fn promote_channel_packages(req: HttpRequest,
                 });
 
         match txn_result {
-            Ok(r) => {
-                response = Some(r);
-                break;
-            }
+            Ok(r) => return Ok(r),
             Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _))
                 if attempt + 1 < MAX_SNAPSHOT_NAME_ATTEMPTS =>
             {
@@ -374,23 +493,13 @@ async fn promote_channel_packages(req: HttpRequest,
                 continue;
             }
             Err(e) => {
-                final_err = Some(e);
+                last_err = Some(e);
                 break;
             }
         }
     }
 
-    match response {
-        Some(response) => HttpResponse::Ok().json(response),
-        None => {
-            debug!("Failed to create/populate snapshot channel, err={:?}",
-                   final_err);
-            match final_err {
-                Some(e) => Error::DieselError(e).into(),
-                None => HttpResponse::new(StatusCode::CONFLICT),
-            }
-        }
-    }
+    Err(PromoteTxnError::Diesel(last_err.unwrap_or(NotFound)))
 }
 
 #[allow(clippy::needless_pass_by_value)]

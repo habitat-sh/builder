@@ -1086,17 +1086,242 @@ describe('Channels API', function () {
         });
     });
 
-    it('behaves identically when snapshot=true&check=true (check is accepted but has no effect)', function (done) {
-      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=snapshot-target-check&snapshot=true&check=true')
+    it('creates a conflict-free source channel for the snapshot=true&check=true clean-closure test', function (done) {
+      request.post('/depot/channels/neurosis/snapshot-clean-source')
+        .set('Authorization', global.boboBearer)
+        .expect(201)
+        .end(function (err) {
+          if (err) return done(err);
+          request.put('/depot/channels/neurosis/snapshot-clean-source/pkgs/testapp/0.1.3/20171205003213/promote')
+            .set('Authorization', global.boboBearer)
+            .expect(200)
+            .end(function (err2) {
+              done(err2);
+            });
+        });
+    });
+
+    it('behaves identically when snapshot=true&check=true and the merged closure has no conflicts (new/empty target)', function (done) {
+      request.put('/depot/channels/neurosis/snapshot-clean-source/pkgs/promote?channel=snapshot-target-check&snapshot=true&check=true')
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
           expect(res.body.snapshot_channel).to.match(/^snapshot-target-check_SS_\d{8}T\d{6}\.\d{6}Z_[0-9a-f]{8}$/);
           expect(res.body.packages).to.be.an('object');
           expect(res.body.packages.neurosis).to.be.an('object');
-          expect(Object.keys(res.body.packages.neurosis).length).to.be.at.least(13);
+          expect(res.body.packages.neurosis.testapp).to.include.keys('ident', 'origin', 'name', 'version', 'release');
           done(err);
         });
+    });
+  });
+
+  describe('Channel-to-Channel promotion with check', function () {
+    it('creates the check-conflict channel and seeds it with an older package version', function (done) {
+      request.post('/depot/channels/neurosis/check-conflict')
+        .set('Authorization', global.boboBearer)
+        .expect(201)
+        .end(function (err) {
+          if (err) return done(err);
+          request.put('/depot/channels/neurosis/check-conflict/pkgs/testapp/0.1.3/20171205003213/promote')
+            .set('Authorization', global.boboBearer)
+            .expect(200)
+            .end(function (err2) {
+              done(err2);
+            });
+        });
+    });
+
+    it('rejects promotion with snapshot=true&check=true when the merged closure conflicts', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=check-conflict&snapshot=true&check=true')
+        .set('Authorization', global.boboBearer)
+        .expect(409)
+        .end(function (err, res) {
+          expect(res.body.error).to.equal('compatibility_check_failed');
+          expect(res.body.conflicts).to.have.property('neurosis/testapp');
+          expect(res.body.conflicts['neurosis/testapp']).to.be.an('array');
+          expect(res.body.conflicts['neurosis/testapp'].length).to.be.at.least(2);
+          done(err);
+        });
+    });
+
+    it('leaves the target channel unchanged after a snapshot=true&check=true 409 conflict', function (done) {
+      request.get('/depot/channels/neurosis/check-conflict/pkgs')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.total_count).to.equal(1);
+          expect(res.body.data[0].version).to.equal('0.1.3');
+          done(err);
+        });
+    });
+
+    it('does not create a snapshot channel after a 409 conflict response', function (done) {
+      request.get('/depot/channels/neurosis')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          const names = res.body.map((c) => c.name);
+          expect(names.some((n) => n.startsWith('check-conflict_SS_'))).to.equal(false);
+          done(err);
+        });
+    });
+
+    it('rejects promotion with check=true (without snapshot=true) when the merged closure conflicts', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=check-conflict&check=true')
+        .set('Authorization', global.boboBearer)
+        .expect(409)
+        .end(function (err, res) {
+          expect(res.body.error).to.equal('compatibility_check_failed');
+          expect(res.body.conflicts).to.have.property('neurosis/testapp');
+          done(err);
+        });
+    });
+
+    it('leaves the target channel unchanged after a check=true-only 409 conflict', function (done) {
+      request.get('/depot/channels/neurosis/check-conflict/pkgs')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.total_count).to.equal(1);
+          done(err);
+        });
+    });
+
+    it('promotes unconditionally when snapshot=true is passed without check=true, even with a conflicting closure', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=check-conflict&snapshot=true')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.snapshot_channel).to.match(/^check-conflict_SS_\d{8}T\d{6}\.\d{6}Z_[0-9a-f]{8}$/);
+          done(err);
+        });
+    });
+
+    it('updates the target channel when snapshot=true is passed without check=true', function (done) {
+      request.get('/depot/channels/neurosis/check-conflict/pkgs')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          request.get('/depot/channels/neurosis/unstable/pkgs')
+            .type('application/json')
+            .accept('application/json')
+            .expect(200)
+            .end(function (err2, res2) {
+              expect(res.body.total_count).to.equal(res2.body.total_count);
+              done(err || err2);
+            });
+        });
+    });
+
+    it('creates a conflict-free source channel for the check=true clean-closure test', function (done) {
+      request.post('/depot/channels/neurosis/check-clean-source')
+        .set('Authorization', global.boboBearer)
+        .expect(201)
+        .end(function (err) {
+          if (err) return done(err);
+          request.put('/depot/channels/neurosis/check-clean-source/pkgs/testapp/0.1.3/20171205003213/promote')
+            .set('Authorization', global.boboBearer)
+            .expect(200)
+            .end(function (err2) {
+              done(err2);
+            });
+        });
+    });
+
+    it('passes the compatibility check and creates a snapshot when the target channel is new/empty', function (done) {
+      request.put('/depot/channels/neurosis/check-clean-source/pkgs/promote?channel=check-clean&snapshot=true&check=true')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.snapshot_channel).to.match(/^check-clean_SS_\d{8}T\d{6}\.\d{6}Z_[0-9a-f]{8}$/);
+          expect(res.body.packages).to.be.an('object');
+          expect(res.body.packages.neurosis).to.be.an('object');
+          done(err);
+        });
+    });
+
+    it('updates the target channel when the compatibility check passes', function (done) {
+      request.get('/depot/channels/neurosis/check-clean/pkgs')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          request.get('/depot/channels/neurosis/check-clean-source/pkgs')
+            .type('application/json')
+            .accept('application/json')
+            .expect(200)
+            .end(function (err2, res2) {
+              expect(res.body.total_count).to.equal(res2.body.total_count);
+              done(err || err2);
+            });
+        });
+    });
+  });
+
+  describe('Channel-to-Channel promotion concurrency', function () {
+    it('sets up two mutually conflicting source channels and a fresh empty target', function (done) {
+      request.post('/depot/channels/neurosis/conc-source-a')
+        .set('Authorization', global.boboBearer)
+        .expect(201)
+        .end(function (err) {
+          if (err) return done(err);
+          request.put('/depot/channels/neurosis/conc-source-a/pkgs/testapp/0.1.3/20171205003213/promote')
+            .set('Authorization', global.boboBearer)
+            .expect(200)
+            .end(function (err2) {
+              if (err2) return done(err2);
+              request.post('/depot/channels/neurosis/conc-source-b')
+                .set('Authorization', global.boboBearer)
+                .expect(201)
+                .end(function (err3) {
+                  if (err3) return done(err3);
+                  request.put('/depot/channels/neurosis/conc-source-b/pkgs/testapp/0.1.4/20171206004139/promote')
+                    .set('Authorization', global.boboBearer)
+                    .expect(200)
+                    .end(function (err4) {
+                      done(err4);
+                    });
+                });
+            });
+        });
+    });
+
+    it('serializes two simultaneous check=true promotions to the same target so the result is never a partial merge', function (done) {
+      // Both requests target the same (as-yet-nonexistent) channel and are
+      // constructed before either is awaited, so they are dispatched to the
+      // server essentially back-to-back rather than sequentially. Whichever
+      // one wins the advisory lock commits first; the other's compatibility
+      // check then runs against the now-updated target and must see a
+      // conflict (both source channels carry a different release of
+      // neurosis/testapp), so exactly one of the two succeeds.
+      const reqA =
+        request.put('/depot/channels/neurosis/conc-source-a/pkgs/promote?channel=conc-target&check=true')
+          .set('Authorization', global.boboBearer);
+      const reqB =
+        request.put('/depot/channels/neurosis/conc-source-b/pkgs/promote?channel=conc-target&check=true')
+          .set('Authorization', global.boboBearer);
+
+      Promise.all([reqA, reqB])
+        .then(function (results) {
+          const statuses = results.map((r) => r.status).sort();
+          expect(statuses).to.deep.equal([200, 409]);
+
+          request.get('/depot/channels/neurosis/conc-target/pkgs')
+            .type('application/json')
+            .accept('application/json')
+            .expect(200)
+            .end(function (err, res) {
+              // Never a partial/interleaved merge: exactly one package
+              // present, from whichever promotion committed first.
+              expect(res.body.total_count).to.equal(1);
+              done(err);
+            });
+        })
+        .catch(function (err) { done(err); });
     });
   });
 

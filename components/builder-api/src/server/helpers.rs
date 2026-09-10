@@ -1,6 +1,8 @@
-use crate::{db::models::{channel::PackageChannelTrigger as PCT,
+use crate::{db::models::{channel::{Channel,
+                                   PackageChannelTrigger as PCT},
                          origin::OriginMemberRole,
-                         package::PackageVisibility},
+                         package::{BuilderPackageIdent,
+                                   PackageVisibility}},
             hab_core::package::PackageTarget,
             server::{authorize::authorize_session,
                      AppState}};
@@ -10,6 +12,8 @@ use actix_web::{http::header,
                 HttpResponse};
 use chrono::{NaiveDate,
              NaiveDateTime};
+use diesel::{pg::PgConnection,
+             result::QueryResult};
 use regex::Regex;
 use serde::Serialize;
 use serde_json::Value;
@@ -271,6 +275,24 @@ pub fn trigger_from_request_model(req: &HttpRequest) -> PCT {
 pub fn req_state(req: &HttpRequest) -> &AppState {
     req.app_data::<actix_web::web::Data<AppState>>()
        .expect("request state")
+}
+
+pub fn channel_package_closure(channel_id: Option<i64>,
+                               conn: &mut PgConnection)
+                               -> QueryResult<Vec<BuilderPackageIdent>> {
+    let channel_id = match channel_id {
+        Some(id) => id,
+        None => return Ok(Vec::new()),
+    };
+
+    let head_packages = Channel::list_head_packages(channel_id, conn)?;
+
+    let mut idents = Vec::new();
+    for pkg in &head_packages {
+        idents.push(pkg.ident.clone());
+        idents.extend(pkg.tdeps.iter().cloned());
+    }
+    Ok(idents)
 }
 
 mod ymd_date_format {

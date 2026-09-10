@@ -133,6 +133,17 @@ impl Channel {
                                                    .get_result(conn)
     }
 
+    pub fn lock_for_promotion(origin: &str,
+                              channel: &str,
+                              conn: &mut PgConnection)
+                              -> QueryResult<()> {
+        Counter::DBCall.increment();
+        diesel::sql_query("SELECT pg_advisory_xact_lock(hashtext($1)::bigint)")
+            .bind::<Text, _>(format!("{}/{}", origin, channel))
+            .execute(conn)?;
+        Ok(())
+    }
+
     pub fn delete(origin: &str,
                   channel: &ChannelIdent,
                   conn: &mut PgConnection)
