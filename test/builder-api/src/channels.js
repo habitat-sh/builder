@@ -865,6 +865,38 @@ describe('Channels API', function () {
         });
     });
 
+    it('rejects attempts to promote packages when the target channel query param is omitted', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/promote')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects attempts to promote packages when the target channel query param is empty', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/promote?channel=')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('does not create a channel with an empty name', function (done) {
+      request.get('/depot/channels/neurosis')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          const names = res.body.map((c) => c.name);
+          expect(names).to.not.include('');
+          done(err);
+        });
+    });
+
     it('puts all channel packages into a specified channel', function (done) {
       request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=foo')
         .set('Authorization', global.boboBearer)
@@ -914,6 +946,155 @@ describe('Channels API', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+  });
+
+  describe('Channel-to-Channel promotion with snapshot', function () {
+    it('requires authentication to promote with snapshot=true', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=snapshot-target-unauth&snapshot=true')
+        .expect(401)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('does not create the target or a snapshot channel when unauthorized', function (done) {
+      request.get('/depot/channels/neurosis')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          const names = res.body.map((c) => c.name);
+          expect(names).to.not.include('snapshot-target-unauth');
+          expect(names.some((n) => n.startsWith('snapshot-target-unauth_SS_'))).to.equal(false);
+          done(err);
+        });
+    });
+
+    it('rejects promotion with snapshot=true when source_channel and target_channel match', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=unstable&snapshot=true')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects promotion with snapshot=true when target_channel is unstable', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/promote?channel=unstable&snapshot=true')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('behaves exactly like the existing endpoint when snapshot is omitted', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=snapshot-target-default')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('does not create a snapshot channel when snapshot is omitted', function (done) {
+      request.get('/depot/channels/neurosis')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          const names = res.body.map((c) => c.name);
+          expect(names.some((n) => n.startsWith('snapshot-target-default_SS_'))).to.equal(false);
+          done(err);
+        });
+    });
+
+    it('behaves exactly like the existing endpoint when snapshot=false', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=snapshot-target-false&snapshot=false')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('does not create a snapshot channel when snapshot=false', function (done) {
+      request.get('/depot/channels/neurosis')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          const names = res.body.map((c) => c.name);
+          expect(names.some((n) => n.startsWith('snapshot-target-false_SS_'))).to.equal(false);
+          done(err);
+        });
+    });
+
+    let snapshotChannelName;
+
+    it('creates a snapshot channel and returns its contents when snapshot=true', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=snapshot-target&snapshot=true')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.snapshot_channel).to.match(/^snapshot-target_SS_\d{8}T\d{6}\.\d{6}Z_[0-9a-f]{8}$/);
+          expect(res.body.packages).to.be.an('object');
+          expect(res.body.packages.neurosis).to.be.an('object');
+          expect(Object.keys(res.body.packages.neurosis).length).to.be.at.least(13);
+          expect(res.body.packages.neurosis.testapp).to.include.keys('ident', 'origin', 'name', 'version', 'release');
+          expect(res.body.packages.neurosis.testapp.origin).to.equal('neurosis');
+          expect(res.body.packages.neurosis.testapp.name).to.equal('testapp');
+          snapshotChannelName = res.body.snapshot_channel;
+          done(err);
+        });
+    });
+
+    it('creates the snapshot channel as a real channel visible in the channel listing', function (done) {
+      request.get('/depot/channels/neurosis')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          const names = res.body.map((c) => c.name);
+          expect(names).to.include(snapshotChannelName);
+          done(err);
+        });
+    });
+
+    it('populates the snapshot channel with the same packages as the target channel', function (done) {
+      request.get(`/depot/channels/neurosis/${snapshotChannelName}/pkgs`)
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          request.get('/depot/channels/neurosis/snapshot-target/pkgs')
+            .type('application/json')
+            .accept('application/json')
+            .expect(200)
+            .end(function (err2, res2) {
+              expect(res.body.total_count).to.equal(res2.body.total_count);
+              done(err || err2);
+            });
+        });
+    });
+
+    it('behaves identically when snapshot=true&check=true (check is accepted but has no effect)', function (done) {
+      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=snapshot-target-check&snapshot=true&check=true')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.snapshot_channel).to.match(/^snapshot-target-check_SS_\d{8}T\d{6}\.\d{6}Z_[0-9a-f]{8}$/);
+          expect(res.body.packages).to.be.an('object');
+          expect(res.body.packages.neurosis).to.be.an('object');
+          expect(Object.keys(res.body.packages.neurosis).length).to.be.at.least(13);
           done(err);
         });
     });
@@ -974,6 +1155,38 @@ describe('Channels API', function () {
         .expect(400)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects attempts to demote packages when the target channel query param is omitted', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/demote')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects attempts to demote packages when the target channel query param is empty', function (done) {
+      request.put('/depot/channels/neurosis/foo/pkgs/demote?channel=')
+        .set('Authorization', global.boboBearer)
+        .expect(400)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('does not create a channel with an empty name', function (done) {
+      request.get('/depot/channels/neurosis')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          const names = res.body.map((c) => c.name);
+          expect(names).to.not.include('');
           done(err);
         });
     });

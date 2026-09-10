@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::str::FromStr;
+use std::{collections::HashMap,
+          str::FromStr};
 
 use actix_web::{body::BoxBody,
                 http::{self,
@@ -25,10 +26,14 @@ use actix_web::{body::BoxBody,
                 HttpRequest,
                 HttpResponse};
 use bytes::Bytes;
+use chrono::Utc;
 use diesel::{pg::PgConnection,
              result::{DatabaseErrorKind,
                       Error::{DatabaseError,
-                              NotFound}}};
+                              NotFound}},
+             Connection};
+use rand::{self,
+           RngExt};
 
 use crate::{bldr_core::metrics::CounterMetric,
             hab_core::{package::{PackageIdent,
@@ -50,6 +55,7 @@ use crate::server::{authorize::authorize_session,
                               req_state,
                               visibility_for_optional_session,
                               Pagination,
+                              PromoteChannelQuery,
                               Target,
                               ToChannel},
                     services::metrics::Counter,
@@ -203,11 +209,49 @@ async fn delete_channel(req: HttpRequest,
     }
 }
 
+// Response structs for the snapshot=true path of promote_channel_packages
+#[derive(Serialize)]
+struct SnapshotResponse {
+    snapshot_channel: String,
+    packages:         HashMap<String, HashMap<String, PackageFqiEntry>>,
+}
+
+#[derive(Serialize)]
+struct PackageFqiEntry {
+    ident:   String,
+    origin:  String,
+    name:    String,
+    version: String,
+    release: String,
+}
+
+// Parses an ident string of the form "origin/name/version/release" (release may be
+// absent) and inserts it into the deduped origin -> name -> entry map. A duplicate
+// origin/name pair is a no-op, so the first insertion for a given package wins.
+fn insert_ident(set: &mut HashMap<String, HashMap<String, PackageFqiEntry>>, ident_str: &str) {
+    let mut parts = ident_str.splitn(4, '/');
+    let origin = parts.next().unwrap_or_default().to_string();
+    let name = parts.next().unwrap_or_default().to_string();
+    let version = parts.next().unwrap_or_default().to_string();
+    let release = parts.next().unwrap_or_default().to_string();
+
+    set.entry(origin.clone())
+       .or_default()
+       .entry(name.clone())
+       .or_insert_with(|| {
+           PackageFqiEntry { ident: ident_str.to_string(),
+                             origin,
+                             name,
+                             version,
+                             release }
+       });
+}
+
 #[allow(clippy::needless_pass_by_value)]
 async fn promote_channel_packages(req: HttpRequest,
                                   path: Path<(String, String)>,
                                   state: Data<AppState>,
-                                  to_channel: Query<ToChannel>)
+                                  query: Query<PromoteChannelQuery>)
                                   -> HttpResponse {
     let (origin, channel) = path.into_inner();
 
@@ -222,37 +266,129 @@ async fn promote_channel_packages(req: HttpRequest,
     };
 
     let ch_source = ChannelIdent::from(channel);
-    let ch_target = ChannelIdent::from(to_channel.channel.as_ref());
+    let ch_target = ChannelIdent::from(query.channel.as_ref());
 
-    match do_promote_or_demote_channel_packages(&req,
-                                                &ch_source,
-                                                &ch_target,
-                                                &origin,
-                                                true,
-                                                session.id() as i64)
+    let pkg_ids = match do_promote_or_demote_channel_packages(&req,
+                                                              &ch_source,
+                                                              &ch_target,
+                                                              &origin,
+                                                              true,
+                                                              session.id() as i64)
     {
-        Ok(pkg_ids) => {
-            match PackageGroupChannelAudit::audit(
-                PackageGroupChannelAudit {
-                    origin: &origin,
-                    channel: ch_target.as_str(),
-                    package_ids: pkg_ids,
-                    operation: PackageChannelOperation::Promote,
-                    trigger: helpers::trigger_from_request_model(&req),
-                    requester_id: session.id() as i64,
-                    requester_name: session.name(),
-                    group_id: 0_i64,
-                },
-                &mut conn,
-            ) {
-                Ok(_) => {}
-                Err(e) => debug!("Failed to save rank change to audit log: {}", e),
-            };
-            HttpResponse::new(StatusCode::OK)
-        }
+        Ok(pkg_ids) => pkg_ids,
         Err(e) => {
             debug!("Failed to promote channel packages, err={}", e);
-            e.into()
+            return e.into();
+        }
+    };
+
+    match PackageGroupChannelAudit::audit(
+        PackageGroupChannelAudit {
+            origin: &origin,
+            channel: ch_target.as_str(),
+            package_ids: pkg_ids,
+            operation: PackageChannelOperation::Promote,
+            trigger: helpers::trigger_from_request_model(&req),
+            requester_id: session.id() as i64,
+            requester_name: session.name(),
+            group_id: 0_i64,
+        },
+        &mut conn,
+    ) {
+        Ok(_) => {}
+        Err(e) => debug!("Failed to save rank change to audit log: {}", e),
+    };
+
+    if !query.snapshot {
+        return HttpResponse::new(StatusCode::OK);
+    }
+
+    // query.check is parsed but has no effect until Story 10.
+
+    // Snapshot channel names include a microsecond timestamp plus a random
+    // suffix, making collisions extremely unlikely; we still retry with a
+    // freshly generated name on a unique-constraint violation just in case.
+    // All of the snapshot creation/population steps run inside a single DB
+    // transaction (on the connection already in use in this handler), so a
+    // failure at any step rolls back cleanly instead of leaving behind an
+    // empty or partially populated snapshot channel.
+    const MAX_SNAPSHOT_NAME_ATTEMPTS: u32 = 5;
+
+    let mut response = None;
+    let mut final_err = None;
+
+    for attempt in 0..MAX_SNAPSHOT_NAME_ATTEMPTS {
+        let timestamp = Utc::now().format("%Y%m%dT%H%M%S%.6fZ").to_string();
+        let suffix: u32 = rand::rng().random();
+        let snapshot_name = format!("{}_SS_{}_{:08x}", ch_target.as_str(), timestamp, suffix);
+
+        let txn_result =
+            conn.transaction::<SnapshotResponse, diesel::result::Error, _>(|conn| {
+                    let snapshot_channel =
+                        Channel::create(&CreateChannel { name:     &snapshot_name,
+                                                         origin:   &origin,
+                                                         owner_id: session.id() as i64, },
+                                        conn)?;
+
+                    let target_channel = Channel::get(&origin, &ch_target, conn)?;
+
+                    let all_target_pkg_ids =
+                        Channel::list_all_packages_by_channel_id(target_channel.id,
+                                                                 &PackageVisibility::all(),
+                                                                 conn)?;
+
+                    Channel::promote_packages(snapshot_channel.id, &all_target_pkg_ids, conn)?;
+
+                    let head_packages = Channel::list_head_packages(snapshot_channel.id, conn)?;
+
+                    let mut pkg_set: HashMap<String, HashMap<String, PackageFqiEntry>> =
+                        HashMap::new();
+                    // Insert all head packages first so they always win the
+                    // origin/name slot. Otherwise a dependency (processed via
+                    // some other package's tdeps) could claim that slot with
+                    // an older ident before the actual head package for that
+                    // origin/name is reached later in this iteration.
+                    for pkg in &head_packages {
+                        insert_ident(&mut pkg_set, &pkg.ident.to_string());
+                    }
+                    for pkg in &head_packages {
+                        for dep in &pkg.tdeps {
+                            insert_ident(&mut pkg_set, &dep.to_string());
+                        }
+                    }
+
+                    Ok(SnapshotResponse { snapshot_channel: snapshot_name.clone(),
+                                          packages:         pkg_set, })
+                });
+
+        match txn_result {
+            Ok(r) => {
+                response = Some(r);
+                break;
+            }
+            Err(DatabaseError(DatabaseErrorKind::UniqueViolation, _))
+                if attempt + 1 < MAX_SNAPSHOT_NAME_ATTEMPTS =>
+            {
+                debug!("Snapshot channel name {} collided, retrying with a new name",
+                       snapshot_name);
+                continue;
+            }
+            Err(e) => {
+                final_err = Some(e);
+                break;
+            }
+        }
+    }
+
+    match response {
+        Some(response) => HttpResponse::Ok().json(response),
+        None => {
+            debug!("Failed to create/populate snapshot channel, err={:?}",
+                   final_err);
+            match final_err {
+                Some(e) => Error::DieselError(e).into(),
+                None => HttpResponse::new(StatusCode::CONFLICT),
+            }
         }
     }
 }
@@ -322,6 +458,10 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
     let mut pkg_ids = Vec::new();
 
     // Simple guards to protect users from bad decisioning
+    if ch_target.as_str().is_empty() {
+        return Err(Error::BadRequest);
+    }
+
     if !promote
        && (*ch_target == ChannelIdent::unstable() || *ch_source == ChannelIdent::unstable())
     {
