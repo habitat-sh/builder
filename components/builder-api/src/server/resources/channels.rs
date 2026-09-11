@@ -32,7 +32,8 @@ use diesel::{pg::PgConnection,
              result::{DatabaseErrorKind,
                       Error::{DatabaseError,
                               NotFound}},
-             Connection};
+             Connection,
+             QueryResult};
 use rand::{self,
            RngExt};
 
@@ -289,12 +290,33 @@ struct PromoteTxnSuccess {
     snapshot: Option<SnapshotResponse>,
 }
 
+// Acquires the per-channel advisory lock (see Channel::lock_channel) for both
+// `a` and `b`, always in the same lexicographic order regardless of which one
+// is logically the source or target for a given request. This is required so
+// that two concurrent requests locking the same pair of channels in opposite
+// roles (e.g. a promotion from X to Y racing a promotion from Y to X) cannot
+// deadlock by acquiring the two locks in opposite orders. Every code path
+// that reads a channel's packages and then writes to a channel (single- or
+// bulk-, promote or demote) must go through this (or Channel::lock_channel
+// directly for a single channel) before doing so, so that no other such path
+// can commit a package into source or target between a read and a dependent
+// write.
+fn lock_channels(origin: &str, a: &str, b: &str, conn: &mut PgConnection) -> QueryResult<()> {
+    let (first, second) = if a <= b { (a, b) } else { (b, a) };
+    Channel::lock_channel(origin, first, conn)?;
+    if first != second {
+        Channel::lock_channel(origin, second, conn)?;
+    }
+    Ok(())
+}
+
 #[allow(clippy::needless_pass_by_value)]
 async fn promote_channel_packages(req: HttpRequest,
                                   path: Path<(String, String)>,
                                   state: Data<AppState>,
                                   query: Query<PromoteChannelQuery>)
                                   -> HttpResponse {
+    Counter::AtomicChannelRequests.increment();
     let (origin, channel) = path.into_inner();
 
     let session = match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
@@ -324,8 +346,13 @@ async fn promote_channel_packages(req: HttpRequest,
     let want_snapshot = query.snapshot;
 
     let txn_result = conn.transaction::<PromoteTxnSuccess, PromoteTxnError, _>(|conn| {
-
-        Channel::lock_for_promotion(&origin, ch_target.as_str(), conn)?;
+        // Serialize this whole read-then-write sequence (check and promote)
+        // against every other path that can mutate either channel's package
+        // membership -- bulk or single-package promote/demote -- so a
+        // concurrent write can't land between this request's check and its
+        // own write, on either the source or the target side. Held for the
+        // duration of the transaction.
+        lock_channels(&origin, ch_source.as_str(), ch_target.as_str(), conn)?;
 
         #[rustfmt::skip]
         let target_channel = match Channel::get(&origin, &ch_target, conn) {
@@ -564,7 +591,6 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
                                          -> Result<Vec<i64>> {
     Counter::AtomicChannelRequests.increment();
     let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-    let mut pkg_ids = Vec::new();
 
     // Simple guards to protect users from bad decisioning
     if ch_target.as_str().is_empty() {
@@ -585,51 +611,63 @@ fn do_promote_or_demote_channel_packages(req: &HttpRequest,
         return Err(Error::BadRequest);
     }
 
-    let pkgs = do_get_all_channel_packages(req, origin, ch_source)?;
+    conn.transaction::<Vec<i64>, Error, _>(|conn| {
+        // Serialize this read-then-write sequence against every other path
+        // that can mutate either channel's package membership -- bulk or
+        // single-package promote/demote, including the check=true bulk
+        // promote path -- so a concurrent write can't land between the
+        // package read below and the promote/demote write.
+        lock_channels(origin, ch_source.as_str(), ch_target.as_str(), conn)?;
 
-    #[rustfmt::skip]
-    let channel = match Channel::get(origin, ch_target, &mut conn) {
-        Ok(channel) => channel,
-        Err(NotFound) => {
-            if (ch_target != &ChannelIdent::stable()) && (ch_target != &ChannelIdent::unstable()) {
-                Channel::create(
-                    &CreateChannel {
-                        name:     ch_target.as_str(),
-                        origin,
-                        owner_id: session_id,
-                    },
-                &mut conn)?
-            } else {
-                warn!("Unable to retrieve target channel: {}", ch_target);
-                return Err(Error::DieselError(NotFound));
+        let pkgs =
+            Channel::list_all_packages(&ListAllChannelPackages { visibility:
+                                                                     &PackageVisibility::all(),
+                                                                 origin,
+                                                                 channel: ch_source, },
+                                       conn)?;
+
+        #[rustfmt::skip]
+        let channel = match Channel::get(origin, ch_target, conn) {
+            Ok(channel) => channel,
+            Err(NotFound) => {
+                if (ch_target != &ChannelIdent::stable()) && (ch_target != &ChannelIdent::unstable()) {
+                    Channel::create(
+                        &CreateChannel {
+                            name:     ch_target.as_str(),
+                            origin,
+                            owner_id: session_id,
+                        },
+                    conn)?
+                } else {
+                    warn!("Unable to retrieve target channel: {}", ch_target);
+                    return Err(Error::DieselError(NotFound));
+                }
             }
+            Err(e) => {
+                info!("Unable to retrieve channel, err: {:?}", e);
+                return Err(Error::DieselError(e));
+            }
+        };
+
+        #[rustfmt::skip]
+        let op = Package::get_group(
+            GetPackageGroup {
+                pkgs,
+                visibility: PackageVisibility::all()
+            },
+        conn)?;
+
+        let pkg_ids: Vec<i64> = op.iter().map(|x| x.id).collect();
+
+        if promote {
+            debug!("Bulk promoting Pkg IDs: {:?}", pkg_ids);
+            Channel::promote_packages(channel.id, &pkg_ids, conn)?;
+        } else {
+            debug!("Bulk demoting Pkg IDs: {:?}", pkg_ids);
+            Channel::demote_packages(channel.id, &pkg_ids, conn)?;
         }
-        Err(e) => {
-            info!("Unable to retrieve channel, err: {:?}", e);
-            return Err(Error::DieselError(e));
-        }
-    };
-
-    #[rustfmt::skip]
-    let op = Package::get_group(
-        GetPackageGroup {
-            pkgs,
-            visibility: PackageVisibility::all()
-        },
-    &mut conn)?;
-
-    let mut ids: Vec<i64> = op.iter().map(|x| x.id).collect();
-
-    pkg_ids.append(&mut ids);
-
-    if promote {
-        debug!("Bulk promoting Pkg IDs: {:?}", pkg_ids);
-        Channel::promote_packages(channel.id, &pkg_ids, &mut conn)?;
-    } else {
-        debug!("Bulk demoting Pkg IDs: {:?}", pkg_ids);
-        Channel::demote_packages(channel.id, &pkg_ids, &mut conn)?;
-    }
-    Ok(pkg_ids)
+        Ok(pkg_ids)
+    })
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -679,16 +717,20 @@ async fn promote_package(req: HttpRequest,
                                            requester_name: session.name(),
                                            origin:         &origin, };
 
-    match OriginChannelPackage::promote(
-        OriginChannelPromote {
-            ident: BuilderPackageIdent(ident.clone()),
-            target,
-            origin: origin.clone(),
-            channel: channel.clone(),
-        },
-        &mut conn,
-    )
-    .map_err(Error::DieselError)
+    match conn.transaction::<usize, diesel::result::Error, _>(|conn| {
+                  // Serialize against any other path (single- or
+                  // bulk-, promote or demote, including the check=true
+                  // bulk promote path) that reads or writes this
+                  // channel's package membership.
+                  Channel::lock_channel(&origin, channel.as_str(), conn)?;
+                  OriginChannelPackage::promote(OriginChannelPromote { ident:
+                                                                            BuilderPackageIdent(ident.clone()),
+                                                                        target,
+                                                                        origin: origin.clone(),
+                                                                        channel: channel.clone(), },
+                                                conn)
+              })
+              .map_err(Error::DieselError)
     {
         Ok(promoted_count) => {
             // Note: promoted_count is 0 when attempting to promote a package to a channel where it already exists
@@ -750,12 +792,20 @@ async fn demote_package(req: HttpRequest,
         Err(err) => return err.into(),
     };
 
-    match OriginChannelPackage::demote(OriginChannelDemote { ident:
-                                                                 BuilderPackageIdent(ident.clone()),
-                                                             target,
-                                                             origin: origin.clone(),
-                                                             channel: channel.clone() },
-                                       &mut conn).map_err(Error::DieselError)
+    match conn.transaction::<usize, diesel::result::Error, _>(|conn| {
+                  // Serialize against any other path (single- or
+                  // bulk-, promote or demote, including the check=true
+                  // bulk promote path) that reads or writes this
+                  // channel's package membership.
+                  Channel::lock_channel(&origin, channel.as_str(), conn)?;
+                  OriginChannelPackage::demote(OriginChannelDemote { ident:
+                                                                          BuilderPackageIdent(ident.clone()),
+                                                                      target,
+                                                                      origin: origin.clone(),
+                                                                      channel: channel.clone() },
+                                               conn)
+              })
+              .map_err(Error::DieselError)
     {
         Ok(0) => {
             debug!("Requested package {} for target {} not present in channel {}",
@@ -1030,18 +1080,6 @@ fn do_get_channel_packages(req: &HttpRequest,
         &mut conn,
     )
     .map_err(Error::DieselError)
-}
-
-fn do_get_all_channel_packages(req: &HttpRequest,
-                               origin: &str,
-                               channel: &ChannelIdent)
-                               -> Result<Vec<BuilderPackageIdent>> {
-    let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
-
-    Channel::list_all_packages(&ListAllChannelPackages { visibility: &PackageVisibility::all(),
-                                                         origin,
-                                                         channel },
-                               &mut conn).map_err(Error::DieselError)
 }
 
 fn do_get_channel_package(req: &HttpRequest,

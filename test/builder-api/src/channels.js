@@ -1298,12 +1298,21 @@ describe('Channels API', function () {
       // check then runs against the now-updated target and must see a
       // conflict (both source channels carry a different release of
       // neurosis/testapp), so exactly one of the two succeeds.
+      // superagent rejects the request promise for any non-2xx response
+      // unless told otherwise via .ok(); since exactly one of these two
+      // requests is expected to come back 409, both must explicitly accept
+      // 200 or 409 as "ok" so Promise.all resolves (rather than rejects)
+      // and the status assertions below actually run.
+      const acceptOkOrConflict = (res) => res.status === 200 || res.status === 409;
+
       const reqA =
         request.put('/depot/channels/neurosis/conc-source-a/pkgs/promote?channel=conc-target&check=true')
-          .set('Authorization', global.boboBearer);
+          .set('Authorization', global.boboBearer)
+          .ok(acceptOkOrConflict);
       const reqB =
         request.put('/depot/channels/neurosis/conc-source-b/pkgs/promote?channel=conc-target&check=true')
-          .set('Authorization', global.boboBearer);
+          .set('Authorization', global.boboBearer)
+          .ok(acceptOkOrConflict);
 
       Promise.all([reqA, reqB])
         .then(function (results) {
