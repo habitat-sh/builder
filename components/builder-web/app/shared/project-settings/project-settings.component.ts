@@ -160,7 +160,7 @@ export class ProjectSettingsComponent implements OnChanges, OnDestroy, AfterView
   }
 
   get isWindowsTarget() {
-    return this.target === 'x86_64-windows';
+    return this.target === 'x86_64-windows' || this.target === 'aarch64-windows';
   }
 
   get unmatchedPattern() {
