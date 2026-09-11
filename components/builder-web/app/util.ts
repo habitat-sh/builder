@@ -145,6 +145,12 @@ export const targets = [
     param: 'windows'
   },
   {
+    id: 'aarch64-windows',
+    name: 'Windows (aarch64)',
+    title: 'Windows (aarch64)',
+    param: 'windows_arm'
+  },
+  {
     id: 'x86_64-darwin',
     name: 'macOS (Intel)',
     title: 'macOS (x86_64)',
