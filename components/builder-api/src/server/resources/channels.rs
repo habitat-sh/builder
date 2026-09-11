@@ -295,12 +295,12 @@ struct PromoteTxnSuccess {
 // is logically the source or target for a given request. This is required so
 // that two concurrent requests locking the same pair of channels in opposite
 // roles (e.g. a promotion from X to Y racing a promotion from Y to X) cannot
-// deadlock by acquiring the two locks in opposite orders. Every code path
-// that reads a channel's packages and then writes to a channel (single- or
-// bulk-, promote or demote) must go through this (or Channel::lock_channel
-// directly for a single channel) before doing so, so that no other such path
-// can commit a package into source or target between a read and a dependent
-// write.
+// deadlock by acquiring the two locks in opposite orders. Promotion/demotion
+// paths in this module that read a channel's packages and then perform a
+// dependent write (single- or bulk-) should acquire this pair of locks first
+// (or Channel::lock_channel directly for a single channel), so that
+// another such path cannot commit a package into source or target between the
+// read and the dependent write.
 fn lock_channels(origin: &str, a: &str, b: &str, conn: &mut PgConnection) -> QueryResult<()> {
     let (first, second) = if a <= b { (a, b) } else { (b, a) };
     Channel::lock_channel(origin, first, conn)?;
@@ -339,7 +339,11 @@ async fn promote_channel_packages(req: HttpRequest,
        || ch_target == ch_source
        || ch_target == ChannelIdent::unstable()
     {
-        return HttpResponse::new(StatusCode::BAD_REQUEST);
+        let body = Bytes::from("Invalid target channel: must be non-empty, different from the \
+                                source channel, and not 'unstable'"
+                                                                   .to_string()
+                                                                   .into_bytes());
+        return HttpResponse::with_body(StatusCode::BAD_REQUEST, BoxBody::new(body));
     }
 
     let check = query.check;
@@ -377,9 +381,13 @@ async fn promote_channel_packages(req: HttpRequest,
             }
         };
 
-        if check {
-            let source_channel_id = Channel::get(&origin, &ch_source, conn).ok().map(|c| c.id);
+        // Resolve the source channel once and reuse its id for both the
+        // compatibility check's closure computation (if any) and the
+        // package listing below, instead of re-resolving it by name a
+        // second time.
+        let source_channel_id = Channel::get(&origin, &ch_source, conn).ok().map(|c| c.id);
 
+        if check {
             let target_closure = helpers::channel_package_closure(Some(target_channel.id), conn)?;
             let source_closure = helpers::channel_package_closure(source_channel_id, conn)?;
 
@@ -396,12 +404,13 @@ async fn promote_channel_packages(req: HttpRequest,
             }
         }
 
-        let pkgs =
-            Channel::list_all_packages(&ListAllChannelPackages { visibility:
-                                                                     &PackageVisibility::all(),
-                                                                 origin: &origin,
-                                                                 channel: &ch_source, },
-                                       conn)?;
+        let pkgs = match source_channel_id {
+            Some(id) => {
+                Channel::list_all_packages_by_channel_id_idents(id, &PackageVisibility::all(),
+                                                                conn)?
+            }
+            None => Vec::new(),
+        };
 
         let op = Package::get_group(GetPackageGroup { pkgs,
                                                        visibility: PackageVisibility::all(), },
@@ -526,7 +535,8 @@ fn create_snapshot_channel(origin: &str,
         }
     }
 
-    Err(PromoteTxnError::Diesel(last_err.unwrap_or(NotFound)))
+    Err(PromoteTxnError::Diesel(last_err.expect("snapshot creation failed without recording the \
+                                                 last error")))
 }
 
 #[allow(clippy::needless_pass_by_value)]

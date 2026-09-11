@@ -135,8 +135,17 @@ impl Channel {
 
     pub fn lock_channel(origin: &str, channel: &str, conn: &mut PgConnection) -> QueryResult<()> {
         Counter::DBCall.increment();
-        diesel::sql_query("SELECT pg_advisory_xact_lock(hashtext($1)::bigint)")
-            .bind::<Text, _>(format!("{}/{}", origin, channel))
+        // Use the 2-argument form of pg_advisory_xact_lock with the origin
+        // and channel hashed independently, rather than hashing a single
+        // concatenated "origin/channel" string down to one bigint. This
+        // needs both 32-bit hashes to collide for two different
+        // (origin, channel) pairs to unintentionally serialize against each
+        // other, which is far less likely than a single hashtext(...)::bigint
+        // collision, and isn't affected by any future change to how the two
+        // components are concatenated/escaped.
+        diesel::sql_query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))")
+            .bind::<Text, _>(origin)
+            .bind::<Text, _>(channel)
             .execute(conn)?;
         Ok(())
     }
@@ -353,6 +362,34 @@ impl Channel {
 
         let duration_millis = start_time.elapsed().as_millis();
         trace!("DBCall channel::list_all_packages time: {} ms",
+               duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
+        Histogram::ChannelListAllPackagesCallTime.set(duration_millis as f64);
+        result
+    }
+
+    // Same as list_all_packages, but takes an already-resolved channel id
+    // instead of an (origin, channel name) pair, for callers that have
+    // already fetched the Channel row for some other purpose (e.g. to check
+    // it exists, or to get its id for a compatibility-closure computation)
+    // and want to avoid resolving it by name a second time.
+    pub fn list_all_packages_by_channel_id_idents(channel_id: i64,
+                                                  visibility: &[PackageVisibility],
+                                                  conn: &mut PgConnection)
+                                                  -> QueryResult<Vec<BuilderPackageIdent>> {
+        Counter::DBCall.increment();
+        let start_time = Instant::now();
+
+        let result =
+            origin_packages::table.inner_join(origin_channel_packages::table)
+                                  .filter(origin_packages::visibility.eq_any(visibility))
+                                  .filter(origin_channel_packages::channel_id.eq(channel_id))
+                                  .select(origin_packages::ident)
+                                  .order(origin_packages::ident.asc())
+                                  .get_results(conn);
+
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("DBCall channel::list_all_packages_by_channel_id_idents time: {} ms",
                duration_millis);
         Histogram::DbCallTime.set(duration_millis as f64);
         Histogram::ChannelListAllPackagesCallTime.set(duration_millis as f64);

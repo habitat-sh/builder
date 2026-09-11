@@ -850,7 +850,7 @@ describe('Channels API', function () {
         .set('Authorization', global.boboBearer)
         .expect(400)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.contain('Invalid target channel');
           done(err);
         });
     });
@@ -860,7 +860,7 @@ describe('Channels API', function () {
         .set('Authorization', global.boboBearer)
         .expect(400)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.contain('Invalid target channel');
           done(err);
         });
     });
@@ -870,7 +870,7 @@ describe('Channels API', function () {
         .set('Authorization', global.boboBearer)
         .expect(400)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.contain('Invalid target channel');
           done(err);
         });
     });
@@ -880,7 +880,7 @@ describe('Channels API', function () {
         .set('Authorization', global.boboBearer)
         .expect(400)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.contain('Invalid target channel');
           done(err);
         });
     });
@@ -979,7 +979,7 @@ describe('Channels API', function () {
         .set('Authorization', global.boboBearer)
         .expect(400)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.contain('Invalid target channel');
           done(err);
         });
     });
@@ -989,7 +989,7 @@ describe('Channels API', function () {
         .set('Authorization', global.boboBearer)
         .expect(400)
         .end(function (err, res) {
-          expect(res.text).to.be.empty;
+          expect(res.text).to.contain('Invalid target channel');
           done(err);
         });
     });
