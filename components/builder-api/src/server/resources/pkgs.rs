@@ -78,6 +78,7 @@ use std::{fs::{self,
                Write},
           path::{self,
                  PathBuf},
+          pin::Pin,
           str::FromStr};
 use uuid::Uuid;
 
@@ -568,6 +569,7 @@ async fn download_package(req: HttpRequest,
                         let content_length = resp.content_length().map(|len| len as i64);
                         let stream = resp.bytes_stream()
                                          .map(|chunk| chunk.map_err(std::io::Error::other));
+                        let stream = checksum_verified_stream(stream, package.checksum.clone());
                         streaming_download_response(filename, content_length, cache_hdr, stream)
                     }
                     Err(e) => {
@@ -579,6 +581,7 @@ async fn download_package(req: HttpRequest,
             } else {
                 match state.packages.download_stream(&temp_ident, target).await {
                     Ok((content_length, stream)) => {
+                        let stream = checksum_verified_stream(stream, package.checksum.clone());
                         streaming_download_response(filename, content_length, cache_hdr, stream)
                     }
                     Err(e) => {
@@ -1461,6 +1464,79 @@ fn archive_name(ident: &PackageIdent, target: PackageTarget) -> PathBuf {
                                                                     qualified, ident={}",
                                                                    ident)
                                                         }))
+}
+
+// Return a fresh Blake2b hasher state configured to produce 32-byte digests, matching the
+// format habitat_core's `Blake2bHash` uses (and thus what is stored in `Package::checksum`).
+fn blake2b_hash_state() -> blake2b_simd::State {
+    let mut params = blake2b_simd::Params::new();
+    params.hash_length(32);
+    params.to_state()
+}
+
+fn to_lowercase_hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+// Wrap a byte stream so that, as chunks flow through to the client, they are also fed into a
+// running Blake2b hash. Once the backing stream ends, the computed digest is compared against
+// the checksum recorded for the package at upload time.
+//
+// This preserves (and in fact strengthens) the integrity check that the old, fully-buffered
+// download path got "for free" via `PackageArchive::new()` parsing the downloaded file. Since we
+// no longer buffer the whole artifact server-side before responding, we can't reject a bad
+// artifact before the response starts, but we can still guarantee that a corrupted or truncated
+// backend object is never delivered as a clean, successful download: if the final digest doesn't
+// match, the stream ends with an error instead of completing normally, which causes the HTTP
+// response body to be truncated/aborted rather than silently accepted by the client.
+fn checksum_verified_stream<S>(inner: S, expected_checksum: String)
+                               -> impl Stream<Item = std::result::Result<Bytes, std::io::Error>>
+    where S: Stream<Item = std::result::Result<Bytes, std::io::Error>> + 'static
+{
+    struct HashState<S> {
+        inner:    Pin<Box<S>>,
+        hasher:   blake2b_simd::State,
+        expected: String,
+        done:     bool,
+    }
+
+    let initial = HashState { inner:    Box::pin(inner),
+                              hasher:   blake2b_hash_state(),
+                              expected: expected_checksum,
+                              done:     false, };
+
+    futures::stream::unfold(initial, |mut state| {
+        async move {
+            if state.done {
+                return None;
+            }
+
+            match state.inner.next().await {
+                Some(Ok(chunk)) => {
+                    state.hasher.update(&chunk);
+                    Some((Ok(chunk), state))
+                }
+                Some(Err(e)) => {
+                    state.done = true;
+                    Some((Err(e), state))
+                }
+                None => {
+                    state.done = true;
+                    let actual = to_lowercase_hex(state.hasher.finalize().as_bytes());
+                    if actual == state.expected {
+                        None
+                    } else {
+                        warn!("Checksum mismatch while streaming package download: expected \
+                              {}, got {}",
+                              state.expected, actual);
+                        Some((Err(std::io::Error::other("Package checksum verification failed \
+                                                         during download")),
+                              state))
+                    }
+                }
+            }
+        }
+    })
 }
 
 fn streaming_download_response<S>(filename: String,

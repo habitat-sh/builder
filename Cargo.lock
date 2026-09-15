@@ -2098,6 +2098,7 @@ dependencies = [
  "aws-sdk-s3",
  "aws-smithy-types",
  "bitflags 2.11.0",
+ "blake2b_simd",
  "builder_core",
  "bytes",
  "chrono",

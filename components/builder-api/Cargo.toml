@@ -16,6 +16,7 @@ doc = false
 actix-rt = "*"
 bytes = "*"
 bitflags = "2"
+blake2b_simd = "*"
 chrono = { version = "*", features = ["serde"] }
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
 env_logger = "*"
