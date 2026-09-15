@@ -1653,5 +1653,66 @@ mod checksum_verified_stream_tests {
         assert_eq!(results[0].as_ref().unwrap().as_ref(), corrupted.as_slice());
         assert!(results[1].is_err());
     }
+
+    // The tests above derive their "expected" checksum by calling `blake2b_hash_state()` /
+    // `to_lowercase_hex()` themselves -- the very helpers `checksum_verified_stream` uses
+    // internally. That makes them self-referential: if those helpers used the wrong digest
+    // length, the wrong hash algorithm, or a different hex format than what
+    // `PackageArchive::checksum()` actually persists into `Package::checksum` at upload time,
+    // every one of those tests would still pass, since both sides of the comparison would be
+    // wrong in the same way.
+    //
+    // To catch that class of bug, this checksum was computed independently, outside of this
+    // test file/module entirely, using the real `hab` CLI (`hab pkg hash`), which is backed by
+    // the same habitat_core `Blake2bHash` implementation that produces the checksum stored on
+    // `Package` at upload time:
+    //
+    //   PS> [System.IO.File]::WriteAllBytes("fixture.bin", \
+    //         [System.Text.Encoding]::UTF8.GetBytes("habitat-checksum-regression-fixture`n"))
+    //   PS> hab pkg hash fixture.bin
+    //   acf7fd9a44050ab116c8043e28e557104331904f2278993f9a4f3a858281dad4  fixture.bin
+    //
+    // Input bytes (UTF-8): "habitat-checksum-regression-fixture\n" (36 bytes)
+    const KNOWN_ANSWER_INPUT: &[u8] = b"habitat-checksum-regression-fixture\n";
+    const KNOWN_ANSWER_CHECKSUM: &str =
+        "acf7fd9a44050ab116c8043e28e557104331904f2278993f9a4f3a858281dad4";
+
+    #[tokio::test]
+    async fn accepts_independently_verified_known_answer_checksum() {
+        // Split the known-good input across two chunks to also exercise chunk-boundary handling
+        // against real, externally-verified data rather than only synthetic ASCII test strings.
+        let (first, second) = KNOWN_ANSWER_INPUT.split_at(KNOWN_ANSWER_INPUT.len() / 2);
+        let inner =
+            stream::iter(vec![Ok::<_, std::io::Error>(Bytes::from(first.to_vec())),
+                              Ok::<_, std::io::Error>(Bytes::from(second.to_vec()))]);
+
+        let results: Vec<_> = checksum_verified_stream(inner, KNOWN_ANSWER_CHECKSUM.to_string())
+            .collect()
+            .await;
+
+        assert_eq!(results.len(), 2);
+        let mut forwarded = Vec::new();
+        for result in results {
+            forwarded.extend_from_slice(&result.expect("chunk should not be an error"));
+        }
+        assert_eq!(forwarded, KNOWN_ANSWER_INPUT);
+    }
+
+    #[tokio::test]
+    async fn rejects_corrupted_data_against_known_answer_checksum() {
+        // Flip a single byte relative to the known-good input verified against the real `hab`
+        // CLI above; length is unchanged, so this cannot be caught by content-length alone.
+        let mut corrupted = KNOWN_ANSWER_INPUT.to_vec();
+        corrupted[0] ^= 0xFF;
+
+        let inner = stream::iter(vec![Ok::<_, std::io::Error>(Bytes::from(corrupted))]);
+        let results: Vec<_> = checksum_verified_stream(inner, KNOWN_ANSWER_CHECKSUM.to_string())
+            .collect()
+            .await;
+
+        assert_eq!(results.len(), 2);
+        assert!(results[0].is_ok());
+        assert!(results[1].is_err());
+    }
 }
 
