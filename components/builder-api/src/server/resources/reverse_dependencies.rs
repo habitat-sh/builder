@@ -78,8 +78,8 @@ pub(crate) async fn get_rdeps_for_ident(conn: &mut PooledConnection<ConnectionMa
                origin_packages as op2
          where op1.origin = $1
            and op1.name = $2
-           and op1.version = $3
-           and op1.release = $4
+           and op1.ident_array[3] = $3
+           and op1.ident_array[4] = $4
            and op1.target = $5
            and op2.tdeps @> (ARRAY[op1.ident])
          order by short_id"###;
