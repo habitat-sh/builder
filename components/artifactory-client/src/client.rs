@@ -94,6 +94,45 @@ impl ArtifactoryClient {
         }
     }
 
+    /// Performs the initial GET request for a package artifact and returns the raw response
+    /// without reading its body, so callers can stream the bytes directly to their own
+    /// destination (e.g. an HTTP client) instead of buffering the whole artifact to local disk
+    /// first. This avoids adding a full backend-fetch delay before any bytes reach the caller,
+    /// which matters a great deal for very large packages.
+    pub async fn download_response(&self,
+                                   ident: &PackageIdent,
+                                   target: PackageTarget)
+                                   -> ArtifactoryResult<Response> {
+        debug!("ArtifactoryClient streaming download request for {} ({})",
+               ident, target);
+
+        let url = self.url_path_for(ident, target);
+        debug!("ArtifactoryClient download url = {}", url);
+
+        let resp = match self.inner
+                             .get(&url)
+                             .send()
+                             .await
+                             .map_err(ArtifactoryError::HttpClient)
+        {
+            Ok(resp) => resp,
+            Err(err) => {
+                error!("ArtifactoryClient download failed, err={}", err);
+                return Err(err);
+            }
+        };
+
+        debug!("Artifactory response status: {:?}", resp.status());
+
+        if resp.status().is_success() {
+            Ok(resp)
+        } else {
+            error!("Artifactory download non-success status: {:?}",
+                   resp.status());
+            Err(ArtifactoryError::ApiError(resp.status(), HashMap::new()))
+        }
+    }
+
     pub async fn download(&self,
                           destination_path: &Path,
                           ident: &PackageIdent,

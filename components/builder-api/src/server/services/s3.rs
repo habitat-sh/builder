@@ -26,7 +26,8 @@
 //! ID and a secret access key.
 use std::{fmt::Display,
           fs::File,
-          io::{BufRead,
+          io::{self,
+               BufRead,
                BufReader,
                Read,
                Write},
@@ -41,6 +42,10 @@ use aws_sdk_s3::{config::{Credentials,
                  types::{CompletedMultipartUpload,
                          CompletedPart},
                  Client as S3Client};
+
+use bytes::Bytes;
+use futures::stream::{Stream,
+                      StreamExt};
 
 use super::metrics::Counter;
 use crate::{bldr_core::metrics::CounterMetric,
@@ -205,6 +210,37 @@ impl S3Handler {
                 Err(e.into())
             }
         }
+    }
+
+    /// Streams a package's bytes directly from S3, rather than buffering the whole object
+    /// in memory or on local disk first. Returns the object's content length (when S3 reports
+    /// one) along with a stream of chunks as they arrive, so that callers (e.g. the HTTP
+    /// download handler) can forward each chunk to their own client as soon as it's received,
+    /// instead of waiting for the entire, potentially very large, artifact to be fetched.
+    pub async fn download_stream(
+        &self,
+        ident: &PackageIdent,
+        target: PackageTarget)
+        -> Result<(Option<i64>, impl Stream<Item = std::result::Result<Bytes, io::Error>>)> {
+        Counter::DownloadRequests.increment();
+        let key = s3_key(ident, target)?;
+        let request = self.client
+                          .get_object()
+                          .bucket(self.bucket.clone())
+                          .key(key);
+
+        let response = match request.send().await {
+            Ok(response) => response,
+            Err(e) => {
+                warn!("Failed to retrieve object from S3, ident={}: {:?}",
+                      ident, e);
+                return Err(e.into());
+            }
+        };
+
+        let content_length = response.content_length;
+        let stream = response.body.map(|chunk| chunk.map_err(io::Error::other));
+        Ok((content_length, stream))
     }
 
     pub async fn download(&self,

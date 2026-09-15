@@ -68,21 +68,17 @@ use actix_web::{body::BoxBody,
 use bytes::Bytes;
 use diesel::{connection::SimpleConnection,
              result::Error::NotFound};
-use futures::{channel::mpsc,
+use futures::{Stream,
               StreamExt};
 use serde::ser::Serialize;
-use std::{convert::Infallible,
-          fs::{self,
+use std::{fs::{self,
                remove_file,
                File},
-          io::{BufReader,
-               BufWriter,
-               Read,
+          io::{BufWriter,
                Write},
           path::{self,
                  PathBuf},
           str::FromStr};
-use tempfile::tempdir_in;
 use uuid::Uuid;
 
 // Query param containers
@@ -548,19 +544,31 @@ async fn download_package(req: HttpRequest,
                 }
             }
 
-            let dir = tempdir_in(&state.config.api.data_path).expect("Unable to create a tempdir!");
-            let file_path = dir.path().join(archive_name(&package.ident, target));
             let temp_ident = ident;
             let is_private = package.visibility != PackageVisibility::Public;
+            let filename = archive_name(&package.ident, target).to_string_lossy()
+                                                                .into_owned();
+            let cache_hdr = if is_private {
+                headers::Cache::MaxAge(state.config.api.private_max_age).to_string()
+            } else {
+                headers::Cache::default().to_string()
+            };
 
+            // Stream the artifact's bytes directly to the client as they arrive from the
+            // backing store (Artifactory/S3), rather than fully downloading it to a local temp
+            // file first and only then starting the client-facing response. For very large
+            // packages, waiting for that full backend fetch before sending any response bytes
+            // can exceed proxy/load-balancer idle timeouts (e.g. nginx/ALB), causing spurious
+            // 504s even though the download itself would otherwise have succeeded.
+            //
             // TODO: Aggregate Artifactory/S3 into a provider model
             if feat::is_enabled(feat::Artifactory) {
-                match state.artifactory
-                           .download(&file_path, &temp_ident, target)
-                           .await
-                {
-                    Ok(archive) => {
-                        download_response_for_archive(&archive, &file_path, is_private, &state)
+                match state.artifactory.download_response(&temp_ident, target).await {
+                    Ok(resp) => {
+                        let content_length = resp.content_length().map(|len| len as i64);
+                        let stream = resp.bytes_stream()
+                                         .map(|chunk| chunk.map_err(std::io::Error::other));
+                        streaming_download_response(filename, content_length, cache_hdr, stream)
                     }
                     Err(e) => {
                         warn!("Failed to download package, ident={}, err={:?}",
@@ -569,12 +577,9 @@ async fn download_package(req: HttpRequest,
                     }
                 }
             } else {
-                match state.packages
-                           .download(&file_path, &temp_ident, target)
-                           .await
-                {
-                    Ok(archive) => {
-                        download_response_for_archive(&archive, &file_path, is_private, &state)
+                match state.packages.download_stream(&temp_ident, target).await {
+                    Ok((content_length, stream)) => {
+                        streaming_download_response(filename, content_length, cache_hdr, stream)
                     }
                     Err(e) => {
                         warn!("Failed to download package, ident={}, err={:?}",
@@ -1458,44 +1463,36 @@ fn archive_name(ident: &PackageIdent, target: PackageTarget) -> PathBuf {
                                                         }))
 }
 
-fn download_response_for_archive(archive: &PackageArchive,
-                                 file_path: &path::Path,
-                                 is_private: bool,
-                                 state: &Data<AppState>)
-                                 -> HttpResponse {
-    let filename = archive.file_name();
-    let file = match File::open(file_path) {
-        Ok(f) => f,
-        Err(err) => {
-            warn!("Unable to open file: {:?}", file_path);
-            return Error::IO(err).into();
+fn streaming_download_response<S>(filename: String,
+                                  content_length: Option<i64>,
+                                  cache_hdr: String,
+                                  stream: S)
+                                  -> HttpResponse
+    where S: Stream<Item = std::result::Result<Bytes, std::io::Error>> + 'static
+{
+    let mut builder = HttpResponse::Ok();
+    builder.append_header((
+                http::header::CONTENT_DISPOSITION,
+                ContentDisposition {
+                    disposition: DispositionType::Attachment,
+                    parameters: vec![DispositionParam::Filename(filename.clone())],
+                },
+            ))
+           .append_header((
+                http::header::HeaderName::from_static(headers::XFILENAME),
+                filename,
+            ))
+           .insert_header(ContentType::octet_stream())
+           .append_header((http::header::CACHE_CONTROL, cache_hdr));
+
+    // A negative content length would be nonsensical (and has been observed as a sentinel from
+    // some backends), so only forward it when it's a valid, non-negative value.
+    if let Some(len) = content_length {
+        if len >= 0 {
+            builder.append_header((http::header::CONTENT_LENGTH, len.to_string()));
         }
-    };
-    let reader = BufReader::new(file);
-    let bytes: Vec<u8> = reader.bytes().map(|r| r.unwrap()).collect();
+    }
 
-    let (tx, rx_body) = mpsc::unbounded();
-    let _ = tx.unbounded_send(Bytes::from(bytes));
-    let cache_hdr = if is_private {
-        headers::Cache::MaxAge(state.config.api.private_max_age).to_string()
-    } else {
-        headers::Cache::default().to_string()
-    };
-
-    #[allow(clippy::redundant_closure)] //  Ok::<_, ()>
-    HttpResponse::Ok()
-        .append_header((
-            http::header::CONTENT_DISPOSITION,
-            ContentDisposition {
-                disposition: DispositionType::Attachment,
-                parameters: vec![DispositionParam::Filename(filename)],
-            },
-        ))
-        .append_header((
-            http::header::HeaderName::from_static(headers::XFILENAME),
-            archive.file_name(),
-        ))
-        .insert_header(ContentType::octet_stream())
-        .append_header((http::header::CACHE_CONTROL, cache_hdr))
-        .streaming(rx_body.map(|s| Ok::<_, Infallible>(s)))
+    builder.streaming(stream)
 }
+
