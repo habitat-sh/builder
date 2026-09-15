@@ -934,6 +934,22 @@ describe('Working with packages', function () {
         });
     });
 
+    // release1 is re-uploaded here because later suites (e.g. channels.js, which promotes
+    // neurosis/testapp/0.1.3/release1 into several channels) depend on it still being present.
+    // This also incidentally verifies that a package can be re-uploaded after being deleted.
+    it('restores the deleted leaf release for later test suites that still depend on it', function (done) {
+      request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file1.length)
+        .query({ checksum: '3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8' })
+        .send(file1)
+        .expect(201)
+        .end(function (err, res) {
+          expect(res.text).to.equal(`/pkgs/neurosis/testapp/0.1.3/${release1}/download`);
+          done(err);
+        });
+    });
+
     it('returns the package in the latest call', function (done) {
       request.get('/depot/pkgs/neurosis/testapp3/latest')
         .type('application/json')
