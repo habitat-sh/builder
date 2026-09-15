@@ -329,7 +329,7 @@ async fn delete_package(req: HttpRequest,
                                                     &pkg,
                                                     &version,
                                                     &release,
-                                                    &target.to_string()).await
+                                                    target.as_ref()).await
     {
         Ok(reverse_depenencies) => {
             if !reverse_depenencies.rdeps.is_empty() {
