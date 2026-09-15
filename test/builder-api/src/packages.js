@@ -909,12 +909,27 @@ describe('Working with packages', function () {
         });
     })
 
+    // neurosis/testapp3/0.1.0/release9 has neurosis/testapp/0.1.3/release14 (and only that
+    // exact release) in its TDEPS, so only release14 is a non-leaf (has reverse dependencies).
     it('fails for non-leaf packages', function (done) {
-      request.delete(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
+      request.delete(`/depot/pkgs/neurosis/testapp/0.1.3/${release14}`)
         .set('Authorization', global.boboBearer)
         .expect(422)
         .end(function (err, res) {
           expect(res.text).to.be.not.empty;
+          done(err)
+        });
+    });
+
+    it('succeeds for a leaf release even when another release of the same package is a non-leaf', function (done) {
+      // release1 is a different release of neurosis/testapp/0.1.3 than release14, and nothing
+      // depends on release1 specifically, so it should be deletable even though release14
+      // (above) is blocked.
+      request.delete(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
+        .set('Authorization', global.boboBearer)
+        .expect(204)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
           done(err)
         });
     });

@@ -273,7 +273,10 @@ async fn delete_package(req: HttpRequest,
         return err.into();
     }
 
-    let ident = PackageIdent::new(origin.clone(), pkg.clone(), Some(version), Some(release));
+    let ident = PackageIdent::new(origin.clone(),
+                                  pkg.clone(),
+                                  Some(version.clone()),
+                                  Some(release.clone()));
 
     // TODO: Deprecate target from headers
     let target = match qtarget.target {
@@ -321,7 +324,13 @@ async fn delete_package(req: HttpRequest,
         }
     }
 
-    match reverse_dependencies::get_rdeps(&mut conn, &origin, &pkg, &target).await {
+    match reverse_dependencies::get_rdeps_for_ident(&mut conn,
+                                                    &origin,
+                                                    &pkg,
+                                                    &version,
+                                                    &release,
+                                                    &target.to_string()).await
+    {
         Ok(reverse_depenencies) => {
             if !reverse_depenencies.rdeps.is_empty() {
                 let body = Bytes::from(format!("Deleting package with rdeps not allowed '{}'",
