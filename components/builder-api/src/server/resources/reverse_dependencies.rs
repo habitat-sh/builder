@@ -98,6 +98,7 @@ pub(crate) async fn get_rdeps_for_ident(conn: &mut PooledConnection<ConnectionMa
         ReverseDependencies { origin: origin.to_string(),
                               name:   name.to_string(),
                               rdeps:  rdeps.iter().map(|d| d.short_id.clone()).collect(), };
-    debug!("reverse_dependencies (exact ident): {:?} ", reverse_dependencies);
+    debug!("reverse_dependencies (exact ident): {:?} ",
+           reverse_dependencies);
     Ok(reverse_dependencies)
 }
