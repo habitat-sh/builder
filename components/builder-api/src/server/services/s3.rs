@@ -239,7 +239,22 @@ impl S3Handler {
         };
 
         let content_length = response.content_length;
-        let stream = response.body.map(|chunk| chunk.map_err(io::Error::other));
+
+        // `aws_smithy_types::byte_stream::ByteStream` does not itself implement
+        // `futures::Stream` -- it only exposes an async `next()` method (plus an unrelated
+        // inherent `map()` that transforms the underlying `SdkBody`, not stream items). Adapt it
+        // into a real `futures::Stream` by driving that `next()` method through
+        // `futures::stream::unfold`, converting each streaming error into an `io::Error` the
+        // same way the rest of this module does.
+        let stream = futures::stream::unfold(response.body, |mut body| {
+            async move {
+                match body.next().await {
+                    Some(Ok(bytes)) => Some((Ok(bytes), body)),
+                    Some(Err(e)) => Some((Err(io::Error::other(e.to_string())), body)),
+                    None => None,
+                }
+            }
+        });
         Ok((content_length, stream))
     }
 
