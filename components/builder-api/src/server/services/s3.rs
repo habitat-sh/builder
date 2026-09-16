@@ -33,6 +33,7 @@ use std::{fmt::Display,
                Write},
           path::{Path,
                  PathBuf},
+          pin::Pin,
           str::FromStr,
           time::Instant};
 
@@ -44,8 +45,7 @@ use aws_sdk_s3::{config::{Credentials,
                  Client as S3Client};
 
 use bytes::Bytes;
-use futures::stream::{Stream,
-                      StreamExt};
+use futures::stream::Stream;
 
 use super::metrics::Counter;
 use crate::{bldr_core::metrics::CounterMetric,
@@ -221,7 +221,8 @@ impl S3Handler {
         &self,
         ident: &PackageIdent,
         target: PackageTarget)
-        -> Result<(Option<i64>, impl Stream<Item = std::result::Result<Bytes, io::Error>>)> {
+        -> Result<(Option<i64>,
+                   Pin<Box<dyn Stream<Item = std::result::Result<Bytes, io::Error>> + Send>>)> {
         Counter::DownloadRequests.increment();
         let key = s3_key(ident, target)?;
         let request = self.client
@@ -255,7 +256,7 @@ impl S3Handler {
                 }
             }
         });
-        Ok((content_length, stream))
+        Ok((content_length, Box::pin(stream)))
     }
 
     pub async fn download(&self,
@@ -517,6 +518,8 @@ mod download_stream_integration_tests {
     use super::*;
     use std::{net::TcpListener,
               time::Duration};
+
+    use futures::stream::StreamExt;
 
     // Spawn a minimal, one-shot raw HTTP/1.1 server on an OS-assigned loopback port. It accepts
     // a single connection, drains (and discards) the request (including whatever SigV4 auth
