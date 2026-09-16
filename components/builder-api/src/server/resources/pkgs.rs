@@ -1782,7 +1782,11 @@ mod checksum_verified_stream_tests {
     async fn accepts_independently_verified_known_answer_checksum() {
         // Split the known-good input across two chunks to also exercise chunk-boundary handling
         // against real, externally-verified data rather than only synthetic ASCII test strings.
-        let (first, second) = KNOWN_ANSWER_INPUT.split_at(KNOWN_ANSWER_INPUT.len() / 2);
+        // Integer division is intentional: we only need an arbitrary midpoint split, not a
+        // precise fractional value.
+        #[allow(clippy::integer_division)]
+        let mid = KNOWN_ANSWER_INPUT.len() / 2;
+        let (first, second) = KNOWN_ANSWER_INPUT.split_at(mid);
         let inner = stream::iter(vec![Ok::<_, std::io::Error>(Bytes::from(first.to_vec())),
                                       Ok::<_, std::io::Error>(Bytes::from(second.to_vec()))]);
 

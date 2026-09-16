@@ -613,7 +613,11 @@ mod download_stream_integration_tests {
         // Declare a Content-Length matching the *full* payload, but only actually send half of
         // it before the mock server closes the connection -- simulating a truncated/dropped
         // backend transfer partway through.
-        let truncated_payload = &full_payload[..full_payload.len() / 2];
+        // Integer division is intentional here: we only need an arbitrary "cut the payload
+        // short" split point for this test fixture, not a precise fractional value.
+        #[allow(clippy::integer_division)]
+        let half_len = full_payload.len() / 2;
+        let truncated_payload = &full_payload[..half_len];
         let response = http_ok_response(truncated_payload, full_payload.len());
         let endpoint = spawn_mock_server(response);
 
