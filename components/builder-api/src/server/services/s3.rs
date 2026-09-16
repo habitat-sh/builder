@@ -491,3 +491,137 @@ mod test {
         }
     }
 }
+
+// These tests exercise `S3Handler::download_stream` (the real, production streaming download
+// entry point used by builder-api's `download_package` handler) against a real -- if minimal --
+// local HTTP server standing in for S3/Minio, rather than mocking the AWS SDK itself. This is
+// what actually catches regressions in how the handler adapts a live `GetObject` response into a
+// byte stream, which purely synthetic, in-memory stream tests elsewhere cannot verify.
+#[cfg(test)]
+mod download_stream_integration_tests {
+    use super::*;
+    use std::{net::TcpListener,
+              time::Duration};
+
+    // Spawn a minimal, one-shot raw HTTP/1.1 server on an OS-assigned loopback port. It accepts
+    // a single connection, drains (and discards) the request (including whatever SigV4 auth
+    // headers the AWS SDK sends -- this server doesn't validate them, it just needs to look like
+    // a plain HTTP endpoint), then writes back the given raw response bytes verbatim before
+    // closing the connection. This lets us simulate both a complete `GetObject` response and a
+    // backend connection that closes before delivering as many bytes as it originally promised
+    // via `Content-Length`, without needing a real S3/Minio instance.
+    fn spawn_mock_server(response: Vec<u8>) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock server");
+        let addr = listener.local_addr().expect("mock server local addr");
+
+        std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                stream.set_read_timeout(Some(Duration::from_secs(2))).ok();
+
+                let mut request_buf = Vec::new();
+                let mut buf = [0u8; 4096];
+                loop {
+                    match stream.read(&mut buf) {
+                        Ok(0) => break,
+                        Ok(n) => {
+                            request_buf.extend_from_slice(&buf[..n]);
+                            if request_buf.windows(4).any(|w| w == b"\r\n\r\n") {
+                                break;
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+
+                let _ = stream.write_all(&response);
+                let _ = stream.flush();
+                // Dropping `stream` here closes the connection.
+            }
+        });
+
+        format!("http://{}", addr)
+    }
+
+    fn http_ok_response(body: &[u8], declared_content_length: usize) -> Vec<u8> {
+        let mut resp = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Type: \
+                                application/octet-stream\r\nConnection: close\r\n\r\n",
+                               declared_content_length).into_bytes();
+        resp.extend_from_slice(body);
+        resp
+    }
+
+    fn test_handler(endpoint: String) -> S3Handler {
+        S3Handler::new(S3Cfg { key_id:      "test-key-id".to_string(),
+                              secret_key:  "test-secret-key".to_string(),
+                              bucket_name: "test-bucket".to_string(),
+                              backend:     S3Backend::Minio,
+                              endpoint })
+    }
+
+    fn test_ident() -> PackageIdent {
+        PackageIdent::from_str("acme/streamtest/1.0.0/20200101000000").expect("valid ident")
+    }
+
+    #[tokio::test]
+    async fn download_stream_forwards_full_body_from_a_real_backend_connection() {
+        let payload = b"artifact bytes delivered over a real (loopback) HTTP connection, in \
+                        full."
+            .to_vec();
+        let response = http_ok_response(&payload, payload.len());
+        let endpoint = spawn_mock_server(response);
+
+        let handler = test_handler(endpoint);
+        let target = PackageTarget::from_str("x86_64-linux").expect("valid target");
+
+        let (_content_length, mut stream) =
+            handler.download_stream(&test_ident(), target)
+                   .await
+                   .expect("download_stream should succeed for a complete backend response");
+
+        let mut received = Vec::new();
+        while let Some(chunk) = stream.next().await {
+            received.extend_from_slice(&chunk.expect("chunk should not error for a complete \
+                                                       response"));
+        }
+
+        assert_eq!(received, payload);
+    }
+
+    #[tokio::test]
+    async fn download_stream_surfaces_a_stream_error_for_a_truncated_backend_connection() {
+        let full_payload = b"artifact bytes that will be cut off before fully delivered to the \
+                             caller, simulating a dropped backend connection!!"
+            .to_vec();
+        // Declare a Content-Length matching the *full* payload, but only actually send half of
+        // it before the mock server closes the connection -- simulating a truncated/dropped
+        // backend transfer partway through.
+        let truncated_payload = &full_payload[..full_payload.len() / 2];
+        let response = http_ok_response(truncated_payload, full_payload.len());
+        let endpoint = spawn_mock_server(response);
+
+        let handler = test_handler(endpoint);
+        let target = PackageTarget::from_str("x86_64-linux").expect("valid target");
+
+        // The initial response (status + headers, including the declared Content-Length) is
+        // still received successfully -- the truncation is only observable once the body stream
+        // itself is consumed, which is exactly why `download_package` cannot rely on a
+        // successful `download_stream` call alone to guarantee the artifact is intact.
+        let (_content_length, mut stream) =
+            handler.download_stream(&test_ident(), target)
+                   .await
+                   .expect("headers should still be received even though the body will be \
+                           truncated");
+
+        let mut saw_error = false;
+        while let Some(chunk) = stream.next().await {
+            if chunk.is_err() {
+                saw_error = true;
+                break;
+            }
+        }
+
+        assert!(saw_error,
+                "expected the truncated backend connection to surface as a stream error \
+                 instead of silently yielding a short/incomplete body as if it were complete");
+    }
+}

@@ -1521,7 +1521,8 @@ fn checksum_verified_stream<S>(inner: S, expected_checksum: String)
                 }
                 None => {
                     state.done = true;
-                    let actual = to_lowercase_hex(state.hasher.finalize().as_bytes());
+                    let hasher = std::mem::replace(&mut state.hasher, blake2b_hash_state());
+                    let actual = to_lowercase_hex(hasher.finalize().as_bytes());
                     if actual == state.expected {
                         None
                     } else {
@@ -1572,6 +1573,97 @@ fn streaming_download_response<S>(filename: String, cache_hdr: String, stream: S
     // sending the checksum result as a wire-level HTTP trailer that the client is required to
     // check -- neither of which this streaming implementation currently does.
     builder.streaming(stream)
+}
+
+#[cfg(test)]
+mod streaming_download_response_tests {
+    use super::*;
+    use actix_web::body::to_bytes;
+    use futures::stream;
+
+    // Compute the expected checksum for a byte slice the same way `checksum_verified_stream`
+    // does, so tests don't depend on a hardcoded, hand-computed digest.
+    fn known_checksum(data: &[u8]) -> String {
+        let mut hasher = blake2b_hash_state();
+        hasher.update(data);
+        to_lowercase_hex(hasher.finalize().as_bytes())
+    }
+
+    // These tests exercise the real, production `streaming_download_response` +
+    // `checksum_verified_stream` pair together, through actix's actual response/body machinery
+    // (`HttpResponse`, `BodyStream`, `to_bytes`), rather than just polling
+    // `checksum_verified_stream` in isolation. This is what actually catches regressions in
+    // response construction (wrong/missing headers, a reintroduced fixed Content-Length, etc.)
+    // or in how the wrapped stream interacts with actix's body streaming, which pure
+    // `Stream::collect` tests over synthetic data cannot verify.
+    #[tokio::test]
+    async fn successful_download_streams_full_body_with_expected_headers() {
+        let payload = b"this is a fake package artifact, delivered to the client in chunks, \
+                        the way a real S3/Artifactory backend would."
+            .to_vec();
+        let checksum = known_checksum(&payload);
+
+        // Simulate a backend delivering the artifact across several chunks.
+        let items: Vec<std::result::Result<Bytes, std::io::Error>> =
+            payload.chunks(12).map(|c| Ok(Bytes::from(c.to_vec()))).collect();
+        let backend_stream = stream::iter(items);
+        let verified_stream = checksum_verified_stream(backend_stream, checksum);
+
+        let response = streaming_download_response("test-package.hart".to_string(),
+                                                   "no-cache".to_string(),
+                                                   verified_stream);
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let xfilename = http::header::HeaderName::from_static(headers::XFILENAME);
+        let response_headers = response.headers();
+        assert!(response_headers.contains_key(http::header::CONTENT_DISPOSITION));
+        assert_eq!(response_headers.get(&xfilename).unwrap(), "test-package.hart");
+        assert_eq!(response_headers.get(http::header::CONTENT_TYPE).unwrap(),
+                  "application/octet-stream");
+        assert_eq!(response_headers.get(http::header::CACHE_CONTROL).unwrap(), "no-cache");
+
+        // A fixed Content-Length is never safe here, since the checksum is only known to be
+        // valid once the whole stream has already been forwarded (see the comment on
+        // `streaming_download_response`). Regressing this would reintroduce the
+        // exactly-sized-corrupt-object vulnerability.
+        assert!(!response_headers.contains_key(http::header::CONTENT_LENGTH));
+
+        let body_bytes = to_bytes(response.into_body()).await
+                                                        .expect("body should read successfully \
+                                                                 when the checksum matches");
+        assert_eq!(body_bytes.as_ref(), payload.as_slice());
+    }
+
+    #[tokio::test]
+    async fn checksum_mismatch_fails_the_response_body_instead_of_completing_successfully() {
+        let payload = b"a corrupted or truncated backend object that must never be delivered \
+                        as if it were a complete, successful download."
+            .to_vec();
+        // Deliberately wrong: simulates the backend having returned corrupt/truncated bytes.
+        let wrong_checksum = "0".repeat(64);
+
+        let items: Vec<std::result::Result<Bytes, std::io::Error>> =
+            vec![Ok(Bytes::from(payload.clone()))];
+        let backend_stream = stream::iter(items);
+        let verified_stream = checksum_verified_stream(backend_stream, wrong_checksum);
+
+        let response = streaming_download_response("test-package.hart".to_string(),
+                                                   "no-cache".to_string(),
+                                                   verified_stream);
+
+        // Headers/status are already committed by the time the mismatch is detected (the
+        // backing stream hasn't reached EOF yet), which is exactly why Content-Length must not
+        // be set: it's the body read, not the initial response, that must fail.
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(!response.headers().contains_key(http::header::CONTENT_LENGTH));
+
+        let result = to_bytes(response.into_body()).await;
+        assert!(result.is_err(),
+                "expected the response body to fail instead of silently completing with \
+                 corrupted/truncated bytes, got: {:?}",
+                result.map(|b| b.len()));
+    }
 }
 
 #[cfg(test)]

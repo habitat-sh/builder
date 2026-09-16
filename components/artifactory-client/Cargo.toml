@@ -19,7 +19,7 @@ path = "../builder-core"
 
 [dependencies.tokio]
 version = "*"
-features = ["fs"]
+features = ["fs", "macros", "rt"]
 
 [dependencies.reqwest]
 version = "*"
