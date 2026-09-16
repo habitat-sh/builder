@@ -68,21 +68,18 @@ use actix_web::{body::BoxBody,
 use bytes::Bytes;
 use diesel::{connection::SimpleConnection,
              result::Error::NotFound};
-use futures::{channel::mpsc,
+use futures::{Stream,
               StreamExt};
 use serde::ser::Serialize;
-use std::{convert::Infallible,
-          fs::{self,
+use std::{fs::{self,
                remove_file,
                File},
-          io::{BufReader,
-               BufWriter,
-               Read,
+          io::{BufWriter,
                Write},
           path::{self,
                  PathBuf},
+          pin::Pin,
           str::FromStr};
-use tempfile::tempdir_in;
 use uuid::Uuid;
 
 // Query param containers
@@ -548,19 +545,34 @@ async fn download_package(req: HttpRequest,
                 }
             }
 
-            let dir = tempdir_in(&state.config.api.data_path).expect("Unable to create a tempdir!");
-            let file_path = dir.path().join(archive_name(&package.ident, target));
             let temp_ident = ident;
             let is_private = package.visibility != PackageVisibility::Public;
+            let filename = archive_name(&package.ident, target).to_string_lossy()
+                                                               .into_owned();
+            let cache_hdr = if is_private {
+                headers::Cache::MaxAge(state.config.api.private_max_age).to_string()
+            } else {
+                headers::Cache::default().to_string()
+            };
 
+            // Stream the artifact's bytes directly to the client as they arrive from the
+            // backing store (Artifactory/S3), rather than fully downloading it to a local temp
+            // file first and only then starting the client-facing response. For very large
+            // packages, waiting for that full backend fetch before sending any response bytes
+            // can exceed proxy/load-balancer idle timeouts (e.g. nginx/ALB), causing spurious
+            // 504s even though the download itself would otherwise have succeeded.
+            //
             // TODO: Aggregate Artifactory/S3 into a provider model
             if feat::is_enabled(feat::Artifactory) {
                 match state.artifactory
-                           .download(&file_path, &temp_ident, target)
+                           .download_response(&temp_ident, target)
                            .await
                 {
-                    Ok(archive) => {
-                        download_response_for_archive(&archive, &file_path, is_private, &state)
+                    Ok(resp) => {
+                        let stream = resp.bytes_stream()
+                                         .map(|chunk| chunk.map_err(std::io::Error::other));
+                        let stream = checksum_verified_stream(stream, package.checksum.clone());
+                        streaming_download_response(filename, cache_hdr, stream)
                     }
                     Err(e) => {
                         warn!("Failed to download package, ident={}, err={:?}",
@@ -569,12 +581,10 @@ async fn download_package(req: HttpRequest,
                     }
                 }
             } else {
-                match state.packages
-                           .download(&file_path, &temp_ident, target)
-                           .await
-                {
-                    Ok(archive) => {
-                        download_response_for_archive(&archive, &file_path, is_private, &state)
+                match state.packages.download_stream(&temp_ident, target).await {
+                    Ok((_content_length, stream)) => {
+                        let stream = checksum_verified_stream(stream, package.checksum.clone());
+                        streaming_download_response(filename, cache_hdr, stream)
                     }
                     Err(e) => {
                         warn!("Failed to download package, ident={}, err={:?}",
@@ -1458,44 +1468,354 @@ fn archive_name(ident: &PackageIdent, target: PackageTarget) -> PathBuf {
                                                         }))
 }
 
-fn download_response_for_archive(archive: &PackageArchive,
-                                 file_path: &path::Path,
-                                 is_private: bool,
-                                 state: &Data<AppState>)
-                                 -> HttpResponse {
-    let filename = archive.file_name();
-    let file = match File::open(file_path) {
-        Ok(f) => f,
-        Err(err) => {
-            warn!("Unable to open file: {:?}", file_path);
-            return Error::IO(err).into();
+// Return a fresh Blake2b hasher state configured to produce 32-byte digests, matching the
+// format habitat_core's `Blake2bHash` uses (and thus what is stored in `Package::checksum`).
+fn blake2b_hash_state() -> blake2b_simd::State {
+    let mut params = blake2b_simd::Params::new();
+    params.hash_length(32);
+    params.to_state()
+}
+
+fn to_lowercase_hex(bytes: &[u8]) -> String { bytes.iter().map(|b| format!("{:02x}", b)).collect() }
+
+// Wrap a byte stream so that, as chunks flow through to the client, they are also fed into a
+// running Blake2b hash. Once the backing stream ends, the computed digest is compared against
+// the checksum recorded for the package at upload time.
+//
+// This preserves (and in fact strengthens) the integrity check that the old, fully-buffered
+// download path got "for free" via `PackageArchive::new()` parsing the downloaded file. Since we
+// no longer buffer the whole artifact server-side before responding, we can't reject a bad
+// artifact before the response starts, but we can still guarantee that a corrupted or truncated
+// backend object is never delivered as a clean, successful download: if the final digest doesn't
+// match, the stream ends with an error instead of completing normally, which causes the HTTP
+// response body to be truncated/aborted rather than silently accepted by the client.
+fn checksum_verified_stream<S>(inner: S,
+                               expected_checksum: String)
+                               -> impl Stream<Item = std::result::Result<Bytes, std::io::Error>>
+    where S: Stream<Item = std::result::Result<Bytes, std::io::Error>> + 'static
+{
+    struct HashState<S> {
+        inner:    Pin<Box<S>>,
+        hasher:   blake2b_simd::State,
+        expected: String,
+        done:     bool,
+    }
+
+    let initial = HashState { inner:    Box::pin(inner),
+                              hasher:   blake2b_hash_state(),
+                              expected: expected_checksum,
+                              done:     false, };
+
+    futures::stream::unfold(initial, |mut state| {
+        async move {
+            if state.done {
+                return None;
+            }
+
+            match state.inner.next().await {
+                Some(Ok(chunk)) => {
+                    state.hasher.update(&chunk);
+                    Some((Ok(chunk), state))
+                }
+                Some(Err(e)) => {
+                    state.done = true;
+                    Some((Err(e), state))
+                }
+                None => {
+                    state.done = true;
+                    let hasher = std::mem::replace(&mut state.hasher, blake2b_hash_state());
+                    let actual = to_lowercase_hex(hasher.finalize().as_bytes());
+                    if actual == state.expected {
+                        None
+                    } else {
+                        warn!("Checksum mismatch while streaming package download: expected {}, \
+                               got {}",
+                              state.expected, actual);
+                        Some((Err(std::io::Error::other("Package checksum verification \
+                                                         failed during download")),
+                              state))
+                    }
+                }
+            }
         }
-    };
-    let reader = BufReader::new(file);
-    let bytes: Vec<u8> = reader.bytes().map(|r| r.unwrap()).collect();
+    })
+}
 
-    let (tx, rx_body) = mpsc::unbounded();
-    let _ = tx.unbounded_send(Bytes::from(bytes));
-    let cache_hdr = if is_private {
-        headers::Cache::MaxAge(state.config.api.private_max_age).to_string()
-    } else {
-        headers::Cache::default().to_string()
-    };
+fn streaming_download_response<S>(filename: String, cache_hdr: String, stream: S) -> HttpResponse
+    where S: Stream<Item = std::result::Result<Bytes, std::io::Error>> + 'static
+{
+    let mut builder = HttpResponse::Ok();
+    builder.append_header((
+                http::header::CONTENT_DISPOSITION,
+                ContentDisposition {
+                    disposition: DispositionType::Attachment,
+                    parameters: vec![DispositionParam::Filename(filename.clone())],
+                },
+            ))
+           .append_header((
+                http::header::HeaderName::from_static(headers::XFILENAME),
+                filename,
+            ))
+           .insert_header(ContentType::octet_stream())
+           .append_header((http::header::CACHE_CONTROL, cache_hdr));
 
-    #[allow(clippy::redundant_closure)] //  Ok::<_, ()>
-    HttpResponse::Ok()
-        .append_header((
-            http::header::CONTENT_DISPOSITION,
-            ContentDisposition {
-                disposition: DispositionType::Attachment,
-                parameters: vec![DispositionParam::Filename(filename)],
-            },
-        ))
-        .append_header((
-            http::header::HeaderName::from_static(headers::XFILENAME),
-            archive.file_name(),
-        ))
-        .insert_header(ContentType::octet_stream())
-        .append_header((http::header::CACHE_CONTROL, cache_hdr))
-        .streaming(rx_body.map(|s| Ok::<_, Infallible>(s)))
+    // Deliberately do NOT set a Content-Length header here. The stream is wrapped in
+    // `checksum_verified_stream`, which validates the package's checksum only once the backing
+    // stream reaches EOF -- i.e. after all of the artifact's bytes have already been forwarded.
+    // If we advertised a fixed Content-Length matching the (possibly corrupt) backend object's
+    // size, an exactly-sized corrupt object would look like a complete, successful response: once
+    // that many bytes have been sent, the client considers the body complete and cannot observe
+    // an error emitted afterward, and intermediaries (and Actix itself) may stop reading once the
+    // declared length is reached. By omitting Content-Length, the response uses chunked transfer
+    // encoding, so a late checksum-mismatch error causes the connection to be aborted without the
+    // terminating chunk, which HTTP clients correctly surface as a truncated/failed transfer.
+    //
+    // If a fixed Content-Length is ever reintroduced here, it must only be done alongside
+    // validating the checksum before the response starts (which requires buffering again), or by
+    // sending the checksum result as a wire-level HTTP trailer that the client is required to
+    // check -- neither of which this streaming implementation currently does.
+    builder.streaming(stream)
+}
+
+#[cfg(test)]
+mod streaming_download_response_tests {
+    use super::*;
+    use actix_web::body::to_bytes;
+    use futures::stream;
+
+    // Compute the expected checksum for a byte slice the same way `checksum_verified_stream`
+    // does, so tests don't depend on a hardcoded, hand-computed digest.
+    fn known_checksum(data: &[u8]) -> String {
+        let mut hasher = blake2b_hash_state();
+        hasher.update(data);
+        to_lowercase_hex(hasher.finalize().as_bytes())
+    }
+
+    // These tests exercise the real, production `streaming_download_response` +
+    // `checksum_verified_stream` pair together, through actix's actual response/body machinery
+    // (`HttpResponse`, `BodyStream`, `to_bytes`), rather than just polling
+    // `checksum_verified_stream` in isolation. This is what actually catches regressions in
+    // response construction (wrong/missing headers, a reintroduced fixed Content-Length, etc.)
+    // or in how the wrapped stream interacts with actix's body streaming, which pure
+    // `Stream::collect` tests over synthetic data cannot verify.
+    #[tokio::test]
+    async fn successful_download_streams_full_body_with_expected_headers() {
+        let payload = b"this is a fake package artifact, delivered to the client in chunks, \
+                        the way a real S3/Artifactory backend would."
+                                                                     .to_vec();
+        let checksum = known_checksum(&payload);
+
+        // Simulate a backend delivering the artifact across several chunks.
+        let items: Vec<std::result::Result<Bytes, std::io::Error>> =
+            payload.chunks(12)
+                   .map(|c| Ok(Bytes::from(c.to_vec())))
+                   .collect();
+        let backend_stream = stream::iter(items);
+        let verified_stream = checksum_verified_stream(backend_stream, checksum);
+
+        let response = streaming_download_response("test-package.hart".to_string(),
+                                                   "no-cache".to_string(),
+                                                   verified_stream);
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let xfilename = http::header::HeaderName::from_static(headers::XFILENAME);
+        let response_headers = response.headers();
+        assert!(response_headers.contains_key(http::header::CONTENT_DISPOSITION));
+        assert_eq!(response_headers.get(&xfilename).unwrap(),
+                   "test-package.hart");
+        assert_eq!(response_headers.get(http::header::CONTENT_TYPE).unwrap(),
+                   "application/octet-stream");
+        assert_eq!(response_headers.get(http::header::CACHE_CONTROL).unwrap(),
+                   "no-cache");
+
+        // A fixed Content-Length is never safe here, since the checksum is only known to be
+        // valid once the whole stream has already been forwarded (see the comment on
+        // `streaming_download_response`). Regressing this would reintroduce the
+        // exactly-sized-corrupt-object vulnerability.
+        assert!(!response_headers.contains_key(http::header::CONTENT_LENGTH));
+
+        let body_bytes =
+            to_bytes(response.into_body()).await
+                                          .expect("body should read successfully when the \
+                                                   checksum matches");
+        assert_eq!(body_bytes.as_ref(), payload.as_slice());
+    }
+
+    #[tokio::test]
+    async fn checksum_mismatch_fails_the_response_body_instead_of_completing_successfully() {
+        let payload = b"a corrupted or truncated backend object that must never be delivered \
+                        as if it were a complete, successful download."
+                                                                       .to_vec();
+        // Deliberately wrong: simulates the backend having returned corrupt/truncated bytes.
+        let wrong_checksum = "0".repeat(64);
+
+        let items: Vec<std::result::Result<Bytes, std::io::Error>> =
+            vec![Ok(Bytes::from(payload.clone()))];
+        let backend_stream = stream::iter(items);
+        let verified_stream = checksum_verified_stream(backend_stream, wrong_checksum);
+
+        let response = streaming_download_response("test-package.hart".to_string(),
+                                                   "no-cache".to_string(),
+                                                   verified_stream);
+
+        // Headers/status are already committed by the time the mismatch is detected (the
+        // backing stream hasn't reached EOF yet), which is exactly why Content-Length must not
+        // be set: it's the body read, not the initial response, that must fail.
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(!response.headers()
+                         .contains_key(http::header::CONTENT_LENGTH));
+
+        let result = to_bytes(response.into_body()).await;
+        assert!(result.is_err(),
+                "expected the response body to fail instead of silently completing with \
+                 corrupted/truncated bytes, got: {:?}",
+                result.map(|b| b.len()));
+    }
+}
+
+#[cfg(test)]
+mod checksum_verified_stream_tests {
+    use super::*;
+    use futures::stream;
+
+    // Compute the expected checksum for a byte slice the same way `checksum_verified_stream`
+    // does, so tests don't depend on a hardcoded, hand-computed digest.
+    fn make_checksum(data: &[u8]) -> String {
+        let mut hasher = blake2b_hash_state();
+        hasher.update(data);
+        to_lowercase_hex(hasher.finalize().as_bytes())
+    }
+
+    #[tokio::test]
+    async fn forwards_chunks_unmodified_across_chunk_boundaries() {
+        // Verify data delivered across several small chunks (as would happen with a real
+        // network stream) is forwarded unchanged, in order, and that a matching checksum
+        // produces no trailing error once the stream is exhausted.
+        let chunks: Vec<&[u8]> = vec![b"hello, ", b"this is a ", b"chunked ", b"stream!"];
+        let full: Vec<u8> = chunks.concat();
+        let expected = make_checksum(&full);
+
+        let items: Vec<std::result::Result<Bytes, std::io::Error>> =
+            chunks.iter().map(|c| Ok(Bytes::from(c.to_vec()))).collect();
+        let inner = stream::iter(items);
+
+        let results: Vec<_> = checksum_verified_stream(inner, expected).collect().await;
+
+        assert_eq!(results.len(), chunks.len());
+        for (result, original) in results.iter().zip(chunks.iter()) {
+            let bytes = result.as_ref().expect("chunk should not be an error");
+            assert_eq!(bytes.as_ref(), *original);
+        }
+    }
+
+    #[tokio::test]
+    async fn propagates_upstream_stream_errors_without_further_polling() {
+        // If the backend stream itself errors out partway through (e.g. a dropped connection),
+        // that error must be forwarded as-is, and the wrapper must not keep polling the inner
+        // stream (or synthesize a checksum-mismatch error) afterwards.
+        let inner_items: Vec<std::result::Result<Bytes, std::io::Error>> =
+            vec![Ok(Bytes::from_static(b"partial-data")),
+                 Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "connection reset"))];
+        let inner = stream::iter(inner_items);
+
+        // Any checksum value works here: the upstream error must short-circuit the wrapper
+        // before it ever gets a chance to compare hashes.
+        let results: Vec<_> = checksum_verified_stream(inner, "deadbeef".to_string()).collect()
+                                                                                     .await;
+
+        assert_eq!(results.len(), 2);
+        assert!(results[0].is_ok());
+        let err = results[1].as_ref()
+                            .expect_err("expected propagated upstream error");
+        assert_eq!(err.kind(), std::io::ErrorKind::UnexpectedEof);
+    }
+
+    #[tokio::test]
+    async fn rejects_same_length_payload_with_mismatched_checksum() {
+        // A same-length payload with different content (e.g. silent bit-flip corruption, or a
+        // truncated-then-padded object) must still be caught: byte-count/content-length alone
+        // wouldn't detect this, but the checksum comparison will.
+        let original = b"the-quick-brown-fox!".to_vec();
+        let expected = make_checksum(&original);
+
+        let corrupted = b"the-slow-brown-fox!!".to_vec();
+        assert_eq!(original.len(), corrupted.len());
+        assert_ne!(original, corrupted);
+
+        let inner = stream::iter(vec![Ok::<_, std::io::Error>(Bytes::from(corrupted.clone()))]);
+
+        let results: Vec<_> = checksum_verified_stream(inner, expected).collect().await;
+
+        // The chunk still streams through as it arrives (we can't un-send bytes already
+        // flushed), but the stream must end with an error instead of completing cleanly, so the
+        // response is truncated/aborted rather than silently accepted as a successful download.
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].as_ref().unwrap().as_ref(), corrupted.as_slice());
+        assert!(results[1].is_err());
+    }
+
+    // The tests above derive their "expected" checksum by calling `blake2b_hash_state()` /
+    // `to_lowercase_hex()` themselves -- the very helpers `checksum_verified_stream` uses
+    // internally. That makes them self-referential: if those helpers used the wrong digest
+    // length, the wrong hash algorithm, or a different hex format than what
+    // `PackageArchive::checksum()` actually persists into `Package::checksum` at upload time,
+    // every one of those tests would still pass, since both sides of the comparison would be
+    // wrong in the same way.
+    //
+    // To catch that class of bug, this checksum was computed independently, outside of this
+    // test file/module entirely, using the real `hab` CLI (`hab pkg hash`), which is backed by
+    // the same habitat_core `Blake2bHash` implementation that produces the checksum stored on
+    // `Package` at upload time:
+    //
+    //   PS> [System.IO.File]::WriteAllBytes("fixture.bin", \
+    //         [System.Text.Encoding]::UTF8.GetBytes("habitat-checksum-regression-fixture`n"))
+    //   PS> hab pkg hash fixture.bin
+    //   acf7fd9a44050ab116c8043e28e557104331904f2278993f9a4f3a858281dad4  fixture.bin
+    //
+    // Input bytes (UTF-8): "habitat-checksum-regression-fixture\n" (36 bytes)
+    const KNOWN_ANSWER_INPUT: &[u8] = b"habitat-checksum-regression-fixture\n";
+    const KNOWN_ANSWER_CHECKSUM: &str =
+        "acf7fd9a44050ab116c8043e28e557104331904f2278993f9a4f3a858281dad4";
+
+    #[tokio::test]
+    async fn accepts_independently_verified_known_answer_checksum() {
+        // Split the known-good input across two chunks to also exercise chunk-boundary handling
+        // against real, externally-verified data rather than only synthetic ASCII test strings.
+        // Integer division is intentional: we only need an arbitrary midpoint split, not a
+        // precise fractional value.
+        #[allow(clippy::integer_division)]
+        let mid = KNOWN_ANSWER_INPUT.len() / 2;
+        let (first, second) = KNOWN_ANSWER_INPUT.split_at(mid);
+        let inner = stream::iter(vec![Ok::<_, std::io::Error>(Bytes::from(first.to_vec())),
+                                      Ok::<_, std::io::Error>(Bytes::from(second.to_vec()))]);
+
+        let results: Vec<_> =
+            checksum_verified_stream(inner, KNOWN_ANSWER_CHECKSUM.to_string()).collect()
+                                                                              .await;
+
+        assert_eq!(results.len(), 2);
+        let mut forwarded = Vec::new();
+        for result in results {
+            forwarded.extend_from_slice(&result.expect("chunk should not be an error"));
+        }
+        assert_eq!(forwarded, KNOWN_ANSWER_INPUT);
+    }
+
+    #[tokio::test]
+    async fn rejects_corrupted_data_against_known_answer_checksum() {
+        // Flip a single byte relative to the known-good input verified against the real `hab`
+        // CLI above; length is unchanged, so this cannot be caught by content-length alone.
+        let mut corrupted = KNOWN_ANSWER_INPUT.to_vec();
+        corrupted[0] ^= 0xFF;
+
+        let inner = stream::iter(vec![Ok::<_, std::io::Error>(Bytes::from(corrupted))]);
+        let results: Vec<_> =
+            checksum_verified_stream(inner, KNOWN_ANSWER_CHECKSUM.to_string()).collect()
+                                                                              .await;
+
+        assert_eq!(results.len(), 2);
+        assert!(results[0].is_ok());
+        assert!(results[1].is_err());
+    }
 }

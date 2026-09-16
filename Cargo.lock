@@ -2098,6 +2098,7 @@ dependencies = [
  "aws-sdk-s3",
  "aws-smithy-types",
  "bitflags 2.11.0",
+ "blake2b_simd",
  "builder_core",
  "bytes",
  "chrono",
@@ -2126,7 +2127,6 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "sha2 0.11.0",
- "tempfile",
  "tokio",
  "uuid",
 ]

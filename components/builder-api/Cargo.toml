@@ -16,6 +16,7 @@ doc = false
 actix-rt = "*"
 bytes = "*"
 bitflags = "2"
+blake2b_simd = "*"
 chrono = { version = "*", features = ["serde"] }
 diesel = { version = "*", features = ["postgres", "chrono", "serde_json", "r2d2"] }
 env_logger = "*"
@@ -39,9 +40,8 @@ r2d2 = "*"
 regex = "*"
 aws-config = "*"
 aws-sdk-s3 = { version = "*", default-features = false, features = ["sigv4a", "http-1x", "default-https-client", "rt-tokio"] }
-tempfile = "*"
 uuid = { version = "*", features = ["v4"] }
-tokio = { version = "*", features = ["rt", "time"] }
+tokio = { version = "*", features = ["rt", "time", "macros"] }
 aws-smithy-types = "*"
 
 [dependencies.actix-web]
