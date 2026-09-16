@@ -305,23 +305,23 @@ mod download_response_streaming_tests {
     async fn download_response_streams_full_body_from_a_real_backend_connection() {
         let payload = b"artifact bytes delivered over a real (loopback) HTTP connection, in \
                         full."
-            .to_vec();
+                              .to_vec();
         let response = http_ok_response(&payload, payload.len());
         let api_url = spawn_mock_server(response);
 
         let client = test_client(api_url);
         let target = PackageTarget::from_str("x86_64-linux").expect("valid target");
 
-        let resp = client.download_response(&test_ident(), target)
-                         .await
-                         .expect("download_response should succeed for a complete backend \
-                                 response");
+        let resp =
+            client.download_response(&test_ident(), target)
+                  .await
+                  .expect("download_response should succeed for a complete backend response");
 
         let mut received = Vec::new();
         let mut stream = resp.bytes_stream();
         while let Some(chunk) = stream.next().await {
             received.extend_from_slice(&chunk.expect("chunk should not error for a complete \
-                                                       response"));
+                                                      response"));
         }
 
         assert_eq!(received, payload);
@@ -331,7 +331,7 @@ mod download_response_streaming_tests {
     async fn download_response_surfaces_a_stream_error_for_a_truncated_backend_connection() {
         let full_payload = b"artifact bytes that will be cut off before fully delivered to the \
                              caller, simulating a dropped backend connection!!"
-            .to_vec();
+                                                                               .to_vec();
         // Declare a Content-Length matching the *full* payload, but only actually send half of
         // it before the mock server closes the connection -- simulating a truncated/dropped
         // backend transfer partway through.
@@ -346,10 +346,11 @@ mod download_response_streaming_tests {
         // truncation is only observable once the body stream itself is consumed, which is
         // exactly why `download_package` cannot rely on a successful `download_response` call
         // alone to guarantee the artifact is intact.
-        let resp = client.download_response(&test_ident(), target)
-                         .await
-                         .expect("headers should still be received even though the body will \
-                                 be truncated");
+        let resp =
+            client.download_response(&test_ident(), target)
+                  .await
+                  .expect("headers should still be received even though the body will be \
+                           truncated");
 
         let mut stream = resp.bytes_stream();
         let mut saw_error = false;
@@ -361,7 +362,7 @@ mod download_response_streaming_tests {
         }
 
         assert!(saw_error,
-                "expected the truncated backend connection to surface as a stream error \
-                 instead of silently yielding a short/incomplete body as if it were complete");
+                "expected the truncated backend connection to surface as a stream error instead \
+                 of silently yielding a short/incomplete body as if it were complete");
     }
 }

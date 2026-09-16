@@ -569,11 +569,11 @@ mod download_stream_integration_tests {
     }
 
     fn test_handler(endpoint: String) -> S3Handler {
-        S3Handler::new(S3Cfg { key_id:      "test-key-id".to_string(),
-                              secret_key:  "test-secret-key".to_string(),
-                              bucket_name: "test-bucket".to_string(),
-                              backend:     S3Backend::Minio,
-                              endpoint })
+        S3Handler::new(S3Cfg { key_id: "test-key-id".to_string(),
+                               secret_key: "test-secret-key".to_string(),
+                               bucket_name: "test-bucket".to_string(),
+                               backend: S3Backend::Minio,
+                               endpoint })
     }
 
     fn test_ident() -> PackageIdent {
@@ -584,7 +584,7 @@ mod download_stream_integration_tests {
     async fn download_stream_forwards_full_body_from_a_real_backend_connection() {
         let payload = b"artifact bytes delivered over a real (loopback) HTTP connection, in \
                         full."
-            .to_vec();
+                              .to_vec();
         let response = http_ok_response(&payload, payload.len());
         let endpoint = spawn_mock_server(response);
 
@@ -599,7 +599,7 @@ mod download_stream_integration_tests {
         let mut received = Vec::new();
         while let Some(chunk) = stream.next().await {
             received.extend_from_slice(&chunk.expect("chunk should not error for a complete \
-                                                       response"));
+                                                      response"));
         }
 
         assert_eq!(received, payload);
@@ -609,7 +609,7 @@ mod download_stream_integration_tests {
     async fn download_stream_surfaces_a_stream_error_for_a_truncated_backend_connection() {
         let full_payload = b"artifact bytes that will be cut off before fully delivered to the \
                              caller, simulating a dropped backend connection!!"
-            .to_vec();
+                                                                               .to_vec();
         // Declare a Content-Length matching the *full* payload, but only actually send half of
         // it before the mock server closes the connection -- simulating a truncated/dropped
         // backend transfer partway through.
@@ -628,7 +628,7 @@ mod download_stream_integration_tests {
             handler.download_stream(&test_ident(), target)
                    .await
                    .expect("headers should still be received even though the body will be \
-                           truncated");
+                            truncated");
 
         let mut saw_error = false;
         while let Some(chunk) = stream.next().await {
@@ -639,7 +639,7 @@ mod download_stream_integration_tests {
         }
 
         assert!(saw_error,
-                "expected the truncated backend connection to surface as a stream error \
-                 instead of silently yielding a short/incomplete body as if it were complete");
+                "expected the truncated backend connection to surface as a stream error instead \
+                 of silently yielding a short/incomplete body as if it were complete");
     }
 }
