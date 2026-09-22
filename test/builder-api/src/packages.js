@@ -325,6 +325,32 @@ describe('Working with packages', function () {
           done(err);
         });
     });
+
+    it('does not allow an origin member without a maintainer role or higher to force an upload', function (done) {
+      request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}?forced=true`)
+        .set('Authorization', global.weskerBearer)
+        .set('Content-Length', file1.length)
+        .query({ checksum: '3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8' })
+        .send(file1)
+        .expect(403)
+        .end(function (err, res) {
+          done(err);
+        });
+    });
+
+    it('rejects an upload whose declared target does not match the package that already exists ' +
+       'for its real (artifact-derived) target, even without forced=true', function (done) {
+      request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}?target=x86_64-windows`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file9.length)
+        .query({ checksum: '02edaaf2d5fdb167e57026b17c86e8df5a7ca285e042f113bcb31ede765a67ce' })
+        .send(file9)
+        .expect(409)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
   });
 
   describe('Downloading packages', function () {
@@ -813,6 +839,19 @@ describe('Working with packages', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('does not allow a forced overwrite of a package that is in the stable channel', function (done) {
+      request.post(`/depot/pkgs/neurosis/testapp3/0.1.0/${release9}?forced=true`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', file9.length)
+        .query({ checksum: '02edaaf2d5fdb167e57026b17c86e8df5a7ca285e042f113bcb31ede765a67ce' })
+        .send(file9)
+        .expect(422)
+        .end(function (err, res) {
+          expect(res.text).to.include('Overwriting package in stable channel not allowed');
           done(err);
         });
     });

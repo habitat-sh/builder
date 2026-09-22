@@ -589,6 +589,28 @@ impl Package {
         Ok(pkg)
     }
 
+    pub fn create_if_absent(package: &NewPackage,
+                            conn: &mut PgConnection)
+                            -> QueryResult<Option<Package>> {
+        Counter::DBCall.increment();
+        let pkg: Option<Package> = diesel::insert_into(origin_packages::table)
+            .values(package)
+            .returning(ALL_COLUMNS)
+            .on_conflict(on_constraint("origin_packages_ident_target_key"))
+            .do_nothing()
+            .get_result(conn)
+            .optional()?;
+
+        if pkg.is_some() {
+            OriginChannelPackage::promote(OriginChannelPromote { ident:   package.ident.clone(),
+                                                                 target:  package.target.0,
+                                                                 origin:  package.origin.clone(),
+                                                                 channel: ChannelIdent::unstable(), },
+                                          conn)?;
+        }
+        Ok(pkg)
+    }
+
     pub fn update_visibility(vis: PackageVisibility,
                              idt: BuilderPackageIdent,
                              conn: &mut PgConnection)
