@@ -1000,6 +1000,7 @@ fn do_upload_package_start(req: &HttpRequest,
     let mut conn = req_state(req).db.get_conn().map_err(Error::DbError)?;
 
     if qupload.forced {
+        authorize_session(req, Some(&ident.origin), Some(OriginMemberRole::Maintainer))?;
         debug!("Upload was forced (bypassing existing package check) for: {}",
                ident);
     } else {
@@ -1148,31 +1149,74 @@ async fn do_upload_package_finish(req: &HttpRequest,
 
     // If upload was forced, and a previously uploaded package exists in DB
     // make sure the checksums match the original (idempotency)
-    if qupload.forced {
-        match Package::get(
-            GetPackage {
-                ident: BuilderPackageIdent(ident.clone()),
-                visibility: PackageVisibility::all(),
-                target: BuilderPackageTarget(
-                    PackageTarget::from_str(&target_from_artifact).unwrap(),
-                ), // Unwrap OK
-            },
-            &mut conn,
-        ) {
-            Ok(pkg) => {
-                if qupload.checksum != pkg.checksum {
-                    debug!(
-                        "Checksums did not match: from_param={:?}, from_database={:?}",
-                        qupload.checksum, pkg.checksum
-                    );
-                    let body = Bytes::from_static(b"ds:up:4");
-                    let body = BoxBody::new(body);
-                    return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
-                }
+    match Package::get(
+        GetPackage {
+            ident: BuilderPackageIdent(ident.clone()),
+            visibility: PackageVisibility::all(),
+            target: BuilderPackageTarget(
+                PackageTarget::from_str(&target_from_artifact).unwrap(),
+            ), // Unwrap OK
+        },
+        &mut conn,
+    ) {
+        Ok(pkg) => {
+            if !qupload.forced {
+                debug!(
+                    "Package already exists for target {}: {} (rejecting non-forced upload)",
+                    target_from_artifact, ident
+                );
+                return Error::Conflict.into();
             }
-            Err(NotFound) => {}
-            Err(err) => return Error::DieselError(err).into(),
+
+            if qupload.checksum != pkg.checksum {
+                debug!(
+                    "Checksums did not match: from_param={:?}, from_database={:?}",
+                    qupload.checksum, pkg.checksum
+                );
+                let body = Bytes::from_static(b"ds:up:4");
+                let body = BoxBody::new(body);
+                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
+            }
+
+            match Package::list_package_channels(
+                &BuilderPackageIdent(ident.clone()),
+                PackageTarget::from_str(&target_from_artifact).unwrap(),
+                PackageVisibility::all(),
+                &mut conn,
+            ) {
+                Ok(channels) => {
+                    if channels.iter()
+                               .any(|c| c.name == ChannelIdent::stable().to_string())
+                    {
+                        warn!(
+                            "Rejected forced overwrite of stable-channel package: {}, target={}",
+                            ident, target_from_artifact
+                        );
+                        let body = Bytes::from(
+                            format!(
+                                "Overwriting package in stable channel not allowed '{}'",
+                                ident
+                            )
+                            .into_bytes(),
+                        );
+                        return HttpResponse::with_body(
+                            StatusCode::UNPROCESSABLE_ENTITY,
+                            BoxBody::new(body),
+                        );
+                    }
+                }
+                Err(err) => return Error::DieselError(err).into(),
+            }
+
+            let actor_id = authorize_session(req, None, None).ok().map(|s| s.id());
+            warn!(
+                "Forced package overwrite accepted: ident={}, target={}, account_id={:?}, \
+                 old_checksum={}, new_checksum={}",
+                ident, target_from_artifact, actor_id, pkg.checksum, qupload.checksum
+            );
         }
+        Err(NotFound) => {}
+        Err(err) => return Error::DieselError(err).into(),
     }
 
     let file_path = &req_state(req).config.api.data_path;
