@@ -67,7 +67,8 @@ use actix_web::{body::BoxBody,
                 HttpResponse};
 use bytes::Bytes;
 use diesel::{connection::SimpleConnection,
-             result::Error::NotFound};
+             result::Error::NotFound,
+             Connection};
 use futures::{Stream,
               StreamExt};
 use serde::ser::Serialize;
@@ -1038,6 +1039,15 @@ fn do_upload_package_start(req: &HttpRequest,
     Ok((temp_path, writer))
 }
 
+enum ForcedOverwriteTxnError {
+    Diesel(diesel::result::Error),
+    StableChannel,
+}
+
+impl From<diesel::result::Error> for ForcedOverwriteTxnError {
+    fn from(e: diesel::result::Error) -> Self { ForcedOverwriteTxnError::Diesel(e) }
+}
+
 // TODO: Break this up further, convert S3 upload to async
 #[allow(clippy::cognitive_complexity)]
 async fn do_upload_package_finish(req: &HttpRequest,
@@ -1165,6 +1175,9 @@ async fn do_upload_package_finish(req: &HttpRequest,
                     "Package already exists for target {}: {} (rejecting non-forced upload)",
                     target_from_artifact, ident
                 );
+                if let Err(e) = fs::remove_file(temp_path) {
+                    warn!("Failed to remove temp upload file {:?}: {:?}", temp_path, e);
+                }
                 return Error::Conflict.into();
             }
 
@@ -1173,6 +1186,9 @@ async fn do_upload_package_finish(req: &HttpRequest,
                     "Checksums did not match: from_param={:?}, from_database={:?}",
                     qupload.checksum, pkg.checksum
                 );
+                if let Err(e) = fs::remove_file(temp_path) {
+                    warn!("Failed to remove temp upload file {:?}: {:?}", temp_path, e);
+                }
                 let body = Bytes::from_static(b"ds:up:4");
                 let body = BoxBody::new(body);
                 return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, body);
@@ -1192,6 +1208,9 @@ async fn do_upload_package_finish(req: &HttpRequest,
                             "Rejected forced overwrite of stable-channel package: {}, target={}",
                             ident, target_from_artifact
                         );
+                        if let Err(e) = fs::remove_file(temp_path) {
+                            warn!("Failed to remove temp upload file {:?}: {:?}", temp_path, e);
+                        }
                         let body = Bytes::from(
                             format!(
                                 "Overwriting package in stable channel not allowed '{}'",
@@ -1205,7 +1224,12 @@ async fn do_upload_package_finish(req: &HttpRequest,
                         );
                     }
                 }
-                Err(err) => return Error::DieselError(err).into(),
+                Err(err) => {
+                    if let Err(e) = fs::remove_file(temp_path) {
+                        warn!("Failed to remove temp upload file {:?}: {:?}", temp_path, e);
+                    }
+                    return Error::DieselError(err).into();
+                }
             }
 
             let actor_id = authorize_session(req, None, None).ok().map(|s| s.id());
@@ -1216,7 +1240,12 @@ async fn do_upload_package_finish(req: &HttpRequest,
             );
         }
         Err(NotFound) => {}
-        Err(err) => return Error::DieselError(err).into(),
+        Err(err) => {
+            if let Err(e) = fs::remove_file(temp_path) {
+                warn!("Failed to remove temp upload file {:?}: {:?}", temp_path, e);
+            }
+            return Error::DieselError(err).into();
+        }
     }
 
     let file_path = &req_state(req).config.api.data_path;
@@ -1311,14 +1340,62 @@ async fn do_upload_package_finish(req: &HttpRequest,
     };
 
     // Re-create origin package as needed (eg, checksum update)
-    match Package::create(&package, &mut conn) {
-        Ok(_) => {}
-        Err(NotFound) => {
-            debug!("Package::create returned NotFound (DB conflict handled)");
+    if qupload.forced {
+        let txn_result = conn.transaction::<(), ForcedOverwriteTxnError, _>(|conn| {
+                                 Channel::lock_channel(&ident.origin,
+                                                       &ChannelIdent::stable().to_string(),
+                                                       conn)?;
+
+                                 let channels = Package::list_package_channels(
+                &BuilderPackageIdent(ident.clone()),
+                PackageTarget::from_str(&target_from_artifact).unwrap(), // Unwrap OK
+                PackageVisibility::all(),
+                conn,
+            )?;
+                                 if channels.iter()
+                                            .any(|c| c.name == ChannelIdent::stable().to_string())
+                                 {
+                                     return Err(ForcedOverwriteTxnError::StableChannel);
+                                 }
+
+                                 Package::create(&package, conn)?;
+                                 Ok(())
+                             });
+
+        if let Err(err) = txn_result {
+            if let Err(e) = fs::remove_file(&filename) {
+                warn!("Failed to remove orphaned artifact {:?}: {:?}", filename, e);
+            }
+            return match err {
+                ForcedOverwriteTxnError::StableChannel => {
+                    warn!("Rejected forced overwrite of stable-channel package: {}, target={}",
+                          ident, target_from_artifact);
+                    let body = Bytes::from(format!("Overwriting package in stable channel not \
+                                                    allowed '{}'",
+                                                   ident).into_bytes());
+                    HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body))
+                }
+                ForcedOverwriteTxnError::Diesel(e) => Error::DieselError(e).into(),
+            };
         }
-        Err(err) => {
-            debug!("Failed to create package in DB, err: {:?}", err);
-            return Error::DieselError(err).into();
+    } else {
+        match Package::create_if_absent(&package, &mut conn) {
+            Ok(Some(_)) => {}
+            Ok(None) => {
+                debug!("Package already exists for target {}: {} (rejecting non-forced upload)",
+                       target_from_artifact, ident);
+                if let Err(e) = fs::remove_file(&filename) {
+                    warn!("Failed to remove orphaned artifact {:?}: {:?}", filename, e);
+                }
+                return Error::Conflict.into();
+            }
+            Err(err) => {
+                debug!("Failed to create package in DB, err: {:?}", err);
+                if let Err(e) = fs::remove_file(&filename) {
+                    warn!("Failed to remove orphaned artifact {:?}: {:?}", filename, e);
+                }
+                return Error::DieselError(err).into();
+            }
         }
     }
 
