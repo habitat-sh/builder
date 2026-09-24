@@ -441,19 +441,20 @@ async fn promote_channel_packages(req: HttpRequest,
             }
         }
 
-        let pkgs = match source_channel_id {
-            Some(id) => {
-                Channel::list_all_packages_by_channel_id_idents(id, &PackageVisibility::all(),
-                                                                conn)?
-            }
+        let pkg_ids: Vec<i64> = match source_channel_id {
+            // Resolve directly to the exact package ids that are actually
+            // members of the source channel (each id is already
+            // target-specific -- e.g. a linux and a windows build of the
+            // same ident are distinct rows/ids). Going through idents (which
+            // don't carry target) and re-resolving via Package::get_group
+            // would match *every* package row sharing that ident string
+            // across all targets, silently promoting target variants that
+            // were never actually in the source channel and were never
+            // accounted for by the check=true closure above.
+            Some(id) => Channel::list_all_packages_by_channel_id(id, &PackageVisibility::all(),
+                                                                 conn)?,
             None => Vec::new(),
         };
-
-        let op = Package::get_group(GetPackageGroup { pkgs,
-                                                       visibility: PackageVisibility::all(), },
-                                    conn)?;
-
-        let pkg_ids: Vec<i64> = op.iter().map(|x| x.id).collect();
 
         debug!("Bulk promoting Pkg IDs: {:?}", pkg_ids);
         Channel::promote_packages(target_channel.id, &pkg_ids, conn)?;
