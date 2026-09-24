@@ -420,6 +420,38 @@ impl Channel {
         result
     }
 
+    // Same as list_all_packages_by_channel_id (returning the exact,
+    // target-specific package ids that are members of the given channel),
+    // but also excludes hidden packages -- matching the filtering
+    // Package::get_group has always applied for promotion. Used by
+    // promote_channel_packages so that resolving a channel's members
+    // directly by id (to stay target-precise) doesn't silently start
+    // promoting hidden packages that the old ident + Package::get_group
+    // path would have skipped.
+    pub fn list_all_visible_packages_by_channel_id(channel_id: i64,
+                                                   visibility: &[PackageVisibility],
+                                                   conn: &mut PgConnection)
+                                                   -> QueryResult<Vec<i64>> {
+        Counter::DBCall.increment();
+        let start_time = Instant::now();
+
+        let result =
+            origin_packages::table.inner_join(origin_channel_packages::table)
+                                  .filter(origin_packages::visibility.eq_any(visibility))
+                                  .filter(origin_packages::hidden.eq(false))
+                                  .filter(origin_channel_packages::channel_id.eq(channel_id))
+                                  .select(origin_packages::id)
+                                  .order(origin_packages::id)
+                                  .get_results(conn);
+
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("DBCall channel::list_all_visible_packages_by_channel_id time: {} ms",
+               duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
+        Histogram::ChannelListAllPackagesCallTime.set(duration_millis as f64);
+        result
+    }
+
     pub fn list_head_packages(channel_id: i64,
                               conn: &mut PgConnection)
                               -> QueryResult<Vec<Package>> {
@@ -475,7 +507,7 @@ impl Channel {
                       string_to_array(version_array[1], '.')::numeric[] DESC, \
                       ident_array[4] DESC",
         )
-        .bind::<diesel::sql_types::Array<diesel::sql_types::BigInt>, _>(channel_ids)
+        .bind::<diesel::sql_types::Array<diesel::sql_types::BigInt>, _>(channel_ids.to_vec())
         .get_results(conn);
 
         let duration_millis = start_time.elapsed().as_millis();

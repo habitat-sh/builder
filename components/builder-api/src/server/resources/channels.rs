@@ -451,8 +451,12 @@ async fn promote_channel_packages(req: HttpRequest,
             // across all targets, silently promoting target variants that
             // were never actually in the source channel and were never
             // accounted for by the check=true closure above.
-            Some(id) => Channel::list_all_packages_by_channel_id(id, &PackageVisibility::all(),
-                                                                 conn)?,
+            // list_all_visible_packages_by_channel_id also excludes hidden
+            // packages, matching what Package::get_group has always
+            // filtered out.
+            Some(id) => Channel::list_all_visible_packages_by_channel_id(id,
+                                                                         &PackageVisibility::all(),
+                                                                         conn)?,
             None => Vec::new(),
         };
 
