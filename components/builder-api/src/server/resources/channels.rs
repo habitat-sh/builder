@@ -276,6 +276,39 @@ fn insert_ident(set: &mut HashMap<String,
     }
 }
 
+// Merges a target channel's closure with an incoming source channel's
+// closure for the purposes of the check=true compatibility check, into a
+// target -> "origin/name" -> distinct idents map (consumed by
+// find_conflicts). Any head package the source is promoting supersedes the
+// target's current head package (and, transitively, all of that head
+// package's own recorded tdeps) for the same origin/name -- that's simply
+// what promotion does. So the target's contribution excludes any group
+// whose own origin/name is also a head package being introduced by the
+// source, since none of that superseded group's own tdeps will describe the
+// post-promotion state. The source's own closure always contributes in
+// full, since it's what's being introduced.
+fn merge_closures_for_conflict_check(target_closure: &[helpers::ClosureEntry],
+                                     source_closure: &[helpers::ClosureEntry])
+                                     -> HashMap<String, HashMap<String, HashSet<String>>> {
+    let superseded_group_keys: HashSet<&(String, String)> =
+        source_closure.iter().map(|e| &e.group_key).collect();
+
+    let mut by_target: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+    let contributing_entries =
+        source_closure.iter()
+                      .chain(target_closure.iter().filter(|e| {
+                                                      !superseded_group_keys.contains(&e.group_key)
+                                                  }));
+    for entry in contributing_entries {
+        by_target.entry(entry.target.clone())
+                 .or_default()
+                 .entry(format!("{}/{}", entry.ident.origin, entry.ident.name))
+                 .or_default()
+                 .insert(entry.ident.to_string());
+    }
+    by_target
+}
+
 // Returns, for every target -> "origin/name" key with more than one distinct
 // ident, the sorted list of conflicting idents. An empty map means the merged
 // closure (target channel's existing packages plus the source channel's
@@ -425,14 +458,7 @@ async fn promote_channel_packages(req: HttpRequest,
             let target_closure = helpers::channel_package_closure(Some(target_channel.id), conn)?;
             let source_closure = helpers::channel_package_closure(source_channel_id, conn)?;
 
-            let mut by_target: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
-            for (pkg_target, ident) in target_closure.iter().chain(source_closure.iter()) {
-                by_target.entry(pkg_target.clone())
-                         .or_default()
-                         .entry(format!("{}/{}", ident.origin, ident.name))
-                         .or_default()
-                         .insert(ident.to_string());
-            }
+            let by_target = merge_closures_for_conflict_check(&target_closure, &source_closure);
 
             let conflicts = find_conflicts(&by_target);
             if !conflicts.is_empty() {
@@ -1390,5 +1416,93 @@ mod tests {
                    "core/openssl/3.2.4/20250428090043");
         assert_eq!(set["x86_64-windows"]["core"]["openssl"][0].ident,
                    "core/openssl/1.1.1w/20240108093230");
+    }
+
+    // Builds a ClosureEntry the way helpers::channel_package_closure would:
+    // `head_ident` is a head package's own ident, and `tdep_idents` are its
+    // recorded tdeps -- all sharing the head package's target and group_key.
+    fn closure_group(target: &str,
+                     head_ident: &str,
+                     tdep_idents: &[&str])
+                     -> Vec<helpers::ClosureEntry> {
+        let head: BuilderPackageIdent = head_ident.parse().unwrap();
+        let group_key = (target.to_string(), format!("{}/{}", head.origin, head.name));
+        let mut entries = vec![helpers::ClosureEntry { target:    target.to_string(),
+                                                       group_key: group_key.clone(),
+                                                       ident:     head, }];
+        for tdep in tdep_idents {
+            entries.push(helpers::ClosureEntry { target:    target.to_string(),
+                                                 group_key: group_key.clone(),
+                                                 ident:     tdep.parse().unwrap(), });
+        }
+        entries
+    }
+
+    // Reproduces the original bug report: target's head package
+    // (libarchive, untouched by this promotion) still pins an older openssl
+    // as a tdep, while the source promotes a newer openssl directly. This
+    // is a genuine conflict -- libarchive's own tdep pin doesn't get
+    // superseded by a promotion that never touches libarchive itself.
+    #[test]
+    fn merge_closures_flags_conflict_for_unrelated_head_packages_tdep() {
+        let target_closure = closure_group("x86_64-windows",
+                                           "core/libarchive/3.5.2/20220425144748",
+                                           &["core/openssl/1.1.1l/20220425143501"]);
+        let source_closure =
+            closure_group("x86_64-windows", "core/openssl/1.1.1w/20240108093230", &[]);
+
+        let by_target = merge_closures_for_conflict_check(&target_closure, &source_closure);
+        let conflicts = find_conflicts(&by_target);
+
+        assert!(conflicts["x86_64-windows"].contains_key("core/openssl"));
+    }
+
+    // Reproduces the follow-up report: every head package in the target is
+    // also being promoted (as a coherent "refresh") from the source, so the
+    // target's old head packages -- and, crucially, their own stale tdeps --
+    // are all superseded and should contribute nothing. No conflict should
+    // be reported.
+    #[test]
+    fn merge_closures_does_not_flag_conflict_when_source_supersedes_every_target_head() {
+        let mut target_closure = closure_group("x86_64-windows",
+                                               "core/libarchive/3.5.2/20220425144748",
+                                               &["core/openssl/1.1.1l/20220425143501",
+                                                 "core/xz/5.2.5/20220425103110",
+                                                 "core/zlib/1.2.12/20220425102528"]);
+        target_closure.extend(closure_group("x86_64-windows",
+                                            "core/openssl/1.1.1l/20220425143501",
+                                            &[]));
+
+        let mut source_closure = closure_group("x86_64-windows",
+                                               "core/libarchive/3.7.2/20241008044517",
+                                               &["core/openssl/1.1.1w/20240108093230",
+                                                 "core/xz/5.2.5/20240108063910",
+                                                 "core/zlib/1.3/20240108063610"]);
+        source_closure.extend(closure_group("x86_64-windows",
+                                            "core/openssl/1.1.1w/20240108093230",
+                                            &[]));
+
+        let by_target = merge_closures_for_conflict_check(&target_closure, &source_closure);
+        let conflicts = find_conflicts(&by_target);
+
+        assert!(conflicts.is_empty());
+    }
+
+    // A partial refresh: the source promotes a new libarchive whose tdeps
+    // reference a new xz that the source channel itself doesn't otherwise
+    // carry as a head package. The target's own (unrelated, un-superseded)
+    // xz head package is still older, so this must still be flagged --
+    // promoting libarchive alone doesn't make the missing xz update appear.
+    #[test]
+    fn merge_closures_flags_conflict_for_partial_refresh_missing_dependency_update() {
+        let target_closure = closure_group("x86_64-windows", "core/xz/5.2.5/20220425103110", &[]);
+        let source_closure = closure_group("x86_64-windows",
+                                           "core/libarchive/3.7.2/20241008044517",
+                                           &["core/xz/5.2.5/20240108063910"]);
+
+        let by_target = merge_closures_for_conflict_check(&target_closure, &source_closure);
+        let conflicts = find_conflicts(&by_target);
+
+        assert!(conflicts["x86_64-windows"].contains_key("core/xz"));
     }
 }
