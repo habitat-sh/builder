@@ -446,6 +446,45 @@ impl Channel {
         result
     }
 
+    // Same head-selection query as list_head_packages, but computed across the union of
+    // package-channel membership rows for *all* of the given channel ids at once. This is used
+    // to determine what a channel's head packages would actually be if another channel's
+    // packages were merged into it (e.g. for a check=true compatibility check ahead of a
+    // promotion) -- since promotion only ever adds channel-package rows (never removes any),
+    // the real post-promotion head for a given origin/name/target is whichever package -- from
+    // either channel -- this exact ORDER BY selects across their combined membership. Deferring
+    // to this single SQL query (rather than re-deriving version/release ordering in Rust) keeps
+    // this selection guaranteed-consistent with list_head_packages/the real promotion behavior.
+    pub fn list_head_packages_for_channels(channel_ids: &[i64],
+                                           conn: &mut PgConnection)
+                                           -> QueryResult<Vec<Package>> {
+        if channel_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        Counter::DBCall.increment();
+        let start_time = Instant::now();
+        let result = diesel::sql_query(
+            "SELECT DISTINCT ON (origin, name, target) \
+             origin_packages_with_version_array.* \
+             FROM origin_packages_with_version_array \
+             JOIN origin_channel_packages \
+               ON origin_packages_with_version_array.id = origin_channel_packages.package_id \
+             WHERE origin_channel_packages.channel_id = ANY($1) \
+             ORDER BY origin, name, target, \
+                      string_to_array(version_array[1], '.')::numeric[] DESC, \
+                      ident_array[4] DESC",
+        )
+        .bind::<diesel::sql_types::Array<diesel::sql_types::BigInt>, _>(channel_ids)
+        .get_results(conn);
+
+        let duration_millis = start_time.elapsed().as_millis();
+        trace!("DBCall channel::list_head_packages_for_channels time: {} ms",
+               duration_millis);
+        Histogram::DbCallTime.set(duration_millis as f64);
+        result
+    }
+
     pub fn count_origin_channels(origin: &str, conn: &mut PgConnection) -> QueryResult<i64> {
         Counter::DBCall.increment();
         origin_channels::table.select(count(origin_channels::id))

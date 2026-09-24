@@ -277,49 +277,38 @@ pub fn req_state(req: &HttpRequest) -> &AppState {
        .expect("request state")
 }
 
-// A single ident contributed to a channel's compatibility-check closure,
-// tagged with which head package's "group" it belongs to. `group_key` is the
-// (target, origin/name) of the head package this entry was derived from --
-// either the head package's own ident, or one of its tdeps. This lets
-// callers identify and drop an entire group (a head package plus all of its
-// own recorded tdeps) when that head package's own origin/name is about to
-// be superseded by an incoming promotion, since a superseded package's
-// tdeps no longer describe anything that will exist post-promotion.
-// `is_head` distinguishes the group's own head entry (the package that
-// list_head_packages selected) from its tdep entries.
+// A single ident contributed to a compatibility-check closure: either a
+// channel's head package for some origin/name/target, or one of that head
+// package's own recorded tdeps.
 pub struct ClosureEntry {
-    pub target:    String,
-    pub group_key: (String, String),
-    pub ident:     BuilderPackageIdent,
-    pub is_head:   bool,
+    pub target: String,
+    pub ident:  BuilderPackageIdent,
 }
 
-pub fn channel_package_closure(channel_id: Option<i64>,
+// Computes the head-package + tdeps closure for the union of the given
+// channels' package membership, using Channel::list_head_packages_for_channels
+// -- the same DISTINCT ON/ORDER BY head-selection query used everywhere else
+// -- so that head selection here is always guaranteed-consistent with what a
+// real promotion will produce. Promotion only ever adds channel-package rows
+// (never removes any), so for a check=true compatibility check ahead of
+// promoting `source_channel_id`'s packages into `target_channel_id`, passing
+// both ids here yields exactly the head/tdeps closure that will exist once
+// the promotion completes -- without needing to re-derive Habitat's
+// version/release ordering rules in this codebase.
+pub fn channel_package_closure(channel_ids: &[i64],
                                conn: &mut PgConnection)
                                -> QueryResult<Vec<ClosureEntry>> {
-    let channel_id = match channel_id {
-        Some(id) => id,
-        None => return Ok(Vec::new()),
-    };
-
-    let head_packages = Channel::list_head_packages(channel_id, conn)?;
+    let head_packages = Channel::list_head_packages_for_channels(channel_ids, conn)?;
 
     let mut idents = Vec::new();
     for pkg in &head_packages {
         let target = pkg.target.to_string();
-        let group_key = (target.clone(), format!("{}/{}", pkg.ident.origin, pkg.ident.name));
-        idents.push(ClosureEntry { target:    target.clone(),
-                                   group_key: group_key.clone(),
-                                   ident:     pkg.ident.clone(),
-                                   is_head:   true, });
-        // tdeps are grouped under their parent head package's target and
-        // group_key, since runtime tdeps must match their parent's target
-        // platform and rise or fall with their parent package.
+        idents.push(ClosureEntry { target: target.clone(),
+                                   ident:  pkg.ident.clone(), });
+        // tdeps must match their parent head package's target platform.
         idents.extend(pkg.tdeps.iter().map(|dep| {
-                                          ClosureEntry { target:    target.clone(),
-                                                         group_key: group_key.clone(),
-                                                         ident:     dep.clone(),
-                                                         is_head:   false, }
+                                          ClosureEntry { target: target.clone(),
+                                                         ident:  dep.clone(), }
                                       }));
     }
     Ok(idents)
