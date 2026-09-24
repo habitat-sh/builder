@@ -251,7 +251,8 @@ struct CompatibilityError {
 // referencing (its own target, for itself, or the parent's target for its tdeps --
 // runtime tdeps must match their parent's target), since ident strings alone don't
 // carry target information.
-fn insert_ident(set: &mut HashMap<String, HashMap<String, HashMap<String, Vec<PackageFqiEntry>>>>,
+fn insert_ident(set: &mut HashMap<String,
+                             HashMap<String, HashMap<String, Vec<PackageFqiEntry>>>>,
                 target: &str,
                 ident_str: &str) {
     let mut parts = ident_str.splitn(4, '/');
@@ -274,7 +275,6 @@ fn insert_ident(set: &mut HashMap<String, HashMap<String, HashMap<String, Vec<Pa
                                        release });
     }
 }
-
 
 // Returns, for every target -> "origin/name" key with more than one distinct
 // ident, the sorted list of conflicting idents. An empty map means the merged
@@ -314,7 +314,6 @@ enum PromoteTxnError {
     Diesel(diesel::result::Error),
     Conflict(HashMap<String, HashMap<String, Vec<String>>>),
 }
-
 
 impl From<diesel::result::Error> for PromoteTxnError {
     fn from(e: diesel::result::Error) -> Self { PromoteTxnError::Diesel(e) }
@@ -537,7 +536,8 @@ fn create_snapshot_channel(origin: &str,
                     let head_packages = Channel::list_head_packages(snapshot_channel.id, conn)?;
 
                     let mut pkg_set: HashMap<String,
-                                             HashMap<String, HashMap<String, Vec<PackageFqiEntry>>>> =
+                                             HashMap<String,
+                                                     HashMap<String, Vec<PackageFqiEntry>>>> =
                         HashMap::new();
                     // Insert all head packages first so each target/origin/name's
                     // list always starts with the actual head ident. Older
@@ -550,7 +550,9 @@ fn create_snapshot_channel(origin: &str,
                     // parent head package's target, since runtime tdeps
                     // must match their parent's target platform.
                     for pkg in &head_packages {
-                        insert_ident(&mut pkg_set, &pkg.target.to_string(), &pkg.ident.to_string());
+                        insert_ident(&mut pkg_set,
+                                     &pkg.target.to_string(),
+                                     &pkg.ident.to_string());
                     }
                     for pkg in &head_packages {
                         for dep in &pkg.tdeps {
@@ -561,7 +563,6 @@ fn create_snapshot_channel(origin: &str,
                     Ok(SnapshotResponse { snapshot_channel: snapshot_name.clone(),
                                           packages:         pkg_set, })
                 });
-
 
         match txn_result {
             Ok(r) => return Ok(r),
@@ -1319,9 +1320,13 @@ mod tests {
             HashMap::new();
 
         // Head package pass
-        insert_ident(&mut set, "x86_64-linux", "core/openssl/1.1.1w/20240108093230");
+        insert_ident(&mut set,
+                     "x86_64-linux",
+                     "core/openssl/1.1.1w/20240108093230");
         // Tdep pass (from an unrelated head package still pinned to the old version)
-        insert_ident(&mut set, "x86_64-linux", "core/openssl/1.1.1l/20220425143501");
+        insert_ident(&mut set,
+                     "x86_64-linux",
+                     "core/openssl/1.1.1l/20220425143501");
 
         let entries = &set["x86_64-linux"]["core"]["openssl"];
         assert_eq!(entries.len(), 2);
@@ -1338,8 +1343,12 @@ mod tests {
 
         // The same ident can legitimately be reached twice (e.g. as a tdep
         // of two different head packages); it should only appear once.
-        insert_ident(&mut set, "x86_64-linux", "core/openssl/1.1.1w/20240108093230");
-        insert_ident(&mut set, "x86_64-linux", "core/openssl/1.1.1w/20240108093230");
+        insert_ident(&mut set,
+                     "x86_64-linux",
+                     "core/openssl/1.1.1w/20240108093230");
+        insert_ident(&mut set,
+                     "x86_64-linux",
+                     "core/openssl/1.1.1w/20240108093230");
 
         assert_eq!(set["x86_64-linux"]["core"]["openssl"].len(), 1);
     }
@@ -1368,8 +1377,12 @@ mod tests {
         let mut set: HashMap<String, HashMap<String, HashMap<String, Vec<PackageFqiEntry>>>> =
             HashMap::new();
 
-        insert_ident(&mut set, "x86_64-linux", "core/openssl/3.2.4/20250428090043");
-        insert_ident(&mut set, "x86_64-windows", "core/openssl/1.1.1w/20240108093230");
+        insert_ident(&mut set,
+                     "x86_64-linux",
+                     "core/openssl/3.2.4/20250428090043");
+        insert_ident(&mut set,
+                     "x86_64-windows",
+                     "core/openssl/1.1.1w/20240108093230");
 
         assert_eq!(set["x86_64-linux"]["core"]["openssl"].len(), 1);
         assert_eq!(set["x86_64-windows"]["core"]["openssl"].len(), 1);
@@ -1379,4 +1392,3 @@ mod tests {
                    "core/openssl/1.1.1w/20240108093230");
     }
 }
-

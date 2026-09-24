@@ -298,7 +298,6 @@ pub fn channel_package_closure(channel_id: Option<i64>,
     Ok(idents)
 }
 
-
 mod ymd_date_format {
     use chrono::{NaiveDate,
                  NaiveDateTime};
