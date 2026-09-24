@@ -426,13 +426,13 @@ impl Channel {
         Counter::DBCall.increment();
         let start_time = Instant::now();
         let result = diesel::sql_query(
-            "SELECT DISTINCT ON (origin, name) \
+            "SELECT DISTINCT ON (origin, name, target) \
              origin_packages_with_version_array.* \
              FROM origin_packages_with_version_array \
              JOIN origin_channel_packages \
                ON origin_packages_with_version_array.id = origin_channel_packages.package_id \
              WHERE origin_channel_packages.channel_id = $1 \
-             ORDER BY origin, name, \
+             ORDER BY origin, name, target, \
                       string_to_array(version_array[1], '.')::numeric[] DESC, \
                       ident_array[4] DESC",
         )

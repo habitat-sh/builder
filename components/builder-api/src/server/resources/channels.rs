@@ -215,7 +215,11 @@ async fn delete_channel(req: HttpRequest,
 #[derive(Serialize)]
 struct SnapshotResponse {
     snapshot_channel: String,
-    packages:         HashMap<String, HashMap<String, PackageFqiEntry>>,
+    // Keyed by target (e.g. "x86_64-linux") first, since a channel can hold
+    // multiple "latest" head packages for the same origin/name -- one per
+    // target platform -- and each target's closure must be reported
+    // independently.
+    packages:         HashMap<String, HashMap<String, HashMap<String, Vec<PackageFqiEntry>>>>,
 }
 
 #[derive(Serialize)]
@@ -228,48 +232,78 @@ struct PackageFqiEntry {
 }
 
 // Response body for the check=true compatibility-check failure path of
-// promote_channel_packages.
+// promote_channel_packages. `conflicts` is keyed by target platform first
+// (mirroring SnapshotResponse.packages), since idents are only compared for
+// conflicts within the same target.
 #[derive(Serialize)]
 struct CompatibilityError {
     error:     String,
-    conflicts: HashMap<String, Vec<String>>,
+    conflicts: HashMap<String, HashMap<String, Vec<String>>>,
 }
 
 // Parses an ident string of the form "origin/name/version/release" (release may be
-// absent) and inserts it into the deduped origin -> name -> entry map. A duplicate
-// origin/name pair is a no-op, so the first insertion for a given package wins.
-fn insert_ident(set: &mut HashMap<String, HashMap<String, PackageFqiEntry>>, ident_str: &str) {
+// absent) and appends it to the target -> origin -> name -> entries map, unless an
+// identical ident is already present for that target/origin/name. Multiple distinct
+// idents can legitimately share a target/origin/name here: a head package's own
+// ident may differ from an older version of the same name pinned as a tdep of some
+// *other* head package, and both need to be reported rather than one silently
+// clobbering the other. `target` is taken from the head package doing the
+// referencing (its own target, for itself, or the parent's target for its tdeps --
+// runtime tdeps must match their parent's target), since ident strings alone don't
+// carry target information.
+fn insert_ident(set: &mut HashMap<String,
+                             HashMap<String, HashMap<String, Vec<PackageFqiEntry>>>>,
+                target: &str,
+                ident_str: &str) {
     let mut parts = ident_str.splitn(4, '/');
     let origin = parts.next().unwrap_or_default().to_string();
     let name = parts.next().unwrap_or_default().to_string();
     let version = parts.next().unwrap_or_default().to_string();
     let release = parts.next().unwrap_or_default().to_string();
 
-    set.entry(origin.clone())
-       .or_default()
-       .entry(name.clone())
-       .or_insert_with(|| {
-           PackageFqiEntry { ident: ident_str.to_string(),
-                             origin,
-                             name,
-                             version,
-                             release }
-       });
+    let entries = set.entry(target.to_string())
+                     .or_default()
+                     .entry(origin.clone())
+                     .or_default()
+                     .entry(name.clone())
+                     .or_default();
+    if !entries.iter().any(|e| e.ident == ident_str) {
+        entries.push(PackageFqiEntry { ident: ident_str.to_string(),
+                                       origin,
+                                       name,
+                                       version,
+                                       release });
+    }
 }
 
-// Returns, for every "origin/name" key with more than one distinct ident, the
-// sorted list of conflicting idents. An empty map means the merged closure
-// (target's existing packages plus the source's incoming head+tdeps closure)
-// is internally consistent -- at most one distinct ident per origin/name.
-fn find_conflicts(by_name: &HashMap<String, HashSet<String>>) -> HashMap<String, Vec<String>> {
-    by_name.iter()
-           .filter(|(_, versions)| versions.len() > 1)
-           .map(|(name, versions)| {
-               let mut v: Vec<String> = versions.iter().cloned().collect();
-               v.sort();
-               (name.clone(), v)
-           })
-           .collect()
+// Returns, for every target -> "origin/name" key with more than one distinct
+// ident, the sorted list of conflicting idents. An empty map means the merged
+// closure (target channel's existing packages plus the source channel's
+// incoming head+tdeps closure) is internally consistent -- at most one
+// distinct ident per origin/name within each target platform. Idents for the
+// same origin/name under *different* target platforms (e.g. an
+// x86_64-linux and an x86_64-windows build of the same package) are
+// legitimate and never considered conflicting with each other.
+fn find_conflicts(by_target: &HashMap<String, HashMap<String, HashSet<String>>>)
+                  -> HashMap<String, HashMap<String, Vec<String>>> {
+    by_target.iter()
+             .filter_map(|(target, by_name)| {
+                 let conflicts: HashMap<String, Vec<String>> =
+                     by_name.iter()
+                            .filter(|(_, versions)| versions.len() > 1)
+                            .map(|(name, versions)| {
+                                let mut v: Vec<String> = versions.iter().cloned().collect();
+                                v.sort();
+                                (name.clone(), v)
+                            })
+                            .collect();
+                 if conflicts.is_empty() {
+                     None
+                 } else {
+                     Some((target.clone(), conflicts))
+                 }
+             })
+             .collect()
 }
 
 // Error type produced by the promotion transaction closure in
@@ -278,7 +312,7 @@ fn find_conflicts(by_name: &HashMap<String, HashSet<String>>) -> HashMap<String,
 // underlying database error.
 enum PromoteTxnError {
     Diesel(diesel::result::Error),
-    Conflict(HashMap<String, Vec<String>>),
+    Conflict(HashMap<String, HashMap<String, Vec<String>>>),
 }
 
 impl From<diesel::result::Error> for PromoteTxnError {
@@ -391,14 +425,16 @@ async fn promote_channel_packages(req: HttpRequest,
             let target_closure = helpers::channel_package_closure(Some(target_channel.id), conn)?;
             let source_closure = helpers::channel_package_closure(source_channel_id, conn)?;
 
-            let mut by_name: HashMap<String, HashSet<String>> = HashMap::new();
-            for ident in target_closure.iter().chain(source_closure.iter()) {
-                by_name.entry(format!("{}/{}", ident.origin, ident.name))
-                       .or_default()
-                       .insert(ident.to_string());
+            let mut by_target: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+            for (pkg_target, ident) in target_closure.iter().chain(source_closure.iter()) {
+                by_target.entry(pkg_target.clone())
+                         .or_default()
+                         .entry(format!("{}/{}", ident.origin, ident.name))
+                         .or_default()
+                         .insert(ident.to_string());
             }
 
-            let conflicts = find_conflicts(&by_name);
+            let conflicts = find_conflicts(&by_target);
             if !conflicts.is_empty() {
                 return Err(PromoteTxnError::Conflict(conflicts));
             }
@@ -499,19 +535,28 @@ fn create_snapshot_channel(origin: &str,
 
                     let head_packages = Channel::list_head_packages(snapshot_channel.id, conn)?;
 
-                    let mut pkg_set: HashMap<String, HashMap<String, PackageFqiEntry>> =
+                    let mut pkg_set: HashMap<String,
+                                             HashMap<String,
+                                                     HashMap<String, Vec<PackageFqiEntry>>>> =
                         HashMap::new();
-                    // Insert all head packages first so they always win the
-                    // origin/name slot. Otherwise a dependency (processed via
-                    // some other package's tdeps) could claim that slot with
-                    // an older ident before the actual head package for that
-                    // origin/name is reached later in this iteration.
+                    // Insert all head packages first so each target/origin/name's
+                    // list always starts with the actual head ident. Older
+                    // tdep idents for the same target/origin/name (e.g. a
+                    // not-yet-updated head package pinned to a previous
+                    // version of a dependency that has since been promoted
+                    // to head status) are appended alongside it rather than
+                    // being dropped, since both idents are genuinely part of
+                    // the snapshot's closure. tdeps are grouped under their
+                    // parent head package's target, since runtime tdeps
+                    // must match their parent's target platform.
                     for pkg in &head_packages {
-                        insert_ident(&mut pkg_set, &pkg.ident.to_string());
+                        insert_ident(&mut pkg_set,
+                                     &pkg.target.to_string(),
+                                     &pkg.ident.to_string());
                     }
                     for pkg in &head_packages {
                         for dep in &pkg.tdeps {
-                            insert_ident(&mut pkg_set, &dep.to_string());
+                            insert_ident(&mut pkg_set, &pkg.target.to_string(), &dep.to_string());
                         }
                     }
 
@@ -1257,4 +1302,93 @@ fn postprocess_channel_package_list(_req: &HttpRequest,
     response.append_header((http::header::CONTENT_TYPE, headers::APPLICATION_JSON))
             .append_header((http::header::CACHE_CONTROL, headers::Cache::NoCache.to_string()))
             .body(body)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Reproduces the scenario reported against the snapshot=true path: a
+    // head package (e.g. openssl 1.1.1w, just promoted) shares an
+    // origin/name with an older ident pinned as a tdep of some other,
+    // unrelated head package (e.g. libarchive, still built against openssl
+    // 1.1.1l). Both idents must be preserved in the snapshot summary
+    // instead of the tdep silently losing the origin/name slot.
+    #[test]
+    fn insert_ident_keeps_distinct_idents_for_same_origin_name() {
+        let mut set: HashMap<String, HashMap<String, HashMap<String, Vec<PackageFqiEntry>>>> =
+            HashMap::new();
+
+        // Head package pass
+        insert_ident(&mut set,
+                     "x86_64-linux",
+                     "core/openssl/1.1.1w/20240108093230");
+        // Tdep pass (from an unrelated head package still pinned to the old version)
+        insert_ident(&mut set,
+                     "x86_64-linux",
+                     "core/openssl/1.1.1l/20220425143501");
+
+        let entries = &set["x86_64-linux"]["core"]["openssl"];
+        assert_eq!(entries.len(), 2);
+        assert!(entries.iter()
+                       .any(|e| e.ident == "core/openssl/1.1.1w/20240108093230"));
+        assert!(entries.iter()
+                       .any(|e| e.ident == "core/openssl/1.1.1l/20220425143501"));
+    }
+
+    #[test]
+    fn insert_ident_dedupes_identical_idents() {
+        let mut set: HashMap<String, HashMap<String, HashMap<String, Vec<PackageFqiEntry>>>> =
+            HashMap::new();
+
+        // The same ident can legitimately be reached twice (e.g. as a tdep
+        // of two different head packages); it should only appear once.
+        insert_ident(&mut set,
+                     "x86_64-linux",
+                     "core/openssl/1.1.1w/20240108093230");
+        insert_ident(&mut set,
+                     "x86_64-linux",
+                     "core/openssl/1.1.1w/20240108093230");
+
+        assert_eq!(set["x86_64-linux"]["core"]["openssl"].len(), 1);
+    }
+
+    #[test]
+    fn insert_ident_parses_origin_name_version_release() {
+        let mut set: HashMap<String, HashMap<String, HashMap<String, Vec<PackageFqiEntry>>>> =
+            HashMap::new();
+
+        insert_ident(&mut set, "x86_64-linux", "core/xz/5.2.5/20220425103110");
+
+        let entry = &set["x86_64-linux"]["core"]["xz"][0];
+        assert_eq!(entry.ident, "core/xz/5.2.5/20220425103110");
+        assert_eq!(entry.origin, "core");
+        assert_eq!(entry.name, "xz");
+        assert_eq!(entry.version, "5.2.5");
+        assert_eq!(entry.release, "20220425103110");
+    }
+
+    // The same origin/name can legitimately have a distinct head package per
+    // target platform (e.g. a Windows build and a Linux build of the same
+    // package name); each target's entries must be kept independent rather
+    // than merged/overwritten.
+    #[test]
+    fn insert_ident_keeps_entries_independent_per_target() {
+        let mut set: HashMap<String, HashMap<String, HashMap<String, Vec<PackageFqiEntry>>>> =
+            HashMap::new();
+
+        insert_ident(&mut set,
+                     "x86_64-linux",
+                     "core/openssl/3.2.4/20250428090043");
+        insert_ident(&mut set,
+                     "x86_64-windows",
+                     "core/openssl/1.1.1w/20240108093230");
+
+        assert_eq!(set["x86_64-linux"]["core"]["openssl"].len(), 1);
+        assert_eq!(set["x86_64-windows"]["core"]["openssl"].len(), 1);
+        assert_eq!(set["x86_64-linux"]["core"]["openssl"][0].ident,
+                   "core/openssl/3.2.4/20250428090043");
+        assert_eq!(set["x86_64-windows"]["core"]["openssl"][0].ident,
+                   "core/openssl/1.1.1w/20240108093230");
+    }
 }
