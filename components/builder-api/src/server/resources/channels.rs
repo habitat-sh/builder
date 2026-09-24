@@ -279,32 +279,68 @@ fn insert_ident(set: &mut HashMap<String,
 // Merges a target channel's closure with an incoming source channel's
 // closure for the purposes of the check=true compatibility check, into a
 // target -> "origin/name" -> distinct idents map (consumed by
-// find_conflicts). Any head package the source is promoting supersedes the
-// target's current head package (and, transitively, all of that head
-// package's own recorded tdeps) for the same origin/name -- that's simply
-// what promotion does. So the target's contribution excludes any group
-// whose own origin/name is also a head package being introduced by the
-// source, since none of that superseded group's own tdeps will describe the
-// post-promotion state. The source's own closure always contributes in
-// full, since it's what's being introduced.
+// find_conflicts).
+//
+// Promotion only ever inserts channel-package rows (Channel::promote_packages
+// uses ON CONFLICT DO NOTHING) -- it never removes anything the target
+// channel already has. Post-promotion, Channel::list_head_packages picks
+// whichever ident is actually the highest version/release for a given
+// origin/name/target as the new head. So for any group_key (a head package's
+// target + origin/name) present on both sides, the side whose head ident is
+// >= the other's head ident is the one that will actually be the
+// post-promotion head, and only *that* side's whole group (head + its own
+// recorded tdeps) describes the post-promotion state -- the losing side's
+// group (including its tdeps) is dropped entirely, since it won't be a head
+// afterward. A group_key present on only one side contributes in full,
+// unconditionally.
 fn merge_closures_for_conflict_check(target_closure: &[helpers::ClosureEntry],
                                      source_closure: &[helpers::ClosureEntry])
                                      -> HashMap<String, HashMap<String, HashSet<String>>> {
-    let superseded_group_keys: HashSet<&(String, String)> =
-        source_closure.iter().map(|e| &e.group_key).collect();
+    let mut target_groups: HashMap<&(String, String), Vec<&helpers::ClosureEntry>> = HashMap::new();
+    for entry in target_closure {
+        target_groups.entry(&entry.group_key)
+                     .or_default()
+                     .push(entry);
+    }
+    let mut source_groups: HashMap<&(String, String), Vec<&helpers::ClosureEntry>> = HashMap::new();
+    for entry in source_closure {
+        source_groups.entry(&entry.group_key)
+                     .or_default()
+                     .push(entry);
+    }
+
+    let all_group_keys: HashSet<&(String, String)> = target_groups.keys()
+                                                                  .chain(source_groups.keys())
+                                                                  .copied()
+                                                                  .collect();
 
     let mut by_target: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
-    let contributing_entries =
-        source_closure.iter()
-                      .chain(target_closure.iter().filter(|e| {
-                                                      !superseded_group_keys.contains(&e.group_key)
-                                                  }));
-    for entry in contributing_entries {
-        by_target.entry(entry.target.clone())
-                 .or_default()
-                 .entry(format!("{}/{}", entry.ident.origin, entry.ident.name))
-                 .or_default()
-                 .insert(entry.ident.to_string());
+    for group_key in all_group_keys {
+        let winning_group = match (target_groups.get(group_key), source_groups.get(group_key)) {
+            (Some(target_group), Some(source_group)) => {
+                let target_head = target_group.iter().find(|e| e.is_head).map(|e| &e.ident.0);
+                let source_head = source_group.iter().find(|e| e.is_head).map(|e| &e.ident.0);
+                match (target_head, source_head) {
+                    (Some(th), Some(sh)) if sh >= th => source_group,
+                    (Some(_), Some(_)) => target_group,
+                    // Shouldn't normally happen (every group carries a head
+                    // entry), but fall back to whichever side is present.
+                    (None, Some(_)) => source_group,
+                    _ => target_group,
+                }
+            }
+            (Some(target_group), None) => target_group,
+            (None, Some(source_group)) => source_group,
+            (None, None) => continue,
+        };
+
+        for entry in winning_group {
+            by_target.entry(entry.target.clone())
+                     .or_default()
+                     .entry(format!("{}/{}", entry.ident.origin, entry.ident.name))
+                     .or_default()
+                     .insert(entry.ident.to_string());
+        }
     }
     by_target
 }
@@ -1429,11 +1465,13 @@ mod tests {
         let group_key = (target.to_string(), format!("{}/{}", head.origin, head.name));
         let mut entries = vec![helpers::ClosureEntry { target:    target.to_string(),
                                                        group_key: group_key.clone(),
-                                                       ident:     head, }];
+                                                       ident:     head,
+                                                       is_head:   true, }];
         for tdep in tdep_idents {
             entries.push(helpers::ClosureEntry { target:    target.to_string(),
                                                  group_key: group_key.clone(),
-                                                 ident:     tdep.parse().unwrap(), });
+                                                 ident:     tdep.parse().unwrap(),
+                                                 is_head:   false, });
         }
         entries
     }
@@ -1504,5 +1542,34 @@ mod tests {
         let conflicts = find_conflicts(&by_target);
 
         assert!(conflicts["x86_64-windows"].contains_key("core/xz"));
+    }
+
+    // Regression: promotion is additive (Channel::promote_packages uses ON
+    // CONFLICT DO NOTHING) and post-promotion head selection always picks
+    // the highest version/release for a given origin/name/target. So if the
+    // *source's* head for some name is actually older than the target's
+    // existing head for that same name, the target's head does not get
+    // superseded -- it remains the head after promotion, and its own tdeps
+    // (not the older source head's) describe the post-promotion state.
+    // Merging must reflect that: no conflict here, and the merged closure
+    // should carry the target's (newer) libarchive/openssl, not the
+    // source's (older) ones.
+    #[test]
+    fn merge_closures_keeps_newer_target_head_when_source_head_is_older() {
+        let target_closure = closure_group("x86_64-windows",
+                                           "core/libarchive/3.7.2/20241008044517",
+                                           &["core/openssl/1.1.1w/20240108093230"]);
+        let source_closure = closure_group("x86_64-windows",
+                                           "core/libarchive/3.5.2/20220425144748",
+                                           &["core/openssl/1.1.1l/20220425143501"]);
+
+        let by_target = merge_closures_for_conflict_check(&target_closure, &source_closure);
+        let conflicts = find_conflicts(&by_target);
+
+        assert!(conflicts.is_empty());
+        assert_eq!(by_target["x86_64-windows"]["core/libarchive"],
+                   HashSet::from(["core/libarchive/3.7.2/20241008044517".to_string()]));
+        assert_eq!(by_target["x86_64-windows"]["core/openssl"],
+                   HashSet::from(["core/openssl/1.1.1w/20240108093230".to_string()]));
     }
 }

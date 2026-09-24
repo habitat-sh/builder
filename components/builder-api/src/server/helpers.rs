@@ -285,10 +285,13 @@ pub fn req_state(req: &HttpRequest) -> &AppState {
 // own recorded tdeps) when that head package's own origin/name is about to
 // be superseded by an incoming promotion, since a superseded package's
 // tdeps no longer describe anything that will exist post-promotion.
+// `is_head` distinguishes the group's own head entry (the package that
+// list_head_packages selected) from its tdep entries.
 pub struct ClosureEntry {
     pub target:    String,
     pub group_key: (String, String),
     pub ident:     BuilderPackageIdent,
+    pub is_head:   bool,
 }
 
 pub fn channel_package_closure(channel_id: Option<i64>,
@@ -307,14 +310,16 @@ pub fn channel_package_closure(channel_id: Option<i64>,
         let group_key = (target.clone(), format!("{}/{}", pkg.ident.origin, pkg.ident.name));
         idents.push(ClosureEntry { target:    target.clone(),
                                    group_key: group_key.clone(),
-                                   ident:     pkg.ident.clone(), });
+                                   ident:     pkg.ident.clone(),
+                                   is_head:   true, });
         // tdeps are grouped under their parent head package's target and
         // group_key, since runtime tdeps must match their parent's target
         // platform and rise or fall with their parent package.
         idents.extend(pkg.tdeps.iter().map(|dep| {
                                           ClosureEntry { target:    target.clone(),
                                                          group_key: group_key.clone(),
-                                                         ident:     dep.clone(), }
+                                                         ident:     dep.clone(),
+                                                         is_head:   false, }
                                       }));
     }
     Ok(idents)
