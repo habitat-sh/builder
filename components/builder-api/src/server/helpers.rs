@@ -279,7 +279,7 @@ pub fn req_state(req: &HttpRequest) -> &AppState {
 
 pub fn channel_package_closure(channel_id: Option<i64>,
                                conn: &mut PgConnection)
-                               -> QueryResult<Vec<BuilderPackageIdent>> {
+                               -> QueryResult<Vec<(String, BuilderPackageIdent)>> {
     let channel_id = match channel_id {
         Some(id) => id,
         None => return Ok(Vec::new()),
@@ -289,11 +289,15 @@ pub fn channel_package_closure(channel_id: Option<i64>,
 
     let mut idents = Vec::new();
     for pkg in &head_packages {
-        idents.push(pkg.ident.clone());
-        idents.extend(pkg.tdeps.iter().cloned());
+        let target = pkg.target.to_string();
+        idents.push((target.clone(), pkg.ident.clone()));
+        // tdeps are grouped under their parent head package's target, since
+        // runtime tdeps must match their parent's target platform.
+        idents.extend(pkg.tdeps.iter().map(|dep| (target.clone(), dep.clone())));
     }
     Ok(idents)
 }
+
 
 mod ymd_date_format {
     use chrono::{NaiveDate,

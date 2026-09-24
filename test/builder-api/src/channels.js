@@ -1141,9 +1141,10 @@ describe('Channels API', function () {
         .expect(409)
         .end(function (err, res) {
           expect(res.body.error).to.equal('compatibility_check_failed');
-          expect(res.body.conflicts).to.have.property('neurosis/testapp');
-          expect(res.body.conflicts['neurosis/testapp']).to.be.an('array');
-          expect(res.body.conflicts['neurosis/testapp'].length).to.be.at.least(2);
+          expect(res.body.conflicts).to.have.property('x86_64-linux');
+          expect(res.body.conflicts['x86_64-linux']).to.have.property('neurosis/testapp');
+          expect(res.body.conflicts['x86_64-linux']['neurosis/testapp']).to.be.an('array');
+          expect(res.body.conflicts['x86_64-linux']['neurosis/testapp'].length).to.be.at.least(2);
           done(err);
         });
     });
@@ -1178,7 +1179,8 @@ describe('Channels API', function () {
         .expect(409)
         .end(function (err, res) {
           expect(res.body.error).to.equal('compatibility_check_failed');
-          expect(res.body.conflicts).to.have.property('neurosis/testapp');
+          expect(res.body.conflicts).to.have.property('x86_64-linux');
+          expect(res.body.conflicts['x86_64-linux']).to.have.property('neurosis/testapp');
           done(err);
         });
     });
@@ -1243,7 +1245,8 @@ describe('Channels API', function () {
         .end(function (err, res) {
           expect(res.body.snapshot_channel).to.match(/^check-clean_SS_\d{8}T\d{6}\.\d{6}Z_[0-9a-f]{8}$/);
           expect(res.body.packages).to.be.an('object');
-          expect(res.body.packages.neurosis).to.be.an('object');
+          expect(res.body.packages['x86_64-linux']).to.be.an('object');
+          expect(res.body.packages['x86_64-linux'].neurosis).to.be.an('object');
           done(err);
         });
     });
