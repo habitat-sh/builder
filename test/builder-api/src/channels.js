@@ -1350,13 +1350,22 @@ describe('Channels API', function () {
   });
 
   describe('Channel-to-Channel promotion concurrency', function () {
+    // conc-source-a carries testapp3 (a head package whose recorded TDEPS pin
+    // neurosis/testapp/0.1.3/20190327162537, and only that exact release -- see
+    // packages.js). conc-source-b carries a *different* release of that same
+    // origin/name (neurosis/testapp/0.1.3/20171205003213) directly as its own head
+    // package. These are genuinely incompatible with each other -- unlike two
+    // releases of the same package (a supersession, not a conflict), one side's
+    // pinned tdep and the other side's promoted head can never coexist for the
+    // same origin/name -- so whichever of the two commits second (i.e. checks its
+    // compatibility against the already-updated target) must see a conflict.
     it('sets up two mutually conflicting source channels and a fresh empty target', function (done) {
       request.post('/depot/channels/neurosis/conc-source-a')
         .set('Authorization', global.boboBearer)
         .expect(201)
         .end(function (err) {
           if (err) return done(err);
-          request.put('/depot/channels/neurosis/conc-source-a/pkgs/testapp/0.1.3/20171205003213/promote')
+          request.put('/depot/channels/neurosis/conc-source-a/pkgs/testapp3/0.1.0/20190327162559/promote')
             .set('Authorization', global.boboBearer)
             .expect(200)
             .end(function (err2) {
@@ -1366,7 +1375,7 @@ describe('Channels API', function () {
                 .expect(201)
                 .end(function (err3) {
                   if (err3) return done(err3);
-                  request.put('/depot/channels/neurosis/conc-source-b/pkgs/testapp/0.1.4/20171206004139/promote')
+                  request.put('/depot/channels/neurosis/conc-source-b/pkgs/testapp/0.1.3/20171205003213/promote')
                     .set('Authorization', global.boboBearer)
                     .expect(200)
                     .end(function (err4) {
@@ -1383,8 +1392,9 @@ describe('Channels API', function () {
       // server essentially back-to-back rather than sequentially. Whichever
       // one wins the advisory lock commits first; the other's compatibility
       // check then runs against the now-updated target and must see a
-      // conflict (both source channels carry a different release of
-      // neurosis/testapp), so exactly one of the two succeeds.
+      // conflict (conc-source-a's head pins a tdep release of neurosis/testapp
+      // that differs from the release conc-source-b promotes directly as its
+      // own head), so exactly one of the two succeeds.
       // superagent rejects the request promise for any non-2xx response
       // unless told otherwise via .ok(); since exactly one of these two
       // requests is expected to come back 409, both must explicitly accept
