@@ -1429,6 +1429,24 @@ describe('Channels API', function () {
         })
         .catch(function (err) { done(err); });
     });
+
+    // testapp3 was re-uploaded above (and reused here) purely as a fixture for the
+    // check=true conflict scenarios. misc.js's reverse-dependencies suite runs after
+    // this file and asserts that neurosis/testapp's only reverse dependency is
+    // oddversion7 -- an invariant that packages.js originally established by
+    // deleting testapp3 for good. Delete it again here so that invariant holds for
+    // later suites. It's still a leaf (nothing depends on testapp3 itself) and is
+    // not in the stable channel, so deletion is allowed regardless of its
+    // membership in check-conflict/conc-source-a.
+    it('cleans up the re-uploaded testapp3 fixture so later suites see it as deleted again', function (done) {
+      request.delete('/depot/pkgs/neurosis/testapp3/0.1.0/20190327162559')
+        .set('Authorization', global.boboBearer)
+        .expect(204)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
   });
 
   describe('Channel-to-channel Demotion', function () {
