@@ -2,6 +2,14 @@ const expect = require('chai').expect;
 const supertest = require('supertest');
 const request = supertest('http://localhost:9636/v1');
 const { appendDateRange } = require('./util');
+const fs = require('fs');
+
+// packages.js's "Deleting packages" suite (which runs before this file, see api.js's require
+// order) permanently deletes neurosis/testapp3/0.1.0/20190327162559 once it becomes a leaf
+// package again, so it must be re-uploaded here before it can be used as a fixture for the
+// tdep-conflict scenario below.
+const testapp3File =
+  fs.readFileSync(__dirname + '/../fixtures/neurosis-testapp3-0.1.0-20190327162559-x86_64-linux.hart');
 
 describe('Channels API', function () {
   describe('Create foo channel', function () {
@@ -1120,13 +1128,45 @@ describe('Channels API', function () {
   });
 
   describe('Channel-to-Channel promotion with check', function () {
-    it('creates the check-conflict channel and seeds it with an older package version', function (done) {
-      request.post('/depot/channels/neurosis/check-conflict')
+    // neurosis/testapp3/0.1.0/20190327162559 has neurosis/testapp/0.1.3/20190327162537 (and
+    // only that exact release) recorded in its TDEPS (see packages.js). Seeding the target
+    // channel with testapp3 as its head package -- and promoting an unrelated release of
+    // testapp directly from the source -- reproduces a genuine conflict: testapp3 is not
+    // being promoted, so its pinned tdep on the older testapp release is never superseded.
+    it('creates the tdep-conflict target channel seeded with an unrelated head package pinning an older tdep', function (done) {
+      // Re-upload testapp3: packages.js's "Deleting packages" suite deletes it once it has no
+      // more reverse dependents of its own (it depends on testapp/0.1.3/20190327162537, but
+      // nothing depends on testapp3 itself), so it no longer exists by the time this suite runs.
+      request.post(`/depot/pkgs/neurosis/testapp3/0.1.0/20190327162559`)
+        .set('Authorization', global.boboBearer)
+        .set('Content-Length', testapp3File.length)
+        .query({ checksum: '02edaaf2d5fdb167e57026b17c86e8df5a7ca285e042f113bcb31ede765a67ce' })
+        .send(testapp3File)
+        .expect(201)
+        .end(function (err) {
+          if (err) return done(err);
+          request.post('/depot/channels/neurosis/check-conflict')
+            .set('Authorization', global.boboBearer)
+            .expect(201)
+            .end(function (err2) {
+              if (err2) return done(err2);
+              request.put('/depot/channels/neurosis/check-conflict/pkgs/testapp3/0.1.0/20190327162559/promote')
+                .set('Authorization', global.boboBearer)
+                .expect(200)
+                .end(function (err3) {
+                  done(err3);
+                });
+            });
+        });
+    });
+
+    it('creates the tdep-conflict source channel with a different release of the pinned tdep', function (done) {
+      request.post('/depot/channels/neurosis/check-conflict-source')
         .set('Authorization', global.boboBearer)
         .expect(201)
         .end(function (err) {
           if (err) return done(err);
-          request.put('/depot/channels/neurosis/check-conflict/pkgs/testapp/0.1.3/20171205003213/promote')
+          request.put('/depot/channels/neurosis/check-conflict-source/pkgs/testapp/0.1.3/20171205003213/promote')
             .set('Authorization', global.boboBearer)
             .expect(200)
             .end(function (err2) {
@@ -1135,8 +1175,8 @@ describe('Channels API', function () {
         });
     });
 
-    it('rejects promotion with snapshot=true&check=true when the merged closure conflicts', function (done) {
-      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=check-conflict&snapshot=true&check=true')
+    it('rejects promotion with snapshot=true&check=true when an unrelated head package still pins a conflicting tdep', function (done) {
+      request.put('/depot/channels/neurosis/check-conflict-source/pkgs/promote?channel=check-conflict&snapshot=true&check=true')
         .set('Authorization', global.boboBearer)
         .expect(409)
         .end(function (err, res) {
@@ -1156,7 +1196,7 @@ describe('Channels API', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.body.total_count).to.equal(1);
-          expect(res.body.data[0].version).to.equal('0.1.3');
+          expect(res.body.data[0].name).to.equal('testapp3');
           done(err);
         });
     });
@@ -1173,8 +1213,8 @@ describe('Channels API', function () {
         });
     });
 
-    it('rejects promotion with check=true (without snapshot=true) when the merged closure conflicts', function (done) {
-      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=check-conflict&check=true')
+    it('rejects promotion with check=true (without snapshot=true) when an unrelated head package still pins a conflicting tdep', function (done) {
+      request.put('/depot/channels/neurosis/check-conflict-source/pkgs/promote?channel=check-conflict&check=true')
         .set('Authorization', global.boboBearer)
         .expect(409)
         .end(function (err, res) {
@@ -1197,7 +1237,7 @@ describe('Channels API', function () {
     });
 
     it('promotes unconditionally when snapshot=true is passed without check=true, even with a conflicting closure', function (done) {
-      request.put('/depot/channels/neurosis/unstable/pkgs/promote?channel=check-conflict&snapshot=true')
+      request.put('/depot/channels/neurosis/check-conflict-source/pkgs/promote?channel=check-conflict&snapshot=true')
         .set('Authorization', global.boboBearer)
         .expect(200)
         .end(function (err, res) {
@@ -1212,14 +1252,54 @@ describe('Channels API', function () {
         .accept('application/json')
         .expect(200)
         .end(function (err, res) {
-          request.get('/depot/channels/neurosis/unstable/pkgs')
-            .type('application/json')
-            .accept('application/json')
+          expect(res.body.total_count).to.equal(2);
+          done(err);
+        });
+    });
+
+    // Promoting a newer release of a package that a target channel already holds as its own
+    // head package supersedes it entirely -- that's what promotion is for -- so this must not
+    // be reported as a conflict, even though the same origin/name appears on both sides.
+    it('creates a supersession target channel seeded with an older release of the same package', function (done) {
+      request.post('/depot/channels/neurosis/check-supersede-target')
+        .set('Authorization', global.boboBearer)
+        .expect(201)
+        .end(function (err) {
+          if (err) return done(err);
+          request.put('/depot/channels/neurosis/check-supersede-target/pkgs/testapp/0.1.3/20171205003213/promote')
+            .set('Authorization', global.boboBearer)
             .expect(200)
-            .end(function (err2, res2) {
-              expect(res.body.total_count).to.equal(res2.body.total_count);
-              done(err || err2);
+            .end(function (err2) {
+              done(err2);
             });
+        });
+    });
+
+    it('creates a supersession source channel with a newer release of the same package', function (done) {
+      request.post('/depot/channels/neurosis/check-supersede-source')
+        .set('Authorization', global.boboBearer)
+        .expect(201)
+        .end(function (err) {
+          if (err) return done(err);
+          request.put('/depot/channels/neurosis/check-supersede-source/pkgs/testapp/0.1.4/20171206004139/promote')
+            .set('Authorization', global.boboBearer)
+            .expect(200)
+            .end(function (err2) {
+              done(err2);
+            });
+        });
+    });
+
+    it('passes the compatibility check when the source supersedes the target\'s own head package', function (done) {
+      request.put('/depot/channels/neurosis/check-supersede-source/pkgs/promote?channel=check-supersede-target&snapshot=true&check=true')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.snapshot_channel).to.match(/^check-supersede-target_SS_\d{8}T\d{6}\.\d{6}Z_[0-9a-f]{8}$/);
+          expect(res.body.packages['x86_64-linux'].neurosis.testapp).to.be.an('array');
+          expect(res.body.packages['x86_64-linux'].neurosis.testapp.length).to.equal(1);
+          expect(res.body.packages['x86_64-linux'].neurosis.testapp[0].release).to.equal('20171206004139');
+          done(err);
         });
     });
 
@@ -1270,13 +1350,22 @@ describe('Channels API', function () {
   });
 
   describe('Channel-to-Channel promotion concurrency', function () {
+    // conc-source-a carries testapp3 (a head package whose recorded TDEPS pin
+    // neurosis/testapp/0.1.3/20190327162537, and only that exact release -- see
+    // packages.js). conc-source-b carries a *different* release of that same
+    // origin/name (neurosis/testapp/0.1.3/20171205003213) directly as its own head
+    // package. These are genuinely incompatible with each other -- unlike two
+    // releases of the same package (a supersession, not a conflict), one side's
+    // pinned tdep and the other side's promoted head can never coexist for the
+    // same origin/name -- so whichever of the two commits second (i.e. checks its
+    // compatibility against the already-updated target) must see a conflict.
     it('sets up two mutually conflicting source channels and a fresh empty target', function (done) {
       request.post('/depot/channels/neurosis/conc-source-a')
         .set('Authorization', global.boboBearer)
         .expect(201)
         .end(function (err) {
           if (err) return done(err);
-          request.put('/depot/channels/neurosis/conc-source-a/pkgs/testapp/0.1.3/20171205003213/promote')
+          request.put('/depot/channels/neurosis/conc-source-a/pkgs/testapp3/0.1.0/20190327162559/promote')
             .set('Authorization', global.boboBearer)
             .expect(200)
             .end(function (err2) {
@@ -1286,7 +1375,7 @@ describe('Channels API', function () {
                 .expect(201)
                 .end(function (err3) {
                   if (err3) return done(err3);
-                  request.put('/depot/channels/neurosis/conc-source-b/pkgs/testapp/0.1.4/20171206004139/promote')
+                  request.put('/depot/channels/neurosis/conc-source-b/pkgs/testapp/0.1.3/20171205003213/promote')
                     .set('Authorization', global.boboBearer)
                     .expect(200)
                     .end(function (err4) {
@@ -1303,8 +1392,9 @@ describe('Channels API', function () {
       // server essentially back-to-back rather than sequentially. Whichever
       // one wins the advisory lock commits first; the other's compatibility
       // check then runs against the now-updated target and must see a
-      // conflict (both source channels carry a different release of
-      // neurosis/testapp), so exactly one of the two succeeds.
+      // conflict (conc-source-a's head pins a tdep release of neurosis/testapp
+      // that differs from the release conc-source-b promotes directly as its
+      // own head), so exactly one of the two succeeds.
       // superagent rejects the request promise for any non-2xx response
       // unless told otherwise via .ok(); since exactly one of these two
       // requests is expected to come back 409, both must explicitly accept
@@ -1338,6 +1428,24 @@ describe('Channels API', function () {
             });
         })
         .catch(function (err) { done(err); });
+    });
+
+    // testapp3 was re-uploaded above (and reused here) purely as a fixture for the
+    // check=true conflict scenarios. misc.js's reverse-dependencies suite runs after
+    // this file and asserts that neurosis/testapp's only reverse dependency is
+    // oddversion7 -- an invariant that packages.js originally established by
+    // deleting testapp3 for good. Delete it again here so that invariant holds for
+    // later suites. It's still a leaf (nothing depends on testapp3 itself) and is
+    // not in the stable channel, so deletion is allowed regardless of its
+    // membership in check-conflict/conc-source-a.
+    it('cleans up the re-uploaded testapp3 fixture so later suites see it as deleted again', function (done) {
+      request.delete('/depot/pkgs/neurosis/testapp3/0.1.0/20190327162559')
+        .set('Authorization', global.boboBearer)
+        .expect(204)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
     });
   });
 

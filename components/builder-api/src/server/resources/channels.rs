@@ -422,16 +422,17 @@ async fn promote_channel_packages(req: HttpRequest,
         let source_channel_id = Channel::get(&origin, &ch_source, conn).ok().map(|c| c.id);
 
         if check {
-            let target_closure = helpers::channel_package_closure(Some(target_channel.id), conn)?;
-            let source_closure = helpers::channel_package_closure(source_channel_id, conn)?;
+            let mut channel_ids = vec![target_channel.id];
+            channel_ids.extend(source_channel_id);
+            let closure = helpers::channel_package_closure(&channel_ids, conn)?;
 
             let mut by_target: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
-            for (pkg_target, ident) in target_closure.iter().chain(source_closure.iter()) {
-                by_target.entry(pkg_target.clone())
+            for entry in &closure {
+                by_target.entry(entry.target.clone())
                          .or_default()
-                         .entry(format!("{}/{}", ident.origin, ident.name))
+                         .entry(format!("{}/{}", entry.ident.origin, entry.ident.name))
                          .or_default()
-                         .insert(ident.to_string());
+                         .insert(entry.ident.to_string());
             }
 
             let conflicts = find_conflicts(&by_target);
@@ -440,19 +441,24 @@ async fn promote_channel_packages(req: HttpRequest,
             }
         }
 
-        let pkgs = match source_channel_id {
-            Some(id) => {
-                Channel::list_all_packages_by_channel_id_idents(id, &PackageVisibility::all(),
-                                                                conn)?
-            }
+        let pkg_ids: Vec<i64> = match source_channel_id {
+            // Resolve directly to the exact package ids that are actually
+            // members of the source channel (each id is already
+            // target-specific -- e.g. a linux and a windows build of the
+            // same ident are distinct rows/ids). Going through idents (which
+            // don't carry target) and re-resolving via Package::get_group
+            // would match *every* package row sharing that ident string
+            // across all targets, silently promoting target variants that
+            // were never actually in the source channel and were never
+            // accounted for by the check=true closure above.
+            // list_all_visible_packages_by_channel_id also excludes hidden
+            // packages, matching what Package::get_group has always
+            // filtered out.
+            Some(id) => Channel::list_all_visible_packages_by_channel_id(id,
+                                                                         &PackageVisibility::all(),
+                                                                         conn)?,
             None => Vec::new(),
         };
-
-        let op = Package::get_group(GetPackageGroup { pkgs,
-                                                       visibility: PackageVisibility::all(), },
-                                    conn)?;
-
-        let pkg_ids: Vec<i64> = op.iter().map(|x| x.id).collect();
 
         debug!("Bulk promoting Pkg IDs: {:?}", pkg_ids);
         Channel::promote_packages(target_channel.id, &pkg_ids, conn)?;
@@ -1390,5 +1396,68 @@ mod tests {
                    "core/openssl/3.2.4/20250428090043");
         assert_eq!(set["x86_64-windows"]["core"]["openssl"][0].ident,
                    "core/openssl/1.1.1w/20240108093230");
+    }
+
+    // Builds a target -> "origin/name" -> idents map the way promote_channel_packages
+    // does from a resolved ClosureEntry list (i.e. after the DB has already selected the
+    // winning head for each origin/name/target via
+    // Channel::list_head_packages_for_channels).
+    fn by_target_from_entries(entries: &[helpers::ClosureEntry])
+                              -> HashMap<String, HashMap<String, HashSet<String>>> {
+        let mut by_target: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+        for entry in entries {
+            by_target.entry(entry.target.clone())
+                     .or_default()
+                     .entry(format!("{}/{}", entry.ident.origin, entry.ident.name))
+                     .or_default()
+                     .insert(entry.ident.to_string());
+        }
+        by_target
+    }
+
+    fn closure_entry(target: &str, ident: &str) -> helpers::ClosureEntry {
+        helpers::ClosureEntry { target: target.to_string(),
+                                ident:  ident.parse().unwrap(), }
+    }
+
+    // Reproduces the original bug report: an unrelated head package
+    // (libarchive) still pins an older openssl as a tdep, while a newer
+    // openssl is also a head package in the merged closure. Since
+    // Channel::list_head_packages_for_channels only ever returns one head
+    // per origin/name/target, both idents showing up here means they came
+    // from genuinely different origin/name groups (libarchive's tdep vs.
+    // openssl's own head) -- a real conflict.
+    #[test]
+    fn find_conflicts_flags_unrelated_head_packages_conflicting_tdep() {
+        let entries = vec![closure_entry("x86_64-windows", "core/libarchive/3.5.2/20220425144748"),
+                           closure_entry("x86_64-windows", "core/openssl/1.1.1l/20220425143501"),
+                           closure_entry("x86_64-windows", "core/openssl/1.1.1w/20240108093230")];
+
+        let conflicts = find_conflicts(&by_target_from_entries(&entries));
+
+        assert!(conflicts["x86_64-windows"].contains_key("core/openssl"));
+    }
+
+    // A coherent, internally-consistent closure (e.g. a full "refresh" where
+    // every head package's own tdeps reference only other packages at their
+    // matching, equally-new versions) must not report any conflicts.
+    #[test]
+    fn find_conflicts_is_empty_for_a_coherent_closure() {
+        let entries = vec![closure_entry("x86_64-windows", "core/libarchive/3.7.2/20241008044517"),
+                           closure_entry("x86_64-windows", "core/openssl/1.1.1w/20240108093230"),
+                           closure_entry("x86_64-windows", "core/xz/5.2.5/20240108063910"),
+                           closure_entry("x86_64-windows", "core/zlib/1.3/20240108063610")];
+
+        assert!(find_conflicts(&by_target_from_entries(&entries)).is_empty());
+    }
+
+    // Idents for the same origin/name under different target platforms are
+    // never conflicting with each other.
+    #[test]
+    fn find_conflicts_ignores_cross_target_duplicates() {
+        let entries = vec![closure_entry("x86_64-linux", "core/openssl/3.2.4/20250428090043"),
+                           closure_entry("x86_64-windows", "core/openssl/1.1.1w/20240108093230")];
+
+        assert!(find_conflicts(&by_target_from_entries(&entries)).is_empty());
     }
 }

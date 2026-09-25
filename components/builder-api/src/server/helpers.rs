@@ -277,23 +277,39 @@ pub fn req_state(req: &HttpRequest) -> &AppState {
        .expect("request state")
 }
 
-pub fn channel_package_closure(channel_id: Option<i64>,
-                               conn: &mut PgConnection)
-                               -> QueryResult<Vec<(String, BuilderPackageIdent)>> {
-    let channel_id = match channel_id {
-        Some(id) => id,
-        None => return Ok(Vec::new()),
-    };
+// A single ident contributed to a compatibility-check closure: either a
+// channel's head package for some origin/name/target, or one of that head
+// package's own recorded tdeps.
+pub struct ClosureEntry {
+    pub target: String,
+    pub ident:  BuilderPackageIdent,
+}
 
-    let head_packages = Channel::list_head_packages(channel_id, conn)?;
+// Computes the head-package + tdeps closure for the union of the given
+// channels' package membership, using Channel::list_head_packages_for_channels
+// -- the same DISTINCT ON/ORDER BY head-selection query used everywhere else
+// -- so that head selection here is always guaranteed-consistent with what a
+// real promotion will produce. Promotion only ever adds channel-package rows
+// (never removes any), so for a check=true compatibility check ahead of
+// promoting `source_channel_id`'s packages into `target_channel_id`, passing
+// both ids here yields exactly the head/tdeps closure that will exist once
+// the promotion completes -- without needing to re-derive Habitat's
+// version/release ordering rules in this codebase.
+pub fn channel_package_closure(channel_ids: &[i64],
+                               conn: &mut PgConnection)
+                               -> QueryResult<Vec<ClosureEntry>> {
+    let head_packages = Channel::list_head_packages_for_channels(channel_ids, conn)?;
 
     let mut idents = Vec::new();
     for pkg in &head_packages {
         let target = pkg.target.to_string();
-        idents.push((target.clone(), pkg.ident.clone()));
-        // tdeps are grouped under their parent head package's target, since
-        // runtime tdeps must match their parent's target platform.
-        idents.extend(pkg.tdeps.iter().map(|dep| (target.clone(), dep.clone())));
+        idents.push(ClosureEntry { target: target.clone(),
+                                   ident:  pkg.ident.clone(), });
+        // tdeps must match their parent head package's target platform.
+        idents.extend(pkg.tdeps.iter().map(|dep| {
+                                          ClosureEntry { target: target.clone(),
+                                                         ident:  dep.clone(), }
+                                      }));
     }
     Ok(idents)
 }
