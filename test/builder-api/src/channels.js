@@ -2,6 +2,14 @@ const expect = require('chai').expect;
 const supertest = require('supertest');
 const request = supertest('http://localhost:9636/v1');
 const { appendDateRange } = require('./util');
+const fs = require('fs');
+
+// packages.js's "Deleting packages" suite (which runs before this file, see api.js's require
+// order) permanently deletes neurosis/testapp3/0.1.0/20190327162559 once it becomes a leaf
+// package again, so it must be re-uploaded here before it can be used as a fixture for the
+// tdep-conflict scenario below.
+const testapp3File =
+  fs.readFileSync(__dirname + '/../fixtures/neurosis-testapp3-0.1.0-20190327162559-x86_64-linux.hart');
 
 describe('Channels API', function () {
   describe('Create foo channel', function () {
@@ -1126,16 +1134,28 @@ describe('Channels API', function () {
     // testapp directly from the source -- reproduces a genuine conflict: testapp3 is not
     // being promoted, so its pinned tdep on the older testapp release is never superseded.
     it('creates the tdep-conflict target channel seeded with an unrelated head package pinning an older tdep', function (done) {
-      request.post('/depot/channels/neurosis/check-conflict')
+      // Re-upload testapp3: packages.js's "Deleting packages" suite deletes it once it has no
+      // more reverse dependents of its own (it depends on testapp/0.1.3/20190327162537, but
+      // nothing depends on testapp3 itself), so it no longer exists by the time this suite runs.
+      request.post(`/depot/pkgs/neurosis/testapp3/0.1.0/20190327162559`)
         .set('Authorization', global.boboBearer)
+        .set('Content-Length', testapp3File.length)
+        .query({ checksum: '02edaaf2d5fdb167e57026b17c86e8df5a7ca285e042f113bcb31ede765a67ce' })
+        .send(testapp3File)
         .expect(201)
         .end(function (err) {
           if (err) return done(err);
-          request.put('/depot/channels/neurosis/check-conflict/pkgs/testapp3/0.1.0/20190327162559/promote')
+          request.post('/depot/channels/neurosis/check-conflict')
             .set('Authorization', global.boboBearer)
-            .expect(200)
+            .expect(201)
             .end(function (err2) {
-              done(err2);
+              if (err2) return done(err2);
+              request.put('/depot/channels/neurosis/check-conflict/pkgs/testapp3/0.1.0/20190327162559/promote')
+                .set('Authorization', global.boboBearer)
+                .expect(200)
+                .end(function (err3) {
+                  done(err3);
+                });
             });
         });
     });
