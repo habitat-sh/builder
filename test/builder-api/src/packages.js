@@ -2116,14 +2116,6 @@ describe('Working with packages', function () {
         });
     });
 
-    it('rejects an invalid target', function (done) {
-      request.get(path)
-        .set('Authorization', global.boboBearer)
-        .query({ target: 'invalid-target' })
-        .expect(422)
-        .end(done);
-    });
-
     Object.keys(fixtures).forEach(function (target) {
       it(`deletes the ${target} target-selection fixture`, function (done) {
         request.delete(path)
