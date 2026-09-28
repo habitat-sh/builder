@@ -1346,16 +1346,20 @@ async fn do_get_package(req: &HttpRequest,
                        ident,
                        target,
                        opt_session_id);
-                // Note: the Package specifier is needed even though the variable is un-used
-                let _p: Package = match serde_json::from_str(&pkg_json) {
+                let pkg: Package = match serde_json::from_str(&pkg_json) {
                     Ok(p) => p,
                     Err(e) => {
                         debug!("Unable to deserialize package json, err={:?}", e);
                         return Err(Error::SerdeJson(e));
                     }
                 };
-                Counter::MemcachePackageHit.increment();
-                return Ok(pkg_json);
+                // Older servers could cache another target's package under this key.
+                // Treat it as a miss so the target-aware lookup repairs the entry.
+                if *pkg.target == target {
+                    Counter::MemcachePackageHit.increment();
+                    return Ok(pkg_json);
+                }
+                Counter::MemcachePackageMiss.increment();
             }
             (true, None) => {
                 trace!("Channel package {} {} {:?} - cache hit with 404",
@@ -1376,11 +1380,13 @@ async fn do_get_package(req: &HttpRequest,
     }
 
     let pkg = if ident.fully_qualified() {
-        match Package::get_without_target(BuilderPackageIdent(ident.clone()),
-                                          helpers::visibility_for_optional_session(req,
-                                                                                   opt_session_id,
-                                                                                   &ident.origin),
-                                          &mut conn)
+        match Package::get(GetPackage { ident:      BuilderPackageIdent(ident.clone()),
+                                        target:     BuilderPackageTarget(target),
+                                        visibility:
+                                            helpers::visibility_for_optional_session(req,
+                                                                                     opt_session_id,
+                                                                                     &ident.origin), },
+                           &mut conn)
         {
             Ok(pkg) => pkg,
             Err(NotFound) => {

@@ -4,6 +4,7 @@ const binaryParser = require('superagent-binary-parser');
 const request = supertest('http://localhost:9636/v1');
 const fs = require('fs');
 const { appendDateRange } = require('./util');
+const { getMemcachedValue, setMemcachedValue } = require('./helpers');
 
 const release1 = '20171205003213';
 const release2 = '20171206004121';
@@ -19,6 +20,7 @@ const release11 = '20190618173321';
 const release12 = '20190618175235';
 const release13 = '20220824122359';
 const release14 = '20190327162537';
+const targetRelease = '20260101000000';
 
 const file1 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release1}-x86_64-linux.hart`);
 const file2 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release2}-x86_64-linux.hart`);
@@ -33,6 +35,9 @@ const file11 = fs.readFileSync(__dirname + `/../fixtures/neurosis-neurosis-2.0-$
 const file12 = fs.readFileSync(__dirname + `/../fixtures/neurosis-abracadabra-3.0-${release12}-x86_64-linux.hart`);
 const file13 = fs.readFileSync(__dirname + `/../fixtures/neurosis-native-testapp-0.1.0-${release13}-x86_64-linux.hart`);
 const file14 = fs.readFileSync(__dirname + `/../fixtures/neurosis-testapp-0.1.3-${release14}-x86_64-linux.hart`);
+
+const targetLinuxFile = fs.readFileSync(__dirname + `/../fixtures/neurosis-target-selection-0.1.0-${targetRelease}-x86_64-linux.hart`);
+const targetWindowsFile = fs.readFileSync(__dirname + `/../fixtures/neurosis-target-selection-0.1.0-${targetRelease}-x86_64-windows.hart`);
 
 const fakefile1 = fs.readFileSync(__dirname + `/../fixtures/fake/neurosis-testapp-0.1.3-${release1}-x86_64-linux.hart`);
 
@@ -1912,6 +1917,221 @@ describe('Working with packages', function () {
           expect(res.body.ident.release).to.equal(ov82release);
           done(err);
         });
+    });
+  });
+
+  describe('Fully qualified package target selection', function () {
+    const ident = `neurosis/target-selection/0.1.0/${targetRelease}`;
+    const path = `/depot/pkgs/${ident}`;
+    const fixtures = {
+      'x86_64-linux': {
+        file: targetLinuxFile,
+        checksum: 'bf8c1288e75899fb91d158ec82f91219acd974edbac27595467ef20c95b04d4d'
+      },
+      'x86_64-windows': {
+        file: targetWindowsFile,
+        checksum: '60aab423e6c466232a32f2489731bc333bf04a33e9c66933d11a3085525827ec'
+      }
+    };
+    const ids = {};
+
+    // Run after the package-list tests and remove both targets before other suites.
+    Object.keys(fixtures).forEach(function (target) {
+      it(`uploads ${target} with the same fully qualified identifier`, function (done) {
+        const fixture = fixtures[target];
+        request.post(path)
+          .set('Authorization', global.boboBearer)
+          .set('Content-Length', fixture.file.length)
+          .query({ target, checksum: fixture.checksum })
+          .send(fixture.file)
+          .expect(201)
+          .end(function (err, res) {
+            if (err) return done(err);
+            expect(res.text).to.equal(`/pkgs/${ident}/download`);
+            done();
+          });
+      });
+    });
+
+    ['x86_64-linux', 'x86_64-windows', 'x86_64-windows', 'x86_64-linux'].forEach(function (target, index) {
+      it(`returns ${target} metadata on ${index < 2 ? 'initial' : 'repeated'} lookup`, function (done) {
+        request.get(path)
+          .set('Authorization', global.boboBearer)
+          .query({ target })
+          .accept('application/json')
+          .expect(200)
+          .end(function (err, res) {
+            if (err) return done(err);
+            expect(res.body.target).to.equal(target);
+            expect(res.body.checksum).to.equal(fixtures[target].checksum);
+            expect(res.body.ident).to.deep.equal({
+              origin: 'neurosis', name: 'target-selection', version: '0.1.0', release: targetRelease
+            });
+            if (ids[target]) expect(res.body.id).to.equal(ids[target]);
+            ids[target] = res.body.id;
+            if (ids['x86_64-linux'] && ids['x86_64-windows']) {
+              expect(ids['x86_64-linux']).to.not.equal(ids['x86_64-windows']);
+            }
+            done();
+          });
+      });
+    });
+
+    ['initial', 'repeated'].forEach(function (lookup) {
+      it(`returns 404 for a missing target on ${lookup} lookup`, function (done) {
+        request.get(path)
+          .set('Authorization', global.boboBearer)
+          .query({ target: 'aarch64-linux' })
+          .expect(404)
+          .end(done);
+      });
+    });
+
+    // Match MemcacheClient's package key, including both invalidation namespaces
+    // and the authenticated account. These fixtures were uploaded by bobo, so
+    // their owner_id is the account used by the fetch requests below.
+    function packageCacheKey(target, accountId) {
+      return Promise.all([
+        getMemcachedValue('channel:neurosis/unstable'),
+        getMemcachedValue('package:neurosis/target-selection')
+      ]).then(([channelNamespace, packageNamespace]) => {
+        expect(channelNamespace, 'Builder must have initialized its channel cache namespace').to.not.equal(null);
+        expect(packageNamespace, 'Builder must have initialized its package cache namespace').to.not.equal(null);
+        return `${target}/unstable/${ident}:${channelNamespace}:${packageNamespace}:${accountId}`;
+      });
+    }
+
+    it('replaces Linux metadata cached under the Windows target with the Windows package', function (done) {
+      this.timeout(10000);
+      let key;
+      let linuxPackage;
+      let windowsPackage;
+      request.get(path)
+        .set('Authorization', global.boboBearer)
+        .query({ target: 'x86_64-linux' })
+        .expect(200)
+        .then(response => {
+          linuxPackage = response.body;
+          expect(linuxPackage.target).to.equal('x86_64-linux');
+          return packageCacheKey('x86_64-windows', linuxPackage.owner_id);
+        })
+        .then(cacheKey => {
+          key = cacheKey;
+          return setMemcachedValue(key, JSON.stringify(linuxPackage));
+        })
+        .then(() => getMemcachedValue(key))
+        .then(cached => {
+          expect(JSON.parse(cached).target).to.equal('x86_64-linux');
+          return request.get(path)
+            .set('Authorization', global.boboBearer)
+            .query({ target: 'x86_64-windows' })
+            .expect(200);
+        })
+        .then(response => {
+          windowsPackage = response.body;
+          expect(windowsPackage.target).to.equal('x86_64-windows');
+          expect(windowsPackage.checksum).to.equal(fixtures['x86_64-windows'].checksum);
+          expect(windowsPackage.id).to.not.equal(linuxPackage.id);
+          return getMemcachedValue(key);
+        })
+        .then(cached => {
+          expect(JSON.parse(cached)).to.deep.equal(windowsPackage);
+        })
+        .then(() => done(), done);
+    });
+
+    it('replaces another target cached for a missing target with a cached 404', function (done) {
+      this.timeout(10000);
+      let key;
+      let linuxPackage;
+      request.get(path)
+        .set('Authorization', global.boboBearer)
+        .query({ target: 'x86_64-linux' })
+        .expect(200)
+        .then(response => {
+          linuxPackage = response.body;
+          expect(linuxPackage.target).to.equal('x86_64-linux');
+          return packageCacheKey('aarch64-linux', linuxPackage.owner_id);
+        })
+        .then(cacheKey => {
+          key = cacheKey;
+          return setMemcachedValue(key, JSON.stringify(linuxPackage));
+        })
+        .then(() => getMemcachedValue(key))
+        .then(cached => {
+          expect(JSON.parse(cached).target).to.equal('x86_64-linux');
+          return request.get(path)
+            .set('Authorization', global.boboBearer)
+            .query({ target: 'aarch64-linux' })
+            .expect(404);
+        })
+        .then(() => getMemcachedValue(key))
+        .then(cached => {
+          expect(cached).to.equal('404');
+          return request.get(path)
+            .set('Authorization', global.boboBearer)
+            .query({ target: 'aarch64-linux' })
+            .expect(404);
+        })
+        .then(() => done(), done);
+    });
+
+    it('honors the explicit target ahead of the User-Agent target', function (done) {
+      request.get(path)
+        .set('Authorization', global.boboBearer)
+        .set('User-Agent', 'hab/1.0 (x86_64-linux; test)')
+        .query({ target: 'x86_64-windows' })
+        .expect(200)
+        .end(function (err, res) {
+          if (err) return done(err);
+          expect(res.body.target).to.equal('x86_64-windows');
+          expect(res.body.checksum).to.equal(fixtures['x86_64-windows'].checksum);
+          done();
+        });
+    });
+
+    it('uses the Habitat User-Agent target when the query target is omitted', function (done) {
+      request.get(path)
+        .set('Authorization', global.boboBearer)
+        .set('User-Agent', 'hab/1.0 (x86_64-windows; test)')
+        .expect(200)
+        .end(function (err, res) {
+          if (err) return done(err);
+          expect(res.body.target).to.equal('x86_64-windows');
+          expect(res.body.checksum).to.equal(fixtures['x86_64-windows'].checksum);
+          done();
+        });
+    });
+
+    it('defaults to Linux without a query or Habitat User-Agent target', function (done) {
+      request.get(path)
+        .set('Authorization', global.boboBearer)
+        .set('User-Agent', 'curl/8.0')
+        .expect(200)
+        .end(function (err, res) {
+          if (err) return done(err);
+          expect(res.body.target).to.equal('x86_64-linux');
+          expect(res.body.checksum).to.equal(fixtures['x86_64-linux'].checksum);
+          done();
+        });
+    });
+
+    it('rejects an invalid target', function (done) {
+      request.get(path)
+        .set('Authorization', global.boboBearer)
+        .query({ target: 'invalid-target' })
+        .expect(422)
+        .end(done);
+    });
+
+    Object.keys(fixtures).forEach(function (target) {
+      it(`deletes the ${target} target-selection fixture`, function (done) {
+        request.delete(path)
+          .set('Authorization', global.boboBearer)
+          .query({ target })
+          .expect(204)
+          .end(done);
+      });
     });
   });
 });
