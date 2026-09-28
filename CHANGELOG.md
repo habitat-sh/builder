@@ -4,9 +4,31 @@
 
 <!-- latest_release -->
 
+## [20260925](https://github.com/habitat-sh/builder/tree/20260925) (2026-09-25)
+
+#### Merged Pull Requests
+- fix compatibility check to allow multiple idents of a orgin/pkg as long as there are no conflicts [#2054](https://github.com/habitat-sh/builder/pull/2054) ([mwrock](https://github.com/mwrock))
+- fix snapshotting and separate by target [#2053](https://github.com/habitat-sh/builder/pull/2053) ([mwrock](https://github.com/mwrock))
+- bump rust to 1.98.1 [#2051](https://github.com/habitat-sh/builder/pull/2051) ([mwrock](https://github.com/mwrock))
+- add aarch64-windows as a default supported target in builder-api [#2050](https://github.com/habitat-sh/builder/pull/2050) ([mwrock](https://github.com/mwrock))
+- bump fast-uri [#2049](https://github.com/habitat-sh/builder/pull/2049) ([mwrock](https://github.com/mwrock))
+- bump rustls to 0.23.45 [#2048](https://github.com/habitat-sh/builder/pull/2048) ([mwrock](https://github.com/mwrock))
+- stream download to client instead of fetching to disk first [#2047](https://github.com/habitat-sh/builder/pull/2047) ([mwrock](https://github.com/mwrock))
+- fix hab pkg delete to only look for rdeps with the same fqdn [#2046](https://github.com/habitat-sh/builder/pull/2046) ([mwrock](https://github.com/mwrock))
+- Bump js-yaml from 4.3.1 to 4.3.2 in /test/builder-api [#2045](https://github.com/habitat-sh/builder/pull/2045) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- add support for aarch64-windows in builder-web [#2044](https://github.com/habitat-sh/builder/pull/2044) ([mwrock](https://github.com/mwrock))
+- Added check=true validation [#2043](https://github.com/habitat-sh/builder/pull/2043) ([sougata-progress](https://github.com/sougata-progress))
+- Add snapshot=true support to bulk promotion [#2042](https://github.com/habitat-sh/builder/pull/2042) ([sougata-progress](https://github.com/sougata-progress))
+- sync habitat_core commit with habitat_win_users to e7e37ab8 [#2041](https://github.com/habitat-sh/builder/pull/2041) ([mwrock](https://github.com/mwrock))
+- Bump qs from 6.15.2 to 6.16.0 in /test/builder-api [#2040](https://github.com/habitat-sh/builder/pull/2040) ([dependabot[bot]](https://github.com/dependabot[bot]))
+- bump angular from v21 to v22 [#2039](https://github.com/habitat-sh/builder/pull/2039) ([mwrock](https://github.com/mwrock))
+- Bump rust to 1.98.0 and update several crates to get cargo audit passing [#2038](https://github.com/habitat-sh/builder/pull/2038) ([mwrock](https://github.com/mwrock))
+
 ## [20260820](https://github.com/habitat-sh/builder/tree/20260820) (2026-08-21)
 
 #### Merged Pull Requests
+- adding NOTICES file to builder-api-proxy [#2036](https://github.com/habitat-sh/builder/pull/2036) ([mwrock](https://github.com/mwrock))
+- updating changelog [#2035](https://github.com/habitat-sh/builder/pull/2035) ([mwrock](https://github.com/mwrock))
 - prevent the cargo scan fromoverwriting the npm scan [#2034](https://github.com/habitat-sh/builder/pull/2034) ([mwrock](https://github.com/mwrock))
 - Bump to 20260820 and fix cargo blackduck versioning [#2033](https://github.com/habitat-sh/builder/pull/2033) ([mwrock](https://github.com/mwrock))
 - use blackduck detect for rust and npm deps [#2032](https://github.com/habitat-sh/builder/pull/2032) ([mwrock](https://github.com/mwrock))
