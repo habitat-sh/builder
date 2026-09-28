@@ -1077,6 +1077,21 @@ async fn do_upload_package_finish(req: &HttpRequest,
         }
     };
 
+    // An explicit request target must agree with the artifact before any upload
+    // reaches backing storage or updates package metadata, even when forced.
+    if let Some(target) = qupload.target
+                                 .as_deref()
+                                 .filter(|target| *target != target_from_artifact.as_ref())
+    {
+        if let Err(err) = fs::remove_file(temp_path) {
+            warn!("Failed to remove rejected upload {:?}: {}", temp_path, err);
+        }
+        return HttpResponse::UnprocessableEntity().body(format!("Package target mismatch; \
+                                                                 requested '{}', artifact \
+                                                                 contains '{}'",
+                                                                target, target_from_artifact));
+    }
+
     if !req_state(req).config
                       .api
                       .targets
@@ -1590,6 +1605,55 @@ fn streaming_download_response<S>(filename: String, cache_hdr: String, stream: S
     // sending the checksum result as a wire-level HTTP trailer that the client is required to
     // check -- neither of which this streaming implementation currently does.
     builder.streaming(stream)
+}
+
+#[cfg(test)]
+mod upload_target_validation_tests {
+    use super::*;
+    use actix_web::{body::to_bytes,
+                    test::TestRequest};
+
+    #[tokio::test]
+    async fn rejects_mismatched_upload_targets_before_accessing_application_state() {
+        let linux = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"),
+                                           "/../../test/builder-api/fixtures/neurosis-testapp-0.\
+                                            1.3-20171205003213-x86_64-linux.hart")).as_slice();
+        let windows = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"),
+                                             "/../../test/builder-api/fixtures/\
+                                              neurosis-testapp-0.1.\
+                                              4-20181115124506-x86_64-windows.hart")).as_slice();
+
+        for (ident, artifact, requested_target, artifact_target) in
+            [("neurosis/testapp/0.1.3/20171205003213", linux, "aarch64-linux", "x86_64-linux"),
+             ("neurosis/testapp/0.1.3/20171205003213", linux, "x86_64-windows", "x86_64-linux"),
+             ("neurosis/testapp/0.1.4/20181115124506", windows, "x86_64-linux", "x86_64-windows")]
+        {
+            for forced in [false, true] {
+                let temp_path =
+                    std::env::temp_dir().join(format!("upload-target-{}.tmp", Uuid::new_v4()));
+                fs::write(&temp_path, artifact).unwrap();
+                let query = Query(Upload { target: Some(requested_target.to_string()),
+                                           checksum: PackageArchive::new(&temp_path).unwrap()
+                                                                                    .checksum()
+                                                                                    .unwrap(),
+                                           forced });
+                // No AppState is attached: a mismatch must return before looking up
+                // database/storage clients, including on the forced-upload path.
+                let req = TestRequest::default().to_http_request();
+                let response = do_upload_package_finish(&req,
+                                                        &query,
+                                                        &PackageIdent::from_str(ident).unwrap(),
+                                                        &temp_path).await;
+                assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+                assert!(!temp_path.exists(), "rejected upload must be removed");
+                let body = to_bytes(response.into_body()).await.unwrap();
+                assert_eq!(std::str::from_utf8(&body).unwrap(),
+                           format!("Package target mismatch; requested '{}', artifact contains \
+                                    '{}'",
+                                   requested_target, artifact_target));
+            }
+        }
+    }
 }
 
 #[cfg(test)]

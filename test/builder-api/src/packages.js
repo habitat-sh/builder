@@ -136,7 +136,7 @@ describe('Working with packages', function () {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
         .set('Authorization', global.boboBearer)
         .set('Content-Length', file1.length)
-        .query({ checksum: '3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8' })
+        .query({ target: 'x86_64-linux', checksum: '3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8' })
         .send(file1)
         .expect(201)
         .end(function (err, res) {
@@ -292,6 +292,49 @@ describe('Working with packages', function () {
   });
 
   describe('Re-uploading package', function () {
+    [false, true].forEach(function (forced) {
+      it(`rejects a mismatched upload target without replacing the Linux package (forced=${forced})`, function (done) {
+        const path = `/depot/pkgs/neurosis/testapp/0.1.3/${release1}`;
+        request.post(path)
+          .set('Authorization', global.boboBearer)
+          .set('Content-Length', fakefile1.length)
+          .query({
+            target: 'aarch64-linux',
+            checksum: '918eecd70c8bb5d665af71fbd8156ac4aa6baee8bff28af70ee1ebf63d54a1cf',
+            forced
+          })
+          .send(fakefile1)
+          .expect(422)
+          .then(response => {
+            expect(response.text).to.equal(
+              "Package target mismatch; requested 'aarch64-linux', artifact contains 'x86_64-linux'"
+            );
+            return request.get(path)
+              .set('Authorization', global.boboBearer)
+              .query({ target: 'x86_64-linux' })
+              .expect(200);
+          })
+          .then(response => {
+            expect(response.body.target).to.equal('x86_64-linux');
+            expect(response.body.checksum).to.equal('3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8');
+            return request.get(`${path}/download`)
+              .set('Authorization', global.boboBearer)
+              .query({ target: 'x86_64-linux' })
+              .buffer(true)
+              .parse(binaryParser)
+              .expect(200);
+          })
+          .then(response => {
+            expect(response.body.equals(file1)).to.equal(true);
+            return request.get(path)
+              .set('Authorization', global.boboBearer)
+              .query({ target: 'aarch64-linux' })
+              .expect(404);
+          })
+          .then(() => done(), done);
+      });
+    });
+
     it('fails when a force flag is not specified', function (done) {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
         .set('Authorization', global.boboBearer)
