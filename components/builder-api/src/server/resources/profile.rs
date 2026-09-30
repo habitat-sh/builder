@@ -31,7 +31,8 @@ pub struct UserUpdateReq {
 
 #[derive(Debug, Deserialize)]
 pub struct LicensePayload {
-    pub account_id:  String,
+    // Retained for older clients; it must match the authenticated account when supplied.
+    pub account_id:  Option<String>,
     pub license_key: String,
 }
 
@@ -214,41 +215,47 @@ async fn set_license(req: HttpRequest,
                      state: Data<AppState>,
                      Json(payload): Json<LicensePayload>)
                      -> HttpResponse {
+    let account_id = match authorize_session(&req, None, None) {
+        Ok(session) => session.id() as i64,
+        Err(err) => return err.into(),
+    };
+
+    if let Some(ref supplied_id) = payload.account_id {
+        let supplied_id = match supplied_id.trim().parse::<i64>() {
+            Ok(id) => id,
+            Err(_) => return Error::BadRequest.into(),
+        };
+        if supplied_id != account_id {
+            return Error::Authorization.into();
+        }
+    }
+
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
 
-    match authorize_session(&req, None, None) {
-        Ok(_session) => {
-            let expiration_date =
-                match fetch_license_expiration(&payload.license_key,
-                                               &state.config.api.license_server_url)
-                {
-                    Ok(date) => date,
-                    Err(err) => {
-                        return err;
-                    }
-                };
+    let expiration_date = match fetch_license_expiration(&payload.license_key,
+                                                         &state.config.api.license_server_url)
+    {
+        Ok(date) => date,
+        Err(err) => return err,
+    };
 
-            let new_license =
-                NewLicenseKey { account_id: payload.account_id.trim().parse::<i64>().unwrap(),
-                                license_key: &payload.license_key,
-                                expiration_date };
+    let new_license = NewLicenseKey { account_id,
+                                      license_key: &payload.license_key,
+                                      expiration_date };
 
-            match LicenseKey::create(&new_license, &mut conn).map_err(Error::DieselError) {
-                Ok(license) => {
-                    HttpResponse::Ok().json(json!({
-                              "expiration_date": license.expiration_date.to_string()
-                          }))
-                }
-                Err(err) => {
-                    debug!("{}", err);
-                    err.into()
-                }
-            }
+    match LicenseKey::create(&new_license, &mut conn).map_err(Error::DieselError) {
+        Ok(license) => {
+            HttpResponse::Ok().json(json!({
+                                        "expiration_date": license.expiration_date.to_string()
+                                    }))
         }
-        Err(err) => err.into(),
+        Err(err) => {
+            debug!("{}", err);
+            err.into()
+        }
     }
 }
 
