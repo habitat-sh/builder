@@ -11,7 +11,6 @@ use self::{framework::middleware::authentication_middleware,
            resources::{authenticate::Authenticate,
                        channels::Channels,
                        events::Events,
-                       ext::Ext,
                        origins::Origins,
                        pkgs::Packages,
                        profile::Profile,
@@ -175,7 +174,6 @@ pub async fn run(config: Config) -> error::Result<()> {
                 web::scope("/v1")
                     .configure(Authenticate::register)
                     .configure(Channels::register)
-                    .configure(Ext::register)
                     .configure(Jobs::register)
                     .configure(Origins::register)
                     .configure(Packages::register)

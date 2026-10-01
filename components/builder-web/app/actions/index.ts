@@ -79,19 +79,13 @@ export {
 
 export {
   acceptOriginInvitation,
-  CLEAR_INTEGRATION,
-  CLEAR_INTEGRATIONS,
   CLEAR_MY_ORIGIN_INVITATIONS,
   CLEAR_MY_ORIGINS,
-  clearIntegrationCredsValidation,
   createOrigin,
-  deleteIntegration,
   deleteOriginInvitation,
   deleteOriginMember,
   deleteOriginSecret,
   departOrigin,
-  fetchIntegration,
-  fetchIntegrations,
   fetchMyOriginInvitations,
   fetchMyOrigins,
   fetchOrigin,
@@ -104,8 +98,6 @@ export {
   inviteUserToOrigin,
   POPULATE_MY_ORIGIN_INVITATIONS,
   POPULATE_MY_ORIGINS,
-  POPULATE_ORIGIN_INTEGRATION,
-  POPULATE_ORIGIN_INTEGRATIONS,
   POPULATE_ORIGIN_INVITATIONS,
   POPULATE_ORIGIN_MEMBERS,
   POPULATE_ORIGIN_PUBLIC_KEYS,
@@ -116,18 +108,14 @@ export {
   SET_CURRENT_ORIGIN_CREATING_FLAG,
   SET_CURRENT_ORIGIN_LOADING,
   SET_CURRENT_ORIGIN,
-  SET_INTEGRATION_CREDS_VALIDATION,
-  SET_ORIGIN_INTEGRATION_SAVE_ERROR_MESSAGE,
   SET_ORIGIN_USER_INVITE_ERROR_MESSAGE,
   setCurrentOrigin,
-  setIntegration,
   TOGGLE_ORIGIN_PICKER,
   toggleOriginPicker,
   UPDATE_ORIGIN,
   updateOrigin,
   uploadOriginPrivateKey,
-  uploadOriginPublicKey,
-  validateIntegrationCredentials
+  uploadOriginPublicKey
 } from './origins';
 
 export {

@@ -58,8 +58,7 @@ use habitat_core::{crypto::keys::{self as core_keys,
                                   KeyFile},
                    package::{ident,
                              PackageIdent}};
-use std::{collections::HashMap,
-          convert::TryInto,
+use std::{convert::TryInto,
           str::FromStr};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -129,22 +128,12 @@ impl Origins {
                   web::post().to(create_origin_secret))
            .route("/depot/origins/{origin}/encryption_key",
                   web::get().to(download_latest_origin_encryption_key))
-           .route("/depot/origins/{origin}/integrations",
-                  web::get().to(fetch_origin_integrations))
            .route("/depot/origins/{origin}/secret/{secret}",
                   web::delete().to(delete_origin_secret))
            .route("/depot/origins/{origin}/secret_keys/latest",
                   web::get().to(download_latest_origin_secret_key))
            .route("/depot/origins/{origin}/secret_keys/{revision}",
-                  web::post().to(upload_origin_secret_key))
-           .route("/depot/origins/{origin}/integrations/{integration}/names",
-                  web::get().to(fetch_origin_integration_names))
-           .route("/depot/origins/{origin}/integrations/{integration}/{name}",
-                  web::get().to(get_origin_integration))
-           .route("/depot/origins/{origin}/integrations/{integration}/{name}",
-                  web::delete().to(delete_origin_integration))
-           .route("/depot/origins/{origin}/integrations/{integration}/{name}",
-                  web::put().to(create_origin_integration));
+                  web::post().to(upload_origin_secret_key));
     }
 }
 
@@ -1380,196 +1369,6 @@ async fn origin_member_delete(req: HttpRequest,
                  .borrow_mut()
                  .clear_cache_for_member_role(&origin, target_account_id as u64);
             HttpResponse::NoContent().finish()
-        }
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
-        }
-    }
-}
-
-#[allow(clippy::needless_pass_by_value)]
-async fn fetch_origin_integrations(req: HttpRequest,
-                                   path: Path<String>,
-                                   state: Data<AppState>)
-                                   -> HttpResponse {
-    let origin = path.into_inner();
-
-    if let Err(err) = authorize_session(&req, Some(&origin), None) {
-        return err.into();
-    }
-
-    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
-        Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    match OriginIntegration::list_for_origin(&origin, &mut conn).map_err(Error::DieselError) {
-        Ok(oir) => {
-            let integrations_response: HashMap<String, Vec<String>> =
-                oir.iter().fold(HashMap::new(), |mut acc, i| {
-                              acc.entry(i.integration.to_owned())
-                                 .or_default()
-                                 .push(i.name.to_owned());
-                              acc
-                          });
-            HttpResponse::Ok().append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-                              .json(integrations_response)
-        }
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
-        }
-    }
-}
-
-#[allow(clippy::needless_pass_by_value)]
-async fn fetch_origin_integration_names(req: HttpRequest,
-                                        path: Path<(String, String)>,
-                                        state: Data<AppState>)
-                                        -> HttpResponse {
-    let (origin, integration) = path.into_inner();
-
-    if let Err(err) = authorize_session(&req, Some(&origin), None) {
-        return err.into();
-    }
-
-    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
-        Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    match OriginIntegration::list_for_origin_integration(&origin, &integration, &mut conn)
-        .map_err(Error::DieselError)
-    {
-        Ok(integrations) => {
-            let names: Vec<String> = integrations.iter().map(|i| i.name.to_string()).collect();
-            let mut hm: HashMap<String, Vec<String>> = HashMap::new();
-            hm.insert("names".to_string(), names);
-            HttpResponse::Ok()
-                .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-                .json(hm)
-        }
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
-        }
-    }
-}
-
-#[allow(clippy::needless_pass_by_value)]
-async fn create_origin_integration(req: HttpRequest,
-                                   path: Path<(String, String, String)>,
-                                   body: ActixBytes,
-                                   state: Data<AppState>)
-                                   -> HttpResponse {
-    let (origin, integration, name) = path.into_inner();
-
-    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
-        return err.into();
-    }
-
-    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
-        Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    let (encrypted, _) =
-        match crypto::encrypt(&state.config.api.key_path, &body).map_err(Error::BuilderCore) {
-            Ok(encrypted) => encrypted,
-            Err(err) => {
-                debug!("{}", err);
-                return err.into();
-            }
-        };
-
-    let noi = NewOriginIntegration { origin:      &origin,
-                                     integration: &integration,
-                                     name:        &name,
-                                     body:        &encrypted, };
-
-    match OriginIntegration::create(&noi, &mut conn).map_err(Error::DieselError) {
-        Ok(_) => HttpResponse::Created().finish(),
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
-        }
-    }
-}
-
-#[allow(clippy::needless_pass_by_value)]
-async fn delete_origin_integration(req: HttpRequest,
-                                   path: Path<(String, String, String)>,
-                                   state: Data<AppState>)
-                                   -> HttpResponse {
-    let (origin, integration, name) = path.into_inner();
-
-    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)) {
-        return err.into();
-    }
-
-    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
-        Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    match OriginIntegration::delete(&origin, &integration, &name, &mut conn)
-        .map_err(Error::DieselError)
-    {
-        Ok(_) => HttpResponse::NoContent().finish(),
-        Err(err) => {
-            debug!("{}", err);
-            err.into()
-        }
-    }
-}
-
-#[allow(clippy::needless_pass_by_value)]
-async fn get_origin_integration(req: HttpRequest,
-                                path: Path<(String, String, String)>,
-                                state: Data<AppState>)
-                                -> HttpResponse {
-    let (origin, integration, name) = path.into_inner();
-
-    if let Err(err) = authorize_session(&req, Some(&origin), None) {
-        return err.into();
-    }
-
-    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
-        Ok(conn_ref) => conn_ref,
-        Err(err) => return err.into(),
-    };
-
-    match OriginIntegration::get(&origin, &integration, &name, &mut conn)
-        .map_err(Error::DieselError)
-    {
-        Ok(integration) => {
-            match crypto::decrypt(&state.config.api.key_path, &integration.body)
-                .map_err(Error::BuilderCore)
-            {
-                Ok(decrypted) => {
-                    let val = serde_json::from_slice(&decrypted).unwrap();
-                    let mut map: serde_json::Map<String, serde_json::Value> =
-                        serde_json::from_value(val).unwrap();
-
-                    map.remove("password");
-
-                    let sanitized = json!({
-                        "origin": integration.origin.to_string(),
-                        "integration": integration.integration.to_string(),
-                        "name": integration.name.to_string(),
-                        "body": serde_json::to_value(map).unwrap()
-                    });
-
-                    HttpResponse::Ok()
-                        .append_header((http::header::CACHE_CONTROL, headers::NO_CACHE))
-                        .json(sanitized)
-                }
-                Err(err) => {
-                    debug!("{}", err);
-                    err.into()
-                }
-            }
         }
         Err(err) => {
             debug!("{}", err);

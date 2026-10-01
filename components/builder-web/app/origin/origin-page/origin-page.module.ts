@@ -21,7 +21,6 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule } from '@angular/material/dialog';
-import { IntegrationDeleteConfirmDialog } from './origin-integrations-tab/dialog/integration-delete-confirm/integration-delete-confirm.dialog';
 import { GenerateKeysConfirmDialog } from './origin-keys-tab/dialog/generate-keys-confirm/generate-keys-confirm.dialog';
 import { DepartOriginDialog } from './origin-members-tab/dialog/depart-origin.dialog';
 import { KeyAddFormDialog } from './origin-keys-tab/key-add-form/key-add-form.dialog';
@@ -31,8 +30,6 @@ import { OriginPackagesTabComponent } from './origin-packages-tab/origin-package
 import { OriginMembersTabComponent } from './origin-members-tab/origin-members-tab.component';
 import { OriginKeysTabComponent } from './origin-keys-tab/origin-keys-tab.component';
 import { OriginSettingsTabComponent } from './origin-settings-tab/origin-settings-tab.component';
-import { OriginIntegrationsTabComponent } from './origin-integrations-tab/origin-integrations-tab.component';
-import { IntegrationCredentialsFormDialog } from './integration-credentials-form/integration-credentials-form.dialog';
 import { SharedModule } from '../../shared/shared.module';
 import { OriginJobsTabComponent } from './origin-jobs-tab/origin-jobs-tab.component';
 import { OriginJobsListComponent } from './origin-jobs-tab/jobs-list/jobs-list.component';
@@ -53,17 +50,14 @@ export const imports = [
 ];
 
 export const declarations = [
-  IntegrationCredentialsFormDialog,
   GenerateKeysConfirmDialog,
   DepartOriginDialog,
-  IntegrationDeleteConfirmDialog,
   KeyAddFormDialog,
   OriginKeysTabComponent,
   OriginMembersTabComponent,
   OriginPackagesTabComponent,
   OriginPageComponent,
   OriginSettingsTabComponent,
-  OriginIntegrationsTabComponent,
   OriginJobsTabComponent,
   OriginJobsListComponent,
   OriginJobDetailComponent

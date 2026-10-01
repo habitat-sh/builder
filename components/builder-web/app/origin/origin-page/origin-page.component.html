@@ -35,12 +35,6 @@
       #settings="routerLinkActive"
       [active]="settings.isActive"
       *ngIf="visibilityEnabled && memberOfOrigin">Settings</a>
-    <a mat-tab-link
-      routerLink="integrations"
-      routerLinkActive
-      #integrations="routerLinkActive"
-      [active]="integrations.isActive"
-      *ngIf="builderEnabled && memberOfOrigin">Integrations</a>
   </nav>
   <mat-tab-nav-panel #tabPanel>
     <router-outlet></router-outlet>

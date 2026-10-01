@@ -23,7 +23,7 @@ import { PackageReleaseComponent } from '../package-release/package-release.comp
 import { PackageVersionsComponent } from '../package-versions/package-versions.component';
 import { AppStore } from '../../app.store';
 import {
-  fetchJobs, fetchIntegrations, fetchLatestPackage, fetchLatestInChannel, fetchOrigin, fetchProject,
+  fetchJobs, fetchLatestPackage, fetchLatestInChannel, fetchOrigin, fetchProject,
   fetchPackageSettings, fetchPackageVersions, setCurrentPackageTarget, clearPackageVersions, fetchPackage, fetchPackageChannels
 } from '../../actions/index';
 import { targetFrom, targets as allPlatforms, latestBase } from '../../util';
@@ -338,7 +338,6 @@ export class PackageComponent implements OnInit, OnDestroy {
   private fetchProject() {
     if (this.token && this.origin && this.name && this.target && this.isOriginMember) {
       this.store.dispatch(fetchProject(this.origin, this.name, this.target, this.token, false));
-      this.store.dispatch(fetchIntegrations(this.origin, this.token));
     }
   }
 
