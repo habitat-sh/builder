@@ -29,7 +29,7 @@
 set -euo pipefail
 
 BLDR_URL="${BLDR_URL:-https://bldr.habitat.sh}"
-CHANNEL="${CHANNEL:-on-prem-base}"
+CHANNEL="${CHANNEL:-unstable}"
 TARGET="${TARGET:-x86_64-linux}"
 
 # The top-level, deployable Habitat packages that make up this product.
