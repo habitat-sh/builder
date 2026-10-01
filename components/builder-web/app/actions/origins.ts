@@ -19,16 +19,11 @@ import { parseKey } from '../util';
 
 export const CLEAR_MY_ORIGINS = 'CLEAR_MY_ORIGINS';
 export const CLEAR_MY_ORIGIN_INVITATIONS = 'CLEAR_MY_ORIGIN_INVITATIONS';
-export const CLEAR_INTEGRATION = 'CLEAR_INTEGRATION';
-export const CLEAR_INTEGRATIONS = 'CLEAR_INTEGRATIONS';
-export const DELETE_INTEGRATION = 'DELETE_INTEGRATION';
 export const POPULATE_MY_ORIGINS = 'POPULATE_MY_ORIGINS';
 export const POPULATE_MY_ORIGIN_INVITATIONS = 'POPULATE_MY_ORIGIN_INVITATIONS';
 export const POPULATE_ORIGIN_INVITATIONS = 'POPULATE_ORIGIN_INVITATIONS';
 export const POPULATE_ORIGIN_MEMBERS = 'POPULATE_ORIGIN_MEMBERS';
 export const POPULATE_ORIGIN_PUBLIC_KEYS = 'POPULATE_ORIGIN_PUBLIC_KEYS';
-export const POPULATE_ORIGIN_INTEGRATION = 'POPULATE_ORIGIN_INTEGRATION';
-export const POPULATE_ORIGIN_INTEGRATIONS = 'POPULATE_ORIGIN_INTEGRATIONS';
 export const POPULATE_ORIGIN_SECRETS = 'POPULATE_ORIGIN_SECRETS';
 export const POPULATE_ORIGIN_CHANNELS = 'POPULATE_ORIGIN_CHANNELS';
 export const SET_CURRENT_ORIGIN = 'SET_CURRENT_ORIGIN';
@@ -37,7 +32,6 @@ export const SET_CURRENT_ORIGIN_LOADING = 'SET_CURRENT_ORIGIN_LOADING';
 export const SET_CURRENT_ORIGIN_ADDING_PRIVATE_KEY = 'SET_CURRENT_ORIGIN_ADDING_PRIVATE_KEY';
 export const SET_CURRENT_ORIGIN_ADDING_PUBLIC_KEY = 'SET_CURRENT_ORIGIN_ADDING_PUBLIC_KEY';
 export const SET_ORIGIN_USER_INVITE_ERROR_MESSAGE = 'SET_ORIGIN_USER_INVITE_ERROR_MESSAGE';
-export const SET_ORIGIN_INTEGRATION_SAVE_ERROR_MESSAGE = 'SET_ORIGIN_INTEGRATION_SAVE_ERROR_MESSAGE';
 export const TOGGLE_ORIGIN_PICKER = 'TOGGLE_ORIGIN_PICKER';
 export const UPDATE_ORIGIN = 'UPDATE_ORIGIN';
 
@@ -306,56 +300,6 @@ export function inviteUserToOrigin(username: string, origin: string, token: stri
   };
 }
 
-export function deleteIntegration(origin: string, token: string, name: string, type: string) {
-  return dispatch => {
-    new BuilderApiClient(token).deleteIntegration(origin, name, type)
-      .then(response => {
-        dispatch(fetchIntegrations(origin, token));
-      })
-      .catch(error => {
-        dispatch(populateIntegrations(undefined, error.message));
-      });
-  };
-}
-
-export function fetchIntegration(origin: string, type: string, name: string, token: string) {
-  return dispatch => {
-    dispatch(clearIntegration());
-    new BuilderApiClient(token).getIntegration(origin, type, name)
-      .then(response => {
-        dispatch(populateIntegration(response));
-      })
-      .catch(error => {
-        dispatch(populateIntegration(undefined, error.message));
-      });
-  };
-}
-
-export function fetchIntegrations(origin: string, token: string) {
-  return dispatch => {
-    dispatch(clearIntegrations());
-    new BuilderApiClient(token).getIntegrations(origin)
-      .then(response => {
-        dispatch(populateIntegrations(response));
-      })
-      .catch(error => {
-        dispatch(populateIntegrations(undefined, error.message));
-      });
-  };
-}
-
-export function setIntegration(origin: string, credentials, token: string, type: string, name: string) {
-  return dispatch => {
-    new BuilderApiClient(token).setIntegration(origin, credentials, type, name)
-      .then(() => {
-        dispatch(fetchIntegrations(origin, token));
-      })
-      .catch(error => {
-        dispatch(setOriginIntegrationSaveErrorMessage(error.message));
-      });
-  };
-}
-
 export function updateOrigin(origin: any, token: string) {
   return dispatch => {
     new BuilderApiClient(token).updateOrigin(origin)
@@ -405,18 +349,6 @@ function clearMyOrigins() {
 function clearMyOriginInvitations() {
   return {
     type: CLEAR_MY_ORIGIN_INVITATIONS
-  };
-}
-
-function clearIntegration() {
-  return {
-    type: CLEAR_INTEGRATION
-  };
-}
-
-function clearIntegrations() {
-  return {
-    type: CLEAR_INTEGRATIONS
   };
 }
 
@@ -476,22 +408,6 @@ function populateOriginChannels(payload, error = undefined) {
   };
 }
 
-function populateIntegration(payload, error = undefined) {
-  return {
-    type: POPULATE_ORIGIN_INTEGRATION,
-    payload,
-    error
-  };
-}
-
-function populateIntegrations(payload, error = undefined) {
-  return {
-    type: POPULATE_ORIGIN_INTEGRATIONS,
-    payload,
-    error
-  };
-}
-
 export function setCurrentOrigin(payload, error = undefined) {
   return {
     type: SET_CURRENT_ORIGIN,
@@ -517,13 +433,6 @@ function setCurrentOriginCreatingFlag(payload) {
 function setOriginUserInviteErrorMessage(payload: string) {
   return {
     type: SET_ORIGIN_USER_INVITE_ERROR_MESSAGE,
-    payload,
-  };
-}
-
-function setOriginIntegrationSaveErrorMessage(payload: string) {
-  return {
-    type: SET_ORIGIN_INTEGRATION_SAVE_ERROR_MESSAGE,
     payload,
   };
 }

@@ -11,7 +11,6 @@ require('./settings.js');
 require('./packages.js');
 require('./channels.js');
 require('./keys.js');
-require('./integrations.js');
 require('./profile.js');
 require('./misc.js');
 require('./roles.js');

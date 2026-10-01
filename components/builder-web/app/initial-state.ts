@@ -127,8 +127,7 @@ export default Record({
     mine: List(),
     myInvitations: List(),
     currentIntegrations: Record({
-      selected: undefined,
-      integrations: undefined
+      integrations: {}
     })(),
     ui: Record({
       current: Record({
@@ -139,8 +138,7 @@ export default Record({
         exists: false,
         loading: true,
         publicKeyListErrorMessage: undefined,
-        userInviteErrorMessage: undefined,
-        integrationsSaveErrorMessage: undefined
+        userInviteErrorMessage: undefined
       })(),
       mine: Record({
         errorMessage: undefined,

@@ -19,7 +19,6 @@ import { OriginKeysTabComponent } from './origin-keys-tab/origin-keys-tab.compon
 import { OriginMembersTabComponent } from './origin-members-tab/origin-members-tab.component';
 import { OriginPackagesTabComponent } from './origin-packages-tab/origin-packages-tab.component';
 import { OriginSettingsTabComponent } from './origin-settings-tab/origin-settings-tab.component';
-import { OriginIntegrationsTabComponent } from './origin-integrations-tab/origin-integrations-tab.component';
 import { OriginJobsTabComponent } from './origin-jobs-tab/origin-jobs-tab.component';
 import { OriginJobDetailComponent } from './origin-job-detail/origin-job-detail.component';
 import { BuilderEnabledGuard } from '../../shared/guards/builder-enabled.guard';
@@ -58,11 +57,6 @@ const routes: Routes = [
         path: 'settings',
         component: OriginSettingsTabComponent,
         canActivate: [VisibilityEnabledGuard, SignedInGuard, OriginMemberGuard, LicenseRequiredGuard],
-      },
-      {
-        path: 'integrations',
-        component: OriginIntegrationsTabComponent,
-        canActivate: [BuilderEnabledGuard, SignedInGuard, OriginMemberGuard, LicenseRequiredGuard]
       },
       {
         path: 'jobs',
