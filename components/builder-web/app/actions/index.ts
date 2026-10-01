@@ -83,7 +83,6 @@ export {
   CLEAR_INTEGRATIONS,
   CLEAR_MY_ORIGIN_INVITATIONS,
   CLEAR_MY_ORIGINS,
-  clearIntegrationCredsValidation,
   createOrigin,
   deleteIntegration,
   deleteOriginInvitation,
@@ -116,7 +115,6 @@ export {
   SET_CURRENT_ORIGIN_CREATING_FLAG,
   SET_CURRENT_ORIGIN_LOADING,
   SET_CURRENT_ORIGIN,
-  SET_INTEGRATION_CREDS_VALIDATION,
   SET_ORIGIN_INTEGRATION_SAVE_ERROR_MESSAGE,
   SET_ORIGIN_USER_INVITE_ERROR_MESSAGE,
   setCurrentOrigin,
@@ -126,8 +124,7 @@ export {
   UPDATE_ORIGIN,
   updateOrigin,
   uploadOriginPrivateKey,
-  uploadOriginPublicKey,
-  validateIntegrationCredentials
+  uploadOriginPublicKey
 } from './origins';
 
 export {

@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Component, Inject, OnDestroy } from '@angular/core';
+import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { AppStore } from '../../../app.store';
-import { clearIntegrationCredsValidation, validateIntegrationCredentials } from '../../../actions/index';
 
 export interface Credentials {
   name: string;
@@ -36,7 +35,7 @@ export class Credentials implements Credentials {
   selector: 'hab-integration-credentials-dialog',
   templateUrl: './integration-credentials-form.dialog.html'
 })
-export class IntegrationCredentialsFormDialog implements OnDestroy {
+export class IntegrationCredentialsFormDialog {
   model: Credentials = new Credentials;
 
   constructor(
@@ -49,45 +48,8 @@ export class IntegrationCredentialsFormDialog implements OnDestroy {
     this.model.registry_url = data.registry_url;
   }
 
-  ngOnDestroy() {
-    this.store.dispatch(clearIntegrationCredsValidation());
-  }
-
   get token() {
     return this.store.getState().session.token;
-  }
-
-  get creds() {
-    return this.store.getState().origins.currentIntegrations.ui.creds;
-  }
-
-  get message() {
-    return this.creds.message;
-  }
-
-  get status() {
-    let creds = this.creds;
-
-    if (creds.validating) {
-      return {
-        icon: 'loading',
-        className: 'waiting'
-      };
-    }
-    else if (creds.validated) {
-      if (creds.valid) {
-        return {
-          icon: 'check',
-          className: 'success'
-        };
-      }
-      else {
-        return {
-          icon: 'warning',
-          className: 'error'
-        };
-      }
-    }
   }
 
   labelFor(field) {
@@ -117,25 +79,7 @@ export class IntegrationCredentialsFormDialog implements OnDestroy {
   }
 
   onSubmit() {
-    if (this.data.type === 'docker') {
-      this.store.dispatch(validateIntegrationCredentials(this.model.username, this.model.password, this.token, this.data.type));
-      let unsubscribe;
-
-      unsubscribe = this.store.subscribe(state => {
-        const creds = state.origins.currentIntegrations.ui.creds;
-
-        if (!creds.validating && creds.validated) {
-          unsubscribe();
-
-          if (creds.valid) {
-            setTimeout(() => this.dialogRef.close(this.model), 750);
-          }
-        }
-      });
-    } else {
-      // We can currently only validate DockerHub creds (╯︵╰,)
-      this.dialogRef.close(this.model);
-    }
+    this.dialogRef.close(this.model);
   }
 
   placeholderFor(field) {

@@ -128,15 +128,7 @@ export default Record({
     myInvitations: List(),
     currentIntegrations: Record({
       selected: undefined,
-      integrations: undefined,
-      ui: Record({
-        creds: Record({
-          validating: false,
-          validated: false,
-          valid: false,
-          message: undefined
-        })()
-      })()
+      integrations: undefined
     })(),
     ui: Record({
       current: Record({

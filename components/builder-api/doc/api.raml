@@ -557,26 +557,6 @@ types:
               description: Unauthorized
         uriParameters:
           path: {}
-  '/integrations/{registry_type}':
-    uriParameters:
-      registry_type: {}
-    /credentials/validate:
-      post:
-        description: Validates registry credentials
-        responses:
-          '200':
-            description: Registry credentials validated
-          '400':
-            description: Bad Request
-          '401':
-            description: Authentication failed
-        body:
-          application/json:
-            example:
-              user: user
-              password: password
-              url: url
-            required: false
 /profile:
   get:
     description: Retrieve your profile

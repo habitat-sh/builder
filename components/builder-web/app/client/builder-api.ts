@@ -909,30 +909,6 @@ export class BuilderApiClient {
     });
   }
 
-  public validateIntegrationCredentials(username: string, password: string, type: string, url?: string) {
-    let creds = { username, password };
-    if (url && url.trim() !== '') {
-      creds['url'] = url.trim();
-    }
-
-    return new Promise<void>((resolve, reject) => {
-      fetch(`${this.urlPrefix}/ext/integrations/${type}/credentials/validate`, {
-        headers: this.jsonHeaders,
-        method: 'POST',
-        body: JSON.stringify(creds)
-      })
-        .then(response => {
-          if (response.ok) {
-            resolve();
-          }
-          else {
-            reject(new Error(response.statusText));
-          }
-        })
-        .catch(error => reject(error));
-    });
-  }
-
   public getLicenseKey() {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/profile/license`, {
