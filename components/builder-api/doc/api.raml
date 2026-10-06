@@ -115,14 +115,6 @@ types:
         items:
           type: event
         required: false
-  integrationList:
-    properties:
-      names:
-        minItems: 0
-        type: array
-        items:
-          type: string
-        required: false
   memberRole:
     properties:
       role: string
@@ -148,24 +140,6 @@ types:
         enum:
           - Public
           - Private
-        required: false
-  originIntegration:
-    properties:
-      id:
-        type: integer
-      origin:
-        type: string
-      integration:
-        type: string
-      name:
-        type: string
-      body:
-        type: string
-      created_at:
-        type: string
-        required: false
-      updated_at:
-        type: string
         required: false
   originInvitation:
     properties:
@@ -557,26 +531,6 @@ types:
               description: Unauthorized
         uriParameters:
           path: {}
-  '/integrations/{registry_type}':
-    uriParameters:
-      registry_type: {}
-    /credentials/validate:
-      post:
-        description: Validates registry credentials
-        responses:
-          '200':
-            description: Registry credentials validated
-          '400':
-            description: Bad Request
-          '401':
-            description: Authentication failed
-        body:
-          application/json:
-            example:
-              user: user
-              password: password
-              url: url
-            required: false
 /profile:
   get:
     description: Retrieve your profile
@@ -1299,93 +1253,6 @@ types:
           - oauth_2_0
       uriParameters:
         revision: {}
-    /integrations:
-      get:
-        description: Get an object of all integrations
-        responses:
-          '200':
-            description: Retrieved all integrations
-            body:
-              application/json:
-                type: integrationList
-                required: false
-                example:
-                  names:
-                    - integration1
-                    - integration2
-          '401':
-            description: Unauthorized
-        securedBy:
-          - oauth_2_0
-      '/{integration}':
-        /names:
-          get:
-            description: Get integrations for specified origin
-            responses:
-              '200':
-                description: Retrieved integration names
-                body:
-                  application/json:
-                    type: integrationList
-                    required: false
-                    example:
-                      names:
-                        - integration1
-                        - integration2
-              '400':
-                description: Invalid origin
-              '401':
-                description: Unauthorized
-              '500':
-                description: Internal server error
-        '/{name}':
-          get:
-            description: Get integration for specified origin and name
-            responses:
-              '200':
-                description: Retrieved integration
-                body:
-                  application/json:
-                    type: originIntegration
-                    required: false
-                    example:
-                      id: 1
-                      origin: test
-                      integration: test
-                      name: test
-                      body: test
-              '400':
-                description: Invalid origin
-              '401':
-                description: Unauthorized
-              '403':
-                description: Encryption error
-              '500':
-                description: Internal server error
-          put:
-            description: Create integration for specified origin and name
-            responses:
-              '201':
-                description: Integration created
-              '400':
-                description: Invalid origin or name
-              '401':
-                description: Unauthorized
-              '403':
-                description: Encryption error
-              '500':
-                description: Internal server error
-          delete:
-            description: Delete integration for specified origin and name
-            responses:
-              '204':
-                description: Integration deleted
-              '400':
-                description: Invalid origin or name
-              '401':
-                description: Unauthorized
-              '500':
-                description: Internal server error
     '/invitations/{invitationId}':
       put:
         description: Accept this invitation

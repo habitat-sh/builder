@@ -689,59 +689,6 @@ export class BuilderApiClient {
     });
   }
 
-  public getIntegration(origin: string, type: string, name: string) {
-    return new Promise((resolve, reject) => {
-      fetch(`${this.urlPrefix}/depot/origins/${origin}/integrations/${type}/${name}`, {
-        headers: this.headers
-      })
-        .then(response => this.handleUnauthorized(response, reject))
-        .then(response => {
-          if (response.ok) {
-            resolve(response.json());
-          } else {
-            reject(new Error(response.statusText));
-          }
-        })
-        .catch(error => this.handleError(error, reject));
-    });
-  }
-
-  public getIntegrations(originName: string) {
-    return new Promise((resolve, reject) => {
-      fetch(`${this.urlPrefix}/depot/origins/${originName}/integrations`, {
-        headers: this.headers
-      })
-        .then(response => this.handleUnauthorized(response, reject))
-        .then(response => {
-          if (response.ok) {
-            resolve(response.json());
-          } else {
-            reject(new Error(response.statusText));
-          }
-        })
-        .catch(error => this.handleError(error, reject));
-    });
-  }
-
-  public setIntegration(originName: string, credentials, type: string, name: string) {
-    return new Promise<void>((resolve, reject) => {
-      fetch(`${this.urlPrefix}/depot/origins/${originName}/integrations/${type}/${name}`, {
-        headers: this.jsonHeaders,
-        method: 'PUT',
-        body: JSON.stringify(credentials)
-      })
-        .then(response => this.handleUnauthorized(response, reject))
-        .then(response => {
-          if (response.ok) {
-            resolve();
-          } else {
-            reject(new Error(response.statusText));
-          }
-        })
-        .catch(error => this.handleError(error, reject));
-    });
-  }
-
   public getProjectIntegration(origin: string, name: string, integration: string) {
     return new Promise((resolve, reject) => {
       fetch(`${this.urlPrefix}/projects/${origin}/${name}/integrations/${integration}/default`, {
@@ -837,24 +784,6 @@ export class BuilderApiClient {
     });
   }
 
-  public deleteIntegration(origin: string, name: string, type: string) {
-    return new Promise<void>((resolve, reject) => {
-      fetch(`${this.urlPrefix}/depot/origins/${origin}/integrations/${type}/${name}`, {
-        headers: this.headers,
-        method: 'DELETE',
-      })
-        .then(response => this.handleUnauthorized(response, reject))
-        .then(response => {
-          if (response.ok) {
-            resolve();
-          } else {
-            reject(new Error(response.statusText));
-          }
-        })
-        .catch(error => this.handleError(error, reject));
-    });
-  }
-
   public updateOrigin(origin: any) {
     return new Promise<void>((resolve, reject) => {
       fetch(`${this.urlPrefix}/depot/origins/${origin.name}`, {
@@ -906,30 +835,6 @@ export class BuilderApiClient {
           }
         })
         .catch(error => this.handleError(error, reject));
-    });
-  }
-
-  public validateIntegrationCredentials(username: string, password: string, type: string, url?: string) {
-    let creds = { username, password };
-    if (url && url.trim() !== '') {
-      creds['url'] = url.trim();
-    }
-
-    return new Promise<void>((resolve, reject) => {
-      fetch(`${this.urlPrefix}/ext/integrations/${type}/credentials/validate`, {
-        headers: this.jsonHeaders,
-        method: 'POST',
-        body: JSON.stringify(creds)
-      })
-        .then(response => {
-          if (response.ok) {
-            resolve();
-          }
-          else {
-            reject(new Error(response.statusText));
-          }
-        })
-        .catch(error => reject(error));
     });
   }
 

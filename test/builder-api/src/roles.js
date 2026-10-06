@@ -276,23 +276,6 @@ describe("Origin Roles API", function () {
           done(err);
         });
     });
-    it("user with readonly_member role not authorized to add integration", function (done) {
-      request
-        .put("/depot/origins/rcpd/integrations/docker/foo")
-        .set("Authorization", global.lkennedyBearer)
-        .type("application/json")
-        .accept("application/json")
-        .send({
-          some: "data",
-          random: true,
-          does_not_matter: "haha",
-        })
-        .expect(403)
-        .end(function (err, res) {
-          expect(res.text).to.be.empty;
-          done(err);
-        });
-    });
     it("user with readonly_member role not authorized to update package settings", function (done) {
       request
         .put("/settings/rcpd/testapp")
@@ -744,23 +727,6 @@ describe("Origin Roles API", function () {
         )
         .set("Authorization", global.lkennedyBearer)
         .expect(401)
-        .end(function (err, res) {
-          expect(res.text).to.be.empty;
-          done(err);
-        });
-    });
-    it("user with member role not authorized to add integration", function (done) {
-      request
-        .put("/depot/origins/rcpd/integrations/docker/foo")
-        .set("Authorization", global.lkennedyBearer)
-        .type("application/json")
-        .accept("application/json")
-        .send({
-          some: "data",
-          random: true,
-          does_not_matter: "haha",
-        })
-        .expect(403)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
           done(err);
