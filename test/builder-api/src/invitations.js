@@ -122,9 +122,20 @@ describe('Origin Invitations API', function () {
             done(err);
         });
       });
-      it('accepts the invitation', function (done) {
+
+      it('refuses acceptance by a user other than the invited recipient', function (done) {
         request.put('/depot/origins/neurosis/invitations/' + global.inviteWeskerToNeurosis.id)
           .set('Authorization', global.boboBearer)
+          .expect(403)
+          .end(function (err, res) {
+            expect(res.text).to.be.empty;
+            done(err);
+          });
+      });
+
+      it('accepts the invitation', function (done) {
+        request.put('/depot/origins/neurosis/invitations/' + global.inviteWeskerToNeurosis.id)
+          .set('Authorization', global.weskerBearer)
           .expect(204)
           .end(function (err, res) {
             expect(res.text).to.be.empty;
@@ -141,6 +152,89 @@ describe('Origin Invitations API', function () {
             done(err);
           });
       });
+  });
+
+  describe('Object-level authorization on invitation actions', function () {
+    describe('Invite hank to neurosis', function () {
+      it('returns the invitation', function (done) {
+        request.post('/depot/origins/neurosis/users/hank/invitations')
+          .set('Authorization', global.boboBearer)
+          .expect(201)
+          .end(function (err, res) {
+            expect(res.body.account_name).to.equal('hank');
+            expect(res.body.origin).to.equal(global.originNeurosis.name);
+            expect(res.body.owner_id).to.equal(global.sessionBobo.id);
+            global.inviteHankToNeurosis = res.body;
+            done(err);
+          });
+      });
+    });
+
+    describe('A readonly_member cannot act on an invitation that is not theirs', function () {
+      it('refuses to accept the invitation', function (done) {
+        request.put('/depot/origins/neurosis/invitations/' + global.inviteHankToNeurosis.id)
+          .set('Authorization', global.weskerBearer)
+          .expect(403)
+          .end(function (err, res) {
+            expect(res.text).to.be.empty;
+            done(err);
+          });
+      });
+
+      it('refuses to ignore the invitation', function (done) {
+        request.put('/depot/origins/neurosis/invitations/' + global.inviteHankToNeurosis.id + '/ignore')
+          .set('Authorization', global.weskerBearer)
+          .expect(403)
+          .end(function (err, res) {
+            expect(res.text).to.be.empty;
+            done(err);
+          });
+      });
+
+      it('refuses to rescind (cancel) the invitation', function (done) {
+        request.delete('/depot/origins/neurosis/invitations/' + global.inviteHankToNeurosis.id)
+          .set('Authorization', global.weskerBearer)
+          .expect(403)
+          .end(function (err, res) {
+            expect(res.text).to.be.empty;
+            done(err);
+          });
+      });
+
+      it('leaves the invitation intact and still listed', function (done) {
+        request.get('/depot/origins/neurosis/invitations')
+          .set('Authorization', global.boboBearer)
+          .expect(200)
+          .end(function (err, res) {
+            let ids = res.body.invitations.map((invitation) => invitation.id);
+            expect(ids).to.include(global.inviteHankToNeurosis.id);
+            done(err);
+          });
+      });
+    });
+
+    describe('The invitation creator can rescind (cancel) it', function () {
+      it('rescinds the invitation', function (done) {
+        request.delete('/depot/origins/neurosis/invitations/' + global.inviteHankToNeurosis.id)
+          .set('Authorization', global.boboBearer)
+          .expect(204)
+          .end(function (err, res) {
+            expect(res.text).to.be.empty;
+            done(err);
+          });
+      });
+
+      it('no longer appears in the origins list of invitations', function (done) {
+        request.get('/depot/origins/neurosis/invitations')
+          .set('Authorization', global.boboBearer)
+          .expect(200)
+          .end(function (err, res) {
+            let ids = res.body.invitations.map((invitation) => invitation.id);
+            expect(ids).to.not.include(global.inviteHankToNeurosis.id);
+            done(err);
+          });
+      });
+    });
   });
 
   describe('Bobo accepts the invitation to the xmen', function () {

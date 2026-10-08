@@ -953,13 +953,28 @@ async fn accept_invitation(req: HttpRequest,
         }
     };
 
-    debug!("Accepting invitation for user {} origin {}",
-           account_id, origin);
-
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
+
+    let origin_invitation =
+        match OriginInvitation::get(invitation_id, &mut conn).map_err(Error::DieselError) {
+            Ok(origin_invitation) => origin_invitation,
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
+        };
+
+    if origin_invitation.origin != origin || origin_invitation.account_id != account_id as i64 {
+        debug!("Account {} is not authorized to accept invitation {} for origin {}",
+               account_id, invitation_id, origin);
+        return Error::Authorization.into();
+    }
+
+    debug!("Accepting invitation for user {} origin {}",
+           account_id, origin);
 
     match OriginInvitation::accept(invitation_id, false, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
@@ -977,7 +992,7 @@ async fn ignore_invitation(req: HttpRequest,
                            -> HttpResponse {
     let (origin, invitation) = path.into_inner();
 
-    let _ = match authorize_session(&req, None, None) {
+    let account_id = match authorize_session(&req, None, None) {
         Ok(session) => session.id(),
         Err(err) => return err.into(),
     };
@@ -995,6 +1010,21 @@ async fn ignore_invitation(req: HttpRequest,
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
+
+    let origin_invitation =
+        match OriginInvitation::get(invitation_id, &mut conn).map_err(Error::DieselError) {
+            Ok(origin_invitation) => origin_invitation,
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
+        };
+
+    if origin_invitation.origin != origin || origin_invitation.account_id != account_id as i64 {
+        debug!("Account {} is not authorized to ignore invitation {} for origin {}",
+               account_id, invitation_id, origin);
+        return Error::Authorization.into();
+    }
 
     debug!("Ignoring invitation id {} for origin {}",
            invitation_id, origin);
@@ -1015,7 +1045,7 @@ async fn rescind_invitation(req: HttpRequest,
                             -> HttpResponse {
     let (origin, invitation) = path.into_inner();
 
-    let _ = match authorize_session(&req, None, None) {
+    let account_id = match authorize_session(&req, None, None) {
         Ok(session) => session.id(),
         Err(err) => return err.into(),
     };
@@ -1029,13 +1059,33 @@ async fn rescind_invitation(req: HttpRequest,
         }
     };
 
-    debug!("Rescinding invitation id {} for user from origin {}",
-           invitation_id, origin);
+    let is_privileged_member =
+        authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)).is_ok();
 
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
+
+    let origin_invitation =
+        match OriginInvitation::get(invitation_id, &mut conn).map_err(Error::DieselError) {
+            Ok(origin_invitation) => origin_invitation,
+            Err(err) => {
+                debug!("{}", err);
+                return err.into();
+            }
+        };
+
+    let is_invitation_owner = origin_invitation.owner_id == account_id as i64;
+
+    if origin_invitation.origin != origin || !(is_invitation_owner || is_privileged_member) {
+        debug!("Account {} is not authorized to rescind invitation {} for origin {}",
+               account_id, invitation_id, origin);
+        return Error::Authorization.into();
+    }
+
+    debug!("Rescinding invitation id {} for user from origin {}",
+           invitation_id, origin);
 
     match OriginInvitation::rescind(invitation_id, &mut conn).map_err(Error::DieselError) {
         Ok(_) => HttpResponse::NoContent().finish(),
