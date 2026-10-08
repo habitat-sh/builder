@@ -1059,6 +1059,9 @@ async fn rescind_invitation(req: HttpRequest,
         }
     };
 
+    let is_privileged_member =
+        authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)).is_ok();
+
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
@@ -1074,8 +1077,6 @@ async fn rescind_invitation(req: HttpRequest,
         };
 
     let is_invitation_owner = origin_invitation.owner_id == account_id as i64;
-    let is_privileged_member =
-        authorize_session(&req, Some(&origin), Some(OriginMemberRole::Maintainer)).is_ok();
 
     if origin_invitation.origin != origin || !(is_invitation_owner || is_privileged_member) {
         debug!("Account {} is not authorized to rescind invitation {} for origin {}",
