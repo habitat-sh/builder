@@ -63,6 +63,12 @@ impl OriginInvitation {
                                  .get_results(conn)
     }
 
+    pub fn get(invite_id: u64, conn: &mut PgConnection) -> QueryResult<OriginInvitation> {
+        Counter::DBCall.increment();
+        origin_invitations::table.find(invite_id as i64)
+                                 .get_result(conn)
+    }
+
     pub fn accept(invite_id: u64, ignore: bool, conn: &mut PgConnection) -> QueryResult<usize> {
         Counter::DBCall.increment();
         let invitation = origin_invitations::table.find(invite_id as i64);
