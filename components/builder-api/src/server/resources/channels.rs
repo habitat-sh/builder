@@ -505,7 +505,7 @@ fn conflict_details(conflicts: &HashMap<String, HashMap<String, Vec<String>>>,
 // underlying database error.
 enum PromoteTxnError {
     Diesel(diesel::result::Error),
-    Conflict(CompatibilityError),
+    Conflict(Box<CompatibilityError>),
 }
 
 impl From<diesel::result::Error> for PromoteTxnError {
@@ -641,12 +641,12 @@ async fn promote_channel_packages(req: HttpRequest,
                                                &source_ids,
                                                &target_ids,
                                                TARGET_ONLY_CARRIER_LIMIT);
-                return Err(PromoteTxnError::Conflict(CompatibilityError {
+                return Err(PromoteTxnError::Conflict(Box::new(CompatibilityError {
                     error: "compatibility_check_failed".to_string(),
                     conflicts,
                     conflict_within_source,
                     details,
-                }));
+                })));
             }
         }
 
