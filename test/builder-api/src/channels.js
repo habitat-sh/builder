@@ -1185,6 +1185,23 @@ describe('Channels API', function () {
           expect(res.body.conflicts['x86_64-linux']).to.have.property('neurosis/testapp');
           expect(res.body.conflicts['x86_64-linux']['neurosis/testapp']).to.be.an('array');
           expect(res.body.conflicts['x86_64-linux']['neurosis/testapp'].length).to.be.at.least(2);
+          expect(res.body.conflict_within_source).to.equal(false);
+          const detail = res.body.details['x86_64-linux']['neurosis/testapp'];
+          expect(detail.summary).to.contain('testapp');
+          expect(detail.summary).to.contain('0.1.3/20190327162537');
+          expect(detail.summary).to.contain('0.1.3/20171205003213');
+          const pinned = detail.idents.find((entry) =>
+            entry.ident === 'neurosis/testapp/0.1.3/20190327162537');
+          expect(pinned.introduced_by.target_only.total_count).to.equal(1);
+          expect(pinned.introduced_by.target_only.truncated).to.equal(false);
+          expect(pinned.introduced_by.target_only.packages[0]).to.deep.equal({
+            package: 'neurosis/testapp3/0.1.0/20190327162559', relation: 'tdep',
+          });
+          const incoming = detail.idents.find((entry) =>
+            entry.ident === 'neurosis/testapp/0.1.3/20171205003213');
+          expect(incoming.introduced_by.source.examples.some((carrier) =>
+            carrier.package === 'neurosis/testapp/0.1.3/20171205003213' &&
+            carrier.relation === 'head')).to.equal(true);
           done(err);
         });
     });

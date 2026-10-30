@@ -237,8 +237,50 @@ struct PackageFqiEntry {
 // conflicts within the same target.
 #[derive(Serialize)]
 struct CompatibilityError {
-    error:     String,
-    conflicts: HashMap<String, HashMap<String, Vec<String>>>,
+    error:                  String,
+    conflicts:              HashMap<String, HashMap<String, Vec<String>>>,
+    conflict_within_source: bool,
+    details:                HashMap<String, HashMap<String, ConflictDetail>>,
+}
+
+const TARGET_ONLY_CARRIER_LIMIT: usize = 20;
+
+#[derive(Serialize)]
+struct ConflictDetail {
+    summary: String,
+    idents:  Vec<ConflictingIdent>,
+}
+
+#[derive(Serialize)]
+struct ConflictingIdent {
+    ident:         String,
+    introduced_by: IntroducedBy,
+}
+
+#[derive(Serialize)]
+struct IntroducedBy {
+    target_only: TargetOnlyCarriers,
+    source:      SourceCarriers,
+}
+
+#[derive(Serialize)]
+struct TargetOnlyCarriers {
+    total_count: usize,
+    truncated:   bool,
+    packages:    Vec<Carrier>,
+}
+
+#[derive(Serialize)]
+struct SourceCarriers {
+    total_count: usize,
+    // Retain the response key while returning every source carrier.
+    examples:    Vec<Carrier>,
+}
+
+#[derive(Clone, Serialize)]
+struct Carrier {
+    package:  String,
+    relation: helpers::ClosureRelation,
 }
 
 // Parses an ident string of the form "origin/name/version/release" (release may be
@@ -306,13 +348,164 @@ fn find_conflicts(by_target: &HashMap<String, HashMap<String, HashSet<String>>>)
              .collect()
 }
 
+fn by_target_from_entries(entries: &[helpers::ClosureEntry])
+                          -> HashMap<String, HashMap<String, HashSet<String>>> {
+    let mut by_target: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+    for entry in entries {
+        by_target.entry(entry.target.clone())
+                 .or_default()
+                 .entry(format!("{}/{}", entry.ident.origin, entry.ident.name))
+                 .or_default()
+                 .insert(entry.ident.to_string());
+    }
+    by_target
+}
+
+// A head can list its own ident in tdeps. Count each head once for each
+// conflicting ident, preferring the more useful "head" relation.
+fn carriers_for_ident(entries: &[&helpers::ClosureEntry],
+                      source_ids: &HashSet<i64>,
+                      target_ids: &HashSet<i64>,
+                      target_only_limit: usize)
+                      -> IntroducedBy {
+    let mut source_by_id: HashMap<i64, Carrier> = HashMap::new();
+    let mut target_only_by_id: HashMap<i64, Carrier> = HashMap::new();
+    for entry in entries {
+        let carriers = if source_ids.contains(&entry.via_id) {
+            &mut source_by_id
+        } else if target_ids.contains(&entry.via_id) {
+            &mut target_only_by_id
+        } else {
+            continue;
+        };
+        let carrier = Carrier { package:  entry.via.to_string(),
+                                relation: entry.relation, };
+        carriers.entry(entry.via_id)
+                .and_modify(|existing| {
+                    if carrier.relation < existing.relation {
+                        *existing = carrier.clone();
+                    }
+                })
+                .or_insert(carrier);
+    }
+
+    let mut source: Vec<Carrier> = source_by_id.into_values().collect();
+    let mut target_only: Vec<Carrier> = target_only_by_id.into_values().collect();
+    // Stable ordering makes the carrier lists and summaries reproducible.
+    let sort_carriers = |carriers: &mut Vec<Carrier>| {
+        carriers.sort_by(|a, b| {
+                    a.relation
+                     .cmp(&b.relation)
+                     .then_with(|| a.package.cmp(&b.package))
+                });
+    };
+    sort_carriers(&mut source);
+    sort_carriers(&mut target_only);
+    let source_count = source.len();
+    let target_only_count = target_only.len();
+    target_only.truncate(target_only_limit);
+    IntroducedBy { target_only: TargetOnlyCarriers { total_count: target_only_count,
+                                                     truncated:   target_only_count
+                                                                  > target_only_limit,
+                                                     packages:    target_only, },
+                   source:      SourceCarriers { total_count: source_count,
+                                                 examples:    source, }, }
+}
+
+fn carrier_summary(carriers: &IntroducedBy) -> String {
+    let group = if carriers.target_only.total_count > 0 {
+        (&carriers.target_only.packages, carriers.target_only.total_count, "target only")
+    } else {
+        (&carriers.source.examples, carriers.source.total_count, "source")
+    };
+    let names: Vec<String> = group.0
+                                  .iter()
+                                  .take(2)
+                                  .map(|carrier| {
+                                      carrier.package
+                                             .split('/')
+                                             .take(2)
+                                             .collect::<Vec<_>>()
+                                             .join("/")
+                                  })
+                                  .collect();
+    let more = group.1.saturating_sub(names.len());
+    if more > 0 {
+        format!("via {} and {} more, {}", names.join(", "), more, group.2)
+    } else if names.is_empty() {
+        "via an unknown carrier".to_string()
+    } else {
+        format!("via {}, {}", names.join(", "), group.2)
+    }
+}
+
+fn conflict_details(conflicts: &HashMap<String, HashMap<String, Vec<String>>>,
+                    closure: &[helpers::ClosureEntry],
+                    source_ids: &HashSet<i64>,
+                    target_ids: &HashSet<i64>,
+                    target_only_limit: usize)
+                    -> HashMap<String, HashMap<String, ConflictDetail>> {
+    let mut entries_by_ident: HashMap<(String, String), Vec<&helpers::ClosureEntry>> =
+        HashMap::new();
+    for entry in closure {
+        entries_by_ident.entry((entry.target.clone(), entry.ident.to_string()))
+                        .or_default()
+                        .push(entry);
+    }
+
+    conflicts.iter()
+             .map(|(target, by_name)| {
+                 let details = by_name.iter()
+                                      .map(|(name, idents)| {
+                                          let idents: Vec<ConflictingIdent> = idents.iter()
+                                              .map(|ident| {
+                                                  let empty = Vec::new();
+                                                  let entries = entries_by_ident.get(&(target.clone(), ident.clone()))
+                                                                              .unwrap_or(&empty);
+                                                  ConflictingIdent { ident: ident.clone(),
+                                                                     introduced_by: carriers_for_ident(entries,
+                                                                                                       source_ids,
+                                                                                                       target_ids,
+                                                                                                       target_only_limit) }
+                                              })
+                                              .collect();
+                                          let mut version_counts: HashMap<&str, usize> = HashMap::new();
+                                          for item in &idents {
+                                              let version = item.ident.split('/').nth(2).unwrap_or_default();
+                                              *version_counts.entry(version).or_default() += 1;
+                                          }
+                                          let versions: Vec<String> = idents.iter()
+                                              .map(|item| {
+                                                  let parts: Vec<&str> = item.ident.split('/').collect();
+                                                  let version = parts.get(2).copied().unwrap_or_default();
+                                                  let release = parts.get(3).copied().unwrap_or_default();
+                                                  let label = if version_counts[version] > 1 {
+                                                      format!("{}/{}", version, release)
+                                                  } else {
+                                                      version.to_string()
+                                                  };
+                                                  format!("{} ({})", label,
+                                                          carrier_summary(&item.introduced_by))
+                                              })
+                                              .collect();
+                                          let summary = format!("{} has {} versions on {}: {}",
+                                                                name, idents.len(), target,
+                                                                versions.join(" vs "));
+                                          (name.clone(), ConflictDetail { summary, idents })
+                                      })
+                                      .collect();
+                 (target.clone(), details)
+             })
+             .collect()
+}
+
 // Error type produced by the promotion transaction closure in
 // promote_channel_packages. A `Conflict` causes the transaction to roll back
 // (nothing gets written to the target channel); `Diesel` wraps any
 // underlying database error.
 enum PromoteTxnError {
     Diesel(diesel::result::Error),
-    Conflict(HashMap<String, HashMap<String, Vec<String>>>),
+    Conflict(CompatibilityError),
 }
 
 impl From<diesel::result::Error> for PromoteTxnError {
@@ -425,19 +618,35 @@ async fn promote_channel_packages(req: HttpRequest,
             let mut channel_ids = vec![target_channel.id];
             channel_ids.extend(source_channel_id);
             let closure = helpers::channel_package_closure(&channel_ids, conn)?;
-
-            let mut by_target: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
-            for entry in &closure {
-                by_target.entry(entry.target.clone())
-                         .or_default()
-                         .entry(format!("{}/{}", entry.ident.origin, entry.ident.name))
-                         .or_default()
-                         .insert(entry.ident.to_string());
-            }
-
-            let conflicts = find_conflicts(&by_target);
+            let conflicts = find_conflicts(&by_target_from_entries(&closure));
             if !conflicts.is_empty() {
-                return Err(PromoteTxnError::Conflict(conflicts));
+                let source_ids: HashSet<i64> = match source_channel_id {
+                    Some(id) => Channel::list_all_packages_by_channel_id(id,
+                                                                          &PackageVisibility::all(),
+                                                                          conn)?.into_iter().collect(),
+                    None => HashSet::new(),
+                };
+                let target_ids: HashSet<i64> =
+                    Channel::list_all_packages_by_channel_id(target_channel.id,
+                                                             &PackageVisibility::all(),
+                                                             conn)?.into_iter().collect();
+                let source_closure = match source_channel_id {
+                    Some(id) => helpers::channel_package_closure(&[id], conn)?,
+                    None => Vec::new(),
+                };
+                let conflict_within_source =
+                    !find_conflicts(&by_target_from_entries(&source_closure)).is_empty();
+                let details = conflict_details(&conflicts,
+                                               &closure,
+                                               &source_ids,
+                                               &target_ids,
+                                               TARGET_ONLY_CARRIER_LIMIT);
+                return Err(PromoteTxnError::Conflict(CompatibilityError {
+                    error: "compatibility_check_failed".to_string(),
+                    conflicts,
+                    conflict_within_source,
+                    details,
+                }));
             }
         }
 
@@ -496,11 +705,7 @@ async fn promote_channel_packages(req: HttpRequest,
                 None => HttpResponse::new(StatusCode::OK),
             }
         }
-        Err(PromoteTxnError::Conflict(conflicts)) => {
-            HttpResponse::Conflict().json(CompatibilityError { error:
-                                                                   "compatibility_check_failed".to_string(),
-                                                               conflicts, })
-        }
+        Err(PromoteTxnError::Conflict(error)) => HttpResponse::Conflict().json(error),
         Err(PromoteTxnError::Diesel(e)) => {
             debug!("Failed to promote channel packages, err={}", e);
             Error::DieselError(e).into()
@@ -1398,26 +1603,128 @@ mod tests {
                    "core/openssl/1.1.1w/20240108093230");
     }
 
-    // Builds a target -> "origin/name" -> idents map the way promote_channel_packages
-    // does from a resolved ClosureEntry list (i.e. after the DB has already selected the
-    // winning head for each origin/name/target via
-    // Channel::list_head_packages_for_channels).
-    fn by_target_from_entries(entries: &[helpers::ClosureEntry])
-                              -> HashMap<String, HashMap<String, HashSet<String>>> {
-        let mut by_target: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
-        for entry in entries {
-            by_target.entry(entry.target.clone())
-                     .or_default()
-                     .entry(format!("{}/{}", entry.ident.origin, entry.ident.name))
-                     .or_default()
-                     .insert(entry.ident.to_string());
-        }
-        by_target
+    fn closure_entry(target: &str, ident: &str) -> helpers::ClosureEntry {
+        helpers::ClosureEntry { target:   target.to_string(),
+                                ident:    ident.parse().unwrap(),
+                                via:      ident.parse().unwrap(),
+                                via_id:   1,
+                                relation: helpers::ClosureRelation::Head, }
     }
 
-    fn closure_entry(target: &str, ident: &str) -> helpers::ClosureEntry {
+    fn carried_entry(target: &str,
+                     ident: &str,
+                     via: &str,
+                     via_id: i64,
+                     relation: helpers::ClosureRelation)
+                     -> helpers::ClosureEntry {
         helpers::ClosureEntry { target: target.to_string(),
-                                ident:  ident.parse().unwrap(), }
+                                ident: ident.parse().unwrap(),
+                                via: via.parse().unwrap(),
+                                via_id,
+                                relation }
+    }
+
+    #[test]
+    fn conflict_details_identify_target_tdeps_source_heads_and_shared_heads() {
+        use helpers::ClosureRelation::{Head,
+                                       Tdep};
+
+        let old = "core/openssl/3.0.15/20250110101010";
+        let new = "core/openssl/3.5.6/20260420112454";
+        let shared = "core/curl/8.9.1/20260420130000";
+        let entries = vec![carried_entry("x86_64-linux",
+                                         old,
+                                         "core/git/2.45.0/20250201090000",
+                                         1,
+                                         Tdep),
+                           carried_entry("x86_64-linux",
+                                         old,
+                                         "core/libssh2/1.11.0/20250115120000",
+                                         2,
+                                         Tdep),
+                           carried_entry("x86_64-linux", new, new, 3, Head),
+                           carried_entry("x86_64-linux", new, shared, 4, Tdep),
+                           // Duplicate in tdeps must not count the same head twice.
+                           carried_entry("x86_64-linux", new, new, 3, Tdep)];
+        let conflicts = find_conflicts(&by_target_from_entries(&entries));
+        let source_ids = [3, 4].iter().copied().collect();
+        let target_ids = [1, 2, 4].iter().copied().collect();
+        let details = conflict_details(&conflicts, &entries, &source_ids, &target_ids, 20);
+        let detail = &details["x86_64-linux"]["core/openssl"];
+        assert!(detail.summary.contains("3.0.15"));
+        assert!(detail.summary.contains("3.5.6"));
+        assert!(detail.summary.contains("core/git"));
+        assert!(detail.summary.contains("core/openssl"));
+        let old_detail = detail.idents.iter().find(|item| item.ident == old).unwrap();
+        assert_eq!(old_detail.introduced_by.target_only.total_count, 2);
+        assert_eq!(old_detail.introduced_by.target_only.packages[0].package,
+                   "core/git/2.45.0/20250201090000");
+        assert_eq!(old_detail.introduced_by.target_only.packages[0].relation,
+                   Tdep);
+        let new_detail = detail.idents.iter().find(|item| item.ident == new).unwrap();
+        assert_eq!(new_detail.introduced_by.source.total_count, 2);
+        assert_eq!(new_detail.introduced_by.source.examples[0].relation, Head);
+        assert_eq!(new_detail.introduced_by.source.examples[1].package, shared);
+        assert_eq!(new_detail.introduced_by.target_only.total_count, 0);
+        assert!(!new_detail.introduced_by.target_only.truncated);
+    }
+
+    #[test]
+    fn source_closure_conflict_and_target_carrier_cap_are_reported() {
+        use helpers::ClosureRelation::{Head,
+                                       Tdep};
+
+        let old = "core/zlib/1.2.13/20240101000000";
+        let new = "core/zlib/1.3.1/20250101000000";
+        let mut entries = vec![carried_entry("x86_64-linux",
+                                             old,
+                                             "core/libpng/1.6.43/20240601000000",
+                                             1,
+                                             Tdep),
+                               carried_entry("x86_64-linux", new, new, 2, Head)];
+        let source_closure = entries.clone();
+        assert!(!find_conflicts(&by_target_from_entries(&source_closure)).is_empty());
+        let source_ids: HashSet<i64> = [1, 2].iter().copied().collect();
+        let details = conflict_details(&find_conflicts(&by_target_from_entries(&entries)),
+                                       &entries,
+                                       &source_ids,
+                                       &HashSet::new(),
+                                       20);
+        for item in &details["x86_64-linux"]["core/zlib"].idents {
+            assert_eq!(item.introduced_by.target_only.total_count, 0);
+            assert_eq!(item.introduced_by.source.total_count, 1);
+        }
+
+        for id in 10..35 {
+            entries.push(carried_entry("x86_64-linux",
+                                       old,
+                                       &format!("core/pin{}/1/1", id),
+                                       id,
+                                       Tdep));
+        }
+        for id in 40..45 {
+            entries.push(carried_entry("x86_64-linux",
+                                       old,
+                                       &format!("core/source{}/1/1", id),
+                                       id,
+                                       Tdep));
+        }
+        let target_ids: HashSet<i64> = (10..35).collect();
+        let source_ids: HashSet<i64> = [1, 2, 40, 41, 42, 43, 44].iter().copied().collect();
+        let details = conflict_details(&find_conflicts(&by_target_from_entries(&entries)),
+                                       &entries,
+                                       &source_ids,
+                                       &target_ids,
+                                       20);
+        let old_detail = details["x86_64-linux"]["core/zlib"].idents
+                                                             .iter()
+                                                             .find(|item| item.ident == old)
+                                                             .unwrap();
+        assert_eq!(old_detail.introduced_by.target_only.total_count, 25);
+        assert_eq!(old_detail.introduced_by.target_only.packages.len(), 20);
+        assert!(old_detail.introduced_by.target_only.truncated);
+        assert_eq!(old_detail.introduced_by.source.total_count, 6);
+        assert_eq!(old_detail.introduced_by.source.examples.len(), 6);
     }
 
     // Reproduces the original bug report: an unrelated head package
@@ -1455,9 +1762,22 @@ mod tests {
     // never conflicting with each other.
     #[test]
     fn find_conflicts_ignores_cross_target_duplicates() {
-        let entries = vec![closure_entry("x86_64-linux", "core/openssl/3.2.4/20250428090043"),
-                           closure_entry("x86_64-windows", "core/openssl/1.1.1w/20240108093230")];
-
-        assert!(find_conflicts(&by_target_from_entries(&entries)).is_empty());
+        let entries = vec![carried_entry("x86_64-linux",
+                                         "core/openssl/3.2.4/20250428090043",
+                                         "core/openssl/3.2.4/20250428090043",
+                                         1,
+                                         helpers::ClosureRelation::Head),
+                           carried_entry("x86_64-windows",
+                                         "core/openssl/1.1.1w/20240108093230",
+                                         "core/openssl/1.1.1w/20240108093230",
+                                         2,
+                                         helpers::ClosureRelation::Head)];
+        let conflicts = find_conflicts(&by_target_from_entries(&entries));
+        assert!(conflicts.is_empty());
+        assert!(conflict_details(&conflicts,
+                                 &entries,
+                                 &[1].iter().copied().collect(),
+                                 &[2].iter().copied().collect(),
+                                 20).is_empty());
     }
 }
