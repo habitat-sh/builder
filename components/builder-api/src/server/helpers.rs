@@ -167,67 +167,71 @@ pub fn target_from_headers(req: &HttpRequest) -> PackageTarget {
 
 pub fn fetch_license_expiration(license_key: &str,
                                 base_url: &str)
-                                -> std::result::Result<NaiveDate, HttpResponse> {
+                                -> std::result::Result<NaiveDate, Box<HttpResponse>> {
     let license_url = format!("{}/License/download?licenseId={}&version=2",
                               base_url.trim_end_matches('/'),
                               license_key);
 
-    let response = reqwest::blocking::Client::new().get(license_url)
-                                                   .header("Accept", "application/json")
-                                                   .send()
-                                                   .map_err(|e| {
-                                                       debug!("License API request failed: {}", e);
-                                                       HttpResponse::BadRequest().body(format!(
-            "License API error: {}",
-            e
-        ))
-                                                   })?;
+    let response =
+        reqwest::blocking::Client::new().get(license_url)
+                                        .header("Accept", "application/json")
+                                        .send()
+                                        .map_err(|e| {
+                                            debug!("License API request failed: {}", e);
+                                            Box::new(HttpResponse::BadRequest().body(format!(
+                "License API error: {}",
+                e
+            )))
+                                        })?;
 
     let status = response.status();
-    let body = response.text().map_err(|e| {
-                                   debug!("Failed to read license server response: {}", e);
-                                   HttpResponse::BadRequest().body(format!("Failed to read \
-                                                                            license server \
-                                                                            response: {}",
-                                                                           e))
-                               })?;
+    let body =
+        response.text().map_err(|e| {
+                            debug!("Failed to read license server response: {}", e);
+                            Box::new(HttpResponse::BadRequest().body(format!("Failed to read \
+                                                                              license server \
+                                                                              response: {}",
+                                                                             e)))
+                        })?;
 
     if !status.is_success() {
         debug!("License server returned error: {}", body);
-        return Err(HttpResponse::build(
+        return Err(Box::new(HttpResponse::build(
             actix_web::http::StatusCode::from_u16(status.as_u16())
                 .unwrap_or(actix_web::http::StatusCode::INTERNAL_SERVER_ERROR),
         )
-        .body(body));
+        .body(body)));
     }
 
     let json: Value = serde_json::from_str(&body).map_err(|e| {
                           debug!("Failed to parse license server response: {}", e);
-                          HttpResponse::BadRequest().body(format!("JSON parse error: {}", e))
+                          Box::new(HttpResponse::BadRequest().body(format!("JSON parse error: {}",
+                                                                           e)))
                       })?;
 
-    let entitlements = json["entitlements"].as_array()
-                                           .filter(|ents| !ents.is_empty())
-                                           .ok_or_else(|| {
-                                               debug!("No entitlements found in license data");
-                                               HttpResponse::BadRequest().body("Invalid license \
-                                                                                key.")
-                                           })?;
+    let entitlements =
+        json["entitlements"].as_array()
+                            .filter(|ents| !ents.is_empty())
+                            .ok_or_else(|| {
+                                debug!("No entitlements found in license data");
+                                Box::new(HttpResponse::BadRequest().body("Invalid license key."))
+                            })?;
 
-    let expiration = entitlements.iter()
-                                 .filter_map(|ent| {
-                                     ent.get("period")?
-                                        .get("end")?
-                                        .as_str()?
-                                        .parse::<NaiveDate>()
-                                        .ok()
-                                 })
-                                 .max()
-                                 .ok_or_else(|| {
-                                     debug!("No entitlement end dates found in license payload");
-                                     HttpResponse::BadRequest().body("No valid entitlement end \
-                                                                      date found.")
-                                 })?;
+    let expiration =
+        entitlements.iter()
+                    .filter_map(|ent| {
+                        ent.get("period")?
+                           .get("end")?
+                           .as_str()?
+                           .parse::<NaiveDate>()
+                           .ok()
+                    })
+                    .max()
+                    .ok_or_else(|| {
+                        debug!("No entitlement end dates found in license payload");
+                        Box::new(HttpResponse::BadRequest().body("No valid entitlement end date \
+                                                                  found."))
+                    })?;
 
     Ok(expiration)
 }
