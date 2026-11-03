@@ -1902,8 +1902,30 @@ types:
             '500':
               description: Internal server error
       /promote:
-        post:
-          description: Promotes all packages in a channel queryParameters
+        put:
+          description: |
+            Promotes all packages from this channel into the `channel` query parameter.
+            With `check=true`, checks the resulting head-package and transitive-dependency
+            closure before promoting. A conflict returns 409 and does not promote anything.
+            `conflicts` retains the target -> origin/name -> idents format. `details` adds
+            the surviving head packages that introduced each ident. Heads in both channels
+            count as `source`. `target_only.packages` includes at most 20 carriers and
+            `source.examples` lists every source carrier; `total_count` is the full count.
+            `relation: tdep` means the ident appears somewhere in the head's transitive
+            dependencies. `conflict_within_source` is true if source heads alone conflict.
+          queryParameters:
+            channel:
+              type: string
+              required: true
+              description: Destination channel
+            check:
+              type: boolean
+              required: false
+              description: Reject promotion if the resulting package closure conflicts
+            snapshot:
+              type: boolean
+              required: false
+              description: Create a snapshot of the destination after promotion
           responses:
             '200':
               description: Packages successfully promoted
@@ -1911,6 +1933,45 @@ types:
               description: Forbidden packages/Badly formed request for promotion
             '401':
               description: You are not authorized to request promotion for this origin
+            '409':
+              description: Compatibility check failed; no packages were promoted
+              body:
+                application/json:
+                  example:
+                    error: compatibility_check_failed
+                    conflicts:
+                      x86_64-linux:
+                        core/openssl:
+                          - core/openssl/3.0.15/20250110101010
+                          - core/openssl/3.5.6/20260420112454
+                    conflict_within_source: false
+                    details:
+                      x86_64-linux:
+                        core/openssl:
+                          summary: 'core/openssl has 2 versions on x86_64-linux: 3.0.15 (via core/git, target only) vs 3.5.6 (via core/openssl, source)'
+                          idents:
+                            - ident: core/openssl/3.0.15/20250110101010
+                              introduced_by:
+                                target_only:
+                                  total_count: 1
+                                  truncated: false
+                                  packages:
+                                    - package: core/git/2.45.0/20250201090000
+                                      relation: tdep
+                                source:
+                                  total_count: 0
+                                  examples: []
+                            - ident: core/openssl/3.5.6/20260420112454
+                              introduced_by:
+                                target_only:
+                                  total_count: 0
+                                  truncated: false
+                                  packages: []
+                                source:
+                                  total_count: 1
+                                  examples:
+                                    - package: core/openssl/3.5.6/20260420112454
+                                      relation: head
             '500':
               description: Internal server error
       /demote:

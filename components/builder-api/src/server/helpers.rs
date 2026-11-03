@@ -280,9 +280,21 @@ pub fn req_state(req: &HttpRequest) -> &AppState {
 // A single ident contributed to a compatibility-check closure: either a
 // channel's head package for some origin/name/target, or one of that head
 // package's own recorded tdeps.
+#[derive(Clone)]
 pub struct ClosureEntry {
-    pub target: String,
-    pub ident:  BuilderPackageIdent,
+    pub target:   String,
+    pub ident:    BuilderPackageIdent,
+    pub via:      BuilderPackageIdent,
+    // Package IDs, unlike idents, distinguish builds for different targets.
+    pub via_id:   i64,
+    pub relation: ClosureRelation,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ClosureRelation {
+    Head,
+    Tdep,
 }
 
 // Computes the head-package + tdeps closure for the union of the given
@@ -303,12 +315,18 @@ pub fn channel_package_closure(channel_ids: &[i64],
     let mut idents = Vec::new();
     for pkg in &head_packages {
         let target = pkg.target.to_string();
-        idents.push(ClosureEntry { target: target.clone(),
-                                   ident:  pkg.ident.clone(), });
+        idents.push(ClosureEntry { target:   target.clone(),
+                                   ident:    pkg.ident.clone(),
+                                   via:      pkg.ident.clone(),
+                                   via_id:   pkg.id,
+                                   relation: ClosureRelation::Head, });
         // tdeps must match their parent head package's target platform.
         idents.extend(pkg.tdeps.iter().map(|dep| {
-                                          ClosureEntry { target: target.clone(),
-                                                         ident:  dep.clone(), }
+                                          ClosureEntry { target:   target.clone(),
+                                                         ident:    dep.clone(),
+                                                         via:      pkg.ident.clone(),
+                                                         via_id:   pkg.id,
+                                                         relation: ClosureRelation::Tdep, }
                                       }));
     }
     Ok(idents)
