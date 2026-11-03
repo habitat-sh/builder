@@ -239,7 +239,7 @@ async fn set_license(req: HttpRequest,
                                                          &state.config.api.license_server_url)
     {
         Ok(date) => date,
-        Err(err) => return err,
+        Err(err) => return *err,
     };
 
     let new_license = NewLicenseKey { account_id,
@@ -300,7 +300,7 @@ async fn get_license(req: HttpRequest, state: Data<AppState>) -> HttpResponse {
                                                     "expiration_date": expiration_date.to_string()
                                                 }))
                     }
-                    Err(resp) => resp,
+                    Err(resp) => *resp,
                 }
             }
         }

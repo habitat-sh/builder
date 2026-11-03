@@ -532,7 +532,7 @@ async fn download_package(req: HttpRequest,
                                             }
                                         }
                                         Err(err_msg) => {
-                                            return err_msg;
+                                            return *err_msg;
                                         }
                                     }
                                 }
