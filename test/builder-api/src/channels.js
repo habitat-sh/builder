@@ -1175,6 +1175,60 @@ describe('Channels API', function () {
         });
     });
 
+    it('creates a source channel whose own heads conflict', function (done) {
+      request.post('/depot/channels/neurosis/check-source-only-conflict')
+        .set('Authorization', global.boboBearer)
+        .expect(201)
+        .end(function (err) {
+          if (err) return done(err);
+          request.put('/depot/channels/neurosis/check-source-only-conflict/pkgs/testapp3/0.1.0/20190327162559/promote')
+            .set('Authorization', global.boboBearer)
+            .expect(200)
+            .end(function (err2) {
+              if (err2) return done(err2);
+              request.put('/depot/channels/neurosis/check-source-only-conflict/pkgs/testapp/0.1.3/20171205003213/promote')
+                .set('Authorization', global.boboBearer)
+                .expect(200)
+                .end(function (err3) {
+                  done(err3);
+                });
+            });
+        });
+    });
+
+    it('reports conflicts already present in the source channel', function (done) {
+      request.put('/depot/channels/neurosis/check-source-only-conflict/pkgs/promote?channel=check-source-only-target&check=true')
+        .set('Authorization', global.boboBearer)
+        .expect(409)
+        .end(function (err, res) {
+          if (err) return done(err);
+          expect(res.body.error).to.equal('compatibility_check_failed');
+          expect(res.body.conflict_within_source).to.equal(true);
+          expect(res.body.conflicts['x86_64-linux']['neurosis/testapp']).to.have.members([
+            'neurosis/testapp/0.1.3/20171205003213',
+            'neurosis/testapp/0.1.3/20190327162537',
+          ]);
+          const detail = res.body.details['x86_64-linux']['neurosis/testapp'];
+          const head = detail.idents.find((entry) =>
+            entry.ident === 'neurosis/testapp/0.1.3/20171205003213');
+          const pinned = detail.idents.find((entry) =>
+            entry.ident === 'neurosis/testapp/0.1.3/20190327162537');
+          expect(head.introduced_by.target_only).to.deep.equal({
+            total_count: 0, truncated: false, packages: [],
+          });
+          expect(pinned.introduced_by.target_only).to.deep.equal({
+            total_count: 0, truncated: false, packages: [],
+          });
+          expect(head.introduced_by.source.examples).to.deep.include({
+            package: 'neurosis/testapp/0.1.3/20171205003213', relation: 'head',
+          });
+          expect(pinned.introduced_by.source.examples).to.deep.include({
+            package: 'neurosis/testapp3/0.1.0/20190327162559', relation: 'tdep',
+          });
+          done();
+        });
+    });
+
     it('rejects promotion with snapshot=true&check=true when an unrelated head package still pins a conflicting tdep', function (done) {
       request.put('/depot/channels/neurosis/check-conflict-source/pkgs/promote?channel=check-conflict&snapshot=true&check=true')
         .set('Authorization', global.boboBearer)
