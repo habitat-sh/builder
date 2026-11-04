@@ -21,7 +21,12 @@ runs:
         HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
       run: |
         sudo hab pkg install chef/hab-studio --auth $HAB_AUTH_TOKEN
-        hab pkg build $BLDR_COMPONENT
+        sudo env HAB_ORIGIN="$HAB_ORIGIN" \
+                 HAB_AUTH_TOKEN="$HAB_AUTH_TOKEN" \
+                 HAB_BLDR_CHANNEL="$HAB_BLDR_CHANNEL" \
+                 HAB_REFRESH_CHANNEL="$HAB_REFRESH_CHANNEL" \
+                 HAB_FALLBACK_CHANNEL="$HAB_FALLBACK_CHANNEL" \
+                 hab pkg build $BLDR_COMPONENT
 
     - name: hab pkg install
       shell: bash
