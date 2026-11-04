@@ -36,8 +36,9 @@ runs:
         URL: ${{ inputs.curl-bash-url }}
         VERSION: ${{ inputs.habitat-version }}
         TARGET: ${{ inputs.habitat-target }}
+        HAB_AUTH_TOKEN: ${{ inputs.hab-auth-token }}
       run: |
-        curl "$URL" | sudo -E bash -s -- -v "$VERSION" -t "$TARGET"
+        curl "$URL" | sudo env HAB_AUTH_TOKEN="$HAB_AUTH_TOKEN" bash -s -- -v "$VERSION" -t "$TARGET"
 
     - name: accept hab license
       shell: bash
