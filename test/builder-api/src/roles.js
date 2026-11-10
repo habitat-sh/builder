@@ -45,6 +45,14 @@ describe("Origin Roles API", function () {
           done(err);
         });
     });
+    it("uploads the matching public key", function (done) {
+      request
+        .post(`/depot/origins/rcpd/keys/${revision}`)
+        .set("Authorization", global.boboBearer)
+        .send(pubFile)
+        .expect(201)
+        .end(done);
+    });
   });
   describe("Upload a fixture package", function () {
     it("allows authenticated users to upload packages", function (done) {

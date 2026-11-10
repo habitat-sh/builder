@@ -1374,19 +1374,30 @@ async fn do_upload_package_async(req: HttpRequest,
                                  temp_path: PathBuf,
                                  mut writer: BufWriter<File>)
                                  -> Result<HttpResponse> {
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        debug!("Writing file upload chunk, size: {}", chunk.len());
-        writer = web::block(move || writer.write(&chunk).map(|_| writer)).await??;
-    }
+    let result = async {
+                     while let Some(chunk) = stream.next().await {
+                         let chunk = chunk?;
+                         debug!("Writing file upload chunk, size: {}", chunk.len());
+                         writer = web::block(move || writer.write(&chunk).map(|_| writer)).await??;
+                     }
 
-    match writer.into_inner() {
-        Ok(f) => {
-            f.sync_all()?;
-            Ok(do_upload_package_finish(&req, &qupload, &ident, &temp_path).await)
+                     match writer.into_inner() {
+                         Ok(f) => {
+                             f.sync_all()?;
+                             Ok(do_upload_package_finish(&req, &qupload, &ident, &temp_path).await)
+                         }
+                         Err(err) => Err(Error::InnerError(err)),
+                     }
+                 }.await;
+
+    // Finalization renames successful uploads. All other paths must remove the
+    // uploaded bytes, including signature rejection and request-body errors.
+    if let Err(err) = fs::remove_file(&temp_path) {
+        if err.kind() != std::io::ErrorKind::NotFound {
+            warn!("Failed to remove temporary upload {:?}: {}", temp_path, err);
         }
-        Err(err) => Err(Error::InnerError(err)),
     }
+    result
 }
 
 async fn do_get_package(req: &HttpRequest,

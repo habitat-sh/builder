@@ -34,6 +34,11 @@ const secretFile = fs.readFileSync(
   __dirname + `/../fixtures/deletemeifyoucan-${revision}.sig.key`,
   "utf8"
 );
+const xmenKeyRevision = "20261110200842";
+const xmenPubFile = fs.readFileSync(
+  __dirname + `/../fixtures/xmen-${xmenKeyRevision}.pub`,
+  "utf8"
+);
 
 describe("Origin API", function () {
   describe("Create neurosis origin", function () {
@@ -109,6 +114,14 @@ describe("Origin API", function () {
           global.originXmen = res.body;
           done(err);
         });
+    });
+    it("uploads the fixture signing key", function (done) {
+      request
+        .post(`/depot/origins/xmen/keys/${xmenKeyRevision}`)
+        .set("Authorization", global.mystiqueBearer)
+        .send(xmenPubFile)
+        .expect(201)
+        .end(done);
     });
   });
 

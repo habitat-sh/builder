@@ -109,7 +109,7 @@ describe('Working with packages', function () {
   describe('Uploading packages', function () {
     it('does not allow unauthenticated users to upload packages', function (done) {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
-        .query({ checksum: '3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8' })
+        .query({ checksum: '49c8a117efec9fc2085bcc18b2cbde007d9c133b6c7afb32df85abbcfbedb7b4' })
         .set('Content-Length', file1.length)
         .send(file1)
         .expect(401)
@@ -123,7 +123,7 @@ describe('Working with packages', function () {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
         .set('Authorization', global.mystiqueBearer)
         .set('Content-Length', file1.length)
-        .query({ checksum: '3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8' })
+        .query({ checksum: '49c8a117efec9fc2085bcc18b2cbde007d9c133b6c7afb32df85abbcfbedb7b4' })
         .send(file1)
         .expect(403)
         .end(function (err, res) {
@@ -136,7 +136,7 @@ describe('Working with packages', function () {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
         .set('Authorization', global.boboBearer)
         .set('Content-Length', file1.length)
-        .query({ target: 'x86_64-linux', checksum: '3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8' })
+        .query({ target: 'x86_64-linux', checksum: '49c8a117efec9fc2085bcc18b2cbde007d9c133b6c7afb32df85abbcfbedb7b4' })
         .send(file1)
         .expect(201)
         .end(function (err, res) {
@@ -149,7 +149,7 @@ describe('Working with packages', function () {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
         .set('Authorization', global.boboBearer)
         .set('Content-Length', file2.length)
-        .query({ checksum: 'd8943c86636eb0a24cb63a80b3d9375ce342f2fa192375f3a0b83eab44de21eb' })
+        .query({ checksum: 'cd62d7f8e4329f9b8f2ac23d744bd43f8b2cfef6fdad76765c13b9ef66ef0969' })
         .send(file2)
         .expect(201)
         .end(function (err, res) {
@@ -162,7 +162,7 @@ describe('Working with packages', function () {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release2}`)
         .set('Authorization', global.boboBearer)
         .set('Content-Length', file2.length)
-        .query({ checksum: 'd8943c86636eb0a24cb63a80b3d9375ce342f2fa192375f3a0b83eab44de21eb' })
+        .query({ checksum: 'cd62d7f8e4329f9b8f2ac23d744bd43f8b2cfef6fdad76765c13b9ef66ef0969' })
         .send(file2)
         .expect(409)
         .end(function (err, res) {
@@ -175,7 +175,7 @@ describe('Working with packages', function () {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.4/${release3}`)
         .set('Authorization', global.boboBearer)
         .set('Content-Length', file3.length)
-        .query({ checksum: '1fa27a110fe01acba9d31a0f56801c5e38f4feb8105266231f308091e487c6d1' })
+        .query({ checksum: 'd298fd39250985558d82541c14717f59cf9086efcb04293bc2d5195519660461' })
         .send(file3)
         .expect(201)
         .end(function (err, res) {
@@ -188,7 +188,7 @@ describe('Working with packages', function () {
       request.post(`/depot/pkgs/xmen/testapp/0.1.4/${release4}`)
         .set('Authorization', global.mystiqueBearer)
         .set('Content-Length', file4.length)
-        .query({ checksum: 'b1661779dd7dcef994ae0ab4c2c3c589dde56747d91511cb44a41813831336a1' })
+        .query({ checksum: '9771f13b767e5fd529d45b9dbdfe16d8d41349d2a4a37848b1b8fccedbc29f31' })
         .send(file4)
         .expect(201)
         .end(function (err, res) {
@@ -300,7 +300,7 @@ describe('Working with packages', function () {
           .set('Content-Length', fakefile1.length)
           .query({
             target: 'aarch64-linux',
-            checksum: '918eecd70c8bb5d665af71fbd8156ac4aa6baee8bff28af70ee1ebf63d54a1cf',
+            checksum: '8162b5bfbfc054266cf3ae41d42b6824c99972b6ebc2501dacbbff289f474f93',
             forced
           })
           .send(fakefile1)
@@ -316,7 +316,7 @@ describe('Working with packages', function () {
           })
           .then(response => {
             expect(response.body.target).to.equal('x86_64-linux');
-            expect(response.body.checksum).to.equal('3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8');
+            expect(response.body.checksum).to.equal('49c8a117efec9fc2085bcc18b2cbde007d9c133b6c7afb32df85abbcfbedb7b4');
             return request.get(`${path}/download`)
               .set('Authorization', global.boboBearer)
               .query({ target: 'x86_64-linux' })
@@ -339,7 +339,7 @@ describe('Working with packages', function () {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
         .set('Authorization', global.boboBearer)
         .set('Content-Length', file1.length)
-        .query({ checksum: '3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8' })
+        .query({ checksum: '49c8a117efec9fc2085bcc18b2cbde007d9c133b6c7afb32df85abbcfbedb7b4' })
         .send(file1)
         .expect(409)
         .end(function (err, res) {
@@ -352,7 +352,7 @@ describe('Working with packages', function () {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}?forced=true`)
         .set('Authorization', global.boboBearer)
         .set('Content-Length', file1.length)
-        .query({ checksum: '3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8' })
+        .query({ checksum: '49c8a117efec9fc2085bcc18b2cbde007d9c133b6c7afb32df85abbcfbedb7b4' })
         .send(file1)
         .expect(201)
         .end(function (err, res) {
@@ -365,7 +365,7 @@ describe('Working with packages', function () {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}?forced=true`)
         .set('Authorization', global.boboBearer)
         .set('Content-Length', fakefile1.length)
-        .query({ checksum: '918eecd70c8bb5d665af71fbd8156ac4aa6baee8bff28af70ee1ebf63d54a1cf' })
+        .query({ checksum: '8162b5bfbfc054266cf3ae41d42b6824c99972b6ebc2501dacbbff289f474f93' })
         .send(fakefile1)
         .expect(422)
         .end(function (err, res) {
@@ -989,7 +989,7 @@ describe('Working with packages', function () {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
         .set('Authorization', global.boboBearer)
         .set('Content-Length', file1.length)
-        .query({ checksum: '3138777020e7bb621a510b19c2f2630deee9b34ac11f1c2a0524a44eb977e4a8' })
+        .query({ checksum: '49c8a117efec9fc2085bcc18b2cbde007d9c133b6c7afb32df85abbcfbedb7b4' })
         .send(file1)
         .expect(201)
         .end(function (err, res) {
