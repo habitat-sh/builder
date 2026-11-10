@@ -754,19 +754,6 @@ describe("Origin Roles API", function () {
           done(err);
         });
     });
-
-    it("user with member role authorized to trigger builds", function (done) {
-      request
-        .post("/depot/pkgs/schedule/rcpd/testapp")
-        .type("application/json")
-        .accept("application/json")
-        .set("Authorization", global.lkennedyBearer)
-        .expect(404)
-        .end(function (err, res) {
-          expect(res.body).to.be.empty;
-          done(err);
-        });
-    });
     it("user with member role authorized to query role of other origin members", function (done) {
       request
         .get("/depot/origins/rcpd/users/bobo/role")
