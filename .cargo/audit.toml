@@ -12,16 +12,7 @@
 # via aws-sigv4 -> p256 0.13 -> elliptic-curve 0.13 (requires ^0.5), and
 # aws-sigv4 1.5.1 (latest) has no release on the newer RustCrypto stack.
 # Used only for AWS SigV4 request signing. Remove once the AWS SDK upgrades.
-# RUSTSEC-2026-0367, 0368, 0369, 0429: zip 7.2.0 extraction issues (SUID/SGID
-# bits, symlink targets, oversized symlink entries). Only patched in zip >= 9.0.0.
-# zip is a build-dependency of libsodium-sys-stable (via libsodium-rs ->
-# habitat_core) and is never used at runtime to extract untrusted archives.
-# Remove once habitat_core's libsodium-rs moves to a patched zip.
-ignore = ["RUSTSEC-2026-0387",
-          "RUSTSEC-2026-0367",
-          "RUSTSEC-2026-0368",
-          "RUSTSEC-2026-0369",
-          "RUSTSEC-2026-0429"]
+ignore = ["RUSTSEC-2026-0387"]
 
 # warn for categories of informational advisories
 informational_warnings = ["notice", "unmaintained", "unsound"]
