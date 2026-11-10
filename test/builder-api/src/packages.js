@@ -3,6 +3,7 @@ const supertest = require('supertest');
 const binaryParser = require('superagent-binary-parser');
 const request = supertest('http://localhost:9636/v1');
 const fs = require('fs');
+const { execFileSync } = require('child_process');
 const { appendDateRange } = require('./util');
 const { getMemcachedValue, setMemcachedValue } = require('./helpers');
 
@@ -105,6 +106,121 @@ const ov82 = fs.readFileSync(__dirname + `/../fixtures/oddversions/neurosis-oddv
 
 var downloadedPath = '/tmp/';
 
+const signedPackagePath = `/depot/pkgs/neurosis/testapp/0.1.3/${release1}`;
+const signedPackageObjectKey = `neurosis/testapp/0.1.3/${release1}/x86_64/linux/neurosis-testapp-0.1.3-${release1}-x86_64-linux.hart`;
+const uploadDataDir = process.env.BLDR_DATA_DIR || '/hab/svc/builder-api/data';
+
+function replaceArtifactSigner(artifact, signer) {
+  const firstLineEnd = artifact.indexOf(0x0a);
+  const secondLineEnd = artifact.indexOf(0x0a, firstLineEnd + 1);
+  return Buffer.concat([
+    artifact.subarray(0, firstLineEnd + 1),
+    Buffer.from(signer),
+    artifact.subarray(secondLineEnd)
+  ]);
+}
+
+// These checksums were computed over the complete, mutated HART files with
+// Habitat's 32-byte BLAKE2b package hash. Each matches the bytes sent below.
+const rejectedArtifacts = [
+  {
+    name: 'tampered payload',
+    bytes: Buffer.concat([file1, Buffer.from([0])]),
+    checksum: '8703784fb333dbfba871ac3ab98b76112e13863f54a93f18726cdcfc3041005d',
+    error: 'Invalid package signature'
+  },
+  {
+    name: 'foreign signer',
+    bytes: replaceArtifactSigner(file1, 'xmen-20261110200842'),
+    checksum: 'ea0652ca2868de02e32ac7067eac48be38840df844dcbc043da379e3f65c8ff9',
+    error: 'Package signer origin mismatch'
+  },
+  {
+    name: 'unknown key revision',
+    bytes: replaceArtifactSigner(file1, 'neurosis-19990101000000'),
+    checksum: 'fc23d17088a7fd0bd801e6a4b05c2e73e36c35732a19d17b44efd1b41577a18a',
+    error: 'Unknown package signing key'
+  }
+];
+
+function temporaryUploads() {
+  return fs.readdirSync(uploadDataDir).filter(name => name.endsWith('.tmp')).sort();
+}
+
+function storedPackageObject() {
+  const output = execFileSync('hab', [
+    'pkg', 'exec', 'core/aws-cli', 'aws',
+    '--endpoint-url', process.env.BUILDER_TEST_S3_ENDPOINT || 'http://localhost:9000',
+    's3api', 'list-objects-v2',
+    '--bucket', process.env.BUILDER_TEST_S3_BUCKET || 'habitat-builder-artifact-store.default',
+    '--prefix', signedPackageObjectKey,
+    '--output', 'json'
+  ], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      AWS_ACCESS_KEY_ID: process.env.BUILDER_TEST_S3_KEY_ID || 'depot',
+      AWS_SECRET_ACCESS_KEY: process.env.BUILDER_TEST_S3_SECRET_KEY || 'password',
+      AWS_DEFAULT_REGION: 'us-east-1'
+    }
+  });
+  return (JSON.parse(output).Contents || []).find(object => object.Key === signedPackageObjectKey) || null;
+}
+
+async function assertRejectedSignedUpload(artifact, forced, packageExists) {
+  const storageBefore = storedPackageObject();
+  const tempBefore = temporaryUploads();
+  const metadataBefore = packageExists
+    ? (await request.get(signedPackagePath)
+      .set('Authorization', global.boboBearer)
+      .query({ target: 'x86_64-linux' })
+      .expect(200)).body
+    : null;
+  if (packageExists) {
+    expect(storageBefore).to.not.equal(null);
+  } else {
+    await request.get(signedPackagePath)
+      .set('Authorization', global.boboBearer)
+      .query({ target: 'x86_64-linux' })
+      .expect(404);
+  }
+
+  const response = await request.post(signedPackagePath)
+    .set('Authorization', global.boboBearer)
+    .set('Content-Length', artifact.bytes.length)
+    .query({ target: 'x86_64-linux', checksum: artifact.checksum, forced })
+    .send(artifact.bytes)
+    .expect(422);
+  expect(response.text).to.equal(artifact.error);
+
+  if (packageExists) {
+    const metadataAfter = await request.get(signedPackagePath)
+      .set('Authorization', global.boboBearer)
+      .query({ target: 'x86_64-linux' })
+      .expect(200);
+    expect(metadataAfter.body).to.deep.equal(metadataBefore);
+    const download = await request.get(`${signedPackagePath}/download`)
+      .set('Authorization', global.boboBearer)
+      .query({ target: 'x86_64-linux' })
+      .buffer(true)
+      .parse(binaryParser)
+      .expect(200);
+    expect(download.body.equals(file1)).to.equal(true);
+  } else {
+    await request.get(signedPackagePath)
+      .set('Authorization', global.boboBearer)
+      .query({ target: 'x86_64-linux' })
+      .expect(404);
+    await request.get(`${signedPackagePath}/download`)
+      .set('Authorization', global.boboBearer)
+      .query({ target: 'x86_64-linux' })
+      .expect(404);
+  }
+
+  expect(storedPackageObject()).to.deep.equal(storageBefore);
+  expect(temporaryUploads()).to.deep.equal(tempBefore);
+}
+
 describe('Working with packages', function () {
   describe('Uploading packages', function () {
     it('does not allow unauthenticated users to upload packages', function (done) {
@@ -132,6 +248,13 @@ describe('Working with packages', function () {
         });
     });
 
+    rejectedArtifacts.forEach(artifact => {
+      it(`rejects ${artifact.name} on a normal upload`, async function () {
+        this.timeout(15000);
+        await assertRejectedSignedUpload(artifact, false, false);
+      });
+    });
+
     it('allows authenticated users to upload packages', function (done) {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
         .set('Authorization', global.boboBearer)
@@ -143,6 +266,13 @@ describe('Working with packages', function () {
           expect(res.text).to.equal(`/pkgs/neurosis/testapp/0.1.3/${release1}/download`);
           done(err);
         });
+    });
+
+    rejectedArtifacts.forEach(artifact => {
+      it(`rejects ${artifact.name} on a forced upload without changing the package`, async function () {
+        this.timeout(15000);
+        await assertRejectedSignedUpload(artifact, true, true);
+      });
     });
 
     it('uploads a second package', function (done) {
