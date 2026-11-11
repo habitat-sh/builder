@@ -16,6 +16,7 @@ use super::reverse_dependencies::{self};
 use crate::{bldr_core::metrics::CounterMetric,
             db::models::{channel::{Channel,
                                    ChannelWithPromotion},
+                         keys::OriginPublicSigningKey,
                          license_keys::*,
                          origin::*,
                          package::{BuilderPackageIdent,
@@ -32,7 +33,11 @@ use crate::{bldr_core::metrics::CounterMetric,
                          settings::{GetOriginPackageSettings,
                                     NewOriginPackageSettings,
                                     OriginPackageSettings}},
-            hab_core::{package::{FromArchive,
+            hab_core::{base64,
+                       crypto::{artifact,
+                                keys::{Key,
+                                       PublicOriginSigningKey}},
+                       package::{FromArchive,
                                  Identifiable,
                                  PackageArchive,
                                  PackageIdent,
@@ -1125,6 +1130,58 @@ async fn do_upload_package_finish(req: &HttpRequest,
         Err(err) => return err.into(),
     };
 
+    let header = match artifact::get_artifact_header(temp_path) {
+        Ok(header) => header,
+        Err(err) => {
+            warn!("Rejecting package {} with invalid signature header: {}",
+                  ident, err);
+            return HttpResponse::UnprocessableEntity().body("Invalid package signature header");
+        }
+    };
+    let signer = header.signer();
+    if signer.name() != &ident.origin {
+        warn!("Rejecting package {} signed by another origin: {}",
+              ident, signer);
+        return HttpResponse::UnprocessableEntity().body("Package signer origin mismatch");
+    }
+    let key_record =
+        match OriginPublicSigningKey::get(&ident.origin, &signer.revision().to_string(), &mut conn)
+        {
+            Ok(key) => key,
+            Err(NotFound) => {
+                warn!("Rejecting package {} with unknown signing key: {}",
+                      ident, signer);
+                return HttpResponse::UnprocessableEntity().body("Unknown package signing key");
+            }
+            Err(err) => return Error::DieselError(err).into(),
+        };
+    let public_key: PublicOriginSigningKey = match key_record.body.parse() {
+        Ok(key) => key,
+        Err(err) => {
+            error!("Invalid stored signing key {}: {}", signer, err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+    if public_key.named_revision() != signer {
+        error!("Stored signing key does not match requested revision: {}",
+               signer);
+        return HttpResponse::InternalServerError().finish();
+    }
+    let signature_path = temp_path.to_path_buf();
+    match web::block(move || verify_package_signature(&signature_path, &public_key, &header)).await
+    {
+        Ok(Ok(())) => {}
+        Ok(Err(err)) => {
+            warn!("Rejecting package {} with invalid signature: {}",
+                  ident, err);
+            return HttpResponse::UnprocessableEntity().body("Invalid package signature");
+        }
+        Err(err) => {
+            error!("Unable to verify package {} signature: {}", ident, err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    }
+
     // Check If previously uploaded package exists in DB
     // and discard the upload if package_type mismatch occurs.
     let pkg_ident = PackageIdent::new(ident.origin.clone(), ident.name.clone(), None, None);
@@ -1308,6 +1365,17 @@ async fn do_upload_package_finish(req: &HttpRequest,
                            .body(format!("/pkgs/{}/download", *package.ident))
 }
 
+fn verify_package_signature(path: &path::Path,
+                            public_key: &PublicOriginSigningKey,
+                            header: &artifact::ArtifactHeader)
+                            -> crate::hab_core::Result<()> {
+    let signature = base64::decode(header.encoded_signature())
+        .map_err(|err| crate::hab_core::Error::CryptoError(err.to_string()))?;
+    let mut payload = artifact::get_archive_reader(path)?;
+    public_key.verify(&signature, &mut payload)?;
+    Ok(())
+}
+
 async fn do_upload_package_async(req: HttpRequest,
                                  mut stream: web::Payload,
                                  qupload: Query<Upload>,
@@ -1315,19 +1383,30 @@ async fn do_upload_package_async(req: HttpRequest,
                                  temp_path: PathBuf,
                                  mut writer: BufWriter<File>)
                                  -> Result<HttpResponse> {
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        debug!("Writing file upload chunk, size: {}", chunk.len());
-        writer = web::block(move || writer.write(&chunk).map(|_| writer)).await??;
-    }
+    let result = async {
+                     while let Some(chunk) = stream.next().await {
+                         let chunk = chunk?;
+                         debug!("Writing file upload chunk, size: {}", chunk.len());
+                         writer = web::block(move || writer.write(&chunk).map(|_| writer)).await??;
+                     }
 
-    match writer.into_inner() {
-        Ok(f) => {
-            f.sync_all()?;
-            Ok(do_upload_package_finish(&req, &qupload, &ident, &temp_path).await)
+                     match writer.into_inner() {
+                         Ok(f) => {
+                             f.sync_all()?;
+                             Ok(do_upload_package_finish(&req, &qupload, &ident, &temp_path).await)
+                         }
+                         Err(err) => Err(Error::InnerError(err)),
+                     }
+                 }.await;
+
+    // Finalization renames successful uploads. All other paths must remove the
+    // uploaded bytes, including signature rejection and request-body errors.
+    if let Err(err) = fs::remove_file(&temp_path) {
+        if err.kind() != std::io::ErrorKind::NotFound {
+            warn!("Failed to remove temporary upload {:?}: {}", temp_path, err);
         }
-        Err(err) => Err(Error::InnerError(err)),
     }
+    result
 }
 
 async fn do_get_package(req: &HttpRequest,
@@ -1610,8 +1689,32 @@ fn streaming_download_response<S>(filename: String, cache_hdr: String, stream: S
 #[cfg(test)]
 mod upload_target_validation_tests {
     use super::*;
+    use crate::hab_core::crypto::keys::generate_signing_key_pair;
     use actix_web::{body::to_bytes,
                     test::TestRequest};
+
+    #[test]
+    fn verifies_signed_payload_and_rejects_tampering_or_another_key() {
+        let origin = "signaturetest".parse().unwrap();
+        let (public_key, secret_key) = generate_signing_key_pair(&origin).unwrap();
+        let (other_key, _) = generate_signing_key_pair(&origin).unwrap();
+        let source = std::env::temp_dir().join(format!("signature-source-{}", Uuid::new_v4()));
+        let signed = std::env::temp_dir().join(format!("signature-artifact-{}", Uuid::new_v4()));
+
+        fs::write(&source, b"original package payload").unwrap();
+        artifact::sign(&source, &signed, &secret_key).unwrap();
+        let header = artifact::get_artifact_header(&signed).unwrap();
+        assert!(verify_package_signature(&signed, &public_key, &header).is_ok());
+        assert!(verify_package_signature(&signed, &other_key, &header).is_err());
+
+        let mut bytes = fs::read(&signed).unwrap();
+        *bytes.last_mut().unwrap() ^= 1;
+        fs::write(&signed, bytes).unwrap();
+        assert!(verify_package_signature(&signed, &public_key, &header).is_err());
+
+        fs::remove_file(source).unwrap();
+        fs::remove_file(signed).unwrap();
+    }
 
     #[tokio::test]
     async fn rejects_mismatched_upload_targets_before_accessing_application_state() {
