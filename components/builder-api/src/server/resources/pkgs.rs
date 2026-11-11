@@ -1167,10 +1167,19 @@ async fn do_upload_package_finish(req: &HttpRequest,
                signer);
         return HttpResponse::InternalServerError().finish();
     }
-    if let Err(err) = verify_package_signature(temp_path, &public_key, &header) {
-        warn!("Rejecting package {} with invalid signature: {}",
-              ident, err);
-        return HttpResponse::UnprocessableEntity().body("Invalid package signature");
+    let signature_path = temp_path.to_path_buf();
+    match web::block(move || verify_package_signature(&signature_path, &public_key, &header)).await
+    {
+        Ok(Ok(())) => {}
+        Ok(Err(err)) => {
+            warn!("Rejecting package {} with invalid signature: {}",
+                  ident, err);
+            return HttpResponse::UnprocessableEntity().body("Invalid package signature");
+        }
+        Err(err) => {
+            error!("Unable to verify package {} signature: {}", ident, err);
+            return HttpResponse::InternalServerError().finish();
+        }
     }
 
     // Check If previously uploaded package exists in DB
