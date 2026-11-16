@@ -70,3 +70,6 @@ path = "../builder-core"
 
 [dependencies.habitat_builder_db]
 path = "../builder-db"
+
+[dev-dependencies]
+tempfile = "*"

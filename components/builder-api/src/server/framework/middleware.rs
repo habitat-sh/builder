@@ -98,9 +98,9 @@ fn get_cached_session(token: &str, state: &AppState) -> Option<originsrv::Sessio
     }
 }
 
-fn validate_token_and_create_session(token: &str,
-                                     state: &AppState)
-                                     -> error::Result<originsrv::Session> {
+pub(crate) fn validate_token_and_create_session(token: &str,
+                                                state: &AppState)
+                                                -> error::Result<originsrv::Session> {
     // Pull the session out of the current token provided so we can validate it against the db's
     // tokens
     let mut session =
@@ -232,23 +232,21 @@ pub fn session_create_oauth(oauth_token: &str,
         None => "",
     };
 
-    match Account::find_or_create(&NewAccount { name: &user.username,
-                                                email },
-                                  &mut conn)
+    let parsed_provider = provider.parse::<originsrv::OAuthProvider>()
+                                  .map_err(|_| error::Error::BadRequest)?;
+
+    match Account::find_or_create_oauth(&NewAccount { name: &user.username,
+                                                      email },
+                                        provider,
+                                        &user.id,
+                                        &mut conn)
     {
         Ok(account) => {
             session_token.set_account_id(account.id as u64);
             session_token.set_extern_id(user.id.to_string());
             session_token.set_token(oauth_token.to_string().into_bytes());
 
-            match provider.parse::<originsrv::OAuthProvider>() {
-                Ok(p) => session_token.set_provider(p),
-                Err(e) => {
-                    warn!("Error parsing oauth provider: provider={}, err={:?}",
-                          provider, e);
-                    return Err(error::Error::System);
-                }
-            }
+            session_token.set_provider(parsed_provider);
 
             let encoded_token = encode_token(&session_token);
             session.set_id(account.id as u64);
@@ -265,7 +263,11 @@ pub fn session_create_oauth(oauth_token: &str,
         }
         Err(e) => {
             error!("Failed to create session {}", e);
-            Err(e.into())
+            if matches!(e, diesel::result::Error::NotFound) {
+                Err(error::Error::Conflict)
+            } else {
+                Err(e.into())
+            }
         }
     }
 }
@@ -273,7 +275,7 @@ pub fn session_create_oauth(oauth_token: &str,
 pub fn session_create_short_circuit(token: &str,
                                     state: &AppState)
                                     -> error::Result<originsrv::Session> {
-    let (user, provider) = match token {
+    let (mut user, provider) = match token {
         "bobo" => {
             (OAuth2User { id:       "0".to_string(),
                           email:    Some("bobo@example.com".to_string()),
@@ -304,13 +306,141 @@ pub fn session_create_short_circuit(token: &str,
                           username: "lkennedy".to_string(), },
              "GitHub")
         }
+        "oauth-story-original" => {
+            (OAuth2User { id:       "1000001".to_string(),
+                          email:    None,
+                          username: "oauth-story-original".to_string(), },
+             "github")
+        }
+        "oauth-story-renamed" => {
+            (OAuth2User { id:       "1000001".to_string(),
+                          email:    None,
+                          username: "oauth-story-renamed".to_string(), },
+             "github")
+        }
+        "oauth-story-reused" => {
+            (OAuth2User { id:       "1000002".to_string(),
+                          email:    None,
+                          username: "oauth-story-original".to_string(), },
+             "github")
+        }
+        "oauth-story-legacy-first-login" => {
+            let mut conn = state.db.get_conn().map_err(error::Error::DbError)?;
+            let name = "oauth-story-legacy";
+            match Account::get(name, &mut conn) {
+                Ok(_) => {}
+                Err(diesel::result::Error::NotFound) => {
+                    Account::create(&NewAccount { name,
+                                                  email: "" },
+                                    &mut conn).map_err(error::Error::DieselError)?;
+                }
+                Err(err) => return Err(err.into()),
+            }
+            (OAuth2User { id:       "1000005".to_string(),
+                          email:    None,
+                          username: name.to_string(), },
+             "github")
+        }
+        "oauth-story-gitlab" => {
+            (OAuth2User { id:       "1000001".to_string(),
+                          email:    None,
+                          username: "oauth-story-gitlab".to_string(), },
+             "gitlab")
+        }
+        "oauth-story-okta" => {
+            (OAuth2User { id:       "1000001".to_string(),
+                          email:    None,
+                          username: "oauth-story-okta".to_string(), },
+             "okta")
+        }
+        "oauth-story-collision-owner" => {
+            (OAuth2User { id:       "1000003".to_string(),
+                          email:    None,
+                          username: "oauth-story-collision-old".to_string(), },
+             "github")
+        }
+        "oauth-story-collision-holder" => {
+            (OAuth2User { id:       "1000004".to_string(),
+                          email:    None,
+                          username: "oauth-story-collision-new".to_string(), },
+             "github")
+        }
+        "oauth-story-collision-rename" => {
+            (OAuth2User { id:       "1000003".to_string(),
+                          email:    None,
+                          username: "oauth-story-collision-new".to_string(), },
+             "github")
+        }
         user => {
             error!("Unexpected short circuit token {:?}", user);
             return Err(error::Error::System);
         }
     };
 
-    session_create_oauth(token, &user, provider, state)
+    let mut provider = provider.to_owned();
+    if matches!(token, "bobo" | "mystique" | "hank" | "wesker" | "lkennedy") {
+        let mut conn = state.db.get_conn().map_err(error::Error::DbError)?;
+        resolve_test_fixture_identity(&mut user, &mut provider, &mut conn)?;
+    }
+
+    session_create_oauth(token, &user, &provider, state)
+}
+
+fn resolve_test_fixture_identity(user: &mut OAuth2User,
+                                 provider: &mut String,
+                                 conn: &mut diesel::PgConnection)
+                                 -> error::Result<()> {
+    match Account::get(&user.username, conn) {
+        Ok(account) => {
+            if let (Some(stored_provider), Some(stored_id)) =
+                (account.provider, account.extern_id)
+            {
+                *provider = stored_provider;
+                user.id = stored_id;
+            }
+            Ok(())
+        }
+        Err(diesel::result::Error::NotFound) => Ok(()),
+        Err(err) => Err(err.into()),
+    }
+}
+
+#[cfg(test)]
+mod test_fixture_tests {
+    use super::*;
+    use diesel::Connection;
+
+    #[test]
+    fn fixed_test_user_reuses_legacy_or_bound_account() {
+        let url = match std::env::var("BUILDER_TEST_DATABASE_URL") {
+            Ok(url) => url,
+            Err(_) => return,
+        };
+        let mut conn = diesel::PgConnection::establish(&url).unwrap();
+        conn.test_transaction::<_, diesel::result::Error, _>(|conn| {
+            let name = format!("test_fixture_{}", uuid::Uuid::new_v4().simple());
+            let account = Account::create(&NewAccount { name: &name,
+                                                        email: "" },
+                                          conn)?;
+            let mut user = OAuth2User { id: "0".to_string(),
+                                        username: name.clone(),
+                                        email: None };
+            let mut provider = "GitHub".to_string();
+            resolve_test_fixture_identity(&mut user, &mut provider, conn).unwrap();
+            assert_eq!(user.id, "0");
+
+            let bound = Account::find_or_create_oauth(&NewAccount { name: &name,
+                                                                    email: "" },
+                                                       "github",
+                                                       "real-provider-id",
+                                                       conn)?;
+            assert_eq!(bound.id, account.id);
+            resolve_test_fixture_identity(&mut user, &mut provider, conn).unwrap();
+            assert_eq!(user.id, "real-provider-id");
+            assert_eq!(provider, "github");
+            Ok(())
+        });
+    }
 }
 
 fn encode_token(token: &originsrv::SessionToken) -> String {
