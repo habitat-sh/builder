@@ -1905,6 +1905,9 @@ types:
         put:
           description: |
             Promotes all packages from this channel into the `channel` query parameter.
+            A missing source channel returns 404 before creating a destination channel,
+            snapshot, or audit entry, regardless of `check` and `snapshot`.
+            An existing empty source channel is allowed and returns 200.
             With `check=true`, checks the resulting head-package and transitive-dependency
             closure before promoting. A conflict returns 409 and does not promote anything.
             `conflicts` retains the target -> origin/name -> idents format. `details` adds
@@ -1933,6 +1936,8 @@ types:
               description: Forbidden packages/Badly formed request for promotion
             '401':
               description: You are not authorized to request promotion for this origin
+            '404':
+              description: Source channel not found; no destination channel, snapshot, or audit entry was created
             '409':
               description: Compatibility check failed; no packages were promoted
               body:

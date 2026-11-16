@@ -2,6 +2,7 @@ const expect = require('chai').expect;
 const supertest = require('supertest');
 const request = supertest('http://localhost:9636/v1');
 const { appendDateRange } = require('./util');
+const { countGroupAuditEntries } = require('./helpers');
 const fs = require('fs');
 
 // packages.js's "Deleting packages" suite (which runs before this file, see api.js's require
@@ -954,6 +955,135 @@ describe('Channels API', function () {
         .expect(200)
         .end(function (err, res) {
           expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+  });
+
+  describe('Channel-to-Channel promotion source validation', function () {
+    it('rejects promotion from a nonexistent source channel', function (done) {
+      request.put('/depot/channels/neurosis/nonexistent-promote-source/pkgs/promote?channel=missing-source-target')
+        .set('Authorization', global.boboBearer)
+        .expect(404)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects promotion from a nonexistent source channel with check=true', function (done) {
+      request.put('/depot/channels/neurosis/nonexistent-promote-source/pkgs/promote?channel=missing-source-target-check&check=true')
+        .set('Authorization', global.boboBearer)
+        .expect(404)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects promotion from a nonexistent source channel with snapshot=true', function (done) {
+      request.put('/depot/channels/neurosis/nonexistent-promote-source/pkgs/promote?channel=missing-source-target-snapshot&snapshot=true')
+        .set('Authorization', global.boboBearer)
+        .expect(404)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('rejects promotion from a nonexistent source channel with check=true&snapshot=true', function (done) {
+      request.put('/depot/channels/neurosis/nonexistent-promote-source/pkgs/promote?channel=missing-source-target-check-snapshot&check=true&snapshot=true')
+        .set('Authorization', global.boboBearer)
+        .expect(404)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('does not create target or snapshot channels after a nonexistent source is rejected', function (done) {
+      request.get('/depot/channels/neurosis')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          const names = res.body.map((c) => c.name);
+          expect(names).to.not.include('nonexistent-promote-source');
+          expect(names.some((n) => n.startsWith('missing-source-target'))).to.equal(false);
+          done(err);
+        });
+    });
+
+    it('does not write promotion audit entries after a nonexistent source is rejected', function (done) {
+      const count = countGroupAuditEntries('neurosis', 'missing-source-target');
+      if (count === null) {
+        console.warn('psql unavailable; skipping audit_package_group check');
+        return this.skip();
+      }
+      expect(count).to.equal(0);
+      done();
+    });
+
+    it('creates an empty source channel', function (done) {
+      request.post('/depot/channels/neurosis/empty-promote-source')
+        .set('Authorization', global.boboBearer)
+        .expect(201)
+        .end(function (err, res) {
+          expect(res.body.name).to.equal('empty-promote-source');
+          done(err);
+        });
+    });
+
+    it('promotes from an existing empty source channel', function (done) {
+      request.put('/depot/channels/neurosis/empty-promote-source/pkgs/promote?channel=empty-promote-target')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('promotes from an existing empty source channel with check=true', function (done) {
+      request.put('/depot/channels/neurosis/empty-promote-source/pkgs/promote?channel=empty-promote-target-check&check=true')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.text).to.be.empty;
+          done(err);
+        });
+    });
+
+    it('snapshots an existing empty source channel with snapshot=true', function (done) {
+      request.put('/depot/channels/neurosis/empty-promote-source/pkgs/promote?channel=empty-promote-target-snapshot&snapshot=true')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.snapshot_channel).to.match(/^empty-promote-target-snapshot_SS_\d{8}T\d{6}\.\d{6}Z_[0-9a-f]{8}$/);
+          expect(res.body.packages).to.deep.equal({});
+          done(err);
+        });
+    });
+
+    it('snapshots an existing empty source channel with check=true&snapshot=true', function (done) {
+      request.put('/depot/channels/neurosis/empty-promote-source/pkgs/promote?channel=empty-promote-target-check-snapshot&check=true&snapshot=true')
+        .set('Authorization', global.boboBearer)
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.snapshot_channel).to.match(/^empty-promote-target-check-snapshot_SS_\d{8}T\d{6}\.\d{6}Z_[0-9a-f]{8}$/);
+          expect(res.body.packages).to.deep.equal({});
+          done(err);
+        });
+    });
+
+    it('promotes nothing into the target channel from an empty source', function (done) {
+      request.get('/depot/channels/neurosis/empty-promote-target/pkgs')
+        .type('application/json')
+        .accept('application/json')
+        .expect(200)
+        .end(function (err, res) {
+          expect(res.body.total_count).to.equal(0);
+          expect(res.body.data.length).to.equal(0);
           done(err);
         });
     });
