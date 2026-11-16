@@ -23,6 +23,7 @@ env_logger = "*"
 features = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
 lazy_static = "*"
+libc = "0.2"
 log = "*"
 memcache = "*"
 num_cpus = "*"

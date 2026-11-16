@@ -20,7 +20,12 @@ trusted provider ID source before enabling this login flow.
 
 With `auto_provision_account` enabled, Builder stores `PROVISIONED_ACCOUNT_ID`
 beside `HAB_AUTH_TOKEN` in the configured provisioning token directory. Keep
-that directory across API restarts. The account ID lets provisioning reuse the
+that directory across API restarts. It must be owned by the API service user
+and accessible only to that user (mode `0700`); the two files must be regular,
+service-owned files with no group or other access. Symlinks and hard links are
+rejected. With `BLDR_TOKEN_DIR` unset, Builder uses a dedicated
+`builder-api-provision` directory under the system temporary directory instead
+of the shared temporary directory itself. The account ID lets provisioning reuse the
 same row after an OAuth rename or token rotation. On upgrades without the ID
 file, a still-valid `HAB_AUTH_TOKEN` can recover the account ID. If both files
 are missing after the provisioned account has been renamed, restore the ID from

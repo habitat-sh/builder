@@ -380,7 +380,9 @@ pub struct ProvisionCfg {
 impl Default for ProvisionCfg {
     fn default() -> Self {
         let token_path = env::var("BLDR_TOKEN_DIR").map(PathBuf::from)
-                                                   .unwrap_or_else(|_| env::temp_dir());
+                                                   .unwrap_or_else(|_| {
+                                                       env::temp_dir().join("builder-api-provision")
+                                                   });
 
         ProvisionCfg { auto_provision_account: false,
                        username: "chef-platform".to_string(),

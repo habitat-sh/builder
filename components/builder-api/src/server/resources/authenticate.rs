@@ -43,9 +43,7 @@ impl Authenticate {
 // Route handlers - these functions can return any Responder trait
 //
 #[allow(clippy::needless_pass_by_value)]
-async fn authenticate(path: Path<String>,
-                      state: Data<AppState>)
-                      -> HttpResponse {
+async fn authenticate(path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let code = path.into_inner();
     debug!("authenticate called, code = {}", code);
 
@@ -64,9 +62,7 @@ async fn authenticate(path: Path<String>,
 
 // Internal - these functions should return Result<..>
 //
-async fn do_authenticate(code: &str,
-                         state: &AppState)
-                         -> Result<originsrv::Session> {
+async fn do_authenticate(code: &str, state: &AppState) -> Result<originsrv::Session> {
     if env::var_os("HAB_FUNC_TEST").is_some() {
         return session_create_short_circuit(code, state);
     }

@@ -2086,6 +2086,7 @@ dependencies = [
  "habitat_builder_db",
  "habitat_core",
  "lazy_static",
+ "libc",
  "log",
  "memcache",
  "num_cpus",

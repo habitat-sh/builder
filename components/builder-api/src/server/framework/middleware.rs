@@ -20,7 +20,8 @@ use futures::future::{ok,
                       Either,
                       Future};
 use oauth_client::types::OAuth2User;
-use std::env;
+use std::{convert::TryFrom,
+          env};
 
 lazy_static! {
     static ref SESSION_DURATION: u32 = 3 * 24 * 60 * 60;
@@ -65,7 +66,7 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
     }
 
     // Try to get session from cache first
-    if let Some(cached_session) = get_cached_session(token, state) {
+    if let Some(cached_session) = get_cached_session(token, state)? {
         return Ok(cached_session);
     }
 
@@ -84,18 +85,39 @@ fn handle_test_environment(token: &str,
     Ok(None)
 }
 
-fn get_cached_session(token: &str, state: &AppState) -> Option<originsrv::Session> {
-    let mut memcache = state.memcache.borrow_mut();
-    match memcache.get_session(token) {
-        Some(session) => {
+fn get_cached_session(token: &str, state: &AppState) -> error::Result<Option<originsrv::Session>> {
+    // Release the cache borrow before obtaining a database connection.
+    let cached = state.memcache.borrow_mut().get_session(token);
+    match cached {
+        Some(mut session) => {
             trace!("Session {} Cache Hit!", token);
-            Some(session)
+            if session.id() != BUILDER_ACCOUNT_ID {
+                let mut conn = state.db.get_conn().map_err(error::Error::DbError)?;
+                refresh_cached_session_account(&mut session, &mut conn)?;
+            }
+            Ok(Some(session))
         }
         None => {
             trace!("Session {} Cache Miss!", token);
-            None
+            Ok(None)
         }
     }
+}
+
+fn refresh_cached_session_account(session: &mut originsrv::Session,
+                                  conn: &mut diesel::PgConnection)
+                                  -> error::Result<()> {
+    let account_id = i64::try_from(session.id()).map_err(|_| error::Error::Authorization)?;
+    let account = Account::get_by_id(account_id, conn).map_err(|e| {
+                                                          trace!("Failed to refresh cached \
+                                                                  account {}: {:?}",
+                                                                 account_id,
+                                                                 e);
+                                                          error::Error::Authorization
+                                                      })?;
+    session.set_name(account.name);
+    session.set_email(account.email);
+    Ok(())
 }
 
 pub(crate) fn validate_token_and_create_session(token: &str,
@@ -392,8 +414,7 @@ fn resolve_test_fixture_identity(user: &mut OAuth2User,
                                  -> error::Result<()> {
     match Account::get(&user.username, conn) {
         Ok(account) => {
-            if let (Some(stored_provider), Some(stored_id)) =
-                (account.provider, account.extern_id)
+            if let (Some(stored_provider), Some(stored_id)) = (account.provider, account.extern_id)
             {
                 *provider = stored_provider;
                 user.id = stored_id;
@@ -418,28 +439,76 @@ mod test_fixture_tests {
         };
         let mut conn = diesel::PgConnection::establish(&url).unwrap();
         conn.test_transaction::<_, diesel::result::Error, _>(|conn| {
-            let name = format!("test_fixture_{}", uuid::Uuid::new_v4().simple());
-            let account = Account::create(&NewAccount { name: &name,
-                                                        email: "" },
-                                          conn)?;
-            let mut user = OAuth2User { id: "0".to_string(),
-                                        username: name.clone(),
-                                        email: None };
-            let mut provider = "GitHub".to_string();
-            resolve_test_fixture_identity(&mut user, &mut provider, conn).unwrap();
-            assert_eq!(user.id, "0");
+                let name = format!("test_fixture_{}", uuid::Uuid::new_v4().simple());
+                let account = Account::create(&NewAccount { name:  &name,
+                                                            email: "", },
+                                              conn)?;
+                let mut user = OAuth2User { id:       "0".to_string(),
+                                            username: name.clone(),
+                                            email:    None, };
+                let mut provider = "GitHub".to_string();
+                resolve_test_fixture_identity(&mut user, &mut provider, conn).unwrap();
+                assert_eq!(user.id, "0");
 
-            let bound = Account::find_or_create_oauth(&NewAccount { name: &name,
-                                                                    email: "" },
-                                                       "github",
-                                                       "real-provider-id",
-                                                       conn)?;
-            assert_eq!(bound.id, account.id);
-            resolve_test_fixture_identity(&mut user, &mut provider, conn).unwrap();
-            assert_eq!(user.id, "real-provider-id");
-            assert_eq!(provider, "github");
-            Ok(())
-        });
+                let bound = Account::find_or_create_oauth(&NewAccount { name:  &name,
+                                                                        email: "", },
+                                                          "github",
+                                                          "real-provider-id",
+                                                          conn)?;
+                assert_eq!(bound.id, account.id);
+                resolve_test_fixture_identity(&mut user, &mut provider, conn).unwrap();
+                assert_eq!(user.id, "real-provider-id");
+                assert_eq!(provider, "github");
+                Ok(())
+            });
+    }
+
+    #[test]
+    fn cached_session_uses_current_name_after_rename_and_displacement() {
+        let url = match std::env::var("BUILDER_TEST_DATABASE_URL") {
+            Ok(url) => url,
+            Err(_) => return,
+        };
+        let mut conn = diesel::PgConnection::establish(&url).unwrap();
+        conn.test_transaction::<_, diesel::result::Error, _>(|conn| {
+                let suffix = uuid::Uuid::new_v4().simple().to_string();
+                let old_name = format!("cached_{}_old", suffix);
+                let new_name = format!("cached_{}_new", suffix);
+                let original = Account::find_or_create_oauth(&NewAccount { name:  &old_name,
+                                                                           email: "owner@example.\
+                                                                                   com", },
+                                                             "github",
+                                                             "cached-owner",
+                                                             conn)?;
+                let mut cached = originsrv::Session::new();
+                cached.set_id(original.id as u64);
+                cached.set_name(old_name.clone());
+                cached.set_email("stale@example.com".to_string());
+
+                // A new provider ID takes the old name. The original account is
+                // moved to a reserved name without changing its ID or access.
+                let replacement = Account::find_or_create_oauth(&NewAccount { name:  &old_name,
+                                                                              email: "", },
+                                                                "github",
+                                                                "cached-replacement",
+                                                                conn)?;
+                assert_ne!(replacement.id, original.id);
+                refresh_cached_session_account(&mut cached, conn).unwrap();
+                assert_eq!(cached.id(), original.id as u64);
+                assert_ne!(cached.name(), old_name);
+                assert_eq!(cached.name(), Account::get_by_id(original.id, conn)?.name);
+                assert_eq!(cached.email(), "owner@example.com");
+
+                // The original owner then logs in under their new username.
+                Account::find_or_create_oauth(&NewAccount { name:  &new_name,
+                                                            email: "", },
+                                              "github",
+                                              "cached-owner",
+                                              conn)?;
+                refresh_cached_session_account(&mut cached, conn).unwrap();
+                assert_eq!(cached.name(), new_name);
+                Ok(())
+            });
     }
 }
 

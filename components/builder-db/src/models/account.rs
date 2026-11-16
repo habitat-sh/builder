@@ -233,21 +233,21 @@ mod oauth_tests {
         let token_value = format!("oauth-test-token-{}", suffix);
 
         conn.test_transaction::<_, diesel::result::Error, _>(|conn| {
-            let legacy = Account::create(&NewAccount { name: &old_name,
-                                                       email: "" },
+            let legacy = Account::create(&NewAccount { name:  &old_name,
+                                                       email: "", },
                                          conn)?;
-            let old = NewAccount { name: &old_name,
-                                   email: "" };
+            let old = NewAccount { name:  &old_name,
+                                   email: "", };
             let bound = Account::find_or_create_oauth(&old, "GitHub", "subject-a", conn)?;
             assert_eq!(bound.id, legacy.id);
             assert_eq!(bound.extern_id.as_deref(), Some("subject-a"));
             let visibility = PackageVisibility::Public;
             Origin::create(&NewOrigin { name: &origin_name,
                                         owner_id: bound.id,
-                                        default_package_visibility: &visibility },
+                                        default_package_visibility: &visibility, },
                            conn)?;
             let token = AccountToken::create(&NewAccountToken { account_id: bound.id,
-                                                                token: &token_value },
+                                                                token:      &token_value, },
                                              conn)?;
 
             // A different provider identity takes the username before the
@@ -258,66 +258,71 @@ mod oauth_tests {
             assert!(Origin::list(reused.id, conn)?.is_empty());
             assert!(AccountToken::list(reused.id as u64, conn)?.is_empty());
 
-            let renamed = Account::find_or_create_oauth(&NewAccount { name: &new_name,
-                                                                      email: "" },
-                                                         "GitHub",
-                                                         "subject-a",
-                                                         conn)?;
+            let renamed = Account::find_or_create_oauth(&NewAccount { name:  &new_name,
+                                                                      email: "", },
+                                                        "GitHub",
+                                                        "subject-a",
+                                                        conn)?;
             assert_eq!(renamed.id, legacy.id);
             assert_eq!(Account::get(&new_name, conn)?.id, legacy.id);
             assert_eq!(Origin::get(&origin_name, conn)?.owner_account, new_name);
-            assert_eq!(OriginMember::list(&origin_name, conn)?, vec![new_name.clone()]);
+            assert_eq!(OriginMember::list(&origin_name, conn)?,
+                       vec![new_name.clone()]);
             assert_eq!(Origin::list(legacy.id, conn)?.len(), 1);
             assert_eq!(AccountToken::list(legacy.id as u64, conn)?[0].id, token.id);
 
-            let gitlab = Account::find_or_create_oauth(&NewAccount { name: &format!("oauth_{}_gitlab", suffix),
-                                                                       email: "" },
-                                                        "GitLab",
-                                                        "subject-a",
-                                                        conn)?;
+            let gitlab = Account::find_or_create_oauth(&NewAccount { name:
+                                                                         &format!("oauth_{}_gitlab",
+                                                                                  suffix),
+                                                                     email: "", },
+                                                       "GitLab",
+                                                       "subject-a",
+                                                       conn)?;
             assert_ne!(gitlab.id, legacy.id);
 
             // An administrator can populate the verified provider identity
             // before rollout; the first login must reuse that account row.
-            let backfilled = Account::create(&NewAccount { name: &backfilled_name,
-                                                           email: "" },
+            let backfilled = Account::create(&NewAccount { name:  &backfilled_name,
+                                                           email: "", },
                                              conn)?;
             diesel::update(accounts::table.find(backfilled.id))
                 .set((accounts::provider.eq(Some("github")),
                       accounts::extern_id.eq(Some("backfilled-subject"))))
                 .execute(conn)?;
-            let first_login = Account::find_or_create_oauth(&NewAccount { name: &backfilled_rename,
-                                                                          email: "" },
-                                                             "github",
-                                                             "backfilled-subject",
-                                                             conn)?;
+            let first_login = Account::find_or_create_oauth(&NewAccount { name:  &backfilled_rename,
+                                                                          email: "", },
+                                                            "github",
+                                                            "backfilled-subject",
+                                                            conn)?;
             assert_eq!(first_login.id, backfilled.id);
             assert_eq!(Account::get(&backfilled_rename, conn)?.id, backfilled.id);
 
-            let stale = Account::create(&NewAccount { name: &collision_name,
-                                                      email: "" },
+            let stale = Account::create(&NewAccount { name:  &collision_name,
+                                                      email: "", },
                                         conn)?;
-            let moved = Account::find_or_create_oauth(&NewAccount { name: &collision_name,
-                                                                    email: "" },
-                                                       "GitHub",
-                                                       "subject-a",
-                                                       conn)?;
+            let moved = Account::find_or_create_oauth(&NewAccount { name:  &collision_name,
+                                                                    email: "", },
+                                                      "GitHub",
+                                                      "subject-a",
+                                                      conn)?;
             assert_eq!(moved.id, legacy.id);
             assert_ne!(Account::get_by_id(stale.id, conn)?.name, collision_name);
             assert_eq!(Account::get(&collision_name, conn)?.id, legacy.id);
 
-            let holder = Account::find_or_create_oauth(&NewAccount { name: &bound_collision_name,
-                                                                      email: "" },
-                                                         "GitHub",
-                                                         "subject-c",
-                                                         conn)?;
-            let moved_again = Account::find_or_create_oauth(&NewAccount { name: &bound_collision_name,
-                                                                           email: "" },
-                                                               "GitHub",
-                                                               "subject-a",
-                                                               conn)?;
+            let holder = Account::find_or_create_oauth(&NewAccount { name:  &bound_collision_name,
+                                                                     email: "", },
+                                                       "GitHub",
+                                                       "subject-c",
+                                                       conn)?;
+            let moved_again = Account::find_or_create_oauth(&NewAccount { name:
+                                                                              &bound_collision_name,
+                                                                          email: "", },
+                                                            "GitHub",
+                                                            "subject-a",
+                                                            conn)?;
             assert_eq!(moved_again.id, legacy.id);
-            assert_ne!(Account::get_by_id(holder.id, conn)?.name, bound_collision_name);
+            assert_ne!(Account::get_by_id(holder.id, conn)?.name,
+                       bound_collision_name);
             assert_eq!(Account::get(&bound_collision_name, conn)?.id, legacy.id);
             Ok(())
         });
