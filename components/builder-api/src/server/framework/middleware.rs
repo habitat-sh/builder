@@ -426,6 +426,11 @@ fn resolve_test_fixture_identity(user: &mut OAuth2User,
     }
 }
 
+fn encode_token(token: &originsrv::SessionToken) -> String {
+    let bytes = protocol::message::encode(token).unwrap(); // Unwrap is safe
+    habitat_core::base64::encode(bytes)
+}
+
 #[cfg(test)]
 mod test_fixture_tests {
     use super::*;
@@ -510,9 +515,4 @@ mod test_fixture_tests {
                 Ok(())
             });
     }
-}
-
-fn encode_token(token: &originsrv::SessionToken) -> String {
-    let bytes = protocol::message::encode(token).unwrap(); // Unwrap is safe
-    habitat_core::base64::encode(bytes)
 }

@@ -106,10 +106,34 @@ fn write_provision_file(path: &Path, contents: &str) -> Result<(), Error> {
                    .ok_or(Error::Authorization)?
                    .to_str()
                    .ok_or(Error::Authorization)?;
-    let mut file = open_provision_file(directory.as_raw_fd(), name, libc::O_WRONLY | libc::O_CREAT)?
-        .ok_or(Error::Authorization)?;
-    file.set_len(0).map_err(Error::IO)?;
-    file.write_all(contents.as_bytes()).map_err(Error::IO)
+    // Reject an unsafe destination before replacing it. The directory is
+    // private, so another user cannot change it between this check and rename.
+    open_provision_file(directory.as_raw_fd(), name, libc::O_RDONLY)?;
+
+    let temporary_name = format!(".{}.{}.tmp", name, uuid::Uuid::new_v4().simple());
+    let mut created = false;
+    let result = (|| {
+        let mut temporary = open_provision_file(directory.as_raw_fd(),
+                                                &temporary_name,
+                                                libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL)?
+            .ok_or(Error::Authorization)?;
+        created = true;
+        temporary.write_all(contents.as_bytes())
+                 .map_err(Error::IO)?;
+        temporary.sync_all().map_err(Error::IO)?;
+        let old_name = CString::new(temporary_name.as_str()).expect("temporary filename");
+        let new_name = CString::new(name).expect("provisioning filename");
+        let fd = directory.as_raw_fd();
+        if unsafe { libc::renameat(fd, old_name.as_ptr(), fd, new_name.as_ptr()) } != 0 {
+            return Err(Error::IO(io::Error::last_os_error()));
+        }
+        directory.sync_all().map_err(Error::IO)
+    })();
+    if result.is_err() && created {
+        let temporary_name = CString::new(temporary_name).expect("temporary filename");
+        unsafe { libc::unlinkat(directory.as_raw_fd(), temporary_name.as_ptr(), 0) };
+    }
+    result
 }
 
 /// This file is written only after provisioning selects an account. Its
@@ -442,8 +466,19 @@ mod tests {
                    Some("123".to_string()));
         let link = root.path().join("linked-id");
         fs::hard_link(&id_file, &link).unwrap();
-        assert!(read_provision_file(&id_file).is_err());
+        assert!(write_provision_file(&id_file, "456").is_err());
+        assert_eq!(fs::read_to_string(&id_file).unwrap(), "123");
         fs::remove_file(&link).unwrap();
+        let mut previous_file = File::open(&id_file).unwrap();
+        let previous_inode = fs::metadata(&id_file).unwrap().ino();
+        write_provision_file(&id_file, "456").unwrap();
+        let mut previous_contents = String::new();
+        previous_file.read_to_string(&mut previous_contents)
+                     .unwrap();
+        assert_eq!(previous_contents, "123");
+        assert_ne!(fs::metadata(&id_file).unwrap().ino(), previous_inode);
+        assert_eq!(read_provision_file(&id_file).unwrap(),
+                   Some("456".to_string()));
         write_provision_file(&token_file, "secret").unwrap();
         assert_eq!(fs::metadata(&token_file).unwrap().permissions().mode() & 0o777,
                    0o600);
