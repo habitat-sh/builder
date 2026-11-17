@@ -74,4 +74,20 @@ function setMemcachedValue(key, value) {
   });
 }
 
-module.exports = { getMemcachedValue, setMemcachedValue };
+// Counts audit_package_group rows (written by channel-to-channel promote/demote) for an origin
+// and channel-name prefix. /depot/events only reads audit_package, so it can't see these rows.
+// Returns null when psql or the database is unavailable so callers can skip instead of
+// aborting the whole --bail run. Arguments must be test-controlled literals.
+function countGroupAuditEntries(origin, channelPrefix) {
+  const sql = `SELECT count(*) FROM audit_package_group WHERE origin = '${origin}' ` +
+              `AND channel LIKE '${channelPrefix}%'`;
+  try {
+    const output = require('child_process').execFileSync('psql', ['builder', '-t', '-A', '-c', sql],
+                                                         { stdio: ['ignore', 'pipe', 'pipe'] });
+    return Number(output.toString().trim());
+  } catch (e) {
+    return null;
+  }
+}
+
+module.exports = { getMemcachedValue, setMemcachedValue, countGroupAuditEntries };

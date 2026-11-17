@@ -585,6 +585,8 @@ async fn promote_channel_packages(req: HttpRequest,
         // duration of the transaction.
         lock_channels(&origin, ch_source.as_str(), ch_target.as_str(), conn)?;
 
+        let source_channel_id = Channel::get(&origin, &ch_source, conn)?.id;
+
         #[rustfmt::skip]
         let target_channel = match Channel::get(&origin, &ch_target, conn) {
             Ok(channel) => channel,
@@ -608,32 +610,20 @@ async fn promote_channel_packages(req: HttpRequest,
             }
         };
 
-        // Resolve the source channel once and reuse its id for both the
-        // compatibility check's closure computation (if any) and the
-        // package listing below, instead of re-resolving it by name a
-        // second time.
-        let source_channel_id = Channel::get(&origin, &ch_source, conn).ok().map(|c| c.id);
-
         if check {
-            let mut channel_ids = vec![target_channel.id];
-            channel_ids.extend(source_channel_id);
+            let channel_ids = [target_channel.id, source_channel_id];
             let closure = helpers::channel_package_closure(&channel_ids, conn)?;
             let conflicts = find_conflicts(&by_target_from_entries(&closure));
             if !conflicts.is_empty() {
-                let source_ids: HashSet<i64> = match source_channel_id {
-                    Some(id) => Channel::list_all_packages_by_channel_id(id,
-                                                                          &PackageVisibility::all(),
-                                                                          conn)?.into_iter().collect(),
-                    None => HashSet::new(),
-                };
+                let source_ids: HashSet<i64> =
+                    Channel::list_all_packages_by_channel_id(source_channel_id,
+                                                             &PackageVisibility::all(),
+                                                             conn)?.into_iter().collect();
                 let target_ids: HashSet<i64> =
                     Channel::list_all_packages_by_channel_id(target_channel.id,
                                                              &PackageVisibility::all(),
                                                              conn)?.into_iter().collect();
-                let source_closure = match source_channel_id {
-                    Some(id) => helpers::channel_package_closure(&[id], conn)?,
-                    None => Vec::new(),
-                };
+                let source_closure = helpers::channel_package_closure(&[source_channel_id], conn)?;
                 let conflict_within_source =
                     !find_conflicts(&by_target_from_entries(&source_closure)).is_empty();
                 let details = conflict_details(&conflicts,
@@ -650,24 +640,21 @@ async fn promote_channel_packages(req: HttpRequest,
             }
         }
 
-        let pkg_ids: Vec<i64> = match source_channel_id {
-            // Resolve directly to the exact package ids that are actually
-            // members of the source channel (each id is already
-            // target-specific -- e.g. a linux and a windows build of the
-            // same ident are distinct rows/ids). Going through idents (which
-            // don't carry target) and re-resolving via Package::get_group
-            // would match *every* package row sharing that ident string
-            // across all targets, silently promoting target variants that
-            // were never actually in the source channel and were never
-            // accounted for by the check=true closure above.
-            // list_all_visible_packages_by_channel_id also excludes hidden
-            // packages, matching what Package::get_group has always
-            // filtered out.
-            Some(id) => Channel::list_all_visible_packages_by_channel_id(id,
-                                                                         &PackageVisibility::all(),
-                                                                         conn)?,
-            None => Vec::new(),
-        };
+        // Resolve directly to the exact package ids that are actually
+        // members of the source channel (each id is already
+        // target-specific -- e.g. a linux and a windows build of the
+        // same ident are distinct rows/ids). Going through idents (which
+        // don't carry target) and re-resolving via Package::get_group
+        // would match *every* package row sharing that ident string
+        // across all targets, silently promoting target variants that
+        // were never actually in the source channel and were never
+        // accounted for by the check=true closure above.
+        // list_all_visible_packages_by_channel_id also excludes hidden
+        // packages, matching what Package::get_group has always
+        // filtered out.
+        let pkg_ids = Channel::list_all_visible_packages_by_channel_id(source_channel_id,
+                                                                      &PackageVisibility::all(),
+                                                                      conn)?;
 
         debug!("Bulk promoting Pkg IDs: {:?}", pkg_ids);
         Channel::promote_packages(target_channel.id, &pkg_ids, conn)?;
