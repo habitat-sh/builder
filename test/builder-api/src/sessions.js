@@ -48,8 +48,14 @@ describe('Authenticate API', function() {
   describe('Provider account identity', function() {
     after(function() {
       if (process.env.preserve_data === 'true') return;
-      execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', 'builder',
-        '-f', path.join(__dirname, '../bin/cleanup-oauth-identity-fixtures.sql')]);
+      const args = ['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', 'builder',
+        '-f', path.join(__dirname, '../bin/cleanup-oauth-identity-fixtures.sql')];
+      try {
+        execFileSync('psql', args);
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        execFileSync('hab', ['pkg', 'exec', 'core/postgresql17-client', 'psql', '-U', 'hab', ...args]);
+      }
     });
 
     it('binds a same-name legacy account on its first OAuth login', async function() {
