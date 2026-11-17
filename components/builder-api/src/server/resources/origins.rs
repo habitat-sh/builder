@@ -514,24 +514,8 @@ async fn upload_origin_key(req: HttpRequest,
     // pkg upload optimistically uploads keys as well as packages, but the RBAC
     // changes only give 'members' and 'maintainers' upload permissions for
     // packages, not keys.
-    let session = match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Member)) {
-        Ok(session) => session,
-        Err(err) => return err.into(),
-    };
-
-    let key = match body.parse::<core_keys::PublicOriginSigningKey>() {
-        Ok(key) => key,
-        Err(e) => {
-            debug!("Invalid public key content: {}", e);
-            return HttpResponse::UnprocessableEntity().body("Invalid origin public key");
-        }
-    };
-    if let Err(message) = validate_uploaded_key(&origin,
-                                                &revision,
-                                                key.named_revision().name(),
-                                                key.named_revision().revision())
-    {
-        return HttpResponse::UnprocessableEntity().body(message);
+    if let Err(err) = authorize_session(&req, Some(&origin), Some(OriginMemberRole::Member)) {
+        return err.into();
     }
 
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
@@ -544,9 +528,9 @@ async fn upload_origin_key(req: HttpRequest,
     } else {
         // In this case we are checking if the user actually has permissions to write a
         // NEW key into the origin_public_keys data table
-        let account_id =
+        let session =
             match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
-                Ok(session) => session.id(),
+                Ok(session) => session,
                 Err(_) => {
                     debug!("Unable to upload origin public signing key due to lack of permissions");
                     let body = Bytes::from(format!("You do not have permissions to upload a new \
@@ -556,7 +540,21 @@ async fn upload_origin_key(req: HttpRequest,
                     return HttpResponse::with_body(StatusCode::FORBIDDEN, body);
                 }
             };
-        match save_public_origin_signing_key(account_id, &origin, &key, &mut conn) {
+        let key = match body.parse::<core_keys::PublicOriginSigningKey>() {
+            Ok(key) => key,
+            Err(e) => {
+                debug!("Invalid public key content: {}", e);
+                return HttpResponse::UnprocessableEntity().body("Invalid origin public key");
+            }
+        };
+        if let Err(message) = validate_uploaded_key(&origin,
+                                                    &revision,
+                                                    key.named_revision().name(),
+                                                    key.named_revision().revision())
+        {
+            return HttpResponse::UnprocessableEntity().body(message);
+        }
+        match save_public_origin_signing_key(session.id(), &origin, &key, &mut conn) {
             Ok(_) => {
                 origin_audit(&origin,
                              OriginOperation::KeyPublicUpload,

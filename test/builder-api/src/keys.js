@@ -50,6 +50,11 @@ describe('Keys API', function () {
         });
     });
 
+    it('returns 403 to a member uploading an empty new public key', function () {
+      return request.post('/depot/origins/neurosis/keys/20000101000000')
+        .set('Authorization', global.weskerBearer).expect(403);
+    });
+
     it('uploads the key', function (done) {
       request.post(`/depot/origins/neurosis/keys/${revision}`)
         .set('Authorization', global.boboBearer)
@@ -73,6 +78,11 @@ describe('Keys API', function () {
           expect(res.body).to.be.empty;
           done(err);
         });
+    });
+
+    it('returns 409 for malformed content at an existing revision', function () {
+      return request.post(`/depot/origins/neurosis/keys/${revision}`)
+        .set('Authorization', global.boboBearer).send('not a public key').expect(409);
     });
   });
 
