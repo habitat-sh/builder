@@ -1,5 +1,7 @@
 const expect = require('chai').expect;
 const supertest = require('supertest');
+const { execFileSync } = require('child_process');
+const path = require('path');
 const request = supertest('http://localhost:9636/v1');
 
 describe('Authenticate API', function() {
@@ -44,6 +46,12 @@ describe('Authenticate API', function() {
   });
 
   describe('Provider account identity', function() {
+    after(function() {
+      if (process.env.preserve_data === 'true') return;
+      execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-d', 'builder',
+        '-f', path.join(__dirname, '../bin/cleanup-oauth-identity-fixtures.sql')]);
+    });
+
     it('binds a same-name legacy account on its first OAuth login', async function() {
       const first = await request.get('/authenticate/oauth-identity-legacy-first-login').expect(200);
       const second = await request.get('/authenticate/oauth-identity-legacy-first-login').expect(200);

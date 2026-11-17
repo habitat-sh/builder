@@ -48,6 +48,10 @@ clean_test_artifacts() {
   done
 
   psql builder -q -c "$sql"
+
+  # OAuth identity tests create accounts with fixed provider IDs and a
+  # timestamped origin. This also removes leftovers from an interrupted run.
+  psql -X -v ON_ERROR_STOP=1 -q -d builder -f bin/cleanup-oauth-identity-fixtures.sql
 }
 
 wait_for_migrations() {
