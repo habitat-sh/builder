@@ -328,27 +328,27 @@ pub fn session_create_short_circuit(token: &str,
                           username: "lkennedy".to_string(), },
              "GitHub")
         }
-        "oauth-story-original" => {
+        "oauth-identity-original" => {
             (OAuth2User { id:       "1000001".to_string(),
                           email:    None,
-                          username: "oauth-story-original".to_string(), },
+                          username: "oauth-identity-original".to_string(), },
              "github")
         }
-        "oauth-story-renamed" => {
+        "oauth-identity-renamed" => {
             (OAuth2User { id:       "1000001".to_string(),
                           email:    None,
-                          username: "oauth-story-renamed".to_string(), },
+                          username: "oauth-identity-renamed".to_string(), },
              "github")
         }
-        "oauth-story-reused" => {
+        "oauth-identity-reused" => {
             (OAuth2User { id:       "1000002".to_string(),
                           email:    None,
-                          username: "oauth-story-original".to_string(), },
+                          username: "oauth-identity-original".to_string(), },
              "github")
         }
-        "oauth-story-legacy-first-login" => {
+        "oauth-identity-legacy-first-login" => {
             let mut conn = state.db.get_conn().map_err(error::Error::DbError)?;
-            let name = "oauth-story-legacy";
+            let name = "oauth-identity-legacy";
             match Account::get(name, &mut conn) {
                 Ok(_) => {}
                 Err(diesel::result::Error::NotFound) => {
@@ -363,34 +363,34 @@ pub fn session_create_short_circuit(token: &str,
                           username: name.to_string(), },
              "github")
         }
-        "oauth-story-gitlab" => {
+        "oauth-identity-gitlab" => {
             (OAuth2User { id:       "1000001".to_string(),
                           email:    None,
-                          username: "oauth-story-gitlab".to_string(), },
+                          username: "oauth-identity-gitlab".to_string(), },
              "gitlab")
         }
-        "oauth-story-okta" => {
+        "oauth-identity-okta" => {
             (OAuth2User { id:       "1000001".to_string(),
                           email:    None,
-                          username: "oauth-story-okta".to_string(), },
+                          username: "oauth-identity-okta".to_string(), },
              "okta")
         }
-        "oauth-story-collision-owner" => {
+        "oauth-identity-collision-owner" => {
             (OAuth2User { id:       "1000003".to_string(),
                           email:    None,
-                          username: "oauth-story-collision-old".to_string(), },
+                          username: "oauth-identity-collision-old".to_string(), },
              "github")
         }
-        "oauth-story-collision-holder" => {
+        "oauth-identity-collision-holder" => {
             (OAuth2User { id:       "1000004".to_string(),
                           email:    None,
-                          username: "oauth-story-collision-new".to_string(), },
+                          username: "oauth-identity-collision-new".to_string(), },
              "github")
         }
-        "oauth-story-collision-rename" => {
+        "oauth-identity-collision-rename" => {
             (OAuth2User { id:       "1000003".to_string(),
                           email:    None,
-                          username: "oauth-story-collision-new".to_string(), },
+                          username: "oauth-identity-collision-new".to_string(), },
              "github")
         }
         user => {
