@@ -239,6 +239,14 @@ impl OriginPrivateSigningKey {
                                                       .get_result(conn)
     }
 
+    pub fn delete(origin: &str, revision: &str, conn: &mut PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::delete(origin_secret_keys::table
+                           .filter(origin_secret_keys::origin.eq(origin))
+                           .filter(origin_secret_keys::revision.eq(revision)))
+        .execute(conn)
+    }
+
     pub fn update_key(id: i64,
                       body: &str,
                       key_rev: &str,

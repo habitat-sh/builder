@@ -255,7 +255,7 @@ describe('Working with packages', function () {
       });
     });
 
-    it('allows authenticated users to upload packages', function (done) {
+    it('verifies a package signed by a removed secret key using its retained public key', function (done) {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
         .set('Authorization', global.boboBearer)
         .set('Content-Length', file1.length)

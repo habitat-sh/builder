@@ -6,9 +6,31 @@ const fs = require('fs');
 const revision = '20171211220037';
 const pubFile = fs.readFileSync(__dirname + `/../fixtures/neurosis-${revision}.pub`, 'utf8');
 const secretFile = fs.readFileSync(__dirname + `/../fixtures/neurosis-${revision}.sig.key`, 'utf8');
+const otherOriginRevision = '20200205153202';
+const otherPublicFile = fs.readFileSync(__dirname + `/../fixtures/deletemeifyoucan-${otherOriginRevision}.pub`, 'utf8');
+const otherSecretFile = fs.readFileSync(__dirname + `/../fixtures/deletemeifyoucan-${otherOriginRevision}.sig.key`, 'utf8');
+const { execFileSync } = require('child_process');
+
+function keyAuditCount(operation, target) {
+  const sql = `SELECT count(*) FROM audit_origin WHERE origin = 'neurosis' ` +
+              `AND operation = '${operation}' AND target_object = '${target}' ` +
+              `AND requester_name = 'bobo'`;
+  return Number(execFileSync('psql', ['builder', '-t', '-A', '-c', sql]).toString().trim());
+}
 
 describe('Keys API', function () {
   describe('Uploading public keys', function () {
+    it('rejects a public key for another origin', async function () {
+      const res = await request.post(`/depot/origins/neurosis/keys/${otherOriginRevision}`)
+        .set('Authorization', global.boboBearer).send(otherPublicFile).expect(422);
+      expect(res.text).to.contain('Key name does not match');
+    });
+
+    it('rejects a public key whose revision differs from the path', async function () {
+      const res = await request.post('/depot/origins/neurosis/keys/20000101000000')
+        .set('Authorization', global.boboBearer).send(pubFile).expect(422);
+      expect(res.text).to.contain('Key revision does not match');
+    });
     it('requires authentication', function (done) {
       request.post(`/depot/origins/neurosis/keys/${revision}`)
         .expect(401)
@@ -75,6 +97,17 @@ describe('Keys API', function () {
   });
 
   describe('Uploading secret keys', function () {
+    it('rejects a secret key for another origin', async function () {
+      const res = await request.post(`/depot/origins/neurosis/secret_keys/${otherOriginRevision}`)
+        .set('Authorization', global.boboBearer).send(otherSecretFile).expect(422);
+      expect(res.text).to.contain('Key name does not match');
+    });
+
+    it('rejects a secret key whose revision differs from the path', async function () {
+      const res = await request.post('/depot/origins/neurosis/secret_keys/20000101000000')
+        .set('Authorization', global.boboBearer).send(secretFile).expect(422);
+      expect(res.text).to.contain('Key revision does not match');
+    });
     it('requires authentication', function (done) {
       request.post(`/depot/origins/neurosis/secret_keys/${revision}`)
         .expect(401)
@@ -238,6 +271,51 @@ describe('Keys API', function () {
           expect(res.body[1].location).to.equal(`/origins/neurosis/keys/${revision}`);
           done(err);
         });
+    });
+  });
+
+  describe('Removing secret signing keys', function () {
+    let generatedRevision;
+
+    it('records key creation and uploads with the actor', function () {
+      return request.get('/depot/origins/neurosis/keys').expect(200).then(res => {
+        generatedRevision = res.body[0].revision;
+        expect(keyAuditCount('key_public_upload', `neurosis-${revision}`)).to.equal(1);
+        expect(keyAuditCount('key_secret_upload', `neurosis-${revision}`)).to.equal(1);
+        expect(keyAuditCount('key_create', `neurosis-${generatedRevision}`)).to.equal(1);
+      });
+    });
+
+    it('prevents a non-owner from deleting a key', function () {
+      return request.delete(`/depot/origins/neurosis/secret_keys/${generatedRevision}`)
+        .set('Authorization', global.weskerBearer).expect(403);
+    });
+
+    it('restores the previous key after deleting the current key', async function () {
+      await request.delete(`/depot/origins/neurosis/secret_keys/${generatedRevision}`)
+        .set('Authorization', global.boboBearer).expect(204);
+      const latest = await request.get('/depot/origins/neurosis/secret_keys/latest')
+        .set('Authorization', global.boboBearer).expect(200);
+      expect(latest.text).to.equal(secretFile);
+      const origin = await request.get('/depot/origins/neurosis').expect(200);
+      expect(origin.body.private_key_name).to.equal(`neurosis-${revision}`);
+      await request.get(`/depot/origins/neurosis/keys/${generatedRevision}`).expect(200);
+      expect(keyAuditCount('key_secret_delete', `neurosis-${generatedRevision}`)).to.equal(1);
+    });
+
+    it('returns 404 for an absent secret key revision', function () {
+      return request.delete(`/depot/origins/neurosis/secret_keys/${generatedRevision}`)
+        .set('Authorization', global.boboBearer).expect(404);
+    });
+
+    it('retains the public key when the previous secret key is removed', async function () {
+      await request.delete(`/depot/origins/neurosis/secret_keys/${revision}`)
+        .set('Authorization', global.boboBearer).expect(204);
+      await request.get('/depot/origins/neurosis/secret_keys/latest')
+        .set('Authorization', global.boboBearer).expect(404);
+      const publicKey = await request.get(`/depot/origins/neurosis/keys/${revision}`).expect(200);
+      expect(publicKey.text).to.equal(pubFile);
+      expect(keyAuditCount('key_secret_delete', `neurosis-${revision}`)).to.equal(1);
     });
   });
 });

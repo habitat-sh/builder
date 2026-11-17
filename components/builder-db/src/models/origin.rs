@@ -161,6 +161,10 @@ pub enum OriginOperation {
     OriginCreate,
     OriginDelete,
     OwnerTransfer,
+    KeyCreate,
+    KeyPublicUpload,
+    KeySecretUpload,
+    KeySecretDelete,
 }
 
 #[derive(Debug, Serialize, Deserialize, Insertable)]

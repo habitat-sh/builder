@@ -1137,7 +1137,7 @@ types:
           securedBy:
             - oauth_2_0
         post:
-          description: Upload a new key revision for an origin
+          description: Upload a public key whose embedded origin and revision match the path
           responses:
             '201':
               description: Key successfully uploaded
@@ -1146,7 +1146,7 @@ types:
             '409':
               description: Key already exists in origin
             '422':
-              description: Invalid key content
+              description: Invalid key content, origin name, or revision
             '500':
               description: Internal server error
           body:
@@ -1239,14 +1239,29 @@ types:
             description: Secret key already exists in origin
     '/secret_keys/{revision}':
       post:
-        description: Upload origin secret key
+        description: Upload an origin secret key whose embedded origin and revision match the path. Requires origin administrator access.
         responses:
           '201':
             description: Origin secret key uploaded
           '401':
             description: Unauthorized
           '422':
-            description: Invalid secret key content
+            description: Invalid secret key content, origin name, or revision
+          '500':
+            description: Internal server error
+        securedBy:
+          - oauth_2_0
+      delete:
+        description: Remove one secret signing key revision. Requires the origin owner. Public keys are retained for package verification.
+        responses:
+          '204':
+            description: Secret signing key removed
+          '401':
+            description: Unauthorized
+          '403':
+            description: Authenticated user is not the origin owner
+          '404':
+            description: Secret signing key revision not found
           '500':
             description: Internal server error
         securedBy:
