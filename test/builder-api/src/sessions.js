@@ -54,18 +54,28 @@ describe('Authenticate API', function() {
   });
 
   describe('Provider account identity', function() {
-    async function createOrigin(bearer) {
+    before(async function() {
+      const inviter = await request.get('/authenticate/oauth-identity-inviter').expect(200);
+      inviterBearer = `Bearer ${inviter.body.token}`;
+    });
+
+    let originCount = 0;
+    let inviterBearer;
+
+    // Fixture origins belong to a dedicated account so they do not change the
+    // origin lists asserted by other suites.
+    async function createOrigin(bearer = inviterBearer) {
       const response = await request.post('/depot/origins')
         .set('Authorization', bearer)
-        .send({ name: `oauthidentity${Date.now()}` })
+        .send({ name: `oauthidentity${Date.now()}${originCount++}` })
         .expect(201);
       return response.body;
     }
 
     it('binds a same-name legacy account on its first OAuth login', async function() {
-      const origin = await createOrigin(global.boboBearer);
+      const origin = await createOrigin();
       const invitation = await request.post(`/depot/origins/${origin.name}/users/oauth-identity-legacy/invitations`)
-        .set('Authorization', global.boboBearer).expect(201);
+        .set('Authorization', inviterBearer).expect(201);
       expect(invitation.body.account_id).to.equal(fixtures.legacy);
 
       const first = await request.get('/authenticate/oauth-identity-legacy-first-login').expect(200);
@@ -84,16 +94,16 @@ describe('Authenticate API', function() {
     });
 
     it('reuses an independently backfilled account on its first renamed login', async function() {
-      const origin = await createOrigin(global.boboBearer);
+      const origin = await createOrigin();
       const invitation = await request.post(`/depot/origins/${origin.name}/users/oauth-identity-backfilled/invitations`)
-        .set('Authorization', global.boboBearer).expect(201);
+        .set('Authorization', inviterBearer).expect(201);
       expect(invitation.body.account_id).to.equal(fixtures.backfilled);
 
       const login = await request.get('/authenticate/oauth-identity-backfilled').expect(200);
       expect(login.body.id).to.equal(fixtures.backfilled);
       expect(login.body.name).to.equal('oauth-identity-backfilled-renamed');
       const invitations = await request.get(`/depot/origins/${origin.name}/invitations`)
-        .set('Authorization', global.boboBearer).expect(200);
+        .set('Authorization', inviterBearer).expect(200);
       expect(invitations.body.invitations[0].id).to.equal(invitation.body.id);
       expect(invitations.body.invitations[0].account_name).to.equal(login.body.name);
     });
@@ -102,9 +112,9 @@ describe('Authenticate API', function() {
       const original = await request.get('/authenticate/oauth-identity-original').expect(200);
       const originalBearer = `Bearer ${original.body.token}`;
       const origin = await createOrigin(originalBearer);
-      const membershipOrigin = await createOrigin(global.boboBearer);
+      const membershipOrigin = await createOrigin();
       const invitation = await request.post(`/depot/origins/${membershipOrigin.name}/users/oauth-identity-original/invitations`)
-        .set('Authorization', global.boboBearer).expect(201);
+        .set('Authorization', inviterBearer).expect(201);
       await request.put(`/depot/origins/${membershipOrigin.name}/invitations/${invitation.body.id}`)
         .set('Authorization', originalBearer).expect(204);
       const token = await request.post('/profile/access-tokens')
@@ -149,7 +159,7 @@ describe('Authenticate API', function() {
       const members = await request.get(`/depot/origins/${origin.name}/users`)
         .set('Authorization', renamedBearer).expect(200);
       await request.get(`/depot/origins/${membershipOrigin.name}/users/${renamed.body.name}/role`)
-        .set('Authorization', global.boboBearer).expect(200);
+        .set('Authorization', inviterBearer).expect(200);
       const tokens = await request.get('/profile/access-tokens')
         .set('Authorization', renamedBearer).expect(200);
 
@@ -187,18 +197,18 @@ describe('Authenticate API', function() {
     it('moves a conflicting bound account name without swapping identities', async function() {
       const owner = await request.get('/authenticate/oauth-identity-collision-owner').expect(200);
       const holder = await request.get('/authenticate/oauth-identity-collision-holder').expect(200);
-      const origin = await createOrigin(global.boboBearer);
+      const origin = await createOrigin();
       const ownerInvite = await request.post(`/depot/origins/${origin.name}/users/${owner.body.name}/invitations`)
-        .set('Authorization', global.boboBearer).expect(201);
+        .set('Authorization', inviterBearer).expect(201);
       const holderInvite = await request.post(`/depot/origins/${origin.name}/users/${holder.body.name}/invitations`)
-        .set('Authorization', global.boboBearer).expect(201);
+        .set('Authorization', inviterBearer).expect(201);
       const renamed = await request.get('/authenticate/oauth-identity-collision-rename').expect(200);
       const ownerBearer = `Bearer ${owner.body.token}`;
       const holderBearer = `Bearer ${holder.body.token}`;
       const ownerAgain = await request.get('/profile').set('Authorization', ownerBearer).expect(200);
       const holderAgain = await request.get('/profile').set('Authorization', holderBearer).expect(200);
       const invitations = await request.get(`/depot/origins/${origin.name}/invitations`)
-        .set('Authorization', global.boboBearer).expect(200);
+        .set('Authorization', inviterBearer).expect(200);
 
       expect(renamed.body.id).to.equal(owner.body.id);
       expect(renamed.body.name).to.equal('oauth-identity-collision-new');
@@ -220,9 +230,9 @@ describe('Authenticate API', function() {
 
     it('moves a conflicting legacy row without binding it to the renamed identity', async function() {
       const owner = await request.get('/authenticate/oauth-identity-collision-owner').expect(200);
-      const origin = await createOrigin(global.boboBearer);
+      const origin = await createOrigin();
       const invitation = await request.post(`/depot/origins/${origin.name}/users/oauth-identity-collision-legacy/invitations`)
-        .set('Authorization', global.boboBearer).expect(201);
+        .set('Authorization', inviterBearer).expect(201);
       expect(invitation.body.account_id).to.equal(fixtures.collision);
 
       const renamed = await request.get('/authenticate/oauth-identity-collision-legacy').expect(200);
@@ -230,7 +240,7 @@ describe('Authenticate API', function() {
       expect(renamed.body.id).to.not.equal(fixtures.collision);
       expect(renamed.body.name).to.equal('oauth-identity-collision-legacy');
       const invitations = await request.get(`/depot/origins/${origin.name}/invitations`)
-        .set('Authorization', global.boboBearer).expect(200);
+        .set('Authorization', inviterBearer).expect(200);
       expect(invitations.body.invitations[0].id).to.equal(invitation.body.id);
       expect(invitations.body.invitations[0].account_id).to.equal(fixtures.collision);
       expect(invitations.body.invitations[0].account_name).to.match(/^__renamed_account_/);

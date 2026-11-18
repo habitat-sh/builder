@@ -31,7 +31,7 @@ cat <<EOT > /hab/user/builder-api/config/user.toml
 log_level = "debug,tokio_core=error,tokio_reactor=error,zmq=error,hyper=error"
 
 [api]
-allowed_users_for_origin_create = ['bobo', 'mystique', 'wesker', 'lkennedy', 'oauth-identity-original']
+allowed_users_for_origin_create = ['bobo', 'mystique', 'wesker', 'lkennedy', 'oauth-identity-original', 'oauth-identity-inviter']
 features_enabled = ""
 
 [http]

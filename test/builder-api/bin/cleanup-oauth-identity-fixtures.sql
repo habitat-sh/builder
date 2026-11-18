@@ -7,7 +7,7 @@ CREATE TEMP TABLE oauth_identity_fixture_accounts ON COMMIT DROP AS
 SELECT id FROM accounts
 WHERE name LIKE 'oauth-identity-%'
    OR email = 'oauth-identity-collision-legacy@example.com'
-   OR (provider = 'github' AND extern_id IN ('1000001', '1000002', '1000003', '1000004', '1000005', '1000006'))
+   OR (provider = 'github' AND extern_id IN ('1000001', '1000002', '1000003', '1000004', '1000005', '1000006', '1000007'))
    OR (provider IN ('gitlab', 'okta') AND extern_id = '1000001');
 
 CREATE TEMP TABLE oauth_identity_fixture_origins ON COMMIT DROP AS

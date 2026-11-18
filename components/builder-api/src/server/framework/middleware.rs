@@ -94,7 +94,8 @@ fn handle_test_environment(token: &str,
                    | "oauth-identity-collision-holder"
                    | "oauth-identity-collision-rename"
                    | "oauth-identity-collision-legacy"
-                   | "oauth-identity-backfilled")
+                   | "oauth-identity-backfilled"
+                   | "oauth-identity-inviter")
     {
         debug!("HAB_FUNC_TEST: {:?}; calling session_create_short_circuit",
                env::var_os("HAB_FUNC_TEST"));
@@ -374,6 +375,12 @@ pub fn session_create_short_circuit(token: &str,
             (OAuth2User { id:       "1000006".to_string(),
                           email:    None,
                           username: "oauth-identity-backfilled-renamed".to_string(), },
+             "github")
+        }
+        "oauth-identity-inviter" => {
+            (OAuth2User { id:       "1000007".to_string(),
+                          email:    None,
+                          username: "oauth-identity-inviter".to_string(), },
              "github")
         }
         "oauth-identity-gitlab" => {
