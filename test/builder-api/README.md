@@ -82,3 +82,17 @@ $ HAB_STUDIO_SUP=false hab studio enter
 Use `test.sh` when rerunning the OAuth identity tests against the same database.
 It resets their accounts and origins before the tests; running `npm run mocha`
 directly does not reset those fixtures.
+
+Origin signing key behavior (validation, removal, audit) is tested through the
+API in `src/keys.js`. Its audit checks query `audit_origin` with the Studio's
+`psql` function and fail if the query cannot run.
+
+The key rotation database test in `components/builder-db/src/models/keys.rs` is
+ignored by default. In a disposable Studio with Builder running and migrated:
+
+```shell
+cargo test -p habitat_builder_db --lib deleting_the_current_secret_key_makes_the_previous_key_current -- --ignored
+```
+
+It reads the datastore settings from `/hab/svc/builder-api/config/config.toml`
+and rolls back its fixtures in a test transaction.
