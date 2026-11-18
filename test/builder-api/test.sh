@@ -79,6 +79,9 @@ wait_for_migrations
 # start with a clean slate
 clean_test_artifacts
 
+export BUILDER_OAUTH_IDENTITY_FIXTURES
+BUILDER_OAUTH_IDENTITY_FIXTURES=$(psql -X -v ON_ERROR_STOP=1 -A -t -q -d builder -f bin/setup-oauth-identity-fixtures.sql)
+
 if ! command -v npm >/dev/null 2>&1; then
   hab pkg install core/node -b
 fi

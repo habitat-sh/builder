@@ -312,12 +312,9 @@ mod tests {
     use habitat_core::crypto::keys::generate_builder_encryption_key;
 
     #[test]
+    #[ignore = "requires a running Studio with a migrated disposable database"]
     fn restart_uses_provisioned_token_after_oauth_rename() {
-        let url = match std::env::var("BUILDER_TEST_DATABASE_URL") {
-            Ok(url) => url,
-            Err(_) => return,
-        };
-        let mut conn = PgConnection::establish(&url).unwrap();
+        let mut conn = habitat_builder_db::test::studio_connection();
         let directory = tempfile::tempdir().unwrap();
         let cache = KeyCache::new(directory.path());
         cache.setup().unwrap();

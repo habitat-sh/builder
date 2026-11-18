@@ -4,6 +4,32 @@ use std::sync::{atomic::AtomicUsize,
 pub static INIT_TEMPLATE: Once = Once::new();
 pub static TEST_COUNT: AtomicUsize = AtomicUsize::new(0);
 
+/// Connect to the migrated Studio database for transactional tests.
+/// Callers must roll back their fixtures with `test_transaction`.
+pub fn studio_connection() -> diesel::PgConnection {
+    use builder_core::config::ConfigFile;
+    use diesel::Connection;
+
+    #[derive(Deserialize)]
+    struct StudioConfig {
+        datastore: crate::config::DataStoreCfg,
+    }
+
+    impl ConfigFile for StudioConfig {
+        type Error = builder_core::Error;
+    }
+
+    let config =
+        StudioConfig::from_file("/hab/svc/builder-api/config/config.toml").unwrap_or_else(|_| {
+            panic!("Cannot read Studio datastore configuration. Start Builder in the Studio and \
+                    wait for migrations to finish.")
+        });
+    diesel::PgConnection::establish(&config.datastore.to_string()).unwrap_or_else(|_| {
+        panic!("Cannot connect to the test database. Check the Studio datastore configuration and \
+                ensure the datastore is running.")
+    })
+}
+
 pub mod postgres {
     use std::{path::PathBuf,
               process::{Child,

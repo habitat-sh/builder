@@ -2,10 +2,12 @@ BEGIN;
 
 -- Find fixtures by their fixed OAuth subjects as well as their original names:
 -- a displaced account may now have a __renamed_account_<id> name.
+-- The email marker tracks the displaced legacy fixture, which has no subject.
 CREATE TEMP TABLE oauth_identity_fixture_accounts ON COMMIT DROP AS
 SELECT id FROM accounts
 WHERE name LIKE 'oauth-identity-%'
-   OR (provider = 'github' AND extern_id IN ('1000001', '1000002', '1000003', '1000004', '1000005'))
+   OR email = 'oauth-identity-collision-legacy@example.com'
+   OR (provider = 'github' AND extern_id IN ('1000001', '1000002', '1000003', '1000004', '1000005', '1000006'))
    OR (provider IN ('gitlab', 'okta') AND extern_id = '1000001');
 
 CREATE TEMP TABLE oauth_identity_fixture_origins ON COMMIT DROP AS

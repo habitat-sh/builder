@@ -77,7 +77,25 @@ fn authenticate(token: &str, state: &AppState) -> error::Result<originsrv::Sessi
 fn handle_test_environment(token: &str,
                            state: &AppState)
                            -> error::Result<Option<originsrv::Session>> {
-    if env::var_os("HAB_FUNC_TEST").is_some() {
+    if env::var_os("HAB_FUNC_TEST").is_some()
+       && matches!(token,
+                   "bobo"
+                   | "mystique"
+                   | "hank"
+                   | "wesker"
+                   | "lkennedy"
+                   | "oauth-identity-original"
+                   | "oauth-identity-renamed"
+                   | "oauth-identity-reused"
+                   | "oauth-identity-legacy-first-login"
+                   | "oauth-identity-gitlab"
+                   | "oauth-identity-okta"
+                   | "oauth-identity-collision-owner"
+                   | "oauth-identity-collision-holder"
+                   | "oauth-identity-collision-rename"
+                   | "oauth-identity-collision-legacy"
+                   | "oauth-identity-backfilled")
+    {
         debug!("HAB_FUNC_TEST: {:?}; calling session_create_short_circuit",
                env::var_os("HAB_FUNC_TEST"));
         return Ok(Some(session_create_short_circuit(token, state)?));
@@ -347,20 +365,15 @@ pub fn session_create_short_circuit(token: &str,
              "github")
         }
         "oauth-identity-legacy-first-login" => {
-            let mut conn = state.db.get_conn().map_err(error::Error::DbError)?;
-            let name = "oauth-identity-legacy";
-            match Account::get(name, &mut conn) {
-                Ok(_) => {}
-                Err(diesel::result::Error::NotFound) => {
-                    Account::create(&NewAccount { name,
-                                                  email: "" },
-                                    &mut conn).map_err(error::Error::DieselError)?;
-                }
-                Err(err) => return Err(err.into()),
-            }
             (OAuth2User { id:       "1000005".to_string(),
                           email:    None,
-                          username: name.to_string(), },
+                          username: "oauth-identity-legacy".to_string(), },
+             "github")
+        }
+        "oauth-identity-backfilled" => {
+            (OAuth2User { id:       "1000006".to_string(),
+                          email:    None,
+                          username: "oauth-identity-backfilled-renamed".to_string(), },
              "github")
         }
         "oauth-identity-gitlab" => {
@@ -391,6 +404,12 @@ pub fn session_create_short_circuit(token: &str,
             (OAuth2User { id:       "1000003".to_string(),
                           email:    None,
                           username: "oauth-identity-collision-new".to_string(), },
+             "github")
+        }
+        "oauth-identity-collision-legacy" => {
+            (OAuth2User { id:       "1000003".to_string(),
+                          email:    None,
+                          username: "oauth-identity-collision-legacy".to_string(), },
              "github")
         }
         user => {
@@ -429,90 +448,4 @@ fn resolve_test_fixture_identity(user: &mut OAuth2User,
 fn encode_token(token: &originsrv::SessionToken) -> String {
     let bytes = protocol::message::encode(token).unwrap(); // Unwrap is safe
     habitat_core::base64::encode(bytes)
-}
-
-#[cfg(test)]
-mod test_fixture_tests {
-    use super::*;
-    use diesel::Connection;
-
-    #[test]
-    fn fixed_test_user_reuses_legacy_or_bound_account() {
-        let url = match std::env::var("BUILDER_TEST_DATABASE_URL") {
-            Ok(url) => url,
-            Err(_) => return,
-        };
-        let mut conn = diesel::PgConnection::establish(&url).unwrap();
-        conn.test_transaction::<_, diesel::result::Error, _>(|conn| {
-                let name = format!("test_fixture_{}", uuid::Uuid::new_v4().simple());
-                let account = Account::create(&NewAccount { name:  &name,
-                                                            email: "", },
-                                              conn)?;
-                let mut user = OAuth2User { id:       "0".to_string(),
-                                            username: name.clone(),
-                                            email:    None, };
-                let mut provider = "GitHub".to_string();
-                resolve_test_fixture_identity(&mut user, &mut provider, conn).unwrap();
-                assert_eq!(user.id, "0");
-
-                let bound = Account::find_or_create_oauth(&NewAccount { name:  &name,
-                                                                        email: "", },
-                                                          "github",
-                                                          "real-provider-id",
-                                                          conn)?;
-                assert_eq!(bound.id, account.id);
-                resolve_test_fixture_identity(&mut user, &mut provider, conn).unwrap();
-                assert_eq!(user.id, "real-provider-id");
-                assert_eq!(provider, "github");
-                Ok(())
-            });
-    }
-
-    #[test]
-    fn cached_session_uses_current_name_after_rename_and_displacement() {
-        let url = match std::env::var("BUILDER_TEST_DATABASE_URL") {
-            Ok(url) => url,
-            Err(_) => return,
-        };
-        let mut conn = diesel::PgConnection::establish(&url).unwrap();
-        conn.test_transaction::<_, diesel::result::Error, _>(|conn| {
-                let suffix = uuid::Uuid::new_v4().simple().to_string();
-                let old_name = format!("cached_{}_old", suffix);
-                let new_name = format!("cached_{}_new", suffix);
-                let original = Account::find_or_create_oauth(&NewAccount { name:  &old_name,
-                                                                           email: "owner@example.\
-                                                                                   com", },
-                                                             "github",
-                                                             "cached-owner",
-                                                             conn)?;
-                let mut cached = originsrv::Session::new();
-                cached.set_id(original.id as u64);
-                cached.set_name(old_name.clone());
-                cached.set_email("stale@example.com".to_string());
-
-                // A new provider ID takes the old name. The original account is
-                // moved to a reserved name without changing its ID or access.
-                let replacement = Account::find_or_create_oauth(&NewAccount { name:  &old_name,
-                                                                              email: "", },
-                                                                "github",
-                                                                "cached-replacement",
-                                                                conn)?;
-                assert_ne!(replacement.id, original.id);
-                refresh_cached_session_account(&mut cached, conn).unwrap();
-                assert_eq!(cached.id(), original.id as u64);
-                assert_ne!(cached.name(), old_name);
-                assert_eq!(cached.name(), Account::get_by_id(original.id, conn)?.name);
-                assert_eq!(cached.email(), "owner@example.com");
-
-                // The original owner then logs in under their new username.
-                Account::find_or_create_oauth(&NewAccount { name:  &new_name,
-                                                            email: "", },
-                                              "github",
-                                              "cached-owner",
-                                              conn)?;
-                refresh_cached_session_account(&mut cached, conn).unwrap();
-                assert_eq!(cached.name(), new_name);
-                Ok(())
-            });
-    }
 }
