@@ -2086,7 +2086,6 @@ dependencies = [
  "habitat_builder_db",
  "habitat_core",
  "lazy_static",
- "libc",
  "log",
  "memcache",
  "num_cpus",
@@ -2102,7 +2101,6 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "sha2 0.11.0",
- "tempfile",
  "tokio",
  "uuid",
 ]

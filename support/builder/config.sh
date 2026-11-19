@@ -37,6 +37,14 @@ features_enabled = ""
 [http]
 handler_count = 15
 
+# The OAuth identity tests verify that OAuth logins cannot take over this account.
+[provision]
+auto_provision_account = true
+username = "oauth-identity-service"
+email = "oauth-identity-service@example.com"
+origins = []
+channels = []
+
 [oauth]
 provider = "$OAUTH_PROVIDER"
 token_url = "$OAUTH_TOKEN_URL"

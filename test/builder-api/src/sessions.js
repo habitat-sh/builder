@@ -228,6 +228,22 @@ describe('Authenticate API', function() {
         .set('Authorization', ownerBearer).expect(204);
     });
 
+    it('does not bind or displace the provisioned service account', async function() {
+      const origin = await createOrigin();
+      const invite = () => request.post(`/depot/origins/${origin.name}/users/oauth-identity-service/invitations`)
+        .set('Authorization', inviterBearer);
+      const before = await invite().expect(201);
+      expect(before.body.account_id).to.equal(fixtures.service);
+
+      await request.get('/authenticate/oauth-identity-service').expect(409);
+
+      // The name still belongs to the service account, which kept its legacy identity.
+      const invitations = await request.get(`/depot/origins/${origin.name}/invitations`)
+        .set('Authorization', inviterBearer).expect(200);
+      expect(invitations.body.invitations[0].account_id).to.equal(fixtures.service);
+      expect(invitations.body.invitations[0].account_name).to.equal('oauth-identity-service');
+    });
+
     it('moves a conflicting legacy row without binding it to the renamed identity', async function() {
       const owner = await request.get('/authenticate/oauth-identity-collision-owner').expect(200);
       const origin = await createOrigin();

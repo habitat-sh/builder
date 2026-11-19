@@ -184,6 +184,25 @@ impl MemcacheClient {
         };
     }
 
+    /// Current name and email of an account, cached by account ID so a
+    /// username change is visible to every cached session of that account.
+    pub fn get_account(&mut self, account_id: u64) -> Option<(String, String)> {
+        let value = self.get_string(&account_key(account_id))?;
+        let (name, email) = value.split_once('\n')?;
+        Some((name.to_string(), email.to_string()))
+    }
+
+    pub fn set_account(&mut self, account_id: u64, name: &str, email: &str) {
+        let value = format!("{}\n{}", name, email);
+        if let Err(e) = self.cli.set(&account_key(account_id), value, self.ttl * 60) {
+            warn!("Failed to save account {} to memcached: {}", account_id, e);
+        }
+    }
+
+    pub fn delete_account(&mut self, account_id: u64) {
+        self.delete_role_key(&account_key(account_id));
+    }
+
     pub fn set_origin_member(&mut self, origin: &str, account_id: u64, val: bool) {
         let key = format!("member:{}/{}", origin, account_id);
 
@@ -309,6 +328,8 @@ fn channel_ns_key(origin: &str, channel: &ChannelIdent) -> String {
 fn member_role_ns_key(origin: &str, account_id: u64) -> String {
     format!("member_role:{}/{}", origin, account_id)
 }
+
+fn account_key(account_id: u64) -> String { format!("account:{}", account_id) }
 
 fn hash_key(key: &str) -> String {
     let mut hasher = Sha512::new();

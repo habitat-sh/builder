@@ -2,6 +2,7 @@ use crate::{bldr_core::{access_token::{AccessToken,
                                        BUILDER_ACCOUNT_ID,
                                        BUILDER_ACCOUNT_NAME},
                         privilege::FeatureFlags},
+            config::ProvisionCfg,
             db::models::account::*,
             protocol::{self,
                        originsrv},
@@ -95,7 +96,8 @@ fn handle_test_environment(token: &str,
                    | "oauth-identity-collision-rename"
                    | "oauth-identity-collision-legacy"
                    | "oauth-identity-backfilled"
-                   | "oauth-identity-inviter")
+                   | "oauth-identity-inviter"
+                   | "oauth-identity-service")
     {
         debug!("HAB_FUNC_TEST: {:?}; calling session_create_short_circuit",
                env::var_os("HAB_FUNC_TEST"));
@@ -105,14 +107,13 @@ fn handle_test_environment(token: &str,
 }
 
 fn get_cached_session(token: &str, state: &AppState) -> error::Result<Option<originsrv::Session>> {
-    // Release the cache borrow before obtaining a database connection.
+    // Release the cache borrow before any further cache or database access.
     let cached = state.memcache.borrow_mut().get_session(token);
     match cached {
         Some(mut session) => {
             trace!("Session {} Cache Hit!", token);
             if session.id() != BUILDER_ACCOUNT_ID {
-                let mut conn = state.db.get_conn().map_err(error::Error::DbError)?;
-                refresh_cached_session_account(&mut session, &mut conn)?;
+                refresh_cached_session_account(&mut session, state)?;
             }
             Ok(Some(session))
         }
@@ -123,17 +124,39 @@ fn get_cached_session(token: &str, state: &AppState) -> error::Result<Option<ori
     }
 }
 
+/// Apply the account's current name and email to a cached session. They come
+/// from the account cache, which login refreshes whenever a name changes. The
+/// database is consulted only when that entry has expired or been evicted.
 fn refresh_cached_session_account(session: &mut originsrv::Session,
-                                  conn: &mut diesel::PgConnection)
+                                  state: &AppState)
                                   -> error::Result<()> {
+    let cached = state.memcache.borrow_mut().get_account(session.id());
+    if let Some((name, email)) = cached {
+        session.set_name(name);
+        session.set_email(email);
+        return Ok(());
+    }
+
     let account_id = i64::try_from(session.id()).map_err(|_| error::Error::Authorization)?;
-    let account = Account::get_by_id(account_id, conn).map_err(|e| {
-                                                          trace!("Failed to refresh cached \
-                                                                  account {}: {:?}",
-                                                                 account_id,
-                                                                 e);
-                                                          error::Error::Authorization
-                                                      })?;
+    // Keep authenticating from the cached session while the database is unavailable.
+    let mut conn = match state.db.get_conn() {
+        Ok(conn) => conn,
+        Err(e) => {
+            warn!("Unable to refresh cached account {}: {}", account_id, e);
+            return Ok(());
+        }
+    };
+    let account = match Account::get_by_id(account_id, &mut conn) {
+        Ok(account) => account,
+        Err(diesel::result::Error::NotFound) => return Err(error::Error::Authorization),
+        Err(e) => {
+            warn!("Unable to refresh cached account {}: {}", account_id, e);
+            return Ok(());
+        }
+    };
+    state.memcache
+         .borrow_mut()
+         .set_account(session.id(), &account.name, &account.email);
     session.set_name(account.name);
     session.set_email(account.email);
     Ok(())
@@ -247,13 +270,21 @@ fn finalize_session_with_account(_token: &str,
                                                                })?;
 
     trace!("Found account for token {} in database", new_token);
-    session.set_name(account.name);
-    session.set_email(account.email);
+    session.set_name(account.name.clone());
+    session.set_email(account.email.clone());
 
-    state.memcache
-         .borrow_mut()
-         .set_session(new_token, session, None);
+    {
+        let mut memcache = state.memcache.borrow_mut();
+        memcache.set_account(session.id(), &account.name, &account.email);
+        memcache.set_session(new_token, session, None);
+    }
     Ok(session.clone())
+}
+
+/// The auto-provisioned account is a service account for startup API calls. It
+/// is never bound to, or renamed for, an OAuth identity.
+fn is_provisioned_service_account(config: &ProvisionCfg, username: &str) -> bool {
+    config.auto_provision_account && config.username == username
 }
 
 pub fn session_create_oauth(oauth_token: &str,
@@ -276,13 +307,26 @@ pub fn session_create_oauth(oauth_token: &str,
     let parsed_provider = provider.parse::<originsrv::OAuthProvider>()
                                   .map_err(|_| error::Error::BadRequest)?;
 
+    if is_provisioned_service_account(&state.config.provision, &user.username) {
+        warn!("Rejected OAuth login using the provisioned service account name");
+        return Err(error::Error::Conflict);
+    }
+
     match Account::find_or_create_oauth(&NewAccount { name: &user.username,
                                                       email },
                                         provider,
                                         &user.id,
                                         &mut conn)
     {
-        Ok(account) => {
+        Ok((account, displaced)) => {
+            {
+                // Share the new names with every cached session of these accounts.
+                let mut memcache = state.memcache.borrow_mut();
+                memcache.set_account(account.id as u64, &account.name, &account.email);
+                if let Some(displaced) = displaced {
+                    memcache.set_account(displaced.id as u64, &displaced.name, &displaced.email);
+                }
+            }
             session_token.set_account_id(account.id as u64);
             session_token.set_extern_id(user.id.to_string());
             session_token.set_token(oauth_token.to_string().into_bytes());
@@ -383,6 +427,12 @@ pub fn session_create_short_circuit(token: &str,
                           username: "oauth-identity-inviter".to_string(), },
              "github")
         }
+        "oauth-identity-service" => {
+            (OAuth2User { id:       "1000008".to_string(),
+                          email:    None,
+                          username: "oauth-identity-service".to_string(), },
+             "github")
+        }
         "oauth-identity-gitlab" => {
             (OAuth2User { id:       "1000001".to_string(),
                           email:    None,
@@ -455,4 +505,20 @@ fn resolve_test_fixture_identity(user: &mut OAuth2User,
 fn encode_token(token: &originsrv::SessionToken) -> String {
     let bytes = protocol::message::encode(token).unwrap(); // Unwrap is safe
     habitat_core::base64::encode(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn provisioned_service_account_name_is_reserved_only_when_provisioning() {
+        let mut config = ProvisionCfg { username: "service".to_string(),
+                                        ..ProvisionCfg::default() };
+        assert!(!is_provisioned_service_account(&config, "service"));
+
+        config.auto_provision_account = true;
+        assert!(is_provisioned_service_account(&config, "service"));
+        assert!(!is_provisioned_service_account(&config, "someone-else"));
+    }
 }

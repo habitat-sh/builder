@@ -85,12 +85,13 @@ impl Account {
 
     /// Resolve an OAuth login by provider identity, binding a same-name
     /// legacy row on its first login. A row with an external ID is never
-    /// claimed by name.
+    /// claimed by name. Also returns the account renamed to free the
+    /// username, if any, so callers can refresh data cached under its ID.
     pub fn find_or_create_oauth(account: &NewAccount,
                                 provider: &str,
                                 extern_id: &str,
                                 conn: &mut PgConnection)
-                                -> QueryResult<Account> {
+                                -> QueryResult<(Account, Option<Account>)> {
         if provider.is_empty() || extern_id.is_empty() || account.name.is_empty() {
             return Err(diesel::result::Error::NotFound);
         }
@@ -121,6 +122,7 @@ impl Account {
 
                 // The incoming provider owns its asserted username. Move any
                 // other occupant aside without changing its id or access.
+                let mut displaced = None;
                 if let Some(occupant) = occupant {
                     if occupant.id != account_id {
                         let mut reserved = format!("__renamed_account_{}", occupant.id);
@@ -133,9 +135,9 @@ impl Account {
                             suffix += 1;
                             reserved = format!("__renamed_account_{}_{}", occupant.id, suffix);
                         }
-                        diesel::update(accounts::table.find(occupant.id))
+                        displaced = Some(diesel::update(accounts::table.find(occupant.id))
                         .set(accounts::name.eq(&reserved))
-                        .execute(conn)?;
+                        .get_result::<Account>(conn)?);
                         diesel::update(origin_invitations::table
                                    .filter(origin_invitations::account_id.eq(occupant.id)))
                         .set(origin_invitations::account_name.eq(&reserved))
@@ -161,7 +163,7 @@ impl Account {
                            .filter(origin_invitations::account_id.eq(resolved.id)))
                 .set(origin_invitations::account_name.eq(&resolved.name))
                 .execute(conn)?;
-                Ok(resolved)
+                Ok((resolved, displaced))
             })
     }
 
