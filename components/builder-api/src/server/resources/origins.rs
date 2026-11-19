@@ -161,6 +161,15 @@ async fn get_origin(path: Path<String>, state: Data<AppState>) -> HttpResponse {
     }
 }
 
+/// Read the account's name from the database. The session's name may come from
+/// a cache that lags an OAuth rename, so authorization decisions that compare
+/// names must not rely on it.
+fn current_account_name(account_id: u64, state: &AppState) -> Result<String> {
+    let mut conn = state.db.get_conn().map_err(Error::DbError)?;
+    Account::get_by_id(account_id as i64, &mut conn).map(|account| account.name)
+                                                    .map_err(Error::DieselError)
+}
+
 #[allow(clippy::needless_pass_by_value)]
 async fn create_origin(req: HttpRequest,
                        body: Json<CreateOriginHandlerReq>,
@@ -170,13 +179,18 @@ async fn create_origin(req: HttpRequest,
         Ok(session) => session,
         Err(err) => return err.into(),
     };
-    if !state.config.api.allowed_users_for_origin_create.is_empty()
-       && !state.config
-                .api
-                .allowed_users_for_origin_create
-                .contains(&session.name().to_string())
-    {
-        return HttpResponse::new(StatusCode::FORBIDDEN);
+    if !state.config.api.allowed_users_for_origin_create.is_empty() {
+        let name = match current_account_name(session.id(), &state) {
+            Ok(name) => name,
+            Err(err) => return err.into(),
+        };
+        if !state.config
+                 .api
+                 .allowed_users_for_origin_create
+                 .contains(&name)
+        {
+            return HttpResponse::new(StatusCode::FORBIDDEN);
+        }
     }
 
     let dpv = match body.clone().default_package_visibility {
@@ -1257,7 +1271,11 @@ async fn transfer_origin_ownership(req: HttpRequest,
     }
 
     // Do not allow the owner to transfer ownership to themselves
-    if user == session.name() {
+    let current_name = match current_account_name(session.id(), &state) {
+        Ok(name) => name,
+        Err(err) => return err.into(),
+    };
+    if user == current_name {
         let body = Bytes::from_static(b"Cannot transfer origin ownership to self");
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }
@@ -1392,7 +1410,11 @@ async fn origin_member_delete(req: HttpRequest,
     }
 
     // Do not allow the owner to be removed which would orphan the origin
-    if user == session.name() {
+    let current_name = match current_account_name(session.id(), &state) {
+        Ok(name) => name,
+        Err(err) => return err.into(),
+    };
+    if user == current_name {
         let body = Bytes::from_static(b"Removing the owner is not allowd");
         return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY, BoxBody::new(body));
     }

@@ -159,10 +159,14 @@ impl Account {
                              accounts::extern_id.eq(Some(extern_id))))
                     .get_result(conn)
                 }?;
-                diesel::update(origin_invitations::table
-                           .filter(origin_invitations::account_id.eq(resolved.id)))
-                .set(origin_invitations::account_name.eq(&resolved.name))
-                .execute(conn)?;
+                if identity.as_ref()
+                           .is_some_and(|previous| previous.name != resolved.name)
+                {
+                    diesel::update(origin_invitations::table
+                               .filter(origin_invitations::account_id.eq(resolved.id)))
+                    .set(origin_invitations::account_name.eq(&resolved.name))
+                    .execute(conn)?;
+                }
                 Ok((resolved, displaced))
             })
     }
