@@ -332,7 +332,10 @@ async fn update_account(req: HttpRequest,
     };
 
     match Account::update(account_id, &body.email, &mut conn).map_err(Error::DieselError) {
-        Ok(_) => HttpResponse::new(StatusCode::OK),
+        Ok(_) => {
+            state.memcache.borrow_mut().delete_account(account_id);
+            HttpResponse::new(StatusCode::OK)
+        }
         Err(err) => {
             debug!("{}", err);
             err.into()

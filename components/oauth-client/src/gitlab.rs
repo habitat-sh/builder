@@ -38,6 +38,13 @@ struct User {
 }
 
 impl GitLab {
+    fn parse_user(body: &str) -> Result<OAuth2User> {
+        let user: User = serde_json::from_str(body).map_err(Error::Serialization)?;
+        Ok(OAuth2User { id:       user.sub,
+                        username: user.nickname,
+                        email:    user.email, })
+    }
+
     async fn user(&self,
                   config: &OAuth2Cfg,
                   client: &HttpClient,
@@ -58,14 +65,7 @@ impl GitLab {
         debug!("GitLab response body: {}", body);
 
         if status.is_success() {
-            let user = match serde_json::from_str::<User>(&body) {
-                Ok(msg) => msg,
-                Err(e) => return Err(Error::Serialization(e)),
-            };
-
-            Ok(OAuth2User { id:       user.sub,
-                            username: user.nickname,
-                            email:    user.email, })
+            Self::parse_user(&body)
         } else {
             Err(Error::HttpResponse(status, body))
         }
@@ -111,5 +111,28 @@ impl OAuth2Provider for GitLab {
 
         let user = self.user(config, client, &token).await?;
         Ok((token, user))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn username_changes_preserve_subject() {
+        for username in &["original", "renamed"] {
+            let body = format!(r#"{{"sub":"42","nickname":"{}","email":"user@example.com"}}"#,
+                               username);
+            let user = GitLab::parse_user(&body).unwrap();
+            assert_eq!(user.id, "42");
+            assert_eq!(user.username, *username);
+            assert_eq!(user.email.as_deref(), Some("user@example.com"));
+        }
+    }
+
+    #[test]
+    fn missing_subject_is_rejected() {
+        assert!(matches!(GitLab::parse_user(r#"{"nickname":"original"}"#),
+                         Err(Error::Serialization(_))));
     }
 }

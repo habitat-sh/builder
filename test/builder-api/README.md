@@ -78,3 +78,7 @@ $ HAB_STUDIO_SUP=false hab studio enter
 
 # and now you're in a development loop: change, build, test
 ```
+
+Use `test.sh` when rerunning the OAuth identity tests against the same database.
+It resets their accounts and origins before the tests; running `npm run mocha`
+directly does not reset those fixtures.

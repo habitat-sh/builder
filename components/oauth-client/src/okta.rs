@@ -40,6 +40,13 @@ struct User {
 }
 
 impl Okta {
+    fn parse_user(body: &str) -> Result<OAuth2User> {
+        let user: User = serde_json::from_str(body).map_err(Error::Serialization)?;
+        Ok(OAuth2User { id:       user.sub,
+                        username: user.preferred_username,
+                        email:    user.email, })
+    }
+
     async fn user(&self,
                   config: &OAuth2Cfg,
                   client: &HttpClient,
@@ -60,14 +67,7 @@ impl Okta {
         debug!("Okta response body: {}", body);
 
         if status.is_success() {
-            let user = match serde_json::from_str::<User>(&body) {
-                Ok(msg) => msg,
-                Err(e) => return Err(Error::Serialization(e)),
-            };
-
-            Ok(OAuth2User { id:       user.sub,
-                            username: user.preferred_username,
-                            email:    user.email, })
+            Self::parse_user(&body)
         } else {
             Err(Error::HttpResponse(status, body))
         }
@@ -114,5 +114,27 @@ impl OAuth2Provider for Okta {
 
         let user = self.user(config, client, &token).await?;
         Ok((token, user))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn username_changes_preserve_subject() {
+        for username in &["original", "renamed"] {
+            let body = format!(r#"{{"sub":"00u123","preferred_username":"{}"}}"#, username);
+            let user = Okta::parse_user(&body).unwrap();
+            assert_eq!(user.id, "00u123");
+            assert_eq!(user.username, *username);
+            assert!(user.email.is_none());
+        }
+    }
+
+    #[test]
+    fn missing_subject_is_rejected() {
+        assert!(matches!(Okta::parse_user(r#"{"preferred_username":"original"}"#),
+                         Err(Error::Serialization(_))));
     }
 }

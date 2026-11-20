@@ -33,6 +33,8 @@ struct AuthOk {
 
 #[derive(Deserialize)]
 pub struct UserOk {
+    // Bitbucket usernames can change. The account UUID is the stable subject.
+    uuid:  String,
     #[serde(flatten)]
     uname: Utyped,
 }
@@ -75,7 +77,7 @@ impl Bitbucket {
                 Utyped::Username(val) => val,
             };
 
-            Ok(OAuth2User { id:       actual_uname.clone(),
+            Ok(OAuth2User { id:       user_ok.uuid,
                             username: actual_uname,
                             email:    None, })
         } else {
@@ -123,5 +125,18 @@ impl OAuth2Provider for Bitbucket {
 
         let user = self.user(config, client, &token).await?;
         Ok((token, user))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::UserOk;
+
+    #[test]
+    fn bitbucket_user_requires_stable_uuid() {
+        let user: UserOk =
+            serde_json::from_str(r#"{"uuid":"{stable-id}","username":"old-name"}"#).unwrap();
+        assert_eq!(user.uuid, "{stable-id}");
+        assert!(serde_json::from_str::<UserOk>(r#"{"username":"old-name"}"#).is_err());
     }
 }

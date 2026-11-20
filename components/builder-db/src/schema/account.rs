@@ -5,6 +5,8 @@ table! {
         name -> Text,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
+        provider -> Nullable<Text>,
+        extern_id -> Nullable<Text>,
     }
 }
 
