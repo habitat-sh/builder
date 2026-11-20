@@ -16,8 +16,7 @@ use diesel::{pg::PgConnection,
              query_dsl::RunQueryDsl,
              result::{Error as Dre,
                       QueryResult},
-             sql_query,
-             Connection};
+             sql_query};
 use diesel_migrations::{embed_migrations,
                         EmbeddedMigrations,
                         MigrationHarness};
@@ -27,12 +26,9 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("src/migrations");
 
 /// Run setup and then all pending migrations
 pub fn setup(conn: &mut PgConnection) -> QueryResult<()> {
-    conn.transaction::<(), Dre, _>(|conn| {
-            setup_ids(conn)?;
-            conn.run_pending_migrations(MIGRATIONS)
-                .map_err(Dre::QueryBuilderError)?;
-            Ok(())
-        })?;
+    setup_ids(conn)?;
+    conn.run_pending_migrations(MIGRATIONS)
+        .map_err(Dre::QueryBuilderError)?;
     Ok(())
 }
 

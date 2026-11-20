@@ -25,6 +25,7 @@
               <a (click)="downloadPrivateKey()">
                 <hab-icon symbol="file-download" title="Download this key"></hab-icon>
               </a>
+              <button mat-button type="button" *ngIf="isOwner" (click)="deletePrivateKey()">Delete private key</button>
             </span>
           </li>
         </ul>
@@ -72,8 +73,7 @@
       Origin keys are used to sign .hart files, providing the capability to verify their authenticity at both build and runtime.
     </p>
     <p>
-      Only one
-      <strong>private key</strong> exists for an origin at any given time.
+      The private key shown is the latest revision. Deleting it reveals the previous revision, if one exists.
     </p>
     <p>
       Read the docs for more information on

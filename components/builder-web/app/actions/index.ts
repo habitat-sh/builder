@@ -85,6 +85,7 @@ export {
   deleteOriginInvitation,
   deleteOriginMember,
   deleteOriginSecret,
+  deleteSigningKey,
   departOrigin,
   fetchMyOriginInvitations,
   fetchMyOrigins,

@@ -48,7 +48,8 @@ use actix_web::{body::BoxBody,
 use builder_core::Error::OriginDeleteError;
 use bytes::Bytes;
 use diesel::{pg::PgConnection,
-             result::Error::NotFound};
+             result::Error::NotFound,
+             Connection};
 use habitat_core::{crypto::keys::{self as core_keys,
                                   generate_origin_encryption_key_pair,
                                   generate_signing_key_pair,
@@ -133,7 +134,9 @@ impl Origins {
            .route("/depot/origins/{origin}/secret_keys/latest",
                   web::get().to(download_latest_origin_secret_key))
            .route("/depot/origins/{origin}/secret_keys/{revision}",
-                  web::post().to(upload_origin_secret_key));
+                  web::post().to(upload_origin_secret_key))
+           .route("/depot/origins/{origin}/secret_keys/{revision}",
+                  web::delete().to(delete_origin_secret_key));
     }
 }
 
@@ -411,11 +414,12 @@ fn origin_delete_preflight(origin: &str, conn: &mut PgConnection) -> Result<()> 
 async fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>) -> HttpResponse {
     let origin = path.into_inner();
 
-    let account_id =
+    let session =
         match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
-            Ok(session) => session.id(),
+            Ok(session) => session,
             Err(err) => return err.into(),
         };
+    let account_id = session.id();
 
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -454,6 +458,13 @@ async fn create_keys(req: HttpRequest, path: Path<String>, state: Data<AppState>
                origin, e);
         return e.into();
     }
+
+    origin_audit(&origin,
+                 OriginOperation::KeyCreate,
+                 &public.named_revision().to_string(),
+                 session.id() as i64,
+                 session.name(),
+                 &mut conn);
 
     HttpResponse::Created().finish()
 }
@@ -518,9 +529,9 @@ async fn upload_origin_key(req: HttpRequest,
     } else {
         // In this case we are checking if the user actually has permissions to write a
         // NEW key into the origin_public_keys data table
-        let account_id =
+        let session =
             match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
-                Ok(session) => session.id(),
+                Ok(session) => session,
                 Err(_) => {
                     debug!("Unable to upload origin public signing key due to lack of permissions");
                     let body = Bytes::from(format!("You do not have permissions to upload a new \
@@ -534,14 +545,24 @@ async fn upload_origin_key(req: HttpRequest,
             Ok(key) => key,
             Err(e) => {
                 debug!("Invalid public key content: {}", e);
-                let body = Bytes::from_static(b"Invalid origin public key");
-                return HttpResponse::with_body(StatusCode::UNPROCESSABLE_ENTITY,
-                                               BoxBody::new(body));
+                return HttpResponse::UnprocessableEntity().body("Invalid origin public key");
             }
         };
-
-        match save_public_origin_signing_key(account_id, &origin, &key, &mut conn) {
+        if let Err(message) = validate_uploaded_key(&origin,
+                                                    &revision,
+                                                    key.named_revision().name(),
+                                                    key.named_revision().revision())
+        {
+            return HttpResponse::UnprocessableEntity().body(message);
+        }
+        match save_public_origin_signing_key(session.id(), &origin, &key, &mut conn) {
             Ok(_) => {
+                origin_audit(&origin,
+                             OriginOperation::KeyPublicUpload,
+                             &key.named_revision().to_string(),
+                             session.id() as i64,
+                             session.name(),
+                             &mut conn);
                 HttpResponse::Created().append_header((http::header::LOCATION,
                                                        format!("{}", req.uri())))
                                        .body(format!("/origins/{}/keys/{}",
@@ -742,13 +763,14 @@ async fn upload_origin_secret_key(req: HttpRequest,
                                   body: ActixBytes,
                                   state: Data<AppState>)
                                   -> HttpResponse {
-    let (origin, _revision) = path.into_inner();
+    let (origin, revision) = path.into_inner();
 
-    let account_id =
+    let session =
         match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Administrator)) {
-            Ok(session) => session.id(),
+            Ok(session) => session,
             Err(err) => return err.into(),
         };
+    let account_id = session.id();
 
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
@@ -774,6 +796,14 @@ async fn upload_origin_secret_key(req: HttpRequest,
         }
     };
 
+    if let Err(message) = validate_uploaded_key(&origin,
+                                                &revision,
+                                                key.named_revision().name(),
+                                                key.named_revision().revision())
+    {
+        return HttpResponse::UnprocessableEntity().body(message);
+    }
+
     if let Err(e) = save_secret_origin_signing_key(account_id,
                                                    &origin,
                                                    &state.config.api.key_path,
@@ -785,7 +815,68 @@ async fn upload_origin_secret_key(req: HttpRequest,
         return e.into();
     }
 
+    origin_audit(&origin,
+                 OriginOperation::KeySecretUpload,
+                 &key.named_revision().to_string(),
+                 session.id() as i64,
+                 session.name(),
+                 &mut conn);
+
     HttpResponse::Created().finish()
+}
+
+fn validate_uploaded_key(origin: &str,
+                         revision: &str,
+                         key_name: &str,
+                         key_revision: &str)
+                         -> std::result::Result<(), &'static str> {
+    if key_name != origin {
+        return Err("Key name does not match the origin in the path");
+    }
+    if key_revision != revision {
+        return Err("Key revision does not match the revision in the path");
+    }
+    Ok(())
+}
+
+#[allow(clippy::needless_pass_by_value)]
+async fn delete_origin_secret_key(req: HttpRequest,
+                                  path: Path<(String, String)>,
+                                  state: Data<AppState>)
+                                  -> HttpResponse {
+    let (origin, revision) = path.into_inner();
+    let session = match authorize_session(&req, Some(&origin), Some(OriginMemberRole::Owner)) {
+        Ok(session) => session,
+        Err(err) => return err.into(),
+    };
+    let mut conn = match state.db.get_conn().map_err(Error::DbError) {
+        Ok(conn_ref) => conn_ref,
+        Err(err) => return err.into(),
+    };
+    let result = conn.transaction::<Option<usize>, diesel::result::Error, _>(|conn| {
+                         let owner_id = Origin::owner_for_update(&origin, conn)?;
+                         if owner_id != session.id() as i64 {
+                             return Ok(None);
+                         }
+
+                         let deleted =
+                             db_keys::OriginPrivateSigningKey::delete(&origin, &revision, conn)?;
+                         if deleted != 0 {
+                             origin_audit(&origin,
+                                          OriginOperation::KeySecretDelete,
+                                          &format!("{}-{}", origin, revision),
+                                          session.id() as i64,
+                                          session.name(),
+                                          conn);
+                         }
+                         Ok(Some(deleted))
+                     });
+    match result {
+        Ok(None) | Err(NotFound) => HttpResponse::Forbidden().finish(),
+        Ok(Some(0)) => HttpResponse::NotFound().finish(),
+        Ok(Some(_)) => HttpResponse::NoContent().finish(),
+        Err(err) => Error::DieselError(err).into(),
+    }
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -1628,4 +1719,36 @@ fn get_latest_secret_origin_signing_key(origin: &str,
     };
 
     Ok(key)
+}
+
+#[cfg(test)]
+mod key_upload_tests {
+    use super::validate_uploaded_key;
+
+    #[test]
+    fn rejects_another_origin_name() {
+        assert_eq!(validate_uploaded_key("origin-2",
+                                         "20000101000000",
+                                         "origin-2zzz",
+                                         "20000101000000"),
+                   Err("Key name does not match the origin in the path"));
+    }
+
+    #[test]
+    fn rejects_another_revision() {
+        assert_eq!(validate_uploaded_key("origin-2",
+                                         "20000101000001",
+                                         "origin-2",
+                                         "20000101000000"),
+                   Err("Key revision does not match the revision in the path"));
+    }
+
+    #[test]
+    fn accepts_matching_identity() {
+        assert_eq!(validate_uploaded_key("origin-2",
+                                         "20000101000000",
+                                         "origin-2",
+                                         "20000101000000"),
+                   Ok(()));
+    }
 }

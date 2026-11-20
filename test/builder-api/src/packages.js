@@ -255,7 +255,17 @@ describe('Working with packages', function () {
       });
     });
 
-    it('allows authenticated users to upload packages', function (done) {
+    it('has no secret signing key left for the origin', function () {
+      return request.get('/depot/origins/neurosis/secret_keys/latest')
+        .set('Authorization', global.boboBearer).expect(404);
+    });
+
+    it('retains the public key that verifies previously signed packages', async function () {
+      const res = await request.get('/depot/origins/neurosis/keys/20171211220037').expect(200);
+      expect(res.text).to.contain('neurosis-20171211220037');
+    });
+
+    it('verifies a package signed by a removed secret key using its retained public key', function (done) {
       request.post(`/depot/pkgs/neurosis/testapp/0.1.3/${release1}`)
         .set('Authorization', global.boboBearer)
         .set('Content-Length', file1.length)
