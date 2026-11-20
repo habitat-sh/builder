@@ -320,6 +320,18 @@ export function updateOrigin(origin: any, token: string) {
   };
 }
 
+export function deleteSigningKey(origin: string, revision: string, token: string) {
+  return (dispatch, getState) => new BuilderApiClient(token).deleteSigningKey(origin, revision)
+    .then(() => {
+      if (getState().origins.current.name === origin) {
+        dispatch(fetchOrigin(origin));
+      }
+      dispatch(addNotification({ title: `Deleted private signing key ${origin}-${revision}`, type: SUCCESS }));
+    }).catch(error => {
+      dispatch(addNotification({ title: 'Error deleting private signing key', body: error.message, type: DANGER }));
+    });
+}
+
 export function deleteOriginSecret(origin: string, key: string, token: string) {
   return dispatch => {
     new BuilderApiClient(token).deleteOriginSecret(origin, key)

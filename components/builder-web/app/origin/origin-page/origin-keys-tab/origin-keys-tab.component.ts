@@ -21,7 +21,8 @@ import { AppStore } from '../../../app.store';
 import { BuilderApiClient } from '../../../client/builder-api';
 import { GenerateKeysConfirmDialog } from './dialog/generate-keys-confirm/generate-keys-confirm.dialog';
 import { KeyAddFormDialog } from './key-add-form/key-add-form.dialog';
-import { fetchOriginPublicKeys, fetchMyOrigins, generateOriginKeys } from '../../../actions/index';
+import { deleteSigningKey, fetchOriginPublicKeys, fetchMyOrigins, generateOriginKeys } from '../../../actions/index';
+import { SimpleConfirmDialog } from '../../../shared/dialog/simple-confirm/simple-confirm.dialog';
 import { OriginService } from '../../origin.service';
 import config from '../../../config';
 
@@ -37,8 +38,7 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private store: AppStore,
-    private keyAddDialog: MatDialog,
-    private keyGenerateDialog: MatDialog,
+    private dialog: MatDialog,
     private originService: OriginService,
     private title: Title,
     private cdr: ChangeDetectorRef
@@ -75,7 +75,13 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
   }
 
   get privateKey() {
-    return this.store.getState().origins.current.private_key_name;
+    return this.originService.origin(this.origin, this.store.getState().origins.current).private_key_name;
+  }
+
+  get isOwner() {
+    const { origins, users } = this.store.getState();
+    return origins.current.name === this.origin && !!users.current.profile.id &&
+      users.current.profile.id === origins.current.owner_id;
   }
 
   get publicKeys() {
@@ -102,8 +108,27 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
       });
   }
 
+  deletePrivateKey() {
+    const origin = this.origin;
+    const key = this.privateKey;
+    if (!this.isOwner || !key) { return; }
+
+    this.dialog.open(SimpleConfirmDialog, {
+      width: '480px',
+      data: {
+        heading: `Delete private signing key ${key}?`,
+        body: 'Builder will lose its private copy of this revision. Its public key will still verify existing packages.',
+        action: 'delete key'
+      }
+    }).afterClosed().subscribe(confirmed => {
+      if (confirmed && this.origin === origin && this.isOwner) {
+        this.store.dispatch(deleteSigningKey(origin, key.slice(origin.length + 1), this.token));
+      }
+    });
+  }
+
   generateKeys() {
-    this.keyGenerateDialog.open(GenerateKeysConfirmDialog, {
+    this.dialog.open(GenerateKeysConfirmDialog, {
       width: '480px'
     })
       .afterClosed()
@@ -115,7 +140,7 @@ export class OriginKeysTabComponent implements OnInit, OnDestroy {
   }
 
   openKeyAddForm(type: string) {
-    this.keyAddDialog.open(KeyAddFormDialog, {
+    this.dialog.open(KeyAddFormDialog, {
       data: { type, origin: this.origin },
       width: '480px'
     });

@@ -804,8 +804,16 @@ export class BuilderApiClient {
   }
 
   public deleteOriginSecret(origin: string, key: string) {
+    return this.deleteOriginResource(origin, 'secret', key);
+  }
+
+  public deleteSigningKey(origin: string, revision: string) {
+    return this.deleteOriginResource(origin, 'secret_keys', revision);
+  }
+
+  private deleteOriginResource(origin: string, resource: string, name: string) {
     return new Promise<void>((resolve, reject) => {
-      fetch(`${this.urlPrefix}/depot/origins/${origin}/secret/${key}`, {
+      fetch(`${this.urlPrefix}/depot/origins/${origin}/${resource}/${encodeURIComponent(name)}`, {
         headers: this.headers,
         method: 'DELETE'
       })
