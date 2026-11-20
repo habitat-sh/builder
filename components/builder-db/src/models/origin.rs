@@ -209,6 +209,14 @@ impl Origin {
         origins_with_secret_key::table.find(origin).first(conn)
     }
 
+    pub fn owner_for_update(origin: &str, conn: &mut PgConnection) -> QueryResult<i64> {
+        Counter::DBCall.increment();
+        origins::table.find(origin)
+                      .select(origins::owner_id)
+                      .for_update()
+                      .first(conn)
+    }
+
     pub fn list(owner_id: i64, conn: &mut PgConnection) -> QueryResult<Vec<OriginWithStats>> {
         Counter::DBCall.increment();
         origins_with_stats::table.into_boxed::<Pg>()

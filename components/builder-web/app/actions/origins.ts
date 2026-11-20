@@ -200,13 +200,17 @@ export function fetchMyOriginInvitations(token) {
   };
 }
 
-export function fetchOrigin(originName: string) {
-  return dispatch => {
+export function fetchOrigin(originName: string, onlyIfCurrent = false) {
+  return (dispatch, getState) => {
     dispatch(setCurrentOriginLoading(true));
     new BuilderApiClient().getOrigin(originName).then(response => {
-      dispatch(setCurrentOrigin(response));
+      if (!onlyIfCurrent || getState().origins.current.name === originName) {
+        dispatch(setCurrentOrigin(response));
+      }
     }).catch(error => {
-      dispatch(setCurrentOrigin(undefined, error));
+      if (!onlyIfCurrent || getState().origins.current.name === originName) {
+        dispatch(setCurrentOrigin(undefined, error));
+      }
     });
   };
 }
@@ -324,7 +328,7 @@ export function deleteSigningKey(origin: string, revision: string, token: string
   return (dispatch, getState) => new BuilderApiClient(token).deleteSigningKey(origin, revision)
     .then(() => {
       if (getState().origins.current.name === origin) {
-        dispatch(fetchOrigin(origin));
+        dispatch(fetchOrigin(origin, true));
       }
       dispatch(addNotification({ title: `Deleted private signing key ${origin}-${revision}`, type: SUCCESS }));
     }).catch(error => {

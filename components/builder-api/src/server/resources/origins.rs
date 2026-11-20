@@ -48,7 +48,8 @@ use actix_web::{body::BoxBody,
 use builder_core::Error::OriginDeleteError;
 use bytes::Bytes;
 use diesel::{pg::PgConnection,
-             result::Error::NotFound};
+             result::Error::NotFound,
+             Connection};
 use habitat_core::{crypto::keys::{self as core_keys,
                                   generate_origin_encryption_key_pair,
                                   generate_signing_key_pair,
@@ -848,25 +849,32 @@ async fn delete_origin_secret_key(req: HttpRequest,
         Ok(session) => session,
         Err(err) => return err.into(),
     };
-    if !check_origin_owner(&req, session.id(), &origin).unwrap_or(false) {
-        return HttpResponse::Forbidden().finish();
-    }
-
     let mut conn = match state.db.get_conn().map_err(Error::DbError) {
         Ok(conn_ref) => conn_ref,
         Err(err) => return err.into(),
     };
-    match db_keys::OriginPrivateSigningKey::delete(&origin, &revision, &mut conn) {
-        Ok(0) => HttpResponse::NotFound().finish(),
-        Ok(_) => {
-            origin_audit(&origin,
-                         OriginOperation::KeySecretDelete,
-                         &format!("{}-{}", origin, revision),
-                         session.id() as i64,
-                         session.name(),
-                         &mut conn);
-            HttpResponse::NoContent().finish()
-        }
+    let result = conn.transaction::<Option<usize>, diesel::result::Error, _>(|conn| {
+                         let owner_id = Origin::owner_for_update(&origin, conn)?;
+                         if owner_id != session.id() as i64 {
+                             return Ok(None);
+                         }
+
+                         let deleted =
+                             db_keys::OriginPrivateSigningKey::delete(&origin, &revision, conn)?;
+                         if deleted != 0 {
+                             origin_audit(&origin,
+                                          OriginOperation::KeySecretDelete,
+                                          &format!("{}-{}", origin, revision),
+                                          session.id() as i64,
+                                          session.name(),
+                                          conn);
+                         }
+                         Ok(Some(deleted))
+                     });
+    match result {
+        Ok(None) | Err(NotFound) => HttpResponse::Forbidden().finish(),
+        Ok(Some(0)) => HttpResponse::NotFound().finish(),
+        Ok(Some(_)) => HttpResponse::NoContent().finish(),
         Err(err) => Error::DieselError(err).into(),
     }
 }
