@@ -161,6 +161,10 @@ pub enum OriginOperation {
     OriginCreate,
     OriginDelete,
     OwnerTransfer,
+    KeyCreate,
+    KeyPublicUpload,
+    KeySecretUpload,
+    KeySecretDelete,
 }
 
 #[derive(Debug, Serialize, Deserialize, Insertable)]
@@ -203,6 +207,14 @@ impl Origin {
     pub fn get(origin: &str, conn: &mut PgConnection) -> QueryResult<OriginWithSecretKey> {
         Counter::DBCall.increment();
         origins_with_secret_key::table.find(origin).first(conn)
+    }
+
+    pub fn owner_for_update(origin: &str, conn: &mut PgConnection) -> QueryResult<i64> {
+        Counter::DBCall.increment();
+        origins::table.find(origin)
+                      .select(origins::owner_id)
+                      .for_update()
+                      .first(conn)
     }
 
     pub fn list(owner_id: i64, conn: &mut PgConnection) -> QueryResult<Vec<OriginWithStats>> {

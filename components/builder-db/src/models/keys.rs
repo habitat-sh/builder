@@ -239,6 +239,14 @@ impl OriginPrivateSigningKey {
                                                       .get_result(conn)
     }
 
+    pub fn delete(origin: &str, revision: &str, conn: &mut PgConnection) -> QueryResult<usize> {
+        Counter::DBCall.increment();
+        diesel::delete(origin_secret_keys::table
+                           .filter(origin_secret_keys::origin.eq(origin))
+                           .filter(origin_secret_keys::revision.eq(revision)))
+        .execute(conn)
+    }
+
     pub fn update_key(id: i64,
                       body: &str,
                       key_rev: &str,
@@ -266,5 +274,67 @@ impl OriginPrivateSigningKey {
                                  .limit(count)
                                  .order(origin_secret_keys::id.asc())
                                  .get_results(conn)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{account::{Account,
+                                  NewAccount},
+                        origin::{NewOrigin,
+                                 Origin},
+                        package::PackageVisibility};
+    use diesel::{result::Error::NotFound,
+                 Connection};
+
+    #[test]
+    #[ignore = "requires a running Studio with a migrated disposable database"]
+    fn deleting_the_current_secret_key_makes_the_previous_key_current() {
+        let mut conn = crate::test::studio_connection();
+        let suffix = uuid_suffix();
+        let origin = format!("keyrot{}", suffix);
+
+        conn.test_transaction::<_, diesel::result::Error, _>(|conn| {
+            let account = Account::create(&NewAccount { name:  &format!("keyrot_{}", suffix),
+                                                        email: "", },
+                                          conn)?;
+            Origin::create(&NewOrigin { name: &origin,
+                                        owner_id: account.id,
+                                        default_package_visibility: &PackageVisibility::Public, },
+                           conn)?;
+            for revision in &["20000101000000", "20000102000000"] {
+                let full_name = format!("{}-{}", origin, revision);
+                OriginPrivateSigningKey::create(&NewOriginPrivateSigningKey {
+                        owner_id: account.id,
+                        name: &origin,
+                        full_name: &full_name,
+                        revision,
+                        body: "body",
+                        origin: &origin,
+                        encryption_key_rev: "bldr-20000101000000",
+                    },
+                                                    conn)?;
+            }
+
+            assert_eq!(OriginPrivateSigningKey::get(&origin, conn)?.revision,
+                       "20000102000000");
+            assert_eq!(OriginPrivateSigningKey::delete(&origin, "20000102000000", conn)?,
+                       1);
+            assert_eq!(OriginPrivateSigningKey::get(&origin, conn)?.revision,
+                       "20000101000000");
+            assert_eq!(OriginPrivateSigningKey::delete(&origin, "20000102000000", conn)?,
+                       0);
+            assert_eq!(OriginPrivateSigningKey::delete(&origin, "20000101000000", conn)?,
+                       1);
+            assert!(matches!(OriginPrivateSigningKey::get(&origin, conn), Err(NotFound)));
+            Ok(())
+        });
+    }
+
+    fn uuid_suffix() -> u128 {
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_nanos()
     }
 }
