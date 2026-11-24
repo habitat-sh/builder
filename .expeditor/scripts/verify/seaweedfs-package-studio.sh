@@ -67,10 +67,20 @@ bucket_ready() {
 }
 
 service_stopped() {
+  # Closing the S3 listener precedes SeaweedFS process termination. Starting
+  # again before this PID exits can reattach to the process being stopped.
+  if kill -0 "$old_service_pid" 2>/dev/null; then return 1; fi
   if s3api head-bucket --bucket "$bucket" >"$logs/stopped.log" 2>&1; then
     return 1
   fi
   grep -q 'Could not connect to the endpoint URL' "$logs/stopped.log"
+}
+
+persistent_object_ready() {
+  # HeadBucket can succeed before master election and volume registration finish.
+  # Retry transport/read failures; compare the contents separately after success.
+  s3api get-object --bucket "$bucket" --key persistence-test \
+    "$logs/persistence-download.txt" >"$logs/get-object.log" 2>&1
 }
 
 cleanup() {
@@ -114,12 +124,12 @@ echo "--- Testing persistence across a completed stop/start"
 printf 'SeaweedFS package persistence test\n' >"$logs/persistence-source.txt"
 s3api put-object --bucket "$bucket" --key persistence-test \
   --body "$logs/persistence-source.txt" >"$logs/put-object.log"
-hab svc stop "$service"
-wait_for 'SeaweedFS to stop accepting connections' service_stopped
+old_service_pid=$(cat /hab/svc/builder-seaweedfs/PID)
+hab svc stop "$service" --shutdown-timeout 30
+wait_for 'SeaweedFS process termination and closed S3 listener' service_stopped
 hab svc start "$service"
 wait_for 'SeaweedFS to restart' bucket_ready
-s3api get-object --bucket "$bucket" --key persistence-test \
-  "$logs/persistence-download.txt" >"$logs/get-object.log"
+wait_for 'persisted object to become readable after restart' persistent_object_ready
 cmp "$logs/persistence-source.txt" "$logs/persistence-download.txt"
 # The existing bucket must be reused, rather than recreated, on restart.
 wait_for 'idempotent bucket initialization' \
