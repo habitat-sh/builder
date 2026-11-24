@@ -1,0 +1,23 @@
+# S3 listener. Set to a backend host's address or 0.0.0.0 for remote clients.
+bind_address = "127.0.0.1"
+bind_port = 9000
+bucket_name = "habitat-builder-artifact-store.default"
+
+# Both credentials must be configured before loading the service.
+key_id = ""
+secret_key = ""
+
+# Bucket initialization waits for authenticated S3 readiness, with bounded retries.
+readiness_attempts = 60
+readiness_delay_seconds = 2
+
+# These services stay on loopback. Their gRPC ports default to HTTP port + 10000.
+[internal]
+master_port = 19333
+volume_port = 18080
+filer_port = 18888
+s3_grpc_port = 19000
+
+[storage]
+volume_max = 8
+volume_size_limit_mb = 30000
