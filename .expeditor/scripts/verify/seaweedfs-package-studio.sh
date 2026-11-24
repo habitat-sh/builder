@@ -62,6 +62,11 @@ wait_for() {
   return 1
 }
 
+supervisor_ready() {
+  # Connection failures are expected while the Supervisor is starting.
+  hab svc status >"$logs/supervisor-readiness.log" 2>&1
+}
+
 bucket_ready() {
   s3api head-bucket --bucket "$bucket" >"$logs/readiness.log" 2>&1
 }
@@ -96,7 +101,11 @@ echo "--- Starting Supervisor and SeaweedFS"
 hab sup run --no-color >"$logs/supervisor.log" 2>&1 &
 supervisor_pid=$!
 trap cleanup EXIT
-wait_for Supervisor hab svc status
+if ! wait_for Supervisor supervisor_ready; then
+  cat "$logs/supervisor-readiness.log" >&2
+  tail -n 60 "$logs/supervisor.log" >&2
+  exit 1
+fi
 hab svc load "$package"
 wait_for 'automatic artifact bucket creation' bucket_ready
 
