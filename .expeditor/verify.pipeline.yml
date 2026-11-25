@@ -139,7 +139,9 @@ steps:
     command:
       - .expeditor/scripts/verify/seaweedfs-package.sh
     artifact_paths:
-      - "logs/seaweedfs/**/*"
+      - "logs/seaweedfs/build.log"
+      - "logs/seaweedfs/sup.log"
+      - "logs/seaweedfs/test.log"
     expeditor:
       executor:
         docker:

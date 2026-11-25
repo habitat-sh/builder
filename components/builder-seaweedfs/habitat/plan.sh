@@ -15,6 +15,7 @@ pkg_exports=(
   [bucket-name]=bucket_name
 )
 pkg_exposes=(port)
+pkg_shutdown_timeout_sec=30
 
 pkg_version() {
   echo "$(($(git rev-list HEAD --count) + 5000))"

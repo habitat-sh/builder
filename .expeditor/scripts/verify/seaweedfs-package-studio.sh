@@ -8,6 +8,10 @@ readonly service=habitat/builder-seaweedfs
 readonly endpoint=http://127.0.0.1:19090
 readonly bucket=builder-seaweedfs-ci
 mkdir -p "$logs"
+# Keep assertion files out of the artifacts and clean them up on every exit path.
+workdir=$(mktemp -d)
+readonly workdir
+trap 'rm -rf "$workdir"' EXIT
 
 if hab svc status >/dev/null 2>&1; then
   echo "SeaweedFS package tests require a Studio without a running Supervisor." >&2
@@ -18,10 +22,14 @@ fi
 hab pkg install core/seaweedfs --channel unstable
 echo "--- Building builder-seaweedfs"
 HAB_PREFER_LOCAL_CHEF_DEPS=true build /src/components/builder-seaweedfs \
-  >"$logs/build.log" 2>&1
+  2>&1 | tee "$logs/build.log"
 # shellcheck disable=SC1091
 source /src/results/last_build.env
 readonly package="$pkg_ident"
+
+# Stream tests to the console and test.log; keep Supervisor output separate.
+exec 3>&1
+exec > >(tee "$logs/test.log") 2>&1
 
 mkdir -p /hab/user/builder-seaweedfs/config
 # Fixed, non-production credentials with characters that must survive rendering.
@@ -64,46 +72,48 @@ wait_for() {
 
 supervisor_ready() {
   # Connection failures are expected while the Supervisor is starting.
-  hab svc status >"$logs/supervisor-readiness.log" 2>&1
+  hab svc status >"$workdir/supervisor-readiness.log" 2>&1
 }
 
 bucket_ready() {
-  s3api head-bucket --bucket "$bucket" >"$logs/readiness.log" 2>&1
+  s3api head-bucket --bucket "$bucket" 2>&1
 }
 
 service_stopped() {
   # Closing the S3 listener precedes SeaweedFS process termination. Starting
   # again before this PID exits can reattach to the process being stopped.
   if kill -0 "$old_service_pid" 2>/dev/null; then return 1; fi
-  if s3api head-bucket --bucket "$bucket" >"$logs/stopped.log" 2>&1; then
+  if s3api head-bucket --bucket "$bucket" 2>&1 | tee "$workdir/stopped.log"; then
     return 1
   fi
-  grep -q 'Could not connect to the endpoint URL' "$logs/stopped.log"
+  grep -q 'Could not connect to the endpoint URL' "$workdir/stopped.log"
 }
 
 persistent_object_ready() {
   # HeadBucket can succeed before master election and volume registration finish.
   # Retry transport/read failures; compare the contents separately after success.
   s3api get-object --bucket "$bucket" --key persistence-test \
-    "$logs/persistence-download.txt" >"$logs/get-object.log" 2>&1
+    "$workdir/persistence-download.txt" 2>&1
 }
 
 cleanup() {
   local result=$?
   trap - EXIT
-  hab svc status >"$logs/status.log" 2>&1 || true
-  hab sup term >"$logs/shutdown.log" 2>&1 || true
+  hab svc status 2>&1 || true
+  hab sup term 2>&1 || true
   wait "$supervisor_pid" || true
+  rm -rf "$workdir"
   exit "$result"
 }
 
 echo "--- Starting Supervisor and SeaweedFS"
-hab sup run --no-color >"$logs/supervisor.log" 2>&1 &
+# Process substitution streams output while keeping $! as the Supervisor PID.
+hab sup run --no-color > >(tee "$logs/sup.log" >&3) 2>&1 &
 supervisor_pid=$!
 trap cleanup EXIT
 if ! wait_for Supervisor supervisor_ready; then
-  cat "$logs/supervisor-readiness.log" >&2
-  tail -n 60 "$logs/supervisor.log" >&2
+  cat "$workdir/supervisor-readiness.log" >&2
+  tail -n 60 "$logs/sup.log" >&2
   exit 1
 fi
 hab svc load "$package"
@@ -117,31 +127,31 @@ done
 
 echo "--- Testing S3 upload, download, and deletion"
 hab pkg exec "$package" bash /src/components/builder-seaweedfs/tests/smoke.sh \
-  "$endpoint" "$bucket" >"$logs/smoke.log" 2>&1
+  "$endpoint" "$bucket" 2>&1
 
 echo "--- Checking that incorrect credentials are rejected"
 if AWS_SECRET_ACCESS_KEY=incorrect s3api head-bucket --bucket "$bucket" \
-    >"$logs/rejected-credentials.log" 2>&1; then
+    2>&1 | tee "$workdir/rejected-credentials.log"; then
   echo "SeaweedFS accepted incorrect credentials." >&2
   exit 1
 fi
 # An unavailable endpoint must not count as successful authentication rejection.
 grep -Eq 'SignatureDoesNotMatch|InvalidAccessKeyId|AccessDenied|\(403\)' \
-  "$logs/rejected-credentials.log"
+  "$workdir/rejected-credentials.log"
 
 echo "--- Testing persistence across a completed stop/start"
-printf 'SeaweedFS package persistence test\n' >"$logs/persistence-source.txt"
+printf 'SeaweedFS package persistence test\n' >"$workdir/persistence-source.txt"
 s3api put-object --bucket "$bucket" --key persistence-test \
-  --body "$logs/persistence-source.txt" >"$logs/put-object.log"
+  --body "$workdir/persistence-source.txt" 2>&1
 old_service_pid=$(cat /hab/svc/builder-seaweedfs/PID)
-hab svc stop "$service" --shutdown-timeout 30
+hab svc stop "$service"
 wait_for 'SeaweedFS process termination and closed S3 listener' service_stopped
 hab svc start "$service"
 wait_for 'SeaweedFS to restart' bucket_ready
 wait_for 'persisted object to become readable after restart' persistent_object_ready
-cmp "$logs/persistence-source.txt" "$logs/persistence-download.txt"
+cmp "$workdir/persistence-source.txt" "$workdir/persistence-download.txt"
 # The existing bucket must be reused, rather than recreated, on restart.
 wait_for 'idempotent bucket initialization' \
-  grep -q 'SeaweedFS artifact bucket is ready.' "$logs/supervisor.log"
-s3api delete-object --bucket "$bucket" --key persistence-test >"$logs/delete-object.log"
+  grep -q 'SeaweedFS artifact bucket is ready.' "$logs/sup.log"
+s3api delete-object --bucket "$bucket" --key persistence-test 2>&1
 echo "SeaweedFS package tests passed."

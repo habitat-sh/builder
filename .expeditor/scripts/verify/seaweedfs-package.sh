@@ -15,5 +15,4 @@ env HAB_NONINTERACTIVE=true \
     HAB_STUDIO_SUP=false \
     HAB_INTERNAL_BLDR_CHANNEL="$channel" \
     HAB_STUDIO_SECRET_HAB_INTERNAL_BLDR_CHANNEL="$channel" \
-    hab studio run 'bash /src/.expeditor/scripts/verify/seaweedfs-package-studio.sh' \
-    2>&1 | tee logs/seaweedfs/studio.log
+    hab studio run 'bash /src/.expeditor/scripts/verify/seaweedfs-package-studio.sh'
