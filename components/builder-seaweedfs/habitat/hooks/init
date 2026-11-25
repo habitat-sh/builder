@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+exec 2>&1
+
+# shellcheck disable=SC1091
+source "{{pkg.svc_config_path}}/hook-helper.sh"
+load_config
+chmod 0600 "{{pkg.svc_config_path}}/service.json" "{{pkg.svc_config_path}}/s3.json"
+mkdir -p "{{pkg.svc_data_path}}"/{master,volumes,filer}
+chmod 0700 "{{pkg.svc_data_path}}"/{master,volumes,filer}

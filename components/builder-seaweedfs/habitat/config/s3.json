@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "builder",
+      "credentials": [
+        {
+          "accessKey": {{toJson cfg.key_id}},
+          "secretKey": {{toJson cfg.secret_key}}
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

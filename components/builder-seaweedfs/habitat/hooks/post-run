@@ -1,0 +1,8 @@
+#!/bin/bash
+set -euo pipefail
+exec 2>&1
+
+# shellcheck disable=SC1091
+source "{{pkg.svc_config_path}}/hook-helper.sh"
+load_config
+ensure_bucket

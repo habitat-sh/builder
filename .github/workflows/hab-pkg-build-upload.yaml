@@ -33,6 +33,8 @@ jobs:
               - 'components/builder-memcached/**'
             builder-minio:
               - 'components/builder-minio/**'
+            builder-seaweedfs:
+              - 'components/builder-seaweedfs/**'
             builder-datastore:
               - 'components/builder-datastore/**'
             builder-api:

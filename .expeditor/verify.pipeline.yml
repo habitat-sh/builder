@@ -135,6 +135,21 @@ steps:
             - HAB_ORIGIN=habitat
             - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
+  - label: "[functional] :linux: SeaweedFS package"
+    command:
+      - .expeditor/scripts/verify/seaweedfs-package.sh
+    artifact_paths:
+      - "logs/seaweedfs/build.log"
+      - "logs/seaweedfs/sup.log"
+      - "logs/seaweedfs/test.log"
+    expeditor:
+      executor:
+        docker:
+          privileged: true
+          environment:
+            - HAB_AUTH_TOKEN
+            - HAB_ORIGIN=habitat
+
   - label: "[build] :linux: builder-api-proxy"
     command:
       - hab origin key generate habitat

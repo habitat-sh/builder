@@ -1,0 +1,24 @@
+#!/bin/bash
+set -euo pipefail
+exec 2>&1
+
+# shellcheck disable=SC1091
+source "{{pkg.svc_config_path}}/hook-helper.sh"
+load_config
+
+# Load filer.toml from this directory; all actual state lives under svc_data_path.
+cd "{{pkg.svc_config_path}}"
+exec weed server \
+  -ip=127.0.0.1 -ip.bind=127.0.0.1 \
+  -dir="{{pkg.svc_data_path}}/volumes" \
+  -master.dir="{{pkg.svc_data_path}}/master" \
+  -master.port="$(jq -r '.internal.master_port' "$service_config")" \
+  -master.volumeSizeLimitMB="$(jq -r '.storage.volume_size_limit_mb' "$service_config")" \
+  -master.telemetry=false \
+  -volume.port="$(jq -r '.internal.volume_port' "$service_config")" \
+  -volume.max="$(jq -r '.storage.volume_max' "$service_config")" \
+  -filer -filer.port="$(jq -r '.internal.filer_port' "$service_config")" \
+  -s3 -s3.ip.bind="$bind_address" -s3.port="$bind_port" \
+  -s3.port.grpc="$(jq -r '.internal.s3_grpc_port' "$service_config")" \
+  -s3.config="{{pkg.svc_config_path}}/s3.json" \
+  -s3.iam=false -s3.port.iceberg=0 -s3.port.lance=0
