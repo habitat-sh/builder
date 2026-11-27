@@ -51,6 +51,9 @@ TOML
   hab pkg install core/seaweedfs --channel unstable
   HAB_PREFER_LOCAL_CHEF_DEPS=true build /src/components/builder-seaweedfs \
     2>&1 | tee logs/builder-seaweedfs.build.log || exit $?
+  # Load the exact package built by this job, even after subsequent builds.
+  source /src/results/last_build.env
+  readonly seaweedfs_package=$pkg_ident
   # Build the current API before exercising this branch's multipart implementation.
   build /src/components/builder-api 2>&1 | tee logs/builder-api.build.log || exit $?
   build /src/components/builder-datastore 2>&1 | tee logs/builder-datastore.build.log || exit $?
@@ -67,7 +70,18 @@ until hab svc status >/dev/null 2>&1; do
   sleep 1
 done
 
-echo "--- Starting builder"
+if [[ "$BUILDER_TEST_STORAGE_BACKEND" == seaweedfs ]]; then
+  echo "--- SeaweedFS package checks"
+  hab svc load "$seaweedfs_package"
+  package_load_status=$?
+  [[ "$package_load_status" -eq 0 ]] || exit "$package_load_status"
+  components/builder-seaweedfs/tests/integration.sh \
+    "$BUILDER_TEST_S3_ENDPOINT" "$BUILDER_TEST_S3_BUCKET" "$PWD/logs/sup.log"
+  package_test_status=$?
+  [[ "$package_test_status" -eq 0 ]] || exit "$package_test_status"
+fi
+
+echo "--- Builder API functional checks"
 
 # This fixes the broken handlbars in stable builder with hab v2
 if [[ "$BUILDER_TEST_STORAGE_BACKEND" == minio ]]; then
@@ -75,18 +89,9 @@ if [[ "$BUILDER_TEST_STORAGE_BACKEND" == minio ]]; then
   cp /src/components/builder-api/habitat/config/config.toml "$(hab pkg path habitat/builder-api)/config/"
 fi
 
-start-builder || exit $?
-
-if [[ "$BUILDER_TEST_STORAGE_BACKEND" == seaweedfs ]]; then
-  for ((attempt = 1; attempt <= 60; attempt++)); do
-    if hab pkg exec core/aws-cli aws --endpoint-url "$BUILDER_TEST_S3_ENDPOINT" \
-        --cli-connect-timeout 2 --cli-read-timeout 5 s3api head-bucket \
-        --bucket "$BUILDER_TEST_S3_BUCKET" >/dev/null 2>&1; then break; fi
-    sleep 1
-  done
-  hab pkg exec core/aws-cli aws --endpoint-url "$BUILDER_TEST_S3_ENDPOINT" \
-    s3api head-bucket --bucket "$BUILDER_TEST_S3_BUCKET"
-fi
+start-builder
+startup_status=$?
+[[ "$startup_status" -eq 0 ]] || exit "$startup_status"
 
 while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ]; do
   echo "Waiting for builder-github-app.pem"
