@@ -62,6 +62,19 @@ password = "$PGPASSWORD"
 port = 5433
 EOT
 
+if [[ -n "${BUILDER_TEST_S3_ENDPOINT:-}" ]]; then
+  # Reuse the existing custom S3 configuration for either storage service.
+  cat <<EOT >> /hab/user/builder-api/config/user.toml
+
+[s3]
+backend = "minio"
+endpoint = "$BUILDER_TEST_S3_ENDPOINT"
+bucket_name = "$BUILDER_TEST_S3_BUCKET"
+key_id = "$BUILDER_TEST_S3_KEY_ID"
+secret_key = "$BUILDER_TEST_S3_SECRET_KEY"
+EOT
+fi
+
 mkdir -p /hab/user/builder-api-proxy/config
 cat <<EOT > /hab/user/builder-api-proxy/config/user.toml
 log_level = "info"

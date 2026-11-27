@@ -19,7 +19,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 clean_test_artifacts() {
   echo "Performing DB cleanup"
   local sql origins
-  origins=( neurosis xmen umbrella deletemeifyoucan rcpd )
+  origins=( neurosis xmen umbrella deletemeifyoucan rcpd s3test )
 
   # clean origins
   local origins origin_tables
@@ -94,7 +94,15 @@ if ! [ -d node_modules/mocha ]; then
   npm install mocha
 fi
 
-if npm run mocha; then
+run_tests() {
+  npm run mocha || return $?
+  # Reuse the authenticated fixtures before successful-run cleanup removes them.
+  if [[ "${BUILDER_TEST_S3_MULTIPART:-0}" == 1 ]]; then
+    ./s3.sh || return $?
+  fi
+}
+
+if run_tests; then
   echo "All tests passed"
   [[ "${preserve_data}" == false ]] && clean_test_artifacts
 else
@@ -102,4 +110,4 @@ else
   echo "Tests failed; skipping cleanup to facilitate investigation"
 fi
 
-exit ${mocha_exit_code:-0}
+exit "${mocha_exit_code:-0}"

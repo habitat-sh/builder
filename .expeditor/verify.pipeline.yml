@@ -135,13 +135,11 @@ steps:
             - HAB_ORIGIN=habitat
             - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
-  - label: "[functional] :linux: SeaweedFS package"
+  - label: "[functional] :linux: Builder API (SeaweedFS)"
     command:
-      - .expeditor/scripts/verify/seaweedfs-package.sh
+      - .expeditor/scripts/verify/builder-api-functional.sh seaweedfs
     artifact_paths:
-      - "logs/seaweedfs/build.log"
-      - "logs/seaweedfs/sup.log"
-      - "logs/seaweedfs/test.log"
+      - "logs/**/*"
     expeditor:
       executor:
         docker:
@@ -149,6 +147,7 @@ steps:
           environment:
             - HAB_AUTH_TOKEN
             - HAB_ORIGIN=habitat
+            - HAB_STUDIO_SECRET_NODE_OPTIONS="--dns-result-order=ipv4first"
 
   - label: "[build] :linux: builder-api-proxy"
     command:

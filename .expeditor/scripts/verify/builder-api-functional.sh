@@ -3,6 +3,11 @@
 set -euo pipefail
 
 readonly channel='acceptance'
+readonly storage_backend=${1:-minio}
+case "$storage_backend" in
+  minio|seaweedfs) ;;
+  *) echo "Usage: $0 [minio|seaweedfs]" >&2; exit 1 ;;
+esac
 
 # 10/11/2024: We need to use the most recent hab binary that is not yet in stable
 # to build against LTS without conflicts with existing stable packages
@@ -30,4 +35,5 @@ env HAB_NONINTERACTIVE=true \
     HAB_STUDIO_SUP=false \
     HAB_INTERNAL_BLDR_CHANNEL="${channel}" \
     HAB_STUDIO_SECRET_HAB_INTERNAL_BLDR_CHANNEL="${channel}" \
+    HAB_STUDIO_SECRET_BUILDER_TEST_STORAGE_BACKEND="$storage_backend" \
     hab studio enter

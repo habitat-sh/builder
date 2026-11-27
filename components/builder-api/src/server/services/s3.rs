@@ -27,7 +27,6 @@
 use std::{fmt::Display,
           fs::File,
           io::{self,
-               BufRead,
                BufReader,
                Read,
                Write},
@@ -57,10 +56,12 @@ use crate::{bldr_core::metrics::CounterMetric,
             server::error::{Error,
                             Result}};
 
-// This const is equal to 6MB which is slightly above
-// the minimum limit for a multipart upload request
-// to s3. Any package over 6MB on upload will use this api
-const MINLIMIT: usize = 10240 * 1024;
+// Objects at least 10 MiB use multipart uploads, with 10 MiB parts.
+const MULTIPART_PART_SIZE: usize = 10 * 1024 * 1024;
+
+#[cfg(test)]
+#[path = "s3_tests.rs"]
+mod compatibility_tests;
 
 pub struct S3Handler {
     client: S3Client,
@@ -140,7 +141,7 @@ impl S3Handler {
 
         match request.send().await {
             Ok(object) => {
-                info!("Verified {} was written to minio!", object_key);
+                info!("Verified {} was written to S3 storage", object_key);
                 debug!("Head Object check returned: {:?}", object);
                 Ok(())
             }
@@ -180,7 +181,7 @@ impl S3Handler {
         let size = file.metadata().unwrap().len() as usize;
         let fqpi = hart_path.to_str().unwrap();
 
-        if size < MINLIMIT {
+        if size < MULTIPART_PART_SIZE {
             self.single_upload(&key, file, &fqpi).await?;
         } else {
             self.multipart_upload(&key, file, &fqpi).await?;
@@ -327,7 +328,7 @@ impl S3Handler {
         let mut reader = BufReader::new(hart);
         let mut object: Vec<u8> = Vec::new();
         let bucket = self.bucket.clone();
-        let _complete = reader.read_to_end(&mut object).map_err(Error::IO);
+        reader.read_to_end(&mut object).map_err(Error::IO)?;
 
         let request = self.client
                           .put_object()
@@ -357,78 +358,89 @@ impl S3Handler {
                                                           -> Result<()> {
         Counter::MultipartUploadRequests.increment();
         let start_time = Instant::now();
-        let mut p: Vec<CompletedPart> = Vec::new();
-        let mprequest = self.client
-                            .create_multipart_upload()
-                            .key(key.to_string())
-                            .bucket(self.bucket.clone());
+        info!("S3Handler::multipart_upload started for s3_key: {}", key);
+        let output = self.client
+                         .create_multipart_upload()
+                         .key(key)
+                         .bucket(&self.bucket)
+                         .send()
+                         .await?;
+        let upload_id =
+            output.upload_id
+                  .ok_or_else(|| {
+                      Error::IO(io::Error::other("S3 did not return a multipart upload ID"))
+                  })?;
 
-        match mprequest.send().await {
-            Ok(output) => {
-                let mut reader = BufReader::with_capacity(MINLIMIT, hart);
-                let mut part_num: i64 = 0;
-                let mut should_break = false;
-                loop {
-                    let length;
-                    {
-                        let buffer = reader.fill_buf().map_err(Error::IO)?;
-                        length = buffer.len();
-                        if length < MINLIMIT {
-                            should_break = true;
-                        }
-                        part_num += 1;
+        // Abort any session that fails after creation, including read/completion errors.
+        let result: Result<usize> = async {
+                                        let mut reader = BufReader::new(hart);
+                                        let mut parts = Vec::new();
+                                        loop {
+                                            // Fill the part across short reads and never send an
+                                            // empty trailing part.
+                                            let mut part = Vec::with_capacity(MULTIPART_PART_SIZE);
+                                            reader.by_ref()
+                                                  .take(MULTIPART_PART_SIZE as u64)
+                                                  .read_to_end(&mut part)
+                                                  .map_err(Error::IO)?;
+                                            if part.is_empty() {
+                                                break;
+                                            }
+                                            let part_number = (parts.len() + 1) as i32;
+                                            let uploaded = self.client
+                                                               .upload_part()
+                                                               .key(key)
+                                                               .bucket(&self.bucket)
+                                                               .upload_id(&upload_id)
+                                                               .part_number(part_number)
+                                                               .body(ByteStream::from(part))
+                                                               .send()
+                                                               .await?;
+                                            let etag = uploaded.e_tag.ok_or_else(|| {
+                                                  Error::IO(io::Error::other("S3 did not return \
+                                                                              an uploaded part \
+                                                                              ETag"))
+                                              })?;
+                                            parts.push(CompletedPart::builder().e_tag(etag)
+                                                       .part_number(part_number)
+                                                       .build());
+                                        }
+                                        let count = parts.len();
+                                        self.client
+                    .complete_multipart_upload()
+                    .key(key)
+                    .bucket(&self.bucket)
+                    .upload_id(&upload_id)
+                    .multipart_upload(CompletedMultipartUpload::builder().set_parts(Some(parts))
+                                                                         .build())
+                    .send()
+                    .await?;
+                                        Ok(count)
+                                    }.await;
 
-                        let request = self.client
-                                          .upload_part()
-                                          .key(key.to_string())
-                                          .bucket(self.bucket.clone())
-                                          .upload_id(output.upload_id.clone().unwrap())
-                                          .body(ByteStream::from(buffer.to_vec()))
-                                          .part_number(part_num as i32);
-
-                        match request.send().await {
-                            Ok(upo) => {
-                                p.push(CompletedPart::builder().set_e_tag(upo.e_tag)
-                                                               .part_number(part_num as i32)
-                                                               .build());
-                            }
-                            Err(e) => {
-                                debug!("{:?}", e);
-                                return Err(e.into());
-                            }
-                        }
-                    }
-                    reader.consume(length);
-                    if should_break {
-                        break;
-                    }
-                }
-
-                let completion =
-                    self.client
-                        .complete_multipart_upload()
-                        .key(key.to_string())
-                        .bucket(self.bucket.clone())
-                        .upload_id(output.upload_id.unwrap())
-                        .multipart_upload(CompletedMultipartUpload::builder().set_parts(Some(p))
-                                                                             .build());
-
-                match completion.send().await {
-                    Ok(_) => {
-                        info!("Upload completed for {} (in {} sec):",
-                              path_attr,
-                              start_time.elapsed().as_secs_f64());
-                        Ok(())
-                    }
-                    Err(e) => {
-                        warn!("Upload failed for {}: ({:?})", path_attr, e);
-                        Err(e.into())
-                    }
-                }
+        match result {
+            Ok(parts) => {
+                info!("Multipart upload completed for {} with {} parts (in {} sec)",
+                      path_attr,
+                      parts,
+                      start_time.elapsed().as_secs_f64());
+                Ok(())
             }
-            Err(e) => {
-                debug!("{:?}", e);
-                Err(e.into())
+            Err(error) => {
+                Counter::UploadFailures.increment();
+                if let Err(abort_error) = self.client
+                                              .abort_multipart_upload()
+                                              .key(key)
+                                              .bucket(&self.bucket)
+                                              .upload_id(&upload_id)
+                                              .send()
+                                              .await
+                {
+                    warn!("Failed to abort multipart upload {} for {}: {:?}",
+                          upload_id, key, abort_error);
+                }
+                warn!("Multipart upload failed for {}: {:?}", path_attr, error);
+                Err(error)
             }
         }
     }

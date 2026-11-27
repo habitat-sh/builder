@@ -1,57 +1,21 @@
 #!/bin/bash
-# This test requires an isolated CI Studio; it never starts Builder or MinIO.
+# Package checks against the functional job's already-running SeaweedFS service.
+# Supervisor and service setup/teardown belong to the shared Studio setup.
 set -euo pipefail
-cd /src
 
-readonly logs=/src/logs/seaweedfs
+readonly endpoint=${1:?Usage: integration.sh ENDPOINT BUCKET SUPERVISOR_LOG}
+readonly bucket=${2:?Usage: integration.sh ENDPOINT BUCKET SUPERVISOR_LOG}
+readonly supervisor_log=${3:?Usage: integration.sh ENDPOINT BUCKET SUPERVISOR_LOG}
 readonly service=habitat/builder-seaweedfs
-readonly endpoint=http://127.0.0.1:19090
-readonly bucket=builder-seaweedfs-ci
-mkdir -p "$logs"
-# Keep assertion files out of the artifacts and clean them up on every exit path.
-workdir=$(mktemp -d)
-readonly workdir
-trap 'rm -rf "$workdir"' EXIT
-
-if hab svc status >/dev/null 2>&1; then
-  echo "SeaweedFS package tests require a Studio without a running Supervisor." >&2
-  exit 1
-fi
-
-# Only SeaweedFS needs unstable. Other dependencies retain the pipeline defaults.
-hab pkg install core/seaweedfs --channel unstable
-echo "--- Building builder-seaweedfs"
-HAB_PREFER_LOCAL_CHEF_DEPS=true build /src/components/builder-seaweedfs \
-  2>&1 | tee "$logs/build.log"
-# shellcheck disable=SC1091
-source /src/results/last_build.env
-readonly package="$pkg_ident"
-
-# Stream tests to the console and test.log; keep Supervisor output separate.
-exec 3>&1
-exec > >(tee "$logs/test.log") 2>&1
-
-mkdir -p /hab/user/builder-seaweedfs/config
-# Fixed, non-production credentials with characters that must survive rendering.
-cat >/hab/user/builder-seaweedfs/config/user.toml <<'TOML'
-bind_address = "127.0.0.1"
-bind_port = 19090
-bucket_name = "builder-seaweedfs-ci"
-key_id = "builder-seaweedfs-ci"
-secret_key = 'ci-"quote-$dollar-`backtick`-\backslash'
-[storage]
-volume_max = 8
-volume_size_limit_mb = 64
-TOML
-chmod 0600 /hab/user/builder-seaweedfs/config/user.toml
-
-export AWS_ACCESS_KEY_ID=builder-seaweedfs-ci
-# Intentionally literal: exercise JSON escaping without evaluating shell syntax.
-# shellcheck disable=SC2016
-export AWS_SECRET_ACCESS_KEY='ci-"quote-$dollar-`backtick`-\backslash'
+readonly package=$service
+: "${AWS_ACCESS_KEY_ID:?Configure the service access key}"
+: "${AWS_SECRET_ACCESS_KEY:?Configure the service secret key}"
 export AWS_DEFAULT_REGION=us-east-1 AWS_MAX_ATTEMPTS=1
 export AWS_EC2_METADATA_DISABLED=true AWS_PAGER=""
 export AWS_CONFIG_FILE=/dev/null AWS_SHARED_CREDENTIALS_FILE=/dev/null
+workdir=$(mktemp -d)
+readonly workdir
+trap 'rm -rf "$workdir"' EXIT
 
 s3api() {
   hab pkg exec "$package" aws --endpoint-url "$endpoint" \
@@ -66,13 +30,8 @@ wait_for() {
     if "$@"; then return 0; fi
     sleep 1
   done
-  echo "Timed out waiting for $message; see logs/seaweedfs." >&2
+  echo "Timed out waiting for $message; see the Supervisor log." >&2
   return 1
-}
-
-supervisor_ready() {
-  # Connection failures are expected while the Supervisor is starting.
-  hab svc status >"$workdir/supervisor-readiness.log" 2>&1
 }
 
 bucket_ready() {
@@ -96,27 +55,6 @@ persistent_object_ready() {
     "$workdir/persistence-download.txt" 2>&1
 }
 
-cleanup() {
-  local result=$?
-  trap - EXIT
-  hab svc status 2>&1 || true
-  hab sup term 2>&1 || true
-  wait "$supervisor_pid" || true
-  rm -rf "$workdir"
-  exit "$result"
-}
-
-echo "--- Starting Supervisor and SeaweedFS"
-# Process substitution streams output while keeping $! as the Supervisor PID.
-hab sup run --no-color > >(tee "$logs/sup.log" >&3) 2>&1 &
-supervisor_pid=$!
-trap cleanup EXIT
-if ! wait_for Supervisor supervisor_ready; then
-  cat "$workdir/supervisor-readiness.log" >&2
-  tail -n 60 "$logs/sup.log" >&2
-  exit 1
-fi
-hab svc load "$package"
 wait_for 'automatic artifact bucket creation' bucket_ready
 
 echo "--- Checking credential-file permissions and rendered JSON"
@@ -126,7 +64,7 @@ for config in service.json s3.json; do
 done
 
 echo "--- Testing S3 upload, download, and deletion"
-hab pkg exec "$package" bash /src/components/builder-seaweedfs/tests/smoke.sh \
+hab pkg exec "$package" bash "$(dirname "${BASH_SOURCE[0]}")/smoke.sh" \
   "$endpoint" "$bucket" 2>&1
 
 echo "--- Checking that incorrect credentials are rejected"
@@ -152,6 +90,6 @@ wait_for 'persisted object to become readable after restart' persistent_object_r
 cmp "$workdir/persistence-source.txt" "$workdir/persistence-download.txt"
 # The existing bucket must be reused, rather than recreated, on restart.
 wait_for 'idempotent bucket initialization' \
-  grep -q 'SeaweedFS artifact bucket is ready.' "$logs/sup.log"
+  grep -q 'SeaweedFS artifact bucket is ready.' "$supervisor_log"
 s3api delete-object --bucket "$bucket" --key persistence-test 2>&1
 echo "SeaweedFS package tests passed."
