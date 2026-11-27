@@ -25,12 +25,42 @@ hab pkg exec core/openssl openssl genrsa \
 
 echo "--- Creating log directory"
 mkdir -p logs
+export BUILDER_TEST_STORAGE_BACKEND=${BUILDER_TEST_STORAGE_BACKEND:-minio}
+# Exercise the same signed multipart test against both storage services.
+export BUILDER_TEST_S3_MULTIPART=1
+if [[ "$BUILDER_TEST_STORAGE_BACKEND" == seaweedfs ]]; then
+  export BUILDER_TEST_S3_ENDPOINT=http://127.0.0.1:19090
+  export BUILDER_TEST_S3_BUCKET=builder-api-seaweedfs-ci
+  export BUILDER_TEST_S3_KEY_ID=builder-api-ci
+  export BUILDER_TEST_S3_SECRET_KEY=builder-api-ci-test-secret
+  export AWS_ACCESS_KEY_ID=$BUILDER_TEST_S3_KEY_ID
+  export AWS_SECRET_ACCESS_KEY=$BUILDER_TEST_S3_SECRET_KEY
+  export AWS_DEFAULT_REGION=us-east-1 AWS_EC2_METADATA_DISABLED=true AWS_PAGER=""
+  mkdir -p /hab/user/builder-seaweedfs/config
+  cat >/hab/user/builder-seaweedfs/config/user.toml <<'TOML'
+bind_address = "127.0.0.1"
+bind_port = 19090
+bucket_name = "builder-api-seaweedfs-ci"
+key_id = "builder-api-ci"
+secret_key = "builder-api-ci-test-secret"
+[storage]
+volume_max = 8
+volume_size_limit_mb = 64
+TOML
+  chmod 0600 /hab/user/builder-seaweedfs/config/user.toml
+  hab pkg install core/seaweedfs --channel unstable
+  HAB_PREFER_LOCAL_CHEF_DEPS=true build /src/components/builder-seaweedfs \
+    2>&1 | tee logs/builder-seaweedfs.build.log || exit $?
+  # Build the current API before exercising this branch's multipart implementation.
+  build /src/components/builder-api 2>&1 | tee logs/builder-api.build.log || exit $?
+  build /src/components/builder-datastore 2>&1 | tee logs/builder-datastore.build.log || exit $?
+fi
 echo "--- Starting the supervisor"
 if pgrep hab-sup >/dev/null 2>&1; then
   echo "Before attempting to start a hab-sup a hab-sup process was found, exiting"
   exit 1
 fi
-env HAB_FUNC_TEST=1 hab sup run >logs/sup.log 2>&1 &
+env HAB_FUNC_TEST=1 hab sup run > >(tee logs/sup.log) 2>&1 &
 
 until hab svc status >/dev/null 2>&1; do
   echo "waiting for hab sup to start"
@@ -40,10 +70,23 @@ done
 echo "--- Starting builder"
 
 # This fixes the broken handlbars in stable builder with hab v2
-hab pkg install habitat/builder-api --channel stable
-cp /src/components/builder-api/habitat/config/config.toml $(hab pkg path habitat/builder-api)/config/
+if [[ "$BUILDER_TEST_STORAGE_BACKEND" == minio ]]; then
+  hab pkg install habitat/builder-api --channel stable
+  cp /src/components/builder-api/habitat/config/config.toml "$(hab pkg path habitat/builder-api)/config/"
+fi
 
-start-builder
+start-builder || exit $?
+
+if [[ "$BUILDER_TEST_STORAGE_BACKEND" == seaweedfs ]]; then
+  for ((attempt = 1; attempt <= 60; attempt++)); do
+    if hab pkg exec core/aws-cli aws --endpoint-url "$BUILDER_TEST_S3_ENDPOINT" \
+        --cli-connect-timeout 2 --cli-read-timeout 5 s3api head-bucket \
+        --bucket "$BUILDER_TEST_S3_BUCKET" >/dev/null 2>&1; then break; fi
+    sleep 1
+  done
+  hab pkg exec core/aws-cli aws --endpoint-url "$BUILDER_TEST_S3_ENDPOINT" \
+    s3api head-bucket --bucket "$BUILDER_TEST_S3_BUCKET"
+fi
 
 while ! [ -f "/hab/svc/builder-api/files/builder-github-app.pem" ]; do
   echo "Waiting for builder-github-app.pem"
@@ -70,18 +113,20 @@ echo "--- Building changed builder components"
 # NOTE: While building builder-api there is repeating error that can be
 # recognized by "Crypto error: No revisions found for bldr". We might be able
 # prevent it but things will self-correct and the script will continue.
-echo "--- Building builder-api"
-echo "Redirecting log output; See build artifact 'builder-api.build.log'"
-build-builder api >logs/builder-api.build.log 2>&1
+if [[ "$BUILDER_TEST_STORAGE_BACKEND" == minio ]]; then
+  echo "--- Building builder-api"
+  echo "Redirecting log output; See build artifact 'builder-api.build.log'"
+  build-builder api >logs/builder-api.build.log 2>&1
 
-echo "--- Building builder-datastore"
-echo "Redirecting log output; See build artifact 'builder-datastore.build.log'"
-build-builder datastore >logs/builder-datastore.build.log 2>&1
+  echo "--- Building builder-datastore"
+  echo "Redirecting log output; See build artifact 'builder-datastore.build.log'"
+  build-builder datastore >logs/builder-datastore.build.log 2>&1
 
-echo "--- Building builder-minio"
-echo "Redirecting log output; See build artifact 'builder-minio.build.log'"
-build-builder minio >logs/builder-minio.build.log 2>&1
-sleep 10
+  echo "--- Building builder-minio"
+  echo "Redirecting log output; See build artifact 'builder-minio.build.log'"
+  build-builder minio >logs/builder-minio.build.log 2>&1
+  sleep 10
+fi
 
 echo "--- Waiting for services to start"
 while hab svc status | grep --quiet down; do
@@ -104,6 +149,6 @@ hab pkg uninstall rcpd/testapp
 hab pkg delete rcpd/testapp/0.1.0/20200401202136 -u http://localhost:9636 --auth bobo
 
 echo "--- :mocha: Running tests"
-test/builder-api/test.sh
+test/builder-api/test.sh || exit $?
 # Explicitly exit with the tests status, as we're in a studio at this point
 exit $?

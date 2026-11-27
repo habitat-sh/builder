@@ -140,20 +140,25 @@ _start-builder() {
     start-builder memcached
     start-builder api
     start-builder api-proxy
-    start-builder minio
-    # Provide enough time for minio's reconfigure hook to create the bucket.
-    # Otherwise, the configure operation will error and exit this function.
-    sleep 8
-    configure-minio
+    if [[ "${BUILDER_TEST_STORAGE_BACKEND:-minio}" == seaweedfs ]]; then
+      start-builder seaweedfs
+    else
+      start-builder minio
+      # Allow MinIO's reconfigure hook to create the bucket.
+      sleep 8
+      configure-minio
+    fi
 
     upload_github_keys
     local rv=$?
 
     echo "Builder Started: Navigate to http://localhost/#/pkgs/core to access the web UI."
-    echo "Minio login available at http://localhost:9000"
-    echo "Username: depot"
-    echo "Password: password"
-    echo "AWS-CLI ENVVARS have been set with these values"
+    if [[ "${BUILDER_TEST_STORAGE_BACKEND:-minio}" != seaweedfs ]]; then
+      echo "Minio login available at http://localhost:9000"
+      echo "Username: depot"
+      echo "Password: password"
+      echo "AWS-CLI ENVVARS have been set with these values"
+    fi
     # shellcheck disable=SC2320
     return $?
   fi
@@ -211,12 +216,13 @@ declare -A svc_params=(
   [api]="        -s at-once --bind memcached:builder-memcached.default"
   [api-proxy]="             --bind http:builder-api.default"
   [minio]="      -s at-once"
+  [seaweedfs]="  -s at-once"
   [memcached]="  -s at-once"
 )
 
 _stop-builder() {
   if [[ "$#" -eq 0 ]]; then
-    stop-builder api api-proxy datastore minio memcached
+    stop-builder api api-proxy datastore "${BUILDER_TEST_STORAGE_BACKEND:-minio}" memcached
     return $?
   fi
 
